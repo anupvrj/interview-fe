@@ -1,94 +1,94 @@
 /**
- * Saffron Line Template - Dummy Content
- * Matches saffron-line-preview.webp sample (Elio Giordano).
+ * Sample content for the saffron-line template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const saffronlineDummyContent = {
   personalInfo: {
-    fullName: "Elio Giordano",
-    email: "elio.giordano@email.com",
-    phone: "+39 345 678 9012",
-    location: "Milan, Italy",
-    linkedin: "linkedin.com/in/elio-giordano",
-    github: "github.com/eliogiordano",
-    website: "eliogiordano.dev",
-    portfolio: "Full-Stack Web Developer",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    github: "github.com/your-username",
+    website: "your-website.example.com",
+    portfolio: "Your Title",
     profilePicture: "",
   },
-
-  profileSummary:
-    "Full-Stack Web Developer with experience building scalable web applications using Java, Spring Boot, and modern JavaScript frameworks. Strong background in REST APIs, relational databases, and agile delivery.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Full-Stack Developer",
-      company: "TechNova Solutions",
-      location: "Milan, Italy",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2021-01",
       endDate: "",
       current: true,
       description: [
-        "Developed and maintained full-stack web applications using Spring Boot, React, and PostgreSQL.",
-        "Designed RESTful APIs and optimized database queries, improving response times by 30%.",
-        "Collaborated with cross-functional teams in an agile environment to deliver features on schedule.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Junior Web Developer",
-      company: "DigitalCraft Labs",
-      location: "Rome, Italy",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2018-06",
       endDate: "2020-12",
       current: false,
       description: [
-        "Built responsive front-end interfaces with HTML5, CSS3, and JavaScript.",
-        "Assisted in backend development with Java and Node.js.",
-        "Participated in code reviews and unit testing practices.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   education: [
     {
-      degree: "Bachelor of Science in Computer Science",
-      institution: "University of Milan",
-      location: "Milan, Italy",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2014",
       endDate: "2018",
       gpa: "",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   skills: {
-    programmingLanguages: "Java, JavaScript, TypeScript, HTML5, CSS3",
-    frameworksLibraries:
-      "Spring Boot, Thymeleaf, React, Node.js, Express.js",
-    coreConcepts:
-      "Object-Oriented Programming (OOP), Full-Stack Web Development, Relational Databases",
-    developerTools:
-      "Git, Adobe Creative Suite (Photoshop, Illustrator, InDesign)",
+    programmingLanguages: "Sample Skill 1, Sample Skill 2, Sample Skill 3",
+    frameworksLibraries: "Sample Skill 4, Sample Skill 5, Sample Skill 6",
+    coreConcepts: "Sample Skill 7, Sample Skill 8, Sample Skill 9",
+    developerTools: "Sample Skill 10, Sample Skill 11, Sample Skill 12",
   },
-
   projects: [
     {
-      name: "E-Commerce Platform",
-      description:
-        "Built a full-stack e-commerce application with Spring Boot backend and React frontend.",
-      technologies: ["Spring Boot", "React", "PostgreSQL"],
+      name: "Sample Project 1",
+      description: "Sample project — describe what you built, the tools you used and the result.",
+      technologies: ["Sample Tool 1", "Sample Tool 2", "Sample Tool 3"],
       startDate: "2022",
       endDate: "2023",
     },
   ],
-
   certificates: [],
   achievements: [],
   languages: [
-    { name: "Italian", level: 5 },
-    { name: "French", level: 4 },
-    { name: "English", level: 4 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 4,
+    },
   ],
-  interests: "",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default saffronlineDummyContent;

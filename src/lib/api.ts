@@ -1915,6 +1915,12 @@ export interface AdminResumeTemplateRow {
   resumeCount: number;
 }
 
+/** One sample-data finding from POST /resumes/placeholder-check. */
+export interface ResumePlaceholderIssue {
+  field: string;
+  message: string;
+}
+
 export const resumeApi = {
   /**
    * Get All Templates
@@ -1972,6 +1978,22 @@ export const resumeApi = {
       data,
     );
     return response.data.data;
+  },
+
+  /**
+   * Sample/placeholder data in the resume's key fields ("Your Name", "Sample Job 1", …).
+   * The server owns the rules (same check gates hackathon submission). Posts the
+   * content so unsaved editor edits are checked.
+   */
+  checkPlaceholders: async (
+    content: Resume["content"] | undefined,
+  ): Promise<ResumePlaceholderIssue[]> => {
+    if (!content) return [];
+    const response = await apiClient.post<{ data: { issues: ResumePlaceholderIssue[] } }>(
+      "/resumes/placeholder-check",
+      { content },
+    );
+    return response.data.data.issues ?? [];
   },
 
   list: async (userId: string): Promise<Resume[]> => {

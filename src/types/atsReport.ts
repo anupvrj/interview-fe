@@ -129,7 +129,16 @@ export interface ATSCheckResult {
     totalBullets?: number;
     quantifiedBullets?: number;
     outOfRangeBullets?: number;
+    metricRolesTotal?: number;
+    metricRolesSatisfied?: number;
   };
+  /** Optional tip — never lowers the ATS score or issue counts. */
+  advisory?: boolean;
+}
+
+/** Optional tips (e.g. adding numbers to bullets). Older reports lack the flag. */
+export function isAdvisoryCheck(check: Pick<ATSCheckResult, "id" | "advisory">): boolean {
+  return check.advisory === true || check.id === "quantifyingImpact";
 }
 
 export interface ATSCategoryResult {

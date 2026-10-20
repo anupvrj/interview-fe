@@ -1,113 +1,125 @@
 /**
- * Royal Indigo Template - Dummy Content
- * Matches royal-indigo-preview.webp sample.
+ * Sample content for the royal-indigo template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const royalindigoDummyContent = {
   personalInfo: {
-    fullName: "Jacqueline Thompson",
-    email: "hello@reallygreatsite.com",
-    phone: "123-456-7890",
-    location: "Any City",
-    linkedin: "www.reallygreatsite.com",
-    portfolio: "",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Results-oriented Engineering Executive with a proven track record of optimizing project outcomes. Skilled in strategic project management and team leadership. Seeking a challenging executive role to leverage technical expertise and drive engineering excellence.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Engineering Executive",
-      company: "Borcelle Technologies",
-      location: "",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2023-01",
       endDate: "",
       current: true,
       description: [
-        "Developed cost-efficient strategies that led to a 20% decrease in project expenses.",
-        "Optimized project workflows, improving overall efficiency by 25%.",
-        "Directed a team to successfully complete a complex engineering project on schedule and within the designated budget.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Project Engineer",
-      company: "Salford & Co",
-      location: "",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2019-03",
       endDate: "2022-12",
       current: false,
       description: [
-        "Managed project timelines, reducing delivery times by 30%.",
-        "Spearheaded the adoption of cutting-edge engineering software, improving project accuracy by 15%.",
-        "Collaborated with cross-functional teams, enhancing project success rates by 10%.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Graduate Engineer",
-      company: "Arowwai Industries",
-      location: "",
+      position: "Sample Job 3",
+      company: "Sample Company 3",
+      location: "Sample City, Country",
       startDate: "2020-02",
       endDate: "2021-01",
       current: false,
       description: [
-        "Coordinated project tasks, ensuring adherence to engineering standards and regulations.",
-        "Conducted comprehensive project analyses, identifying and rectifying discrepancies in engineering designs.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
       ],
     },
   ],
-
   education: [
     {
-      degree: "Master of Science in Mechanical Engineering",
-      institution: "University of Engineering and Technology",
-      location: "",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2019",
       endDate: "2020",
       gpa: "",
-      description: "Specialization in Advanced Manufacturing.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Bachelor of Science in Civil Engineering",
-      institution: "City College of Engineering",
-      location: "",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2015",
       endDate: "2019",
       gpa: "",
-      description: "Relevant coursework in Structural Design and Project Management.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   skills: [
-    "Project Management",
-    "Structural Analysis",
-    "Robotics and Automation",
-    "CAD",
-    "Team Leadership",
-    "Process Optimization",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
   ],
-
   projects: [],
   certificates: [
-    { name: "Professional Engineer (PE) License", issuer: "", date: "" },
-    { name: "Project Management Professional (PMP)", issuer: "", date: "" },
+    {
+      name: "Sample Certificate 1",
+      issuer: "Sample Organisation 1",
+      date: "",
+    },
+    {
+      name: "Sample Certificate 2",
+      issuer: "Sample Organisation 2",
+      date: "",
+    },
   ],
   achievements: [],
   awards: [
     {
-      title: "Engineering Excellence Award",
-      issuer: "Borcelle Technologies",
+      title: "Sample Award 1",
+      issuer: "Sample Organisation 1",
       date: "",
-      description:
-        "Received the 'Engineering Excellence' Award for outstanding contributions to project innovation, Borcelle Technologies.",
+      description: "Sample — describe what the award was for.",
     },
   ],
   languages: [
-    { name: "English", level: 5 },
-    { name: "Malay", level: 4 },
-    { name: "German", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-  interests: "",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default royalindigoDummyContent;

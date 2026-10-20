@@ -1,5 +1,6 @@
 "use client";
 
+import { isAdvisoryCheck } from "@/types/atsReport";
 import { CheckPanelRouter } from "./panels/CheckPanelRouter";
 
 interface ATSCheckDetailPanelProps {
@@ -38,6 +39,11 @@ export function ATSCheckDetailPanel({
           <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">
             {check.description}
           </p>
+          {isAdvisoryCheck(check) ? (
+            <p className="mt-2 inline-flex rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              Optional tip — doesn&apos;t affect your ATS score
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-row items-center gap-2 sm:flex-col sm:items-end">
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold tabular-nums">
@@ -45,7 +51,8 @@ export function ATSCheckDetailPanel({
           </span>
           {check.issueCount > 0 && (
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {check.issueCount} issue{check.issueCount !== 1 ? "s" : ""}
+              {check.issueCount} {isAdvisoryCheck(check) ? "tip" : "issue"}
+              {check.issueCount !== 1 ? "s" : ""}
             </span>
           )}
         </div>

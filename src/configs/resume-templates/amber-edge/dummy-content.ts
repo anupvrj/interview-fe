@@ -1,90 +1,93 @@
 /**
- * Amber Edge Template - Dummy Content
- * Process engineering sample.
+ * Sample content for the amber-edge template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const amberedgeDummyContent = {
   personalInfo: {
-    fullName: "Estelle Darcy",
-    email: "hello@reallygreatsite.com",
-    phone: "",
-    location: "Any City",
-    linkedin: "www.reallygreatsite.com",
-    portfolio: "Process Engineer",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Practical Engineer with significant experience in process design. I have worked with several organizations, ensuring a grounded approach to my profession, leveraging my expertise to optimize processes and deliver innovative solutions that meet business objectives.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   skills: [
-    "Prototyping Tools",
-    "User Research",
-    "Interaction Design",
-    "Visual Design",
-    "Accessibility",
-    "Responsive Design",
-    "Process Optimization",
-    "Technical Documentation",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
+    "Sample Skill 7",
+    "Sample Skill 8",
   ],
-
   experience: [
     {
-      position: "Instrument Tech",
-      company: "Morcelle Program",
-      location: "",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2024-01",
       endDate: "",
       current: true,
       description: [
-        "Led development of an advanced automation system, achieving a 15% increase in operational efficiency.",
-        "Streamlined manufacturing processes, reducing production costs by 10%.",
-        "Implemented preventive maintenance strategies, resulting in a 20% decrease in equipment downtime.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Internship",
-      company: "XarrowAI Industries",
-      location: "",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2022-06",
       endDate: "2022-08",
       current: false,
       description: [
-        "Designed and optimised a robotic control system, realizing a 12% performance improvement.",
-        "Coordinated testing and validation, ensuring compliance with industry standards.",
-        "Provided technical expertise, contributing to a 15% reduction in system failures.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   projects: [
     {
-      name: "Industrial Basics and General Application",
-      description:
-        "Automotive technology study covering technological advancements within the current chemical and process industry.",
-      technologies: ["Process Design", "Automation"],
+      name: "Sample Project 1",
+      description: "Sample project — describe what you built, the tools you used and the result.",
+      technologies: ["Sample Tool 1", "Sample Tool 2"],
     },
   ],
-
   education: [
     {
-      degree: "Bachelor of Design in Process Engineering",
-      institution: "Engineering University",
-      location: "",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2019",
       endDate: "2023",
       gpa: "",
-      description: "Relevant coursework in Process Design and Project Management.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   certificates: [],
   achievements: [],
   languages: [
-    { name: "English", level: 5 },
-    { name: "French", level: 4 },
-    { name: "Mandarin", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-  interests: "Professional Design Engineer (PDE) License, Structural Process Design (SPD)",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default amberedgeDummyContent;

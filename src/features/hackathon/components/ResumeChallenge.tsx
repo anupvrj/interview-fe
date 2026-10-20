@@ -15,6 +15,7 @@ import {
   useSubmitHackathonResume,
 } from "../hooks";
 import { ResumeScoreDialog, type ResumeScorePhase } from "./ResumeScoreDialog";
+import { ResumePlaceholderDialog } from "./ResumePlaceholderDialog";
 import { HackathonChallengeSuccessModal } from "../celebration/HackathonChallengeSuccessModal";
 
 /** Query flag the resume editor adds after "Save and return to Hackathon" re-submits. */
@@ -83,7 +84,10 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
     setSelectedId(preferred.resumeId);
   }, [me.preferredResumeId, options, selectedId]);
   const selected = options.find((r) => r.resumeId === selectedId);
-  const error = submit.error ? toHackathonError(submit.error) : null;
+  /** Sample data found while analysing or submitting — listed in a pop-up with "Fix my resume". */
+  const [placeholderPopup, setPlaceholderPopup] = useState<{ issues: string[]; resumeId: string | null } | null>(null);
+  const submitError = submit.error ? toHackathonError(submit.error) : null;
+  const error = submitError?.code === "RESUME_HAS_PLACEHOLDERS" ? null : submitError;
 
   // ---- Score pop-up: analyse → (update | submit) → complete -------------------------
   const preview = usePreviewResumeScore();
@@ -105,7 +109,20 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
     setDialogOpen(true);
   }, [me.resume]);
 
+  /** Sample-data rejections swap the score pop-up for the sample-data pop-up. */
+  const handlePlaceholderError = (err: unknown) => {
+    const e = toHackathonError(err);
+    if (e.code !== "RESUME_HAS_PLACEHOLDERS") return false;
+    setDialogOpen(false);
+    setPlaceholderPopup({
+      issues: placeholderMessages(e.details?.issues),
+      resumeId: typeof e.details?.resumeId === "string" ? e.details.resumeId : dialogResumeId,
+    });
+    return true;
+  };
+
   const analyse = (resumeId: string) => {
+    setPlaceholderPopup(null);
     setDialogResumeId(resumeId);
     setDialogScore(null);
     setDialogError(null);
@@ -118,6 +135,7 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
         setPhase("scored");
       },
       onError: (err) => {
+        if (handlePlaceholderError(err)) return;
         setDialogError(toHackathonError(err).message);
         setPhase("scored");
       },
@@ -135,6 +153,7 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
         setPhase("submitted");
       },
       onError: (err) => {
+        if (handlePlaceholderError(err)) return;
         setDialogError(toHackathonError(err).message);
         setPhase("scored");
       },
@@ -189,6 +208,14 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
         errorMessage={dialogError}
         onSubmit={submitFromDialog}
         onComplete={completeChallenge}
+      />
+      <ResumePlaceholderDialog
+        open={placeholderPopup !== null}
+        onOpenChange={(open) => {
+          if (!open) setPlaceholderPopup(null);
+        }}
+        issues={placeholderPopup?.issues ?? []}
+        fixHref={placeholderPopup?.resumeId ? editResumeHref(placeholderPopup.resumeId) : null}
       />
       <HackathonChallengeSuccessModal
         open={celebrate}
@@ -376,4 +403,13 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
       ) : null}
     </div>
   );
+}
+
+/** Messages from the server's RESUME_HAS_PLACEHOLDERS details. */
+function placeholderMessages(issues: unknown): string[] {
+  return Array.isArray(issues)
+    ? issues
+        .map((issue) => (issue && typeof issue === "object" ? (issue as { message?: unknown }).message : null))
+        .filter((message): message is string => typeof message === "string")
+    : [];
 }

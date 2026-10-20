@@ -1,92 +1,90 @@
 /**
- * Mercury Template Dummy Content
+ * Sample content for the mercury template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const mercuryDummyContent = {
   personalInfo: {
-    fullName: "Brian T. Wayne",
-    email: "brian@wayne.com",
-    phone: "+1-541-754-3010",
-    location: "22611 Pacific Coast Hwy, Malibu, California, 9022, USA",
-    linkedin: "linkedin.com/in/wayne-2345",
-    github: "",
-    website: "wayne.com",
-    portfolio: "Business Development Consultant",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    github: "github.com/your-username",
+    website: "your-website.example.com",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "I'm Brian Thomas Wayne, a business development consultant with a passion for helping companies achieve their growth potential. With my MBA degree and extensive experience in strategy and relationship building, I strive to provide innovative solutions that drive success for my clients.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Business Development Consultant",
-      company: "Appleseed Inc.",
-      location: "New York",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2022",
       endDate: "Present",
       current: true,
       description: [
-        "Developed and implemented strategic plans resulting in a 30% increase in new business opportunities.",
-        "Collaborated with cross-functional teams to drive business growth and expansion.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
       ],
     },
     {
-      position: "Business Development",
-      company: "aexus",
-      location: "Los Angeles, USA",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2018",
       endDate: "2022",
       current: false,
       description: [
-        "Worked closely with tech and software companies to provide expert sales outsourcing services",
-        "Built and managed dedicated sales teams in Europe, the Americas, and Asia Pacific",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
       ],
     },
   ],
-
   skills: [
-    "Strategic thinking and problem-solving",
-    "Relationship building and networking",
-    "Effective communication and negotiation",
-    "Sales and business development strategy development and execution",
-    "Team management and leadership",
-    "Creative and innovative thinking.",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
   ],
-
   education: [
     {
-      degree: "Master of Business Administration",
-      institution: "Harvard Business School",
-      location: "Boston",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2016",
       endDate: "2018",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Master of Business Administration",
-      institution: "Harvard Business School",
-      location: "Boston",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2015",
       endDate: "2018",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   languages: [
-    { name: "English", level: 4 },
-    { name: "Spanish", level: 4 },
+    {
+      name: "Sample Language 1",
+      level: 4,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
   ],
-
   awards: [
     {
-      title: "Outstanding Business Student Award",
-      organization: "University of Southern California, 2014",
+      title: "Sample Award 1",
+      organization: "Sample Organisation 1",
     },
   ],
 };
 
-/**
- * Default export for template loader
- */
 export default mercuryDummyContent;
-

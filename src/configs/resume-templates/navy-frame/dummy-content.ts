@@ -1,105 +1,109 @@
 /**
- * Navy Frame Template - Dummy Content
- * Mechatronics engineering sample.
+ * Sample content for the navy-frame template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const navyframeDummyContent = {
   personalInfo: {
-    fullName: "Benjamin Shah",
-    email: "hello@reallygreatsite.com",
-    phone: "123-456-7890",
-    location: "Any City",
-    linkedin: "www.reallygreatsite.com",
-    website: "www.reallygreatsite.com",
-    portfolio: "",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    website: "your-website.example.com",
+    portfolio: "Your Title",
     profilePicture: "",
   },
-
-  profileSummary:
-    "Results-oriented Mechanical and Mechatronics Engineer seeking a challenging position to apply expertise in designing and implementing innovative solutions for complex engineering challenges. Proven track record of success in project management, problem-solving, and cross-functional collaboration. Adept at utilising cutting-edge technologies to optimise processes and enhance overall efficiency.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Mechatronics Engineer",
-      company: "Borcelle Technologies",
-      location: "",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2023-01",
       endDate: "",
       current: true,
       description: [
-        "Led development of an advanced automation system, achieving a 15% increase in operational efficiency.",
-        "Streamlined manufacturing processes, reducing production costs by 10%.",
-        "Implemented preventive maintenance strategies, resulting in a 20% decrease in equipment downtime.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "System Engineer",
-      company: "Arowwai Industries",
-      location: "",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2021-02",
       endDate: "2022-12",
       current: false,
       description: [
-        "Designed and optimised a robotic control system, realizing a 12% performance improvement.",
-        "Coordinated testing and validation, ensuring compliance with industry standards.",
-        "Provided technical expertise, contributing to a 15% reduction in system failures.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Junior Project Engineer",
-      company: "Salford & Co Manufacturing",
-      location: "",
+      position: "Sample Job 3",
+      company: "Sample Company 3",
+      location: "Sample City, Country",
       startDate: "2020-03",
       endDate: "2021-01",
       current: false,
       description: [
-        "Managed full lifecycle of a cutting-edge automation project, meeting all milestones.",
-        "Conducted feasibility studies and risk assessments, mitigating potential project risks.",
-        "Collaborated with clients, leading to a 25% increase in customer satisfaction.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   education: [
     {
-      degree: "Bachelor of Mechatronics Engineering with Honours",
-      institution: "University of Engineering Excellence",
-      location: "",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2016",
       endDate: "2019",
       gpa: "",
-      description: "Major in Automotive Technology.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Diploma in Mechanical Engineering",
-      institution: "Engineering University",
-      location: "",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2014",
       endDate: "2016",
       gpa: "",
-      description: "Relevant coursework in Structural Design and Project Management.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   skills: [
-    "Mechatronics System Integration",
-    "Automotive Engineering Technology",
-    "Project Management",
-    "Robotics and Automation",
-    "CAD for Mechatronics",
-    "Preventive Maintenance",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
   ],
-
   projects: [],
   certificates: [],
   achievements: [],
   languages: [
-    { name: "English", level: 5 },
-    { name: "Malay", level: 4 },
-    { name: "Japanese", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-  interests:
-    "Professional Engineer (PE) License, Project Management Professional (PMP)",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default navyframeDummyContent;
