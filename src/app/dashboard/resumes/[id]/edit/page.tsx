@@ -142,6 +142,8 @@ import { CanvasRail, CanvasToolRow, type CanvasPanel } from "@/components/resume
 import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
+import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
   addEntry,
@@ -429,6 +431,9 @@ export default function EditResumePage() {
   const [pdfCapture, setPdfCapture] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
+  const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
+  const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
   const canvasNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2659,6 +2664,24 @@ export default function EditResumePage() {
     return counts;
   }, [sections, resume?.content]);
 
+  const atsReportV3 = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+  const fixGroups = useMemo(() => buildFixItems(atsReportV3), [atsReportV3]);
+  // A fresh report replaces the session's fixed/ignored list.
+  useEffect(() => {
+    setFixResolved(new Set());
+    setActiveMarkId(null);
+  }, [atsReportV3]);
+  const canvasMarks = useMemo<CanvasMark[]>(
+    () => (canvasPanel === "fix" ? fixMarks(fixGroups, fixResolved) : []),
+    [canvasPanel, fixGroups, fixResolved],
+  );
+  const resolveFix = (item: FixItem) =>
+    setFixResolved((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+
   // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
   useEffect(() => {
     if (!canvasFocus) return;
@@ -3102,7 +3125,7 @@ export default function EditResumePage() {
           <CanvasToolRow
             activePanel={canvasPanel}
             onPanel={(panel) => openCanvasPanel(panel)}
-            atsScore={displayAtsScore ?? null}
+            atsScore={displayAtsScore ?? resume.atsScore ?? null}
             checkingAts={refreshingATS}
             onTailor={() => setMatchJobOpen(true)}
             tailoring={matchingJob}
@@ -3561,7 +3584,47 @@ export default function EditResumePage() {
             </div>
           </div>
 
-          {viewMode === "ats" ? (
+          {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
+            <FixMistakesPanel
+              report={atsReportV3}
+              score={displayAtsScore ?? resume.atsScore ?? null}
+              checking={refreshingATS}
+              edited={displayAtsScore === null}
+              resolved={fixResolved}
+              activeId={activeMarkId}
+              onLocate={(id) => {
+                // Re-picking the same issue should scroll to it again.
+                setActiveMarkId(null);
+                requestAnimationFrame(() => setActiveMarkId(id));
+              }}
+              onApply={(item, improved) => {
+                const ok = handleApplyAtsIssueFix(item.issue.excerpt ?? "", improved);
+                if (ok) resolveFix(item);
+                else showCanvasNotice("Couldn't find that text on your resume — it may have changed already.");
+                return ok;
+              }}
+              onIgnore={(item) => {
+                resolveFix(item);
+                void handleIgnoreATSIssue(item.check, item.issue);
+              }}
+              onRecheck={handleCheckATS}
+              onTailor={() => setMatchJobOpen(true)}
+              targetRole={resume.content.personalInfo?.portfolio}
+            >
+              <ATSReportView
+                feedback={resume.atsFeedback}
+                jobMatchScore={resume.jobMatchScore}
+                resumeId={resume.resumeId}
+                embedded
+                enableIssueMagic
+                onApplyIssueFix={handleApplyAtsIssueFix}
+                onIgnoreIssue={handleIgnoreATSIssue}
+                onRunJobMatch={handleRunJobMatch}
+                jobMatchRunning={refreshingATS}
+                initialJobDescription={resume.atsScoringContext?.lastJobDescription}
+              />
+            </FixMistakesPanel>
+          ) : viewMode === "ats" ? (
             resume.atsFeedback ? (
               <div className="min-w-0 bg-card p-3 sm:p-4">
                 {showImprovedBanner && (
@@ -7314,6 +7377,8 @@ export default function EditResumePage() {
                       handlers={canvasHandlers}
                       isMobile={isMobile}
                       revision={previewResume}
+                      marks={canvasMarks}
+                      activeMarkId={activeMarkId}
                     />
                   ) : null
                 }

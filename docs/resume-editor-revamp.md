@@ -63,3 +63,21 @@ resume page (Enhancv-style UX, our own look), on desktop and mobile.
 - New entries are seeded with "Sample …" labels so the existing sample-data check flags anything
   the user forgets to replace.
 - The old layout stays reachable via "Classic editor" while the new one beds in.
+
+## Round 2 research — features found by building a resume end to end (paid account)
+
+| Enhancv behaviour | Plan for us |
+| --- | --- |
+| **Fix Mistakes** re-grades live (B → D+ → C-), issue cards: type label, "Did you mean …", original struck through, suggestion chips (1 click applies), Ignore | Our ATS report issues → cards with Apply (rewrite suggestion) / Ignore; grade updates after each fix |
+| Issues are **highlighted on the page** (red: spelling/grammar, blue: weak bullet); clicking a card scrolls the page to it | Overlay highlights the issue excerpt on the page; clicking an issue scrolls to it and flashes it |
+| "Rewrite bullet" rewrites **in place**, missing numbers as `{XX}` | Same via our AI rewrite (already returns `{X}` placeholders) |
+| Recruiter checks (Credibility, Interview Risks, Age Bias, Gaps, Scope, Skill Gaps) + Essentials (Sections, Contact, Links & Dates, ATS parse, Format, Design) with % and expandable items | Already covered by our ATS report categories |
+| **Check & Tailor**: paste JD/URL → ATS match %, keyword table (keyword · in resume ✓/✗ · count in ad · exclude), Tailored title, Content (metrics, spelling, repetition), Essential sections (summary, degree, years), contact, ATS essentials | Tailor side panel driven by our job-match API; keyword table with exclude; buttons jump to the related fix |
+| Keywords found in the resume are **highlighted green** on the page while tailoring | Same overlay, green |
+| **AI suggested edits** land on the page highlighted orange, popover "Original: … Restore / Approve", sticky bar "Reject all / Approve all" | Review mode for AI tailoring: apply, keep the original, highlight changed fields, per-field restore, approve/reject all |
+| Preview: toggle **What Recruiters See / What ATS Sees** (plain text, headings underlined with `=====`, bullets ` - `) | Preview dialog with the same toggle; ATS view = text extracted from our real PDF |
+| **Version history**: full-screen, versions by day, preview, Restore / Restore as copy | Server-side snapshots on save (throttled), history panel with restore |
+| Entry toolbar: **date picker** popover (From/To, year grid, months, Present), **gear** = per-field visibility toggles | Date popover on the canvas toolbar |
+| Download dialog: editable file name, PDF, TXT, email | File name + PDF + TXT |
+| Share panel: public link toggle, comments from friends | Share link (done) |
+| Editor is full-screen (no app sidebar) | Done |

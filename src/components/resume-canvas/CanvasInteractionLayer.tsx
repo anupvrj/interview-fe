@@ -17,6 +17,22 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isEntrySection } from "./canvasOps";
+import { locateText } from "./textLocator";
+
+/** Text highlighted on the page: an issue (red/blue), a matched keyword (green) or an AI edit (orange). */
+export interface CanvasMark {
+  id: string;
+  text: string;
+  tone: "error" | "weak" | "keyword" | "ai";
+  wholeWord?: boolean;
+}
+
+const MARK_STYLE: Record<CanvasMark["tone"], string> = {
+  error: "bg-red-400/30 border-b-2 border-red-500",
+  weak: "bg-sky-400/25",
+  keyword: "bg-emerald-400/30",
+  ai: "bg-orange-300/40 border-b-2 border-orange-500",
+};
 
 export interface CanvasSectionRef {
   id: string;
@@ -175,6 +191,8 @@ export function CanvasInteractionLayer({
   handlers,
   isMobile,
   revision,
+  marks = [],
+  activeMarkId = null,
 }: {
   /** Element wrapping the rendered pages; overlay coordinates are relative to it. */
   rootRef: React.RefObject<HTMLElement | null>;
@@ -187,12 +205,16 @@ export function CanvasInteractionLayer({
   isMobile: boolean;
   /** Changes whenever the rendered resume changes, so boxes are re-measured. */
   revision: unknown;
+  marks?: CanvasMark[];
+  /** The mark the user picked in a panel: outlined and scrolled into view. */
+  activeMarkId?: string | null;
 }) {
   const [hover, setHover] = useState<CanvasFocus | null>(null);
   const [focusBoxes, setFocusBoxes] = useState<Box[]>([]);
   const [hoverBoxes, setHoverBoxes] = useState<Box[]>([]);
   const [hoverSectionBoxes, setHoverSectionBoxes] = useState<Box[]>([]);
   const [pages, setPages] = useState<Box[]>([]);
+  const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
@@ -204,7 +226,38 @@ export function CanvasInteractionLayer({
     setFocusBoxes(focus ? boxesFor(root, targetElements(root, focus)) : []);
     setHoverBoxes(hover && !sameTarget(hover, focus) ? boxesFor(root, targetElements(root, hover), 3) : []);
     setHoverSectionBoxes(hover ? boxesFor(root, targetElements(root, { sectionId: hover.sectionId, index: null }), 3) : []);
-  }, [rootRef, focus, hover]);
+    const origin = root.getBoundingClientRect();
+    setMarkBoxes(
+      marks.flatMap((mark) =>
+        locateText(root, mark.text, { wholeWord: mark.wholeWord, max: mark.tone === "keyword" ? 6 : 2 }).flatMap((hit) =>
+          hit.rects.map((r) => ({
+            id: mark.id,
+            tone: mark.tone,
+            top: r.top - origin.top - 1,
+            left: r.left - origin.left - 1,
+            width: r.width + 2,
+            height: r.height + 2,
+          })),
+        ),
+      ),
+    );
+  }, [rootRef, focus, hover, marks]);
+
+  // Bring the picked issue into view.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !activeMarkId) return;
+    const mark = marks.find((m) => m.id === activeMarkId);
+    if (!mark) return;
+    const hit = locateText(root, mark.text, { wholeWord: mark.wholeWord, max: 1 })[0];
+    const rect = hit?.rects[0];
+    if (!rect) return;
+    const scroller = root.closest(".rx-canvas-scroll") as HTMLElement | null;
+    if (scroller) {
+      const box = scroller.getBoundingClientRect();
+      scroller.scrollBy({ top: rect.top - box.top - box.height / 3, behavior: "smooth" });
+    }
+  }, [activeMarkId, marks, rootRef]);
 
   useLayoutEffect(measure, [measure, revision]);
 
@@ -500,6 +553,17 @@ export function CanvasInteractionLayer({
         <div
           key={`hover-${i}`}
           className="absolute rounded-md border border-dashed border-primary/50"
+          style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
+        />
+      ))}
+      {markBoxes.map((b, i) => (
+        <div
+          key={`mark-${b.id}-${i}`}
+          className={cn(
+            "absolute rounded-[2px] mix-blend-multiply",
+            MARK_STYLE[b.tone],
+            b.id === activeMarkId && "animate-pulse ring-2 ring-offset-1 ring-red-500/70",
+          )}
           style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
         />
       ))}
