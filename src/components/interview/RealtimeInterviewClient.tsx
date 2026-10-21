@@ -69,6 +69,7 @@ import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceS
 import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { CAMERA_MIC_DENIED_MESSAGE, PermissionGuide } from "@/components/interview/PermissionGuide";
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
@@ -339,6 +340,12 @@ export function RealtimeInterviewClient({
   const [showBriefing, setShowBriefing] = useState(false);
   const [briefingAccepted, setBriefingAccepted] = useState(false);
   const [acceptingBriefing, setAcceptingBriefing] = useState(false);
+  // Loading the interview or connecting after "Accept" for over 60 s: the hackathon
+  // watchdog (on the page) offers the way back. Normal interviews are unaffected.
+  useLoadingTimeout(
+    (loading || acceptingBriefing) && Boolean(resolveHackathonInterviewHome(returnToRef.current)),
+    loading ? "interview loading" : "interview connecting",
+  );
   const openedRecordingAfterBriefingRef = useRef(false);
   const launchingInterviewRef = useRef(false);
   /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */

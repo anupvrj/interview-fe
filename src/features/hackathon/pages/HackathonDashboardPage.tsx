@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -198,13 +199,10 @@ function DashboardContent() {
     }
   }, [isLoaded, isSignedIn, router, slug]);
 
-  if (
-    !isLoaded ||
-    !isSignedIn ||
-    meQuery.waitingForMe ||
-    needsProfile ||
-    (!me && !meQuery.isError)
-  ) {
+  const loadingDashboard =
+    !isLoaded || !isSignedIn || meQuery.waitingForMe || needsProfile || (!me && !meQuery.isError);
+  useLoadingTimeout(loadingDashboard, "hackathon dashboard");
+  if (loadingDashboard) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
         <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading your hackathon…

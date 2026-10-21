@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -119,6 +120,9 @@ function ProfileContent() {
     headingToDashboard ||
     (!holdForm && profileComplete && me && !me.registered && !register.isError) ||
     (!me && !meQuery.isError);
+
+  // The success modal is read at the user's pace; only real waiting counts.
+  useLoadingTimeout(showBlockingShell && !successModalOpen, "hackathon registration");
 
   if (showBlockingShell) {
     return (

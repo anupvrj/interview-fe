@@ -31,6 +31,8 @@ export const HK_EVENTS = {
   challengeStarted: "hackathon_challenge_started",
   challengeCompleted: "hackathon_challenge_completed",
   submissionCompleted: "hackathon_submission_completed",
+  /** A page/action was still loading after its limit and we offered a way out. */
+  stuckLoading: "hackathon_stuck_loading",
 } as const;
 
 export type HackathonCtaLocation =

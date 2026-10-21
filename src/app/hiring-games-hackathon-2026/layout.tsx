@@ -14,6 +14,7 @@ import {
   HACKATHON_FAQ,
 } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
+import { StuckLoadingWatchdog } from "@/components/StuckLoadingWatchdog";
 
 const siteUrl = getSiteUrl();
 const pageUrl = `${siteUrl}${HACKATHON_2026_PATH}`;
@@ -110,6 +111,8 @@ export default function Hackathon2026Layout({
         className={`${hackathonHand.variable} ${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`}
       >
         {children}
+        {/* "Something isn't right" if anything here loads for over 60 s. */}
+        <StuckLoadingWatchdog />
       </div>
     </>
   );

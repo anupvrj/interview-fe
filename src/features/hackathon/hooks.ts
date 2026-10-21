@@ -6,6 +6,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hackathonApi, type HackathonMe } from "./api";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { HACKATHON_FEATURE_KEY, HACKATHON_SLUG } from "./config";
+import { STUCK_AFTER_META } from "@/lib/stuck-loading";
+
+/**
+ * Actions the server may take longer than the 60 s stuck-loading limit for: their
+ * request timeout (see api.ts) plus a margin, so "Something isn't right" only appears
+ * if the page is still spinning after the request itself would have failed.
+ */
+const SLOW_ACTION = {
+  resumeSubmit: { [STUCK_AFTER_META]: 135_000 },
+  resumeScore: { [STUCK_AFTER_META]: 105_000 },
+  interviewStart: { [STUCK_AFTER_META]: 135_000 },
+};
 
 const HackathonSlugContext = createContext<string>(HACKATHON_SLUG);
 
@@ -140,11 +152,13 @@ export function useEligibleResumes(enabled: boolean) {
 
 function useMeMutation<TArgs>(
   fn: (slug: string, getToken: () => Promise<string | null>, args: TArgs) => Promise<HackathonMe>,
+  meta?: Record<string, unknown>,
 ) {
   const slug = useHackathonSlug();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
+    meta,
     mutationFn: (args: TArgs) => fn(slug, () => getToken(), args),
     onSuccess: (data) => queryClient.setQueryData(hackathonKeys.me(slug), data),
     onError: () => void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) }),
@@ -158,8 +172,9 @@ export function useRegisterForHackathon() {
 }
 
 export function useSubmitHackathonResume() {
-  return useMeMutation<string>((slug, getToken, resumeId) =>
-    hackathonApi.submitResume(slug, getToken, resumeId),
+  return useMeMutation<string>(
+    (slug, getToken, resumeId) => hackathonApi.submitResume(slug, getToken, resumeId),
+    SLOW_ACTION.resumeSubmit,
   );
 }
 
@@ -172,6 +187,7 @@ export function usePreviewResumeScore() {
   const slug = useHackathonSlug();
   const { getToken } = useAuth();
   return useMutation({
+    meta: SLOW_ACTION.resumeScore,
     mutationFn: (resumeId: string) => hackathonApi.previewResumeScore(slug, () => getToken(), resumeId),
   });
 }
@@ -221,6 +237,7 @@ export function useStartHackathonInterview() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
+    meta: SLOW_ACTION.interviewStart,
     mutationFn: ({
       slot,
       language,

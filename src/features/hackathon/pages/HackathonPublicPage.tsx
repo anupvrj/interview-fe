@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -63,7 +64,9 @@ function PublicContent() {
     };
   }, [adminPreview.data, pub.data]);
 
-  if (pub.isLoading || (preview && pub.isError && adminPreview.isLoading)) {
+  const loadingEvent = pub.isLoading || (preview && pub.isError && adminPreview.isLoading);
+  useLoadingTimeout(loadingEvent, "hackathon event");
+  if (loadingEvent) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
         <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading event…
