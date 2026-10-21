@@ -2650,12 +2650,11 @@ export function RealtimeInterviewClient({
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
       }
-      // Hackathon sessions skip the generic report/feedback funnel and go
-      // back to the challenge board (processing waits until the score lands).
-      const afterPath =
-        isHackathonDashboardReturn(returnTo) || isCodingPractice
-          ? `/dashboard/interviews/${interviewId}/processing`
-          : `/dashboard/interviews/${interviewId}/feedback`;
+      // Coding practice skips post-interview AI feedback; all AI interview sessions
+      // (including hackathons) route to feedback with a voluntary skip option.
+      const afterPath = isCodingPractice
+        ? `/dashboard/interviews/${interviewId}/processing`
+        : `/dashboard/interviews/${interviewId}/feedback`;
       router.push(withInterviewReturnTo(afterPath, returnTo));
     } catch (error: any) {
       console.error("Error ending interview:", error);
