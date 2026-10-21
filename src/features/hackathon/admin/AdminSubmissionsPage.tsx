@@ -260,6 +260,7 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                   <TableHeader>
                     <TableRow>
                       <TableHead>Participant</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Progress</TableHead>
                       {columns.map((col) => (
@@ -291,6 +292,19 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                             {row.profileSnapshot?.targetJobRole ? (
                               <p className="text-xs text-muted-foreground">{row.profileSnapshot.targetJobRole}</p>
                             ) : null}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm tabular-nums">
+                            {row.phone ? (
+                              <a
+                                href={`tel:${row.phone.replace(/\s+/g, "")}`}
+                                className="text-foreground hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {row.phone}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell>{participantStatusBadge(row.status)}</TableCell>
                           <TableCell className="text-right text-xs tabular-nums text-muted-foreground">

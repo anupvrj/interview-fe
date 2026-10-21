@@ -407,6 +407,8 @@ export interface AdminHackathonOverview {
 export interface AdminParticipantRow {
   participantId: string;
   userId: string;
+  /** From the user's profile ("+91 9876543210"); null if they never added one. */
+  phone?: string | null;
   status: ParticipantStatus;
   profileSnapshot?: { name?: string; email?: string; userType?: string; targetJobRole?: string; experience?: number };
   registeredAt: string;
@@ -636,12 +638,12 @@ export const hackathonAdminApi = {
     participantId: string,
     challengeId: string,
     body?: { slot?: number; note?: string },
-  ): Promise<AdminParticipantDetail> => {
-    const res = await apiClient.post<{ data: AdminParticipantDetail }>(
+  ): Promise<{ detail: AdminParticipantDetail; emailedTo: string | null }> => {
+    const res = await apiClient.post<{ data: AdminParticipantDetail; emailedTo?: string | null }>(
       `${adminBase}/${hackathonId}/participants/${participantId}/challenges/${challengeId}/reset`,
       body ?? {},
     );
-    return res.data.data;
+    return { detail: res.data.data, emailedTo: res.data.emailedTo ?? null };
   },
   reviewSocial: async (
     hackathonId: string,
