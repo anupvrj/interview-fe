@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, CheckCircle2, Loader2, RefreshCw, Sparkles, Target } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, Loader2, Plus, RefreshCw, Sparkles, Target } from "lucide-react";
 import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { Button } from "@/components/ui/button";
@@ -215,12 +215,187 @@ export function fixMarks(groups: Array<{ items: FixItem[] }>, resolved: Set<stri
   );
 }
 
+/** Cards shown first: things to change in the text right now. */
+const TOP_GROUPS = new Set(["Fill in", "Typos", "Clarity", "Impact (optional)"]);
+
+/** Every other check is a score row (expand for its findings), grouped the way a reader judges a resume. */
+const ROW_SECTIONS: Array<{ title: string; checks: ATSCheckId[]; handled?: boolean }> = [
+  { title: "How a recruiter reads it", checks: ["credibility", "interviewRisks", "peerBenchmarking", "skillEvidence", "careerProgression", "leadershipSignals", "ageismDateBias", "employmentGaps"] },
+  { title: "Basics", checks: ["essentialSections", "contactInformation", "sectionOrder", "datesLinksConsistency", "headerLinks", "emailAddress"] },
+  { title: "Fit for this job", checks: ["mustHaveSkillsMatch", "hardSkillsMatch", "softSkillsMatch", "titleMatch", "actionVerbs", "experienceMatch", "educationMatch", "certificationMatch", "responsibilitiesMatch", "preferredSkillsMatch"] },
+  { title: "Taken care of by the builder", checks: ["atsParseRate", "fileFormatSize", "design", "fileNameCheck"], handled: true },
+];
+
+/** Our own names for the score rows. */
+const ROW_LABEL: Partial<Record<ATSCheckId, string>> = {
+  credibility: "Credibility",
+  interviewRisks: "Interview questions it raises",
+  peerBenchmarking: "Skills recruiters expect",
+  skillEvidence: "Skills backed by your work",
+  careerProgression: "Career story",
+  leadershipSignals: "Leadership",
+  ageismDateBias: "Age signals",
+  employmentGaps: "Gaps & short stints",
+  essentialSections: "Sections",
+  contactInformation: "Contact details",
+  sectionOrder: "Section order",
+  datesLinksConsistency: "Dates & links",
+  headerLinks: "Profile links",
+  emailAddress: "Email",
+  mustHaveSkillsMatch: "Must-have skills",
+  hardSkillsMatch: "Technical skills",
+  softSkillsMatch: "Soft skills",
+  titleMatch: "Job title",
+  actionVerbs: "Action verbs",
+  experienceMatch: "Years of experience",
+  educationMatch: "Education",
+  certificationMatch: "Certifications",
+  responsibilitiesMatch: "Job responsibilities",
+  preferredSkillsMatch: "Nice-to-have skills",
+  atsParseRate: "Readable by ATS",
+  fileFormatSize: "File format & size",
+  design: "Layout",
+  fileNameCheck: "File name",
+};
+
+function rowBand(score: number): { label: string; className: string } {
+  if (score >= 80) return { label: "strong", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" };
+  if (score >= 60) return { label: "fair", className: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" };
+  return { label: "weak", className: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300" };
+}
+
+const POSITIVE = new Set(["positive", "credibility_positive", "skill_present"]);
+
+/** One check as a row: score pill, and on expand its summary, what works, findings and quick actions. */
+function CheckRow({
+  check,
+  handled,
+  items,
+  activeId,
+  renderCard,
+  onAddSkill,
+  liveText,
+}: {
+  check: ATSCheckResult;
+  handled?: boolean;
+  items: FixItem[];
+  activeId: string | null;
+  renderCard: (item: FixItem) => React.ReactNode;
+  onAddSkill?: (skill: string) => void;
+  liveText?: string;
+}) {
+  const open = items.filter((i) => !i.incomplete);
+  const incomplete = items.some((i) => i.incomplete);
+  const holdsActive = open.some((i) => i.id === activeId);
+  const [expanded, setExpanded] = useState(false);
+  const isOpen = expanded || holdsActive;
+  const score = handled && check.status === "pass" ? 100 : check.score;
+  const band = rowBand(score);
+  const summary = check.summary as { headline?: string; intro?: string; strongTrustSignal?: string } | undefined;
+  const positives = check.issues.filter((i) => POSITIVE.has(i.kind ?? ""));
+  const meta = (check.meta ?? {}) as { benchmarkSkills?: Array<{ name: string; present: boolean }> };
+  const skills = meta.benchmarkSkills ?? [];
+  const live = (liveText ?? "").toLowerCase();
+  // A skill the user has just added counts as present right away.
+  const missingSkills = skills.filter((sk) => !sk.present && !live.includes(sk.name.toLowerCase()));
+  const presentCount = skills.length - missingSkills.length;
+  // Peer skills are counted live (adding one from the chips removes it right away).
+  const toFix = check.id === "peerBenchmarking" && skills.length ? missingSkills.length : open.length;
+  const headline =
+    check.id === "peerBenchmarking" && skills.length
+      ? missingSkills.length
+        ? `${missingSkills.length} skill${missingSkills.length === 1 ? "" : "s"} recruiters usually look for ${missingSkills.length === 1 ? "is" : "are"} missing.`
+        : "You cover the skills recruiters usually look for."
+      : summary?.headline || summary?.intro;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40"
+      >
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{ROW_LABEL[check.id] ?? check.label}</span>
+        {toFix ? <span className="text-[11px] text-muted-foreground">{toFix} to fix</span> : null}
+        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", incomplete ? "bg-muted text-muted-foreground" : band.className)}>
+          {incomplete ? "not checked" : `${score}% · ${handled && check.status === "pass" ? "handled" : band.label}`}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+      </button>
+      {isOpen ? (
+        <div className="space-y-2.5 px-3 pb-3">
+          {headline ? <p className="text-xs text-muted-foreground">{headline}</p> : null}
+          {handled && check.status === "pass" ? (
+            <p className="text-xs text-muted-foreground">Our exporter produces a clean, text-based PDF, so there is nothing to do here.</p>
+          ) : null}
+          {check.id === "peerBenchmarking" && skills.length ? (
+            <div className="rounded-lg border border-border p-2.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                <span>Typical skills for this role</span>
+                <span>
+                  {presentCount} / {skills.length}
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 rounded-full bg-muted">
+                <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.round((presentCount / skills.length) * 100)}%` }} />
+              </div>
+              {missingSkills.length && onAddSkill ? (
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {missingSkills.map((sk) => (
+                    <button
+                      key={sk.name}
+                      type="button"
+                      title="I have this — add it to Skills"
+                      onClick={() => onAddSkill(sk.name)}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/40 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {sk.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {summary?.strongTrustSignal || positives.length ? (
+            <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+              <p className="mb-1 font-semibold">Working for you</p>
+              <ul className="space-y-0.5">
+                {summary?.strongTrustSignal ? <li>{summary.strongTrustSignal}</li> : null}
+                {positives.slice(0, 4).map((p) => (
+                  <li key={p.title}>{p.description || p.title}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
+            <div className="space-y-2">{open.map((item) => renderCard(item))}</div>
+          ) : !handled && !incomplete && !(check.id === "peerBenchmarking" && missingSkills.length) ? (
+            score < 80 ? (
+              // Its findings were about text that has changed since — the score is from before.
+              <p className="text-xs text-muted-foreground">
+                The findings here were about text you&apos;ve since changed. Run the check again to update this score.
+              </p>
+            ) : (
+              <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="h-4 w-4" /> Nothing to change here.
+              </p>
+            )
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function IssueCard({
   item,
   active,
   onLocate,
   onApply,
   onIgnore,
+  onDone,
   targetRole,
 }: {
   item: FixItem;
@@ -228,6 +403,8 @@ function IssueCard({
   onLocate: () => void;
   onApply: (improved: string) => boolean;
   onIgnore: () => void;
+  /** "I've handled it": hides the card until the next check (doesn't change the score). */
+  onDone?: () => void;
   targetRole?: string;
 }) {
   const { issue, check } = item;
@@ -344,7 +521,12 @@ function IssueCard({
         </ul>
       ) : null}
       {ai.error ? <p className="mt-1.5 text-xs text-muted-foreground">{ai.error}</p> : null}
-      <div className="mt-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-2 flex justify-end gap-3" onClick={(e) => e.stopPropagation()}>
+        {onDone ? (
+          <button type="button" onClick={onDone} className="text-xs font-semibold text-primary hover:underline">
+            Mark done
+          </button>
+        ) : null}
         <button type="button" onClick={onIgnore} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
           Dismiss
         </button>
@@ -367,10 +549,15 @@ export function FixMistakesPanel({
   onTailor,
   targetRole,
   liveText,
+  onDone,
+  onAddSkill,
   children,
 }: {
   /** The resume's text now (keeps the list in step with edits). */
   liveText?: string;
+  onDone?: (item: FixItem) => void;
+  /** One-click "add to Skills" for skills recruiters expect. */
+  onAddSkill?: (skill: string) => void;
   report: ATSReportV3 | null;
   score: number | null;
   checking: boolean;
@@ -436,41 +623,80 @@ export function FixMistakesPanel({
         </div>
       ) : null}
 
-      {groups.map((group) => {
-        const items = group.items.filter((i) => !i.incomplete && !resolved.has(i.id));
-        // Groups with nothing to fix stay out of the way (the score ring already says "all good").
-        if (!items.length) return null;
+      {(() => {
+        const top = groups.filter((g) => TOP_GROUPS.has(g.title));
+        const visible = top
+          .map((g) => ({ ...g, items: g.items.filter((i) => !i.incomplete && !resolved.has(i.id)) }))
+          .filter((g) => g.items.length);
+        if (!visible.length) return null;
         return (
-          <section key={group.title}>
-            <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">{group.title}</h4>
-              {items.length ? (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{items.length} to fix</span>
-              ) : null}
-            </div>
-            {items.length ? (
-              <div className="space-y-2">
-                {items.map((item) => (
-                  <IssueCard
-                    key={item.id}
-                    item={item}
-                    active={activeId === item.id}
-                    onLocate={() => onLocate(item.id)}
-                    onApply={(improved) => onApply(item, improved)}
-                    onIgnore={() => onIgnore(item)}
-                    targetRole={targetRole}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                No issues detected.
-              </p>
-            )}
-          </section>
+          <div className="space-y-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Fix these first</p>
+            {visible.map((group) => (
+              <section key={group.title}>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground">{group.title}</h4>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{group.items.length} to fix</span>
+                </div>
+                <div className="space-y-2">
+                  {group.items.map((item) => (
+                    <IssueCard
+                      key={item.id}
+                      item={item}
+                      active={activeId === item.id}
+                      onLocate={() => onLocate(item.id)}
+                      onApply={(improved) => onApply(item, improved)}
+                      onIgnore={() => onIgnore(item)}
+                      onDone={onDone ? () => onDone(item) : undefined}
+                      targetRole={targetRole}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         );
-      })}
+      })()}
+
+      {report
+        ? ROW_SECTIONS.map((section) => {
+            const checks = checksById(report);
+            const rows = section.checks
+              .map((id) => checks.get(id))
+              .filter((c): c is ATSCheckResult => !!c && c.status !== "skipped");
+            if (!rows.length) return null;
+            return (
+              <section key={section.title} className="space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{section.title}</p>
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                  {rows.map((check) => (
+                    <CheckRow
+                      key={check.id}
+                      check={check}
+                      handled={section.handled}
+                      items={groups.flatMap((g) => g.items).filter((i) => i.check.id === check.id && !resolved.has(i.id))}
+                      activeId={activeId}
+                      renderCard={(item) => (
+                        <IssueCard
+                          key={item.id}
+                          item={item}
+                          active={activeId === item.id}
+                          onLocate={() => onLocate(item.id)}
+                          onApply={(improved) => onApply(item, improved)}
+                          onIgnore={() => onIgnore(item)}
+                          onDone={onDone ? () => onDone(item) : undefined}
+                          targetRole={targetRole}
+                        />
+                      )}
+                      onAddSkill={onAddSkill}
+                      liveText={liveText}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })
+        : null}
 
       {children ? (
         <section className="border-t border-border pt-3">

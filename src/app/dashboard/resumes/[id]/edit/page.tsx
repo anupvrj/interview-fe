@@ -2848,6 +2848,13 @@ export default function EditResumePage() {
     const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
     if (aiMarks.length) return aiMarks;
     if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
+    // Typos stay marked on the page even with the panel closed (like a spell checker).
+    if (!canvasPanel || canvasPanel === "outline" || canvasPanel === "design" || canvasPanel === "details") {
+      return fixMarks(
+        fixGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.check.id === "spellingGrammar" && i.wordFix) })),
+        fixResolved,
+      );
+    }
     if (canvasPanel === "tailor") {
       // Job keywords already on the resume, highlighted green while tailoring.
       return (matchedKeywords ?? [])
@@ -3946,6 +3953,8 @@ export default function EditResumePage() {
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
               liveText={resumeRawText}
+              onDone={resolveFix}
+              onAddSkill={addSkillFromJob}
               report={atsReportV3}
               score={displayAtsScore ?? resume.atsScore ?? null}
               checking={refreshingATS}
