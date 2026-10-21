@@ -1993,6 +1993,26 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  listVersions: async (resumeId: string): Promise<Array<{ versionId: string; title: string; templateId: string; createdAt: string }>> => {
+    const response = await apiClient.get<{ data: Array<{ versionId: string; title: string; templateId: string; createdAt: string }> }>(
+      `/resumes/${resumeId}/versions`,
+    );
+    return response.data.data ?? [];
+  },
+
+  getVersion: async (
+    resumeId: string,
+    versionId: string,
+  ): Promise<Pick<Resume, "title" | "templateId" | "content" | "profileSummary" | "sectionOrder" | "layout"> & { versionId: string; createdAt: string }> => {
+    const response = await apiClient.get<{ data: never }>(`/resumes/${resumeId}/versions/${versionId}`);
+    return response.data.data;
+  },
+
+  restoreVersion: async (resumeId: string, versionId: string, asCopy = false): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(`/resumes/${resumeId}/versions/${versionId}/restore`, { asCopy });
+    return response.data.data;
+  },
+
   /** Up to three AI rewordings of one bullet or the summary (never adds numbers). */
   aiRewrite: async (body: {
     text: string;

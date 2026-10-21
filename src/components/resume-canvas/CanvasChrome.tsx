@@ -4,6 +4,7 @@ import React from "react";
 import {
   ArrowDownUp,
   CircleCheckBig,
+  History,
   Download,
   Eye,
   LayoutTemplate,
@@ -78,6 +79,7 @@ export function CanvasToolRow({
   onAddSection,
   onShare,
   sharing,
+  onHistory,
 }: {
   activePanel: CanvasPanel | null;
   onPanel: (panel: CanvasPanel) => void;
@@ -98,6 +100,7 @@ export function CanvasToolRow({
   onAddSection: () => void;
   onShare: () => void;
   sharing: boolean;
+  onHistory: () => void;
 }) {
   const grade = atsGrade(atsScore);
   return (
@@ -179,6 +182,17 @@ export function CanvasToolRow({
           aria-label="Redo"
         >
           <Redo2 className="h-4 w-4" />
+        </button>
+        <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
+        <button
+          type="button"
+          onClick={onHistory}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-foreground/80 hover:bg-muted"
+          title="Version history"
+          aria-label="Version history"
+        >
+          <History className="h-4 w-4" />
+          <span className="hidden lg:inline">History</span>
         </button>
       </div>
     </div>

@@ -145,6 +145,7 @@ import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
+import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
@@ -435,6 +436,7 @@ export default function EditResumePage() {
   const [pdfCapture, setPdfCapture] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
@@ -3237,6 +3239,12 @@ export default function EditResumePage() {
             onAddSection={() => setAddSectionAfter({ afterId: null })}
             onShare={() => void handleShareLink()}
             sharing={sharing}
+            onHistory={() => {
+              // Save pending edits first so they become part of the history.
+              void ensureResumePersisted()
+                .catch((error) => console.error("Save before history failed:", error))
+                .finally(() => setHistoryOpen(true));
+            }}
           />
         </>
       ) : (
@@ -7562,6 +7570,22 @@ export default function EditResumePage() {
       </div>
 
       <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
+      {resume && template ? (
+        <VersionHistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          resume={resume}
+          template={template}
+          onRestored={(restored, asCopy) => {
+            if (asCopy) {
+              router.push(`/dashboard/resumes/${restored.resumeId}/edit`);
+              return;
+            }
+            handleResumeImported(restored);
+            showCanvasNotice("Version restored. The version before it is in History too.");
+          }}
+        />
+      ) : null}
       <AddSectionDialog
         open={addSectionAfter !== null}
         onOpenChange={(open) => {
