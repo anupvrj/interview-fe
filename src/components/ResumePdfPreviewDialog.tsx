@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Eye } from "lucide-react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { PaginatedPreview } from "@/components/PaginatedPreview";
@@ -31,6 +31,10 @@ interface ResumePdfPreviewDialogProps {
     dismissedEmptyTrailingPages?: number;
   };
   compact?: boolean;
+  /** Header title (defaults to "PDF Preview"). */
+  title?: string;
+  /** Extra header actions, e.g. "Apply this design" when trying a template. */
+  actions?: React.ReactNode;
 }
 
 export function ResumePdfPreviewDialog({
@@ -41,6 +45,8 @@ export function ResumePdfPreviewDialog({
   sections,
   layout,
   compact = false,
+  title = "PDF Preview",
+  actions,
 }: ResumePdfPreviewDialogProps) {
   const [renderKey, setRenderKey] = useState(0);
   /** "ats" shows the plain text an applicant tracking system reads from the PDF. */
@@ -64,7 +70,7 @@ export function ResumePdfPreviewDialog({
     }
   }, []);
 
-  const { markUserAdjusted } = useResumePreviewFitZoom({
+  const { markUserAdjusted, resetFitZoom } = useResumePreviewFitZoom({
     enabled: compact && open,
     minFitZoom: 1,
     containerRef,
@@ -99,6 +105,13 @@ export function ResumePdfPreviewDialog({
     setAtsText(atsPlainText(pages));
     setView("ats");
   };
+
+  // The dialog content mounts a moment after `open`; fit the page to the phone width once it exists.
+  useEffect(() => {
+    if (!open || !compact) return;
+    const timers = [60, 250, 600].map((ms) => setTimeout(() => resetFitZoom(), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [open, compact, resetFitZoom, renderKey]);
 
   useEffect(() => {
     if (open) {
@@ -141,7 +154,8 @@ export function ResumePdfPreviewDialog({
         <DialogHeader className="shrink-0 border-b border-white/10 px-4 py-3 text-left sm:px-5">
           <DialogTitle className="flex items-center gap-2 text-base text-white">
             {compact ? <Eye className="h-4 w-4 shrink-0 text-[#a78bfa]" /> : null}
-            PDF Preview
+            {title}
+            {actions ? <span className="ml-auto mr-8 flex items-center gap-2">{actions}</span> : null}
           </DialogTitle>
           <div className="mt-2 inline-flex w-fit rounded-full bg-white/10 p-0.5 text-xs font-semibold" role="tablist">
             <button

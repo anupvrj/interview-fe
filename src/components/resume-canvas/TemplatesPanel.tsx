@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Eye, Loader2, Paintbrush } from "lucide-react";
 import { ResumeTemplate, resumeApi } from "@/lib/api";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { cn } from "@/lib/utils";
@@ -19,10 +19,13 @@ export function TemplatesPanel({
   currentTemplateId,
   onSelectTemplate,
   applying,
+  onPreview,
 }: {
   currentTemplateId: string | undefined;
   onSelectTemplate: (templateId: string) => void | Promise<void>;
   applying: boolean;
+  /** Open a full preview of the user's resume in this template. */
+  onPreview: (template: ResumeTemplate) => void;
 }) {
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ export function TemplatesPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex gap-1.5 overflow-x-auto px-4 pb-3">
+      <div className="flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-3">
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -75,31 +78,60 @@ export function TemplatesPanel({
             {shown.map((template) => {
               const current = template.id === currentTemplateId;
               return (
-                <button
+                <div
                   key={template.id}
-                  type="button"
-                  disabled={applying || current}
-                  onClick={() => void onSelectTemplate(template.id)}
                   className={cn(
-                    "group relative overflow-hidden rounded-lg border-2 bg-card p-1.5 text-left transition",
-                    current ? "border-primary" : "border-transparent hover:border-primary/50",
+                    "group relative overflow-hidden rounded-lg border-2 bg-card p-1.5 transition",
+                    current ? "border-primary" : "border-transparent hover:border-primary/40",
                     applying && !current && "opacity-60",
                   )}
-                  aria-pressed={current}
                 >
-                  <div className="pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => onPreview(template)}
+                    className="block w-full text-left"
+                    aria-label={`Preview your resume in ${template.name}`}
+                    aria-pressed={current}
+                  >
                     <TemplatePreview template={template} isSelected={current} variant="thumb" />
+                  </button>
+                  <div className="absolute bottom-[34px] right-2.5 flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onPreview(template)}
+                      title="Preview with my resume"
+                      aria-label={`Preview ${template.name}`}
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm hover:border-primary/50 hover:text-primary"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    {current ? (
+                      <span
+                        title="Current design"
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={applying}
+                        onClick={() => void onSelectTemplate(template.id)}
+                        title="Apply this design"
+                        aria-label={`Apply ${template.name}`}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-background/95 text-primary shadow-sm hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                      >
+                        <Paintbrush className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-                    <span className="truncate text-xs font-semibold text-foreground">{template.name}</span>
-                    {current ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
-                  </div>
+                  <p className="mt-1.5 line-clamp-2 px-0.5 text-xs font-semibold leading-snug text-foreground">{template.name}</p>
                   {applying && current ? (
                     <span className="absolute inset-0 flex items-center justify-center bg-white/60">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </span>
                   ) : null}
-                </button>
+                </div>
               );
             })}
           </div>

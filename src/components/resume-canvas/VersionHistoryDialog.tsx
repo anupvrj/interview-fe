@@ -171,9 +171,9 @@ export function VersionHistoryDialog({
               </div>
             ))}
           </aside>
-          <div className="rx-canvas-scroll min-h-0 flex-1 overflow-auto p-4 md:p-8">
+          <div className="rx-canvas-scroll min-h-0 flex-1 overflow-auto p-2 md:p-8">
             {previewResume ? (
-              <div className="mx-auto w-fit [zoom:0.45] sm:[zoom:0.6] lg:[zoom:0.75] xl:[zoom:0.9]">
+              <div className="mx-auto w-fit [zoom:0.4] sm:[zoom:0.6] lg:[zoom:0.75] xl:[zoom:0.9]">
                 <CanvasEditProvider value={null}>
                   <PaginatedPreview
                     key={selectedId ?? "none"}

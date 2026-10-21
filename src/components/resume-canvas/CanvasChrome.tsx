@@ -14,29 +14,50 @@ export function scoreBand(score: number | null | undefined): { label: string; ri
   return { label: "Needs work", ring: "stroke-rose-500", text: "text-rose-600" };
 }
 
-/** Circular 0–100 score. */
-export function ScoreRing({ score, size = 28, busy = false }: { score: number | null; size?: number; busy?: boolean }) {
-  const band = scoreBand(score);
-  const r = size / 2 - 3;
+/** Circular 0–100 score with a % inside; the stroke sits clear of the number. */
+export function ScoreRing({
+  score,
+  size = 34,
+  busy = false,
+  tone,
+}: {
+  score: number | null;
+  size?: number;
+  busy?: boolean;
+  /** Override the band colour (e.g. job match uses the brand colour). */
+  tone?: { ring: string; text: string };
+}) {
+  const band = tone ?? scoreBand(score);
+  const stroke = size >= 48 ? 4 : 2.5;
+  const r = size / 2 - stroke;
   const c = 2 * Math.PI * r;
   const value = Math.max(0, Math.min(100, score ?? 0));
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} className="fill-none stroke-muted" strokeWidth={3} />
+        <circle cx={size / 2} cy={size / 2} r={r} className="fill-none stroke-muted" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           className={cn("fill-none transition-all", band.ring)}
-          strokeWidth={3}
+          strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c - (value / 100) * c}
         />
       </svg>
-      <span className={cn("absolute font-bold tabular-nums", size >= 48 ? "text-base" : "text-[10px]", band.text)}>
-        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : score ?? "–"}
+      <span className={cn("absolute flex items-baseline font-bold leading-none tabular-nums", band.text)}>
+        {busy ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : score == null ? (
+          <span className={size >= 48 ? "text-base" : "text-[10px]"}>–</span>
+        ) : (
+          <>
+            <span className={size >= 48 ? "text-lg" : "text-[10px]"}>{score}</span>
+            <span className={size >= 48 ? "text-[10px]" : "text-[7px]"}>%</span>
+          </>
+        )}
       </span>
     </span>
   );
@@ -50,7 +71,7 @@ interface StudioItem {
 
 const ITEMS: StudioItem[] = [
   { id: "outline", label: "Outline", icon: ListTree },
-  { id: "fix", label: "Score", icon: Gauge },
+  { id: "fix", label: "ATS score", icon: Gauge },
   { id: "tailor", label: "Job match", icon: Target },
   { id: "ai", label: "AI Coach", icon: Sparkles },
   { id: "templates", label: "Designs", icon: LayoutPanelLeft },
@@ -70,23 +91,23 @@ export interface StudioProps {
   tailoring: boolean;
 }
 
-function badgeFor(id: StudioItem["id"], p: StudioProps): React.ReactNode {
-  if (id === "fix") return <ScoreRing score={p.atsScore} size={24} busy={p.checkingAts} />;
-  if (id === "tailor") {
-    if (p.tailoring) return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />;
-    if (typeof p.jobMatchScore === "number")
-      return <span className="rounded bg-primary/10 px-1 text-[10px] font-bold text-primary">{p.jobMatchScore}%</span>;
-  }
+const MATCH_TONE = { ring: "stroke-primary", text: "text-primary" };
+
+/** Items that show a live number as a ring instead of an icon. */
+function ringFor(id: StudioItem["id"], p: StudioProps, size: number): React.ReactNode | null {
+  if (id === "fix") return <ScoreRing score={p.atsScore} size={size} busy={p.checkingAts} />;
+  if (id === "tailor" && (p.tailoring || typeof p.jobMatchScore === "number"))
+    return <ScoreRing score={p.jobMatchScore} size={size} busy={p.tailoring} tone={MATCH_TONE} />;
   return null;
 }
 
 /** Desktop: vertical studio sidebar on the left edge of the editor. */
 export function StudioSidebar(props: StudioProps) {
   return (
-    <nav aria-label="Resume studio" className="flex w-[76px] shrink-0 flex-col items-stretch gap-1 border-r border-border bg-background px-1.5 py-3">
+    <nav aria-label="Resume studio" className="flex w-[92px] shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-background px-2 py-3">
       {ITEMS.map((item) => {
         const active = item.id === props.activePanel;
-        const badge = badgeFor(item.id, props);
+        const ring = ringFor(item.id, props, 34);
         return (
           <button
             key={item.id}
@@ -100,9 +121,8 @@ export function StudioSidebar(props: StudioProps) {
             )}
           >
             {active ? <span className="absolute left-0 top-2 h-[calc(100%-1rem)] w-[3px] rounded-r bg-primary" aria-hidden /> : null}
-            {item.id === "fix" ? badge : <item.icon className="h-5 w-5" />}
-            <span className="leading-tight">{item.label}</span>
-            {badge && item.id !== "fix" ? <span className="absolute right-0.5 top-0.5">{badge}</span> : null}
+            {ring ?? <item.icon className="h-5 w-5" />}
+            <span className="text-center leading-tight">{item.label}</span>
           </button>
         );
       })}
@@ -146,7 +166,7 @@ export function StudioTabBar(props: StudioProps) {
               active ? "text-primary" : "text-muted-foreground",
             )}
           >
-            {item.id === "fix" ? badgeFor("fix", props) : <item.icon className="h-5 w-5" />}
+            {ringFor(item.id, props, 28) ?? <item.icon className="h-5 w-5" />}
             {item.label}
           </button>
         );

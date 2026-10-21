@@ -496,6 +496,8 @@ export function CanvasInteractionLayer({
   };
   const openDates = () => {
     if (!handleSection || handleIndex === null || !handleBox) return;
+    setMenuOpen(false);
+    setTagEdit(null);
     setDateEdit({ path: `${handleSection.type}.${handleIndex}`, top: handleBox.top + 22, left: handleBox.left + 8 });
   };
 
@@ -563,7 +565,7 @@ export function CanvasInteractionLayer({
       role="menu"
       className={cn(
         "pointer-events-auto z-40 w-56 rounded-xl border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl",
-        isMobile ? "fixed bottom-32 right-3" : "absolute",
+        isMobile ? "fixed bottom-[8.5rem] right-3 max-h-[60dvh] overflow-y-auto" : "absolute",
       )}
       style={isMobile || !handleBox ? undefined : { top: handleBox.top + 30, left: Math.max(0, handleBox.left - 44) }}
     >
@@ -716,7 +718,11 @@ export function CanvasInteractionLayer({
           key={`add-tags-${b.sectionId}`}
           type="button"
           data-rx-overlay
-          onClick={() => setTagEdit({ sectionType: b.type, title: b.title, top: b.top + b.height + 6, left: b.left })}
+          onClick={() => {
+            setMenuOpen(false);
+            setDateEdit(null);
+            setTagEdit({ sectionType: b.type, title: b.title, top: b.top + b.height + 6, left: b.left });
+          }}
           className="pointer-events-auto absolute z-20 inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-background px-3 py-1 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
           style={{ top: b.top + Math.max(0, b.height / 2 - 13), left: Math.max(b.left, b.left + b.width - 118) }}
         >
@@ -730,7 +736,7 @@ export function CanvasInteractionLayer({
       {tagEdit ? (
         <div
           data-rx-overlay
-          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-16 flex justify-center" : "absolute")}
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
           style={isMobile ? undefined : { top: tagEdit.top, left: Math.max(0, tagEdit.left) }}
         >
           <TagListPopover
@@ -744,7 +750,7 @@ export function CanvasInteractionLayer({
       {dateEdit ? (
         <div
           data-rx-overlay
-          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-16 flex justify-center" : "absolute")}
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
           style={isMobile ? undefined : { top: dateEdit.top, left: Math.max(0, dateEdit.left) }}
         >
           <DatePickerPopover

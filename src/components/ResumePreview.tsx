@@ -364,7 +364,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         className={cn(
           "flex-1 touch-pan-x touch-pan-y overflow-auto",
           canvasMode ? "rx-canvas-scroll" : "bg-muted/40",
-          compact && "pl-12",
+          compact && !canvasMode && "pl-12",
         )}
       >
         <div

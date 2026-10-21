@@ -152,6 +152,7 @@ import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
 import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
 import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
+import { TemplateTryOn } from "@/components/resume-canvas/TemplateTryOn";
 import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
@@ -444,6 +445,8 @@ export default function EditResumePage() {
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** Template being previewed with this resume before applying it. */
+  const [tryOnTemplate, setTryOnTemplate] = useState<ResumeTemplate | null>(null);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   /** File name picked in the download dialog (used by the next PDF compile). */
   const downloadFilenameRef = useRef<string | null>(null);
@@ -769,6 +772,48 @@ export default function EditResumePage() {
     [resumeId],
   );
 
+  // Never lose the last edits: save them when leaving the editor (or switching resume),
+  // when the tab/app goes to the background, and warn before a reload/close.
+  useEffect(() => {
+    const flush = () => {
+      const snapshot = resumeRef.current;
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+      if (!hasChangesRef.current || !snapshot || !currentLayout || currentSections.length === 0) return;
+      hasChangesRef.current = false;
+      // Save under the snapshot's own id: by the time this runs the route may show another resume.
+      void resumeApi
+        .update(snapshot.resumeId, {
+          title: snapshot.title,
+          templateId: snapshot.templateId,
+          content: snapshot.content,
+          profileSummary: snapshot.profileSummary,
+          sectionOrder: toSectionOrderPayload(currentSections),
+          layout: currentLayout,
+        })
+        .catch((error) => {
+          hasChangesRef.current = true;
+          console.error("Saving on leave failed:", error);
+        });
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasChangesRef.current) return;
+      flush();
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flush();
+    };
+  }, [resumeId]);
+
   const ensureResumePersisted = useCallback(async () => {
     const current = resumeRef.current;
     if (!current || !hasChangesRef.current) return;
@@ -915,7 +960,7 @@ export default function EditResumePage() {
       } finally {
         setAutoSaving(false);
       }
-    }, 5000);
+    }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
   }, [hasChanges, resumeId, triggerThumbnailCapture]);
@@ -3081,7 +3126,7 @@ export default function EditResumePage() {
     canvasPanel === "outline"
       ? "Outline"
       : canvasPanel === "fix"
-      ? "Score"
+      ? "ATS score"
       : canvasPanel === "tailor"
         ? "Job match"
       : canvasPanel === "templates"
@@ -3667,7 +3712,7 @@ export default function EditResumePage() {
         {isMobile && showMobileEditPanel ? (
           <div className={resumeEditorMobileOverlay} aria-hidden />
         ) : null}
-        {isMobile && canvasOn && canvasPanel ? (
+        {isMobile && canvasOn && canvasPanel && !tryOnTemplate ? (
           <button type="button" aria-label="Close panel" className="fixed inset-0 z-[59] bg-black/30" onClick={closeCanvasPanel} />
         ) : null}
         {/* Edit panel — centered popup on mobile when editing; a docked side panel on the canvas */}
@@ -7450,7 +7495,11 @@ export default function EditResumePage() {
           <div
             className={
               isMobile
-                ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl"
+                ? cn(
+                    "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl",
+                    // A full-screen template preview is open on top: step out of its way.
+                    tryOnTemplate && "hidden",
+                  )
                 : "flex min-h-0 w-[340px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
             }
           >
@@ -7518,6 +7567,7 @@ export default function EditResumePage() {
                 currentTemplateId={resume.templateId}
                 onSelectTemplate={handleChangeTemplate}
                 applying={changingTemplate}
+                onPreview={setTryOnTemplate}
               />
             ) : (
               <AiAssistPanel
@@ -7653,6 +7703,17 @@ export default function EditResumePage() {
       </div>
 
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
+      {resume ? (
+        <TemplateTryOn
+          resume={resume}
+          template={tryOnTemplate}
+          currentTemplateId={resume.templateId}
+          compact={isMobile}
+          applying={changingTemplate}
+          onApply={(id) => void handleChangeTemplate(id)}
+          onClose={() => setTryOnTemplate(null)}
+        />
+      ) : null}
       <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
       <DownloadDialog
         open={downloadDialogOpen}
