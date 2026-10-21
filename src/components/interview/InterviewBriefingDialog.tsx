@@ -15,6 +15,12 @@ import { JourneyIconTile, journey } from "@/components/interview/journey-ui";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
+import {
+  PermissionAllowedNote,
+  PermissionGuide,
+  queryCameraMicState,
+  type CameraMicState,
+} from "@/components/interview/PermissionGuide";
 
 const PERMISSIONS_DESKTOP =
   "Allow mic, camera, and screenshare when the browser asks — the interview cannot run without them.";
@@ -52,6 +58,19 @@ export function InterviewBriefingDialog({
   useEffect(() => {
     setCanShareScreen(supportsDisplayMediaCapture());
   }, []);
+  // Follow the camera/mic permission live: the browser asks while this dialog is open.
+  const [access, setAccess] = useState<CameraMicState>("unknown");
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const refresh = () => void queryCameraMicState().then((s) => alive && setAccess(s));
+    refresh();
+    const timer = setInterval(refresh, 1500);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [open]);
   const items = BRIEFING_ITEMS.map((text) =>
     text === PERMISSIONS_DESKTOP && !canShareScreen ? PERMISSIONS_PHONE : text,
   );
@@ -78,6 +97,11 @@ export function InterviewBriefingDialog({
 
         {/* Only the list scrolls, so the accept button stays on screen on small phones. */}
         <div className={cn(journey.body, "min-h-0 flex-1 overflow-y-auto")}>
+          {access === "granted" ? (
+            <PermissionAllowedNote className="mb-3" />
+          ) : (
+            <PermissionGuide mode={access === "denied" ? "unblock" : "allow"} className="mb-4" />
+          )}
           <ul className="list-disc space-y-1.5 pl-5 text-left text-[13px] leading-5 text-muted-foreground sm:text-sm">
             {items.map((text) => (
               <li key={text}>{text}</li>

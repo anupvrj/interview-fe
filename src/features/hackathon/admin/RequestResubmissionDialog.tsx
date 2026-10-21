@@ -55,10 +55,10 @@ export function RequestResubmissionDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            {description ?? "The participant can submit again. Prior scores stay in admin history."}
+            {description ?? "The participant can submit again and gets an email about it. Prior scores stay in admin history."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <HackathonAdminField id="hk-resubmit-note" label="Message to participant" hint="Optional. Shown on their dashboard.">
+        <HackathonAdminField id="hk-resubmit-note" label="Message to participant" hint="Optional. Shown on their dashboard and in the email.">
           <Textarea
             id="hk-resubmit-note"
             rows={3}

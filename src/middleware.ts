@@ -24,6 +24,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  // Google sign-in from the hackathon Register flow comes back here before there's a session.
+  "/sso-callback(.*)",
   "/onboarding(.*)",
   "/api/webhooks(.*)",
   "/api/revalidate",

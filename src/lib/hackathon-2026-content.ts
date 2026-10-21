@@ -113,8 +113,8 @@ export const HACKATHON_STEPS = [
   },
   {
     num: "3",
-    title: "Score Maximum on 2 AI Interviews",
-    body: "Attempt two full 15-minute AI interviews and score your maximum to win the hackathon.",
+    title: "Score Maximum on the AI Interview",
+    body: "Take a full 15-minute AI interview (you get 3 tries) and score your maximum to win the hackathon.",
     icon: "MessageSquareText",
     accent: "amber",
   },
@@ -133,7 +133,7 @@ export const HACKATHON_TIMELINE = {
   copy: "Key dates for your journey from registration to the final round.",
   items: [
     { date: "20 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
-    { date: "20–26 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
+    { date: "20–26 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish your mock interview." },
     { date: "27–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
     { date: "31 Oct 2026", title: "Winner Announcement", body: "Join the live launch as winners are announced." },
   ],
@@ -317,7 +317,7 @@ export const HACKATHON_FAQ = [
   {
     question: "How are the top performers selected?",
     answer:
-      "Every complete final submission gets a Final Score = 30% resume ATS score + 70% average of your two mock interview scores. Submissions are ranked by Final Score, and if two scores tie, whoever submitted first ranks higher. The top entries are verified, and the top 3 win.",
+      "Every complete final submission gets a Final Score = 30% resume ATS score + 70% your mock interview score. Submissions are ranked by Final Score, and if two scores tie, whoever submitted first ranks higher. The top entries are verified, and the top 3 win.",
   },
   {
     question: "Where is the live launch happening?",

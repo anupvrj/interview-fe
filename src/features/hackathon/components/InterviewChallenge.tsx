@@ -3,13 +3,22 @@
 import { HackathonHelpOnWhatsApp } from "./HackathonHelpOnWhatsApp";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, CheckCircle2, Code2, FileBarChart2, Loader2, Lock, Mic, Network, PlayCircle } from "lucide-react";
 import { eventTargets, toHackathonError, type ChallengeProgress, type HackathonChallengeKind, type HackathonMe, type InterviewSlotProgress } from "../api";
 import { hackathonDashboardPath } from "../config";
 import { failureReasonText, lockReasonText } from "../copy";
-import { useHackathonSlug, useStartHackathonInterview } from "../hooks";
-import { withInterviewReturnTo } from "@/lib/interview-return-to";
+import {
+  hackathonKeys,
+  useHackathonSlug,
+  useReattemptHackathonInterview,
+  useStartHackathonInterview,
+  useSubmitHackathonInterview,
+} from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { HACKATHON_RESULT_PARAM, withInterviewReturnTo } from "@/lib/interview-return-to";
+import { InterviewResultModal } from "./InterviewResultModal";
+import { pickResultSlot, resultPhaseFor } from "../interviewResult";
 import { cn } from "@/lib/utils";
 import { hkInputClass, hkSecondaryButton } from "./ResumeChallenge";
 
@@ -116,7 +125,10 @@ function SlotCard({
   slot,
   durationMinutes,
   starting,
+  deciding,
   onStart,
+  onSubmit,
+  onReattempt,
   dashboardPath,
   interviewTarget,
   kind,
@@ -124,13 +136,19 @@ function SlotCard({
   slot: InterviewSlotProgress;
   durationMinutes: number;
   starting: boolean;
+  deciding: boolean;
   onStart: (slot: number) => void;
+  onSubmit: (slot: number) => void;
+  onReattempt: (slot: number) => void;
   dashboardPath: string;
   interviewTarget: number;
   kind?: HackathonChallengeKind;
 }>) {
   const failure = failureReasonText(slot.lastFailureReason);
   const attemptsLeft = Math.max(0, slot.attemptsMax - slot.attemptsUsed);
+  // Scores/reports come after the event: the server only sends a score once revealed.
+  const hideReport = typeof slot.overallScore !== "number";
+  const canReattempt = slot.canReattempt === true;
 
   return (
     <div
@@ -155,17 +173,18 @@ function SlotCard({
 
       <div className="mt-4 flex flex-1 flex-col">
         {slot.state === "completed" ? (
-          // Status + score on the left, report action pinned right
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0 space-y-2">
               <div className="hk-pill-m flex items-center gap-2 text-sm font-semibold text-[#29d6a0]">
                 <CheckCircle2 className="size-4" aria-hidden /> Submitted
               </div>
-              {typeof slot.overallScore === "number" ? (
+              {!hideReport && typeof slot.overallScore === "number" ? (
                 <ScoreBadge score={slot.overallScore} target={interviewTarget} />
+              ) : hideReport ? (
+                <p className="text-sm text-[#9eb2ca]">Your attempt is recorded for the hackathon.</p>
               ) : null}
             </div>
-            {slot.interviewId || slot.sessionId ? (
+            {!hideReport && (slot.interviewId || slot.sessionId) ? (
               <Link
                 href={roundReportHref(kind, { interviewId: slot.interviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)}
                 className={cn(hkSecondaryButton, "shrink-0")}
@@ -178,11 +197,49 @@ function SlotCard({
         ) : slot.state === "processing" ? (
           <div className="space-y-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#2bd2ff]">
-              <Loader2 className="size-4 animate-spin" aria-hidden /> Generating your report…
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Analysing your interview…
             </p>
-            <p className="text-sm text-[#9eb2ca]">
-              Your interview is submitted once the report is ready. This usually takes about a minute.
+            <p className="text-sm text-[#9eb2ca]">This usually takes about a minute. Keep this page open.</p>
+          </div>
+        ) : slot.state === "awaiting_decision" ? (
+          <div className="mt-auto space-y-4">
+            <p className="text-sm text-[#cfdbe8]">
+              {slot.decisionReason === "short_interview"
+                ? "Your interview was too short (under 8 minutes)."
+                : "Your interview scored low."}{" "}
+              {canReattempt
+                ? "Take one re-attempt — we keep whichever scores higher — or submit this one."
+                : "This was your last try, so submit it."}
             </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                disabled={deciding}
+                onClick={() => onSubmit(slot.slot)}
+                className="hk-btn h-12 flex-1 px-5 text-sm disabled:pointer-events-none disabled:opacity-60"
+              >
+                {deciding ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden /> Submitting…
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-4" aria-hidden />
+                    Submit this one
+                  </>
+                )}
+              </button>
+              {canReattempt ? (
+                <button
+                  type="button"
+                  disabled={deciding}
+                  onClick={() => onReattempt(slot.slot)}
+                  className={cn(hkSecondaryButton, "h-12 flex-1 justify-center disabled:pointer-events-none disabled:opacity-60")}
+                >
+                  Re-attempt
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : slot.state === "in_progress" ? (
           <div className="space-y-3">
@@ -222,8 +279,8 @@ function SlotCard({
             </button>
             <p className="text-[13px] text-[#cfdbe8]">
               {slot.attemptsMax <= 1
-                ? `You get one successful ${roundNoun(kind)}. If it fails because of an internal issue, you can retry.`
-                : `${attemptsLeft} of ${slot.attemptsMax} successful attempts left. Internal failures do not use an attempt.`}
+                ? `You get one ${roundNoun(kind)} try. Internal failures do not use an attempt.`
+                : `${attemptsLeft} of ${slot.attemptsMax} tries left (including reattempts). Internal failures do not use a try.`}
             </p>
           </div>
         ) : (
@@ -250,8 +307,13 @@ export function InterviewChallenge({
   const storageOwner = me.participant?.participantId ?? "anon";
   const targets = eventTargets(me.hackathon);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const start = useStartHackathonInterview();
+  const submitAttempt = useSubmitHackathonInterview();
+  const reattempt = useReattemptHackathonInterview();
   const [startingSlot, setStartingSlot] = useState<number | null>(null);
+  const [decidingSlot, setDecidingSlot] = useState<number | null>(null);
   const [setupSlot, setSetupSlot] = useState<number | null>(null);
   const [targetRole, setTargetRole] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
@@ -344,6 +406,106 @@ export function InterviewChallenge({
   };
 
   onStartRef.current = onStart;
+
+  useEffect(() => {
+    if (!slots.some((s) => s.state === "processing")) return;
+    const id = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [queryClient, slug, slots]);
+
+  // ---- Result pop-up: analysing → (low? re-attempt / submit) → submitted -------------
+  const resultParam = searchParams.get(HACKATHON_RESULT_PARAM);
+  const resultSlot = pickResultSlot(slots, resultParam);
+  const resultPhase = resultPhaseFor(resultSlot);
+  const [resultOpen, setResultOpen] = useState(Boolean(resultParam));
+  const [resultBusy, setResultBusy] = useState<"reattempt" | "submit" | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
+  const [analysingSince, setAnalysingSince] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // A round waiting for a decision opens the pop-up on its own (once), so it can't be missed.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || !resultPhase) return;
+    if (resultParam || resultPhase === "low_score" || resultPhase === "short_interview") {
+      autoOpened.current = true;
+      setResultOpen(true);
+    }
+  }, [resultParam, resultPhase]);
+
+  // While analysing: poll quickly, and note when it's taking a while.
+  const analysing = resultOpen && resultPhase === "analysing";
+  useEffect(() => {
+    if (!analysing) {
+      setAnalysingSince(null);
+      return;
+    }
+    setAnalysingSince((since) => since ?? Date.now());
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+      void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [analysing, queryClient, slug]);
+
+  const closeResult = () => {
+    setResultOpen(false);
+    setResultError(null);
+    if (resultParam) router.replace(dashboardPath, { scroll: false });
+  };
+
+  /** Start the re-attempt right away with the last role/company (asks only if there's none). */
+  const startAgain = (slot: number) => {
+    closeResult();
+    const stored = readStoredTarget(slug, storageOwner);
+    if (asksForTarget(kind) && stored.targetRole) onStart(slot, { targetRole: stored.targetRole, targetCompany: stored.targetCompany || undefined });
+    else openSetup(slot);
+  };
+
+  const onSubmitAttempt = (slot: number) => {
+    setError(null);
+    setResultError(null);
+    setDecidingSlot(slot);
+    setResultBusy("submit");
+    submitAttempt.mutate(
+      { slot, challengeId: challenge?.challengeId },
+      {
+        onSettled: () => {
+          setDecidingSlot(null);
+          setResultBusy(null);
+        },
+        onError: (err) => {
+          const message = toHackathonError(err).message;
+          setError(message);
+          setResultError(message);
+        },
+      },
+    );
+  };
+
+  const onReattempt = (slot: number) => {
+    setError(null);
+    setResultError(null);
+    setDecidingSlot(slot);
+    setResultBusy("reattempt");
+    reattempt.mutate(
+      { slot, challengeId: challenge?.challengeId },
+      {
+        onSuccess: () => startAgain(slot),
+        onSettled: () => {
+          setDecidingSlot(null);
+          setResultBusy(null);
+        },
+        onError: (err) => {
+          const message = toHackathonError(err).message;
+          setError(message);
+          setResultError(message);
+        },
+      },
+    );
+  };
 
   useEffect(() => {
     if (retryEpoch === 0 || retryAt.current === null) return;
@@ -450,9 +612,9 @@ export function InterviewChallenge({
               : me.profile.targetJobRole
                 ? ` and uses your role (${me.profile.targetJobRole})`
                 : ""}
-            {passTarget != null ? ` Aim for ${passTarget}+ on each.` : "."}
+            .
           </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className={cn("grid grid-cols-1 gap-4", slots.length > 1 ? "md:grid-cols-2" : "")}>
             {slots.map((slot) => (
               <SlotCard
                 key={slot.slot}
@@ -462,12 +624,29 @@ export function InterviewChallenge({
                 interviewTarget={slot.minScore ?? passTarget ?? targets.interviewScore}
                 durationMinutes={durationMinutes ?? 15}
                 starting={startingSlot === slot.slot && (start.isPending || start.isSuccess || retryIn !== null)}
+                deciding={decidingSlot === slot.slot && (submitAttempt.isPending || reattempt.isPending)}
                 onStart={openSetup}
+                onSubmit={onSubmitAttempt}
+                onReattempt={onReattempt}
               />
             ))}
           </div>
         </>
       )}
+      {resultSlot && resultPhase ? (
+        <InterviewResultModal
+          open={resultOpen}
+          phase={resultPhase}
+          canReattempt={resultSlot.canReattempt === true}
+          busy={resultBusy}
+          error={resultError}
+          slow={analysingSince !== null && now - analysingSince > 3 * 60_000}
+          onReattempt={() => onReattempt(resultSlot.slot)}
+          onSubmit={() => onSubmitAttempt(resultSlot.slot)}
+          onStartAgain={() => startAgain(resultSlot.slot)}
+          onClose={closeResult}
+        />
+      ) : null}
       {error ? (
         <>
           <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">

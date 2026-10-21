@@ -9,6 +9,19 @@ const basePub = {
 } as Pick<HackathonPublic, "phase" | "isFull" | "spotsLeft">;
 
 describe("resolveHackathonLandingCta", () => {
+  it("signed out: Register for new browsers, Go to Challenge for returning ones", () => {
+    const pub = basePub as HackathonPublic;
+    expect(resolveHackathonLandingCta(pub, false, false).labelKey).toBe("register");
+    expect(resolveHackathonLandingCta(pub, false, false, true).labelKey).toBe("goToChallenges");
+    expect(resolveHackathonLandingCta(undefined, false, false, true).labelKey).toBe("goToChallenges");
+    // A full event doesn't lock out someone who already joined.
+    expect(resolveHackathonLandingCta({ ...basePub, isFull: true } as HackathonPublic, false, false, true)).toMatchObject({ labelKey: "goToChallenges", disabled: false });
+  });
+
+  it("signed in: the real registration wins over the browser key", () => {
+    expect(resolveHackathonLandingCta(basePub as HackathonPublic, true, false, true).labelKey).toBe("register");
+  });
+
   it("shows register for signed-in users who are not registered", () => {
     expect(resolveHackathonLandingCta(basePub as HackathonPublic, true, false).labelKey).toBe("register");
   });

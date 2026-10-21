@@ -2,7 +2,13 @@ import { apiClient } from "@/lib/api";
 import { HACKATHON_TARGETS } from "./config";
 
 export type HackathonPhase = "upcoming" | "live" | "ended";
-export type StepState = "locked" | "available" | "in_progress" | "processing" | "completed";
+export type StepState =
+  | "locked"
+  | "available"
+  | "in_progress"
+  | "processing"
+  | "awaiting_decision"
+  | "completed";
 export type LockReason =
   | "not_started"
   | "ended"
@@ -73,6 +79,9 @@ export interface InterviewSlotProgress {
   lastFailureReason?: string;
   passed?: boolean;
   minScore?: number | null;
+  /** Waiting for Re-attempt / Submit: why (the score itself is never sent before results). */
+  decisionReason?: "low_score" | "short_interview";
+  canReattempt?: boolean;
 }
 
 export interface ChallengeProgress {
@@ -293,6 +302,32 @@ export const hackathonApi = {
     return res.data.data;
   },
 
+  submitInterview: async (
+    slug: string,
+    getToken: TokenGetter,
+    slot: number,
+    challengeId?: string,
+  ): Promise<HackathonMe> => {
+    const path = challengeId
+      ? `${hackathonBase(slug)}/me/challenges/${challengeId}/slots/${slot}/submit`
+      : `${hackathonBase(slug)}/me/interviews/${slot}/submit`;
+    const res = await apiClient.post<{ data: HackathonMe }>(path, {}, { headers: await authHeaders(getToken) });
+    return res.data.data;
+  },
+
+  reattemptInterview: async (
+    slug: string,
+    getToken: TokenGetter,
+    slot: number,
+    challengeId?: string,
+  ): Promise<HackathonMe> => {
+    const path = challengeId
+      ? `${hackathonBase(slug)}/me/challenges/${challengeId}/slots/${slot}/reattempt`
+      : `${hackathonBase(slug)}/me/interviews/${slot}/reattempt`;
+    const res = await apiClient.post<{ data: HackathonMe }>(path, {}, { headers: await authHeaders(getToken) });
+    return res.data.data;
+  },
+
   startChallenge: async (
     slug: string,
     getToken: TokenGetter,
@@ -375,6 +410,8 @@ export interface AdminHackathonOverview {
 export interface AdminParticipantRow {
   participantId: string;
   userId: string;
+  /** From the user's profile ("+91 9876543210"); null if they never added one. */
+  phone?: string | null;
   status: ParticipantStatus;
   profileSnapshot?: { name?: string; email?: string; userType?: string; targetJobRole?: string; experience?: number };
   registeredAt: string;
@@ -604,12 +641,12 @@ export const hackathonAdminApi = {
     participantId: string,
     challengeId: string,
     body?: { slot?: number; note?: string },
-  ): Promise<AdminParticipantDetail> => {
-    const res = await apiClient.post<{ data: AdminParticipantDetail }>(
+  ): Promise<{ detail: AdminParticipantDetail; emailedTo: string | null }> => {
+    const res = await apiClient.post<{ data: AdminParticipantDetail; emailedTo?: string | null }>(
       `${adminBase}/${hackathonId}/participants/${participantId}/challenges/${challengeId}/reset`,
       body ?? {},
     );
-    return res.data.data;
+    return { detail: res.data.data, emailedTo: res.data.emailedTo ?? null };
   },
   reviewSocial: async (
     hackathonId: string,

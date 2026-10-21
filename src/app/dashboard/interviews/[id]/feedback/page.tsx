@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { appCardElevated } from "@/lib/app-theme";
 import { journey } from "@/components/interview/journey-ui";
 import {
+  hackathonResultPath,
   isHackathonDashboardReturn,
   resolveInterviewReturnTo,
   withInterviewReturnTo,
@@ -29,9 +30,12 @@ export default function PostInterviewFeedbackPage() {
 
   const isHackathon = isHackathonDashboardReturn(returnTo);
 
-  const goToProcessing = () => {
+  // Hackathon: the result pop-up on the hackathon dashboard ("analysing…"). Otherwise: the report.
+  const goNext = () => {
     router.push(
-      withInterviewReturnTo(`/dashboard/interviews/${interviewId}/processing`, returnTo),
+      isHackathon
+        ? hackathonResultPath(returnTo, interviewId)
+        : withInterviewReturnTo(`/dashboard/interviews/${interviewId}/processing`, returnTo),
     );
   };
 
@@ -46,7 +50,7 @@ export default function PostInterviewFeedbackPage() {
         sessionChallenge: payload.sessionChallenge,
         comment: payload.comment || undefined,
       });
-      goToProcessing();
+      goNext();
     } catch (err: unknown) {
       setSubmitError(
         getApiErrorMessage(err, "Error saving feedback. Please try again."),
@@ -56,32 +60,18 @@ export default function PostInterviewFeedbackPage() {
     }
   };
 
-  const handleSkip = () => {
-    goToProcessing();
-  };
-
   return (
     <section className="px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-xl">
         <div className={cn(appCardElevated, "overflow-hidden")}>
           <div className={journey.headerBand}>
-            <div className="flex items-center justify-between">
-              <p className={journey.eyebrow}>
-                {isHackathon ? "Interview complete" : "Before your report"}
-              </p>
-              <button
-                type="button"
-                onClick={handleSkip}
-                disabled={submitting}
-                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-              >
-                Skip for now →
-              </button>
-            </div>
+            <p className={journey.eyebrow}>
+              {isHackathon ? "Interview complete" : "Before your report"}
+            </p>
             <h1 className={cn(journey.title, "mt-2")}>How was your mock interview?</h1>
             <p className={journey.description}>
               {isHackathon
-                ? "Quick feedback before checking your results."
+                ? "Quick feedback, then we\u2019ll analyse your interview."
                 : "Quick feedback, then we\u2019ll generate your report."}
             </p>
           </div>
@@ -99,12 +89,8 @@ export default function PostInterviewFeedbackPage() {
             <PostInterviewFeedbackForm
               interviewId={interviewId}
               onSubmitFeedback={handleFeedbackSubmit}
-              onSkip={handleSkip}
               submitButtonLabel={
-                isHackathon ? "Submit & view results" : "Submit & generate report"
-              }
-              skipButtonLabel={
-                isHackathon ? "Skip and view results →" : "Skip, show report →"
+                isHackathon ? "Submit & see result" : "Submit & generate report"
               }
               submitting={submitting}
             />

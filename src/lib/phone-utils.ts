@@ -2,6 +2,7 @@ import {
   DEFAULT_PHONE_COUNTRY_CODE,
   PHONE_COUNTRY_CODES,
 } from "@/lib/phone-country-codes";
+import { checkMobileNumber } from "@/lib/phone-validation";
 
 export function parseStoredPhone(phone?: string | null): {
   countryCode: string;
@@ -47,11 +48,11 @@ export function formatPhoneForStorage(
   return `${countryCode} ${digits}`;
 }
 
+/** A real mobile number for the chosen country (see checkMobileNumber for the rules). */
 export function isValidPhoneForStorage(
   countryCode: string,
   localNumber: string,
 ): boolean {
-  const digits = localNumber.replace(/[^\d]/g, "");
-  if (!digits || digits.length < 6 || digits.length > 15) return false;
-  return PHONE_COUNTRY_CODES.some((option) => option.value === countryCode);
+  if (!PHONE_COUNTRY_CODES.some((option) => option.value === countryCode)) return false;
+  return checkMobileNumber(countryCode, localNumber).ok;
 }

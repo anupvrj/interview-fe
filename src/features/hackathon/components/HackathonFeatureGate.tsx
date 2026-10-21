@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { HackathonPageLoader } from "./HackathonPageLoader";
 import { FeatureUnavailable } from "@/components/features/FeatureUnavailable";
 import { useHackathonFeature } from "../hooks";
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 
 export function HackathonFeatureGate({
   children,
@@ -15,13 +16,9 @@ export function HackathonFeatureGate({
   backLabel?: string;
 }) {
   const feature = useHackathonFeature();
+  useLoadingTimeout(feature.isLoading, "hackathon availability");
   if (feature.isLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden />
-        Loading…
-      </div>
-    );
+    return <HackathonPageLoader />;
   }
   if (!feature.accessible) {
     return (

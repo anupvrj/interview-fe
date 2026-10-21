@@ -1,11 +1,12 @@
 "use client";
 
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CalendarClock, CheckCircle2, Circle, Flag, Loader2, Mail, ShieldAlert, Users } from "lucide-react";
+import { AlertCircle, CalendarClock, CheckCircle2, Circle, Flag, Mail, ShieldAlert, Users } from "lucide-react";
 import {
   consumePostSignInReturnUrl,
   getSignInUrlWithRedirect,
@@ -23,6 +24,7 @@ import { WhatsAppCommunityCard } from "../components/WhatsAppCommunityCard";
 import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
 import { HackathonShell } from "../components/HackathonShell";
+import { HackathonPageLoader } from "../components/HackathonPageLoader";
 import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
@@ -198,18 +200,11 @@ function DashboardContent() {
     }
   }, [isLoaded, isSignedIn, router, slug]);
 
-  if (
-    !isLoaded ||
-    !isSignedIn ||
-    meQuery.waitingForMe ||
-    needsProfile ||
-    (!me && !meQuery.isError)
-  ) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
-        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading your hackathon…
-      </div>
-    );
+  const loadingDashboard =
+    !isLoaded || !isSignedIn || meQuery.waitingForMe || needsProfile || (!me && !meQuery.isError);
+  useLoadingTimeout(loadingDashboard, "hackathon dashboard");
+  if (loadingDashboard) {
+    return <HackathonPageLoader />;
   }
 
   if (meQuery.isError || !me) {

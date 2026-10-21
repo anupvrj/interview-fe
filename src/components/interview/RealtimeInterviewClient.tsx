@@ -68,6 +68,8 @@ import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceStatus";
 import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
+import { CAMERA_MIC_DENIED_MESSAGE, PermissionGuide } from "@/components/interview/PermissionGuide";
+import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
@@ -102,6 +104,7 @@ import {
   resolveHackathonInterviewHome,
   hackathonDashboardFromTags,
   recentHackathonDashboard,
+  hackathonResultPath,
   rememberInterviewReturnTo,
   resolveInterviewReturnTo,
   shouldAutoDiscardUnstartedInterview,
@@ -338,6 +341,12 @@ export function RealtimeInterviewClient({
   const [showBriefing, setShowBriefing] = useState(false);
   const [briefingAccepted, setBriefingAccepted] = useState(false);
   const [acceptingBriefing, setAcceptingBriefing] = useState(false);
+  // Loading the interview or connecting after "Accept" for over 60 s: the hackathon
+  // watchdog (on the page) offers the way back. Normal interviews are unaffected.
+  useLoadingTimeout(
+    (loading || acceptingBriefing) && Boolean(resolveHackathonInterviewHome(returnToRef.current)),
+    loading ? "interview loading" : "interview connecting",
+  );
   const openedRecordingAfterBriefingRef = useRef(false);
   const launchingInterviewRef = useRef(false);
   /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */
@@ -898,15 +907,8 @@ export function RealtimeInterviewClient({
     ],
   );
 
-  /** Hackathon (and any flagged session): screen share is required before start. */
-  const requireSessionRecording =
-    interview?.metadata?.requireSessionRecording === true ||
-    interview?.metadata?.tags?.includes("hackathon") === true ||
-    Boolean(
-      resolveHackathonInterviewHome(
-        currentInterviewReturnTo(interviewId) ?? returnToRef.current,
-      ),
-    );
+  /** Only explicit server flag (e.g. special events); hackathon uses the same optional opt-in as normal AI interviews. */
+  const requireSessionRecording = interview?.metadata?.requireSessionRecording === true;
 
   useEffect(() => {
     codingEmbedAutostartStartedRef.current = false;
@@ -1099,14 +1101,17 @@ export function RealtimeInterviewClient({
           returnToRef.current ??
           hackathonDashboardFromTags(data.metadata?.tags);
         const hackathonHome = resolveHackathonInterviewHome(returnTo);
-        const dest =
-          data.status === "processing"
+        const isHackathon =
+          data.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
+        const dest = isHackathon
+          ? hackathonResultPath(hackathonHome ?? returnTo, interviewId)
+          : data.status === "processing"
             ? `/dashboard/interviews/${interviewId}/processing`
             : data.status === "completed"
-              ? hackathonHome ?? `/dashboard/interviews/${interviewId}/report`
-              : hackathonHome ?? "/dashboard/interviews";
+              ? `/dashboard/interviews/${interviewId}/report`
+              : "/dashboard/interviews";
         redirectedHome = true;
-        router.replace(withInterviewReturnTo(dest, returnTo));
+        router.replace(isHackathon ? dest : withInterviewReturnTo(dest, returnTo));
         return;
       }
       await connectWebSocket(data);
@@ -1298,8 +1303,7 @@ export function RealtimeInterviewClient({
         error.name === "NotAllowedError" ||
         error.name === "PermissionDeniedError"
       ) {
-        errorMessage =
-          "Camera and microphone access was denied. Please allow permissions and refresh the page.";
+        errorMessage = CAMERA_MIC_DENIED_MESSAGE;
       } else if (
         error.name === "NotFoundError" ||
         error.name === "DevicesNotFoundError"
@@ -2650,8 +2654,20 @@ export function RealtimeInterviewClient({
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
       }
-      // Coding practice skips post-interview AI feedback; all AI interview sessions
-      // (including hackathons) route to feedback with a voluntary skip option.
+      const hackathonHome = resolveHackathonInterviewHome(returnTo);
+      const isHackathon =
+        interview?.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
+      if (isHackathon) {
+        // Feedback first; submitting it opens the result pop-up on the hackathon dashboard.
+        router.push(
+          withInterviewReturnTo(
+            `/dashboard/interviews/${interviewId}/feedback`,
+            hackathonHome ?? returnTo ?? recentHackathonDashboard(),
+          ),
+        );
+        return;
+      }
+      // Coding practice skips post-interview AI feedback; other AI sessions route to feedback.
       const afterPath = isCodingPractice
         ? `/dashboard/interviews/${interviewId}/processing`
         : `/dashboard/interviews/${interviewId}/feedback`;
@@ -3189,8 +3205,8 @@ export function RealtimeInterviewClient({
         if (!showRecordingOptIn) {
           setError(
             supportsDisplayMediaCapture()
-              ? "Screen recording is required for this hackathon interview. Allow screen sharing to continue."
-              : "This hackathon interview requires screen recording on a desktop browser.",
+              ? "Screen recording is required for this interview. Allow screen sharing to continue."
+              : "This interview requires screen recording on a desktop browser.",
           );
         }
         return false;
@@ -3242,12 +3258,12 @@ export function RealtimeInterviewClient({
       router.replace(home);
       return;
     }
-    setError("Screen recording is required for this hackathon interview. You cannot continue without it.");
+    setError("Screen recording is required for this interview. You cannot continue without it.");
   };
 
   /**
    * After user chooses in the recording dialog.
-   * Hackathon sessions must share the screen; declining sends them back.
+   * When recording is required, declining sends the candidate back.
    */
   const resolveRecordingOptIn = async (choice: "yes" | "no") => {
     if (launchingInterviewRef.current) return;
@@ -3515,16 +3531,35 @@ export function RealtimeInterviewClient({
             </Button>
           </div>
         ) : (
-          <div className={cn(journey.card, "w-full max-w-md")}>
+          <div className={cn(journey.card, "w-full", error === CAMERA_MIC_DENIED_MESSAGE ? "max-w-xl" : "max-w-md")}>
             <div className={journey.headerBand}>
               <JourneyIconTile tone="danger" size="lg" className="mb-3">
                 <AlertCircle className="h-7 w-7" aria-hidden />
               </JourneyIconTile>
               <p className={journey.eyebrow}>Interview</p>
-              <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
-              <p className={journey.description}>{error}</p>
+              {error === CAMERA_MIC_DENIED_MESSAGE ? (
+                <>
+                  <h2 className={cn(journey.title, "mt-2")}>Camera and microphone are blocked</h2>
+                  <p className={journey.description}>The interview needs both. Turn them back on, then try again.</p>
+                </>
+              ) : (
+                <>
+                  <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
+                  <p className={journey.description}>{error}</p>
+                </>
+              )}
             </div>
+            {error === CAMERA_MIC_DENIED_MESSAGE ? (
+              <div className={journey.body}>
+                <PermissionGuide mode="unblock" />
+              </div>
+            ) : null}
             <div className={cn(journey.footer, "sm:justify-center")}>
+              {error === CAMERA_MIC_DENIED_MESSAGE ? (
+                <Button className={journey.primaryButton} onClick={() => globalThis.location.reload()}>
+                  Try again
+                </Button>
+              ) : null}
               {needsIdentityVerification ? (
                 <Button
                   variant="outline"
@@ -3660,7 +3695,7 @@ export function RealtimeInterviewClient({
             <DialogDescription className="text-sm leading-relaxed text-zinc-300 sm:text-base">
               {requireSessionRecording
                 ? canShareScreen
-                  ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this hackathon interview."
+                  ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this interview."
                   : "Phones can't share their screen, so we'll record your camera and microphone for assessment instead. Keep your face visible and stay on this screen during the interview."
                 : "Record your interview session for future reference and analysis of how you answered each question."}
             </DialogDescription>

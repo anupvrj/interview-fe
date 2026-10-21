@@ -99,11 +99,15 @@ export function AdminSubmissionDetailPage({
   const reset = useMutation({
     mutationFn: ({ challengeId, slot, note }: { challengeId: string; slot?: number; note?: string }) =>
       hackathonAdminApi.resetChallenge(hackathonId, participantId, challengeId, { slot, note }),
-    onSuccess: (data: AdminParticipantDetail) => {
-      queryClient.setQueryData(key, data);
+    onSuccess: ({ detail, emailedTo }) => {
+      queryClient.setQueryData(key, detail);
       void queryClient.invalidateQueries({ queryKey: listKey });
       setResubmitTarget(null);
-      toast.success("Challenge reopened. The participant can submit again.");
+      toast.success(
+        emailedTo
+          ? `Challenge reopened. We emailed ${emailedTo}.`
+          : "Challenge reopened. No email was sent (email off for this event, or the address is blocked).",
+      );
     },
     onError: (err) => toast.error(toHackathonError(err).message),
   });

@@ -43,6 +43,10 @@ function StateBadge({ state }: Readonly<{ state: StepState }>) {
     available: { label: "Active", className: "border-[#3a8dff] text-[#6fc0ff] bg-[#0d2550]/60" },
     in_progress: { label: "In progress", className: "border-[#ffc44d]/70 text-[#ffc44d] bg-[#2e2410]/50" },
     processing: { label: "Scoring", className: "border-[#2bd2ff]/70 text-[#2bd2ff] bg-[#082f45]/50" },
+    awaiting_decision: {
+      label: "Ready to submit",
+      className: "border-[#ffc44d]/70 text-[#ffc44d] bg-[#2e2410]/50",
+    },
     completed: { label: "Completed", className: "border-[#29d6a0]/70 text-[#29d6a0] bg-[#0b2e2b]/70" },
   };
   const { label, className } = map[state];
@@ -78,7 +82,7 @@ function ScoreBadge({ passed, score, minScore }: Readonly<{ passed?: boolean; sc
 }
 
 const SOCIAL_CAPTION =
-  "I just took two AI mock interviews in the InterviewTrix Hackathon 2026 — Navigating Careers in 2027! 🚀 #InterviewTrix #InterviewTrixHackathon";
+  "I just took an AI mock interview in the InterviewTrix Hackathon 2026 — Navigating Careers in 2027! 🚀 #InterviewTrix #InterviewTrixHackathon";
 
 /** Full fake UI behind the lock, same idea as PracticeLockedGate — not gray bars. */
 function SocialLockedPreview() {
