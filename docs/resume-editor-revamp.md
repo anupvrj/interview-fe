@@ -101,3 +101,28 @@ resume page (Enhancv-style UX, our own look), on desktop and mobile.
 **Backend** — `POST /resumes/:id/share-link`, `POST /resumes/ai-rewrite` (no invented numbers, refuses sample text), version history (`GET/POST /resumes/:id/versions…`, `ResumeVersion` model, deleted with the resume/account), tailoring fact guard (no job-ad tools the resume never mentions; unknown numbers → `{X}`).
 
 **Safety** — PDF/thumbnail are captured with editing switched off (verified: no `contenteditable`/`data-rx-*` in the PDF HTML). React 19 innerHTML resets are prevented with stable props, so text being typed is never wiped.
+
+## Own UI pass (`feat/resume-editor-own-ui`)
+
+Goal: same jobs-to-be-done, clearly our own product. Functional ideas (edit on the page, score, job
+match, versions) are not protectable; the specific look, layout, names and flows are. So we change
+structure, interaction, visuals and wording — not just colours. No Enhancv assets, icons, copy or
+code were ever used. (Not legal advice — have counsel review before a commercial launch.)
+
+| Area | Enhancv pattern | Ours |
+| --- | --- | --- |
+| Layout | Centered horizontal tool row under the app bar + right icon rail + slide-in left panel | **Left "Studio" sidebar** (vertical icon + label) with panels opening beside it; actions (Preview, Share, Versions, Export) live in the top bar; no right rail. Mobile: bottom tab bar |
+| Feature names | Fix Mistakes · Check & Tailor · Rearrange · Templates · Design & Font · History | **Score · Job match · Reorder · Designs · Style · Versions**, plus **Outline** and **AI Coach** |
+| Score | Letter grade F–A badge + F–A bar | **Numeric score ring (0–100) + band** (Needs work / Getting there / Strong) |
+| Issue groups / copy | Spellcheck & Grammar, Quantified Impact, Wording & Readability; "Did you mean …?" | **Typos · Impact · Clarity · Polish**; "Possible typo — replace with:" |
+| On-page issue marks | Filled colour highlights | **Underlines** (wavy for typos, dotted for impact, solid for keywords, dashed for AI edits) |
+| Selecting an entry | Page dims grey, green outline, pill toolbar above with "+ Entry" | **No dimming**: a soft accent bar on the left of the entry and a **gutter handle** (⋮⋮ + ＋) beside it; actions in a handle menu; text formatting appears only when text is selected |
+| Between sections | Divider with "New Section" / "+ Entry" pills | **＋ in the left gutter** of each section heading → Insert section |
+| Adding a section | Modal grid of visual previews, "Add to Resume", "Show used sections" | **Searchable command list** ("Insert section…") with icons and one-line hints, keyboard-first |
+| Dates | Popover with From/To tabs and a year grid | **Inline Start / End month + year selects** with a "Currently here" switch |
+| Job keywords | Table: Keyword · In Resume · In Job Ad | **Chip cloud**: "On your resume" ✓ chips and "Missing" chips with + / hide |
+| AI edits review | Orange highlights, "AI suggested edits — Reject All / Approve All" bar | **Indigo dashed underline**, a "Changes" list in the side panel, **Keep all / Undo all** |
+| Preview | "What Recruiters See / What ATS Sees" | **"Designed" / "Plain text"** toggle |
+| History | Full-screen view, versions list on the left, "Restore This Version / Restore As A Copy" | **Right-side drawer timeline**, "Use this version" / "Open as a new resume" |
+| Placeholders | "Date period", "LinkedIn/Portfolio" | "Add dates", "Profile link" |
+| Extras only we have | — | Outline navigator (jump/hide sections), keyboard shortcuts (Alt+↑/↓ move, Ctrl/⌘+Enter add item), What-ATS-sees TXT export, share link, AI Coach that never invents facts |
