@@ -14,6 +14,7 @@ import {
 } from "@/features/hackathon/hackathonLandingCta";
 import { hackathonEntryPath } from "@/features/hackathon/hackathonEntry";
 import { isHackathonRegistered } from "@/features/hackathon/hackathonRegistration";
+import { useMarkHackathonMember } from "@/features/hackathon/returningMember";
 import { trackRegisterClick, type HackathonCtaLocation } from "@/features/hackathon/analytics";
 
 type HackathonRegisterContextValue = {
@@ -39,6 +40,7 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
   const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered);
   const [quizOpen, setQuizOpen] = useState(false);
+  useMarkHackathonMember(slug, isSignedIn, registered);
 
   const openRegister = useCallback((ctaLocation: HackathonCtaLocation = "other") => {
     if (derived.disabled) return;

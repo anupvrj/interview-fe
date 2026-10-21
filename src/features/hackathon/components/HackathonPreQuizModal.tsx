@@ -9,12 +9,13 @@ import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hack
 import { persistPostAuthReturnPath } from "@/lib/post-sign-in-redirect";
 import { cn } from "@/lib/utils";
 import { HK_EVENTS, trackHackathon } from "../analytics";
+import { readHackathonMember } from "../returningMember";
 
 /** Where Google sends the browser back to; finishes sign-in or sign-up (see app/(auth)/sso-callback). */
 export const HACKATHON_SSO_CALLBACK = "/sso-callback";
 
-type Step = "hold" | "attended" | "ready" | "onTheWay" | "google";
-const QUESTION_STEPS: Step[] = ["hold", "attended", "ready", "onTheWay"];
+type Step = "hold" | "attended" | "ready" | "google";
+const STEPS: Step[] = ["hold", "attended", "ready", "google"];
 
 /** The hackathon's primary button (matches .hk-btn, whose CSS only loads on hackathon pages). */
 const PRIMARY_BTN =
@@ -73,6 +74,8 @@ function GoogleMark() {
 /**
  * Signed-out "Register" on the hackathon: three quick questions to build excitement, then a
  * single "Continue with Google" (no form). New Google users are signed up on the way back.
+ * A browser that has signed in to the hackathon before (see returningMember) skips the
+ * questions and opens on sign-in.
  */
 export function HackathonPreQuizModal({
   open,
@@ -90,10 +93,13 @@ export function HackathonPreQuizModal({
   const [ready, setReady] = useState<"yes" | "nervous" | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returning, setReturning] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setStep("hold");
+    const member = readHackathonMember();
+    setReturning(Boolean(member));
+    setStep(member ? "google" : "hold");
     setAttended(null);
     setReady(null);
     setRedirecting(false);
@@ -101,8 +107,8 @@ export function HackathonPreQuizModal({
   }, [open]);
 
   useEffect(() => {
-    if (open) trackHackathon(HK_EVENTS.preQuizStep, { step });
-  }, [open, step]);
+    if (open) trackHackathon(HK_EVENTS.preQuizStep, { step, returning: returning ? "yes" : "no" });
+  }, [open, step, returning]);
 
   // Answer, then move on by itself — fewer taps.
   const answer = <T,>(set: (v: T) => void, value: T, next: Step, event: Record<string, string>) => {
@@ -115,7 +121,7 @@ export function HackathonPreQuizModal({
     if (!isLoaded || !signIn) return;
     setError(null);
     setRedirecting(true);
-    trackHackathon(HK_EVENTS.signupMethod, { method: "google", source: "pre_quiz" });
+    trackHackathon(HK_EVENTS.signupMethod, { method: "google", source: returning ? "returning" : "pre_quiz" });
     persistPostAuthReturnPath(returnTo);
     try {
       await signIn.authenticateWithRedirect({
@@ -129,8 +135,9 @@ export function HackathonPreQuizModal({
     }
   };
 
-  const stepIndex = QUESTION_STEPS.indexOf(step === "google" ? "onTheWay" : step);
-  const back: Partial<Record<Step, Step>> = { attended: "hold", ready: "attended", onTheWay: "ready", google: "onTheWay" };
+  const stepIndex = STEPS.indexOf(step);
+  const back: Partial<Record<Step, Step>> = returning ? {} : { attended: "hold", ready: "attended", google: "ready" };
+  const emailHref = `${returning ? "/sign-in" : "/sign-up"}?redirect_url=${encodeURIComponent(returnTo)}`;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !redirecting && onOpenChange(next)}>
@@ -145,8 +152,8 @@ export function HackathonPreQuizModal({
       >
         {/* Header: progress + close */}
         <div className="flex items-center justify-between px-5 pt-5">
-          <div className="flex items-center gap-1.5" aria-hidden>
-            {QUESTION_STEPS.map((s, i) => (
+          <div className={cn("flex items-center gap-1.5", returning && "invisible")} aria-hidden>
+            {STEPS.map((s, i) => (
               <span
                 key={s}
                 className={cn("h-1.5 rounded-full transition-all", i <= stepIndex ? "w-7 bg-[#3aa6ff]" : "w-4 bg-[#1b3c62]")}
@@ -205,35 +212,25 @@ export function HackathonPreQuizModal({
               </legend>
               <DialogDescription className="sr-only">Choose an answer.</DialogDescription>
               <div className="mt-5 space-y-3">
-                <RadioCard name="ready" value="yes" label="Yes, bring it on" checked={ready === "yes"} onSelect={() => answer(setReady, "yes", "onTheWay", { ready: "yes" })} />
-                <RadioCard name="ready" value="nervous" label="A little nervous" hint="That's exactly what practice is for" checked={ready === "nervous"} onSelect={() => answer(setReady, "nervous", "onTheWay", { ready: "nervous" })} />
+                <RadioCard name="ready" value="yes" label="Yes, bring it on" checked={ready === "yes"} onSelect={() => answer(setReady, "yes", "google", { ready: "yes" })} />
+                <RadioCard name="ready" value="nervous" label="A little nervous" hint="That's exactly what practice is for" checked={ready === "nervous"} onSelect={() => answer(setReady, "nervous", "google", { ready: "nervous" })} />
               </div>
             </fieldset>
-          ) : step === "onTheWay" ? (
-            <div className="text-center">
-              <div className="relative mx-auto grid size-20 place-items-center">
-                <span className="absolute inset-0 animate-ping rounded-full bg-[#3aa6ff]/20" aria-hidden />
-                <span className="relative grid size-16 place-items-center rounded-full border-2 border-[#3aa6ff]/60 bg-[#0d2550]">
-                  <Bot className="size-8 text-[#6fc0ff]" aria-hidden />
-                </span>
-              </div>
-              <DialogTitle className="mt-5 text-[1.35rem] font-extrabold leading-tight text-white" style={display}>
-                Your AI interviewer is on the way
-              </DialogTitle>
-              <DialogDescription className="mt-2 text-[15px] text-[#b4c6db]">
-                One tap to join, and your first challenge is waiting.
-              </DialogDescription>
-              <button type="button" onClick={() => setStep("google")} className={cn(PRIMARY_BTN, "mt-6")} style={mono}>
-                Join The Hiring Games <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
-              </button>
-            </div>
           ) : (
             <div className="text-center">
-              <DialogTitle className="text-[1.3rem] font-extrabold leading-tight text-white" style={display}>
-                Join in one tap
+              <div className="relative mx-auto grid size-16 place-items-center">
+                <span className="absolute inset-0 animate-ping rounded-full bg-[#3aa6ff]/20" aria-hidden />
+                <span className="relative grid size-14 place-items-center rounded-full border-2 border-[#3aa6ff]/60 bg-[#0d2550]">
+                  <Bot className="size-7 text-[#6fc0ff]" aria-hidden />
+                </span>
+              </div>
+              <DialogTitle className="mt-4 text-[1.3rem] font-extrabold leading-tight text-white" style={display}>
+                {returning ? "Welcome back" : "Join The Hiring Games"}
               </DialogTitle>
               <DialogDescription className="mt-2 text-[15px] text-[#b4c6db]">
-                Sign in with Google — no forms, no passwords.
+                {returning
+                  ? "Sign in to pick up your challenge where you left off."
+                  : "Your AI interviewer is waiting. One tap with Google — no forms, no passwords."}
               </DialogDescription>
               <button
                 type="button"
@@ -246,9 +243,9 @@ export function HackathonPreQuizModal({
               </button>
               {error ? <p className="mt-3 text-sm text-[#ff8a8a]" role="alert">{error}</p> : null}
               <p className="mt-4 text-xs text-[#7189a6]">
-                No Google account?{" "}
-                <Link href={`/sign-up?redirect_url=${encodeURIComponent(returnTo)}`} className="font-semibold text-[#6fc0ff] hover:underline">
-                  Sign up with email
+                {returning ? "Used email instead?" : "No Google account?"}{" "}
+                <Link href={emailHref} className="font-semibold text-[#6fc0ff] hover:underline">
+                  {returning ? "Sign in with email" : "Sign up with email"}
                 </Link>
               </p>
             </div>
