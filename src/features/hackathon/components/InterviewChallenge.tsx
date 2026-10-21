@@ -145,7 +145,10 @@ function SlotCard({
   const failure = failureReasonText(slot.lastFailureReason);
   const attemptsLeft = Math.max(0, slot.attemptsMax - slot.attemptsUsed);
   const hideReport = kind === "screening" || !kind;
-  const canReattempt = attemptsLeft > 0;
+  // The attempt waiting for a decision isn't counted yet; a reattempt counts it, so it
+  // needs a try left after this one (the server enforces the same rule).
+  const triesAfterThis = Math.max(0, attemptsLeft - 1);
+  const canReattempt = triesAfterThis > 0;
 
   return (
     <div
@@ -204,8 +207,9 @@ function SlotCard({
         ) : slot.state === "awaiting_decision" ? (
           <div className="mt-auto space-y-4">
             <p className="text-sm text-[#cfdbe8]">
-              Your interview is ready. Submit this attempt for the hackathon, or use a reattempt if you want another try
-              {canReattempt ? ` (${attemptsLeft} left).` : "."}
+              {canReattempt
+                ? `Your interview is ready. Submit this attempt for the hackathon, or use a reattempt if you want another try (${triesAfterThis} left).`
+                : "Your interview is ready. This was your last try, so submit it to count your score."}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
