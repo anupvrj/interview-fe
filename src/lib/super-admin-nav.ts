@@ -360,7 +360,7 @@ const NESTED_PAGES: NestedPageRule[] = [
   {
     pattern: /^\/super-admin\/hackathons\/[^/]+\/participants\/[^/]+\/?$/,
     title: "Hackathon submission",
-    description: "Resume, both mock interviews, and social links for this participant.",
+    description: "Resume, mock interview, and social links for this participant.",
     crumb: "Submission",
   },
   {

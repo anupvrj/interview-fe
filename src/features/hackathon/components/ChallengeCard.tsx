@@ -82,7 +82,7 @@ function ScoreBadge({ passed, score, minScore }: Readonly<{ passed?: boolean; sc
 }
 
 const SOCIAL_CAPTION =
-  "I just took two AI mock interviews in the InterviewTrix Hackathon 2026 — Navigating Careers in 2027! 🚀 #InterviewTrix #InterviewTrixHackathon";
+  "I just took an AI mock interview in the InterviewTrix Hackathon 2026 — Navigating Careers in 2027! 🚀 #InterviewTrix #InterviewTrixHackathon";
 
 /** Full fake UI behind the lock, same idea as PracticeLockedGate — not gray bars. */
 function SocialLockedPreview() {
