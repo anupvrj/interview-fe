@@ -68,6 +68,7 @@ import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceStatus";
 import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
+import { CAMERA_MIC_DENIED_MESSAGE, PermissionGuide } from "@/components/interview/PermissionGuide";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
@@ -1294,8 +1295,7 @@ export function RealtimeInterviewClient({
         error.name === "NotAllowedError" ||
         error.name === "PermissionDeniedError"
       ) {
-        errorMessage =
-          "Camera and microphone access was denied. Please allow permissions and refresh the page.";
+        errorMessage = CAMERA_MIC_DENIED_MESSAGE;
       } else if (
         error.name === "NotFoundError" ||
         error.name === "DevicesNotFoundError"
@@ -3517,16 +3517,35 @@ export function RealtimeInterviewClient({
             </Button>
           </div>
         ) : (
-          <div className={cn(journey.card, "w-full max-w-md")}>
+          <div className={cn(journey.card, "w-full", error === CAMERA_MIC_DENIED_MESSAGE ? "max-w-xl" : "max-w-md")}>
             <div className={journey.headerBand}>
               <JourneyIconTile tone="danger" size="lg" className="mb-3">
                 <AlertCircle className="h-7 w-7" aria-hidden />
               </JourneyIconTile>
               <p className={journey.eyebrow}>Interview</p>
-              <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
-              <p className={journey.description}>{error}</p>
+              {error === CAMERA_MIC_DENIED_MESSAGE ? (
+                <>
+                  <h2 className={cn(journey.title, "mt-2")}>Camera and microphone are blocked</h2>
+                  <p className={journey.description}>The interview needs both. Turn them back on, then try again.</p>
+                </>
+              ) : (
+                <>
+                  <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
+                  <p className={journey.description}>{error}</p>
+                </>
+              )}
             </div>
+            {error === CAMERA_MIC_DENIED_MESSAGE ? (
+              <div className={journey.body}>
+                <PermissionGuide mode="unblock" />
+              </div>
+            ) : null}
             <div className={cn(journey.footer, "sm:justify-center")}>
+              {error === CAMERA_MIC_DENIED_MESSAGE ? (
+                <Button className={journey.primaryButton} onClick={() => globalThis.location.reload()}>
+                  Try again
+                </Button>
+              ) : null}
               {needsIdentityVerification ? (
                 <Button
                   variant="outline"

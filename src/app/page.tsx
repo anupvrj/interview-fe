@@ -54,6 +54,7 @@ import { usePublicPlatformStats } from "@/hooks/usePublicPlatformStats";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import { HomeHackathonPromoStrip } from "@/components/marketing/HomeHackathonPromoStrip";
+import { HACKATHON_LANDING_PATH } from "@/features/hackathon/config";
 
 const stackedFeatureCtaRowClass =
   "flex flex-row items-stretch gap-2 pt-4 sm:items-start sm:gap-4";
@@ -404,12 +405,12 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/sign-up" className="w-full sm:w-auto">
+                <Link href={HACKATHON_LANDING_PATH} className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
                   >
-                    Get Started for Free
+                    Join Hackathon
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
