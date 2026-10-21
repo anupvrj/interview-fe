@@ -233,7 +233,11 @@ export function CanvasInteractionLayer({
       const top = el.getBoundingClientRect().top;
       const scroller = root.closest(".rx-canvas-scroll") as HTMLElement | null;
       const prev = anchorRef.current;
-      if (scroller && prev && prev.key === key && Math.abs(top - prev.top) > 2) {
+      // Only hold the item in place while it is on screen — if the user has scrolled
+      // elsewhere, never pull the view back to it.
+      const view = scroller?.getBoundingClientRect();
+      const onScreen = !!view && prev !== null && prev.top > view.top - 40 && prev.top < view.bottom;
+      if (scroller && prev && onScreen && prev.key === key && Math.abs(top - prev.top) > 2) {
         scroller.scrollTop += top - prev.top;
         anchorRef.current = { key, top: el.getBoundingClientRect().top };
         return;
@@ -243,18 +247,17 @@ export function CanvasInteractionLayer({
     [focus],
   );
 
-  // Scrolling (by the user or by us) re-bases the anchor instead of fighting it.
+  // Scrolling (by the user or by us) re-bases the anchor instead of fighting it. Listen at
+  // the document (capture) so a re-mounted canvas scroller is always covered.
   useEffect(() => {
-    const scroller = rootRef.current?.closest(".rx-canvas-scroll") as HTMLElement | null;
-    if (!scroller) return;
     const onScroll = () => {
       const root = rootRef.current;
       if (!root || !focus) return;
       const el = targetElements(root, focus)[0];
       if (el) anchorRef.current = { key: `${focus.sectionId}:${focus.index}`, top: el.getBoundingClientRect().top };
     };
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", onScroll);
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => document.removeEventListener("scroll", onScroll, { capture: true });
   }, [rootRef, focus]);
 
   const measure = useCallback(() => {
