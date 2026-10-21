@@ -3,6 +3,7 @@
 import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useMemo, useState } from "react";
 import { HackathonPreQuizModal } from "../components/HackathonPreQuizModal";
+import { useHackathonMember } from "../returningMember";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flag, Loader2, Users } from "lucide-react";
@@ -30,6 +31,7 @@ function PublicContent() {
   const dashboard = hackathonDashboardPath(slug);
   const profile = hackathonProfilePath(slug);
   const [quizOpen, setQuizOpen] = useState(false);
+  const returning = Boolean(useHackathonMember());
 
   const adminPreview = useQuery({
     queryKey: ["admin", "hackathons", "slug", slug],
@@ -89,7 +91,7 @@ function PublicContent() {
   }
 
   const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
-  const ctaResolved = resolveHackathonLandingCta(data, Boolean(isSignedIn), registered);
+  const ctaResolved = resolveHackathonLandingCta(data, Boolean(isSignedIn), registered, returning);
   const cta = {
     label: hackathonLandingCtaLabel(ctaResolved, data.landing?.registerCta),
     disabled: ctaResolved.disabled,
@@ -98,7 +100,7 @@ function PublicContent() {
   const onCta = () => {
     if (cta.disabled) return;
     if (!isSignedIn) {
-      // Quick questions, then one-tap Google (see HackathonPreQuizModal).
+      // Quick questions, then one-tap Google; a returning browser goes straight to sign-in.
       setQuizOpen(true);
       return;
     }

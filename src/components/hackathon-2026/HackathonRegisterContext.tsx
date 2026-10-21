@@ -14,7 +14,7 @@ import {
 } from "@/features/hackathon/hackathonLandingCta";
 import { hackathonEntryPath } from "@/features/hackathon/hackathonEntry";
 import { isHackathonRegistered } from "@/features/hackathon/hackathonRegistration";
-import { useMarkHackathonMember } from "@/features/hackathon/returningMember";
+import { useHackathonMember, useMarkHackathonMember } from "@/features/hackathon/returningMember";
 import { trackRegisterClick, type HackathonCtaLocation } from "@/features/hackathon/analytics";
 
 type HackathonRegisterContextValue = {
@@ -38,7 +38,8 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) });
   const { isAccessible } = usePlatformFeatures();
   const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
-  const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered);
+  const returning = Boolean(useHackathonMember());
+  const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered, returning);
   const [quizOpen, setQuizOpen] = useState(false);
   useMarkHackathonMember(slug, isSignedIn, registered);
 

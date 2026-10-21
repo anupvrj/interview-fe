@@ -14,14 +14,19 @@ function spotsHint(pub: HackathonPublic | undefined): string | null {
   return `Only ${pub.spotsLeft} spot${pub.spotsLeft === 1 ? "" : "s"} left`;
 }
 
-/** Landing / hero CTA from event phase, capacity, and the signed-in user's registration. */
+/**
+ * Landing / hero CTA from event phase, capacity, and the user's registration.
+ * `returning`: signed out, but this browser has joined before (see returningMember) — they get
+ * "Go to Challenge", and the click goes to sign-in rather than the sign-up questions.
+ */
 export function resolveHackathonLandingCta(
   pub: HackathonPublic | undefined,
   isSignedIn: boolean,
   registered: boolean,
+  returning = false,
 ): HackathonLandingCta {
   const hint = spotsHint(pub);
-  const active = isSignedIn && registered;
+  const active = isSignedIn ? registered : returning;
 
   if (!pub) {
     return {

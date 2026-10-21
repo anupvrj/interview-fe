@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * "This browser has signed in to the hackathon before" — so a signed-out Register skips the
@@ -60,4 +60,11 @@ export function useMarkHackathonMember(slug: string, signedIn: boolean | undefin
   useEffect(() => {
     if (signedIn) markHackathonMember(slug, registered);
   }, [slug, signedIn, registered]);
+}
+
+/** Read after mount (localStorage isn't there during server render, and this avoids a hydration mismatch). */
+export function useHackathonMember(): HackathonMember | null {
+  const [member, setMember] = useState<HackathonMember | null>(null);
+  useEffect(() => setMember(readHackathonMember()), []);
+  return member;
 }
