@@ -81,3 +81,23 @@ resume page (Enhancv-style UX, our own look), on desktop and mobile.
 | Download dialog: editable file name, PDF, TXT, email | File name + PDF + TXT |
 | Share panel: public link toggle, comments from friends | Share link (done) |
 | Editor is full-screen (no app sidebar) | Done |
+
+## Built on `feat/resume-editor-revamp` (both repos)
+
+**Editor shell** — full-screen (no app sidebar), top bar (back, title, save status, Classic editor, import, Chrome sync, Download), tool row (Fix Mistakes + grade, Check & Tailor + match %, Rearrange, Templates, Design & Font, undo/redo, History), icon rail (Preview, Download, Share link, AI assistant, Add section). Panels dock beside the page; the page auto-fits. Mobile: fit-width page, chips scroll, toolbar docks at the bottom, panels are bottom sheets.
+
+**On-page editing** — every visible value on all 17 templates is editable in place (audited automatically: 0 dead fields, 0 overlaps, 0 clipped text). Click an entry → focus mode (dim + outline + toolbar: + Entry, move, dates, B/I/U/list, Details, duplicate, delete, section menu). Dates → From/To picker with Present. Skills → tag editor (keeps storage shape). Combined lines open the owning section's panel. Volunteering now renders.
+
+**Fix Mistakes** — grade tile + F–A bar, issue cards (spelling chips, "Use suggestion", Rewrite with AI, Ignore), issues highlighted on the page, click a card to jump to it; full ATS report below.
+
+**Check & Tailor** — paste a job → match %, keyword table (✓/✗, exclude, "I have this" → Skills), fits/gaps, matched keywords highlighted green. **Tailor with AI** edits land in orange with Approve all / Reject all.
+
+**Preview** — What recruiters see / What ATS sees (plain text in reading order).
+
+**History** — snapshots every 10 min while editing (50 kept), list by day, preview, restore or restore as copy (current state always kept first).
+
+**Download** — file name, PDF or TXT. **Share** — 7-day link to the PDF.
+
+**Backend** — `POST /resumes/:id/share-link`, `POST /resumes/ai-rewrite` (no invented numbers, refuses sample text), version history (`GET/POST /resumes/:id/versions…`, `ResumeVersion` model, deleted with the resume/account), tailoring fact guard (no job-ad tools the resume never mentions; unknown numbers → `{X}`).
+
+**Safety** — PDF/thumbnail are captured with editing switched off (verified: no `contenteditable`/`data-rx-*` in the PDF HTML). React 19 innerHTML resets are prevented with stable props, so text being typed is never wiped.
