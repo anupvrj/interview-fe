@@ -55,18 +55,22 @@ export function ResumePdfPreviewDialog({
   const [zoomLevel, setZoomLevel] = useState(100);
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoomContentRef = useRef<HTMLDivElement>(null);
   const pageMeasureRef = useRef<HTMLDivElement>(null);
   const scaledPageRef = useRef<HTMLDivElement>(null);
-  const [scaledLayout, setScaledLayout] = useState({ width: 0, height: 0 });
+  const [unscaledLayout, setUnscaledLayout] = useState({ width: 0, height: 0 });
   const minZoom = 1;
   const zoomScale = zoomLevel / 100;
 
   const measureScaledLayout = useCallback(() => {
     const scaledPage = scaledPageRef.current;
     if (!scaledPage) return;
-    const rect = scaledPage.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      setScaledLayout({ width: rect.width, height: rect.height });
+    // Unscaled layout size (ignores transforms — the zoom's and a pinch in progress);
+    // multiplied by the zoom at render, so the box is right in the same frame the zoom changes.
+    const width = scaledPage.offsetWidth;
+    const height = scaledPage.offsetHeight;
+    if (width > 0 && height > 0) {
+      setUnscaledLayout((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
     }
   }, []);
 
@@ -82,6 +86,7 @@ export function ResumePdfPreviewDialog({
   useResumePreviewPinchZoom({
     enabled: open,
     containerRef,
+    contentRef: zoomContentRef,
     zoomLevel,
     onZoom: setZoomLevel,
     onUserAdjusted: markUserAdjusted,
@@ -206,16 +211,17 @@ export function ResumePdfPreviewDialog({
             ref={pageMeasureRef}
             className="pointer-events-none fixed left-[-9999px] top-0 h-0 w-[210mm] overflow-hidden opacity-0"
           />
-          <div className="mx-auto flex w-full justify-center">
+          {/* w-max: when zoomed wider than the screen, the left side must stay scrollable. */}
+          <div ref={zoomContentRef} className="mx-auto flex w-max min-w-full justify-center">
             <div
               className="mx-auto"
               style={{
                 width:
-                  scaledLayout.width > 0
-                    ? `${scaledLayout.width}px`
+                  unscaledLayout.width > 0
+                    ? `${unscaledLayout.width * zoomScale}px`
                     : `calc(${210 * zoomScale}mm)`,
                 height:
-                  scaledLayout.height > 0 ? `${scaledLayout.height}px` : undefined,
+                  unscaledLayout.height > 0 ? `${unscaledLayout.height * zoomScale}px` : undefined,
                 position: "relative",
               }}
             >

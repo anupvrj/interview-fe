@@ -139,8 +139,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   const containerRef = useRef<HTMLDivElement>(null);
   const pageMeasureRef = useRef<HTMLDivElement>(null);
   const scaledPageRef = useRef<HTMLDivElement>(null);
+  const zoomContentRef = useRef<HTMLDivElement>(null);
   const [pageWidthPx, setPageWidthPx] = useState(0);
-  const [scaledLayout, setScaledLayout] = useState({ width: 0, height: 0 });
+  const [unscaledLayout, setUnscaledLayout] = useState({ width: 0, height: 0 });
   const minZoom = compact ? 30 : 50;
   const zoomScale = zoomLevel / 100;
 
@@ -153,9 +154,12 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   const measureScaledLayout = useCallback(() => {
     const scaledPage = scaledPageRef.current;
     if (!scaledPage) return;
-    const rect = scaledPage.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      setScaledLayout({ width: rect.width, height: rect.height });
+    // Unscaled layout size (ignores transforms — the zoom's and a pinch in progress);
+    // multiplied by the zoom at render, so the box is right in the same frame the zoom changes.
+    const width = scaledPage.offsetWidth;
+    const height = scaledPage.offsetHeight;
+    if (width > 0 && height > 0) {
+      setUnscaledLayout((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
     }
   }, []);
 
@@ -173,6 +177,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   useResumePreviewPinchZoom({
     enabled: true,
     containerRef,
+    contentRef: zoomContentRef,
     zoomLevel,
     onZoom: setZoomLevel,
     onUserAdjusted: markUserAdjusted,
@@ -302,13 +307,13 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   };
 
   const scaledWidthPx =
-    compact && scaledLayout.width > 0
-      ? scaledLayout.width
+    compact && unscaledLayout.width > 0
+      ? unscaledLayout.width * zoomScale
       : pageWidthPx > 0
         ? pageWidthPx * zoomScale + (pageDeleteGutterPx * zoomLevel) / 100
         : null;
   const scaledHeightPx =
-    compact && scaledLayout.height > 0 ? scaledLayout.height : null;
+    compact && unscaledLayout.height > 0 ? unscaledLayout.height * zoomScale : null;
 
   return (
     <div className={cn("relative flex h-full flex-col", canvasMode ? "bg-transparent" : "bg-muted/25")}>
@@ -388,12 +393,12 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           ref={pageMeasureRef}
           className="pointer-events-none fixed left-[-9999px] top-0 h-0 w-[210mm] overflow-hidden opacity-0"
         />
-        {/* Zoom Container - handles centering and sizing */}
+        {/* Zoom Container - handles centering and sizing. Always as wide as the zoomed page
+            (w-max): a centred flex child wider than a full-width box overflows to the left,
+            where it can't be scrolled to. */}
         <div
-          className={cn(
-            "flex min-h-full items-start justify-center",
-            compact ? "w-full" : "w-max min-w-full",
-          )}
+          ref={zoomContentRef}
+          className="flex min-h-full w-max min-w-full items-start justify-center"
           style={{
             padding: compact ? "8px 6px 16px" : "40px",
           }}
