@@ -190,6 +190,32 @@ export function useSetHackathonReminders() {
   return useMeMutation<boolean>((slug, getToken, enabled) => hackathonApi.setReminders(slug, getToken, enabled));
 }
 
+function useInterviewSlotMutation(
+  fn: (
+    slug: string,
+    getToken: () => Promise<string | null>,
+    slot: number,
+    challengeId?: string,
+  ) => Promise<HackathonMe>,
+) {
+  const slug = useHackathonSlug();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slot, challengeId }: { slot: number; challengeId?: string }) =>
+      fn(slug, () => getToken(), slot, challengeId),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) }),
+  });
+}
+
+export function useSubmitHackathonInterview() {
+  return useInterviewSlotMutation(hackathonApi.submitInterview);
+}
+
+export function useReattemptHackathonInterview() {
+  return useInterviewSlotMutation(hackathonApi.reattemptInterview);
+}
+
 export function useStartHackathonInterview() {
   const slug = useHackathonSlug();
   const { getToken } = useAuth();

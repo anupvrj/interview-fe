@@ -2,7 +2,13 @@ import { apiClient } from "@/lib/api";
 import { HACKATHON_TARGETS } from "./config";
 
 export type HackathonPhase = "upcoming" | "live" | "ended";
-export type StepState = "locked" | "available" | "in_progress" | "processing" | "completed";
+export type StepState =
+  | "locked"
+  | "available"
+  | "in_progress"
+  | "processing"
+  | "awaiting_decision"
+  | "completed";
 export type LockReason =
   | "not_started"
   | "ended"
@@ -290,6 +296,32 @@ export const hackathonApi = {
       { language, ...extras },
       { headers: await authHeaders(getToken), timeout: 120_000 },
     );
+    return res.data.data;
+  },
+
+  submitInterview: async (
+    slug: string,
+    getToken: TokenGetter,
+    slot: number,
+    challengeId?: string,
+  ): Promise<HackathonMe> => {
+    const path = challengeId
+      ? `${hackathonBase(slug)}/me/challenges/${challengeId}/slots/${slot}/submit`
+      : `${hackathonBase(slug)}/me/interviews/${slot}/submit`;
+    const res = await apiClient.post<{ data: HackathonMe }>(path, {}, { headers: await authHeaders(getToken) });
+    return res.data.data;
+  },
+
+  reattemptInterview: async (
+    slug: string,
+    getToken: TokenGetter,
+    slot: number,
+    challengeId?: string,
+  ): Promise<HackathonMe> => {
+    const path = challengeId
+      ? `${hackathonBase(slug)}/me/challenges/${challengeId}/slots/${slot}/reattempt`
+      : `${hackathonBase(slug)}/me/interviews/${slot}/reattempt`;
+    const res = await apiClient.post<{ data: HackathonMe }>(path, {}, { headers: await authHeaders(getToken) });
     return res.data.data;
   },
 

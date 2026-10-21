@@ -898,15 +898,8 @@ export function RealtimeInterviewClient({
     ],
   );
 
-  /** Hackathon (and any flagged session): screen share is required before start. */
-  const requireSessionRecording =
-    interview?.metadata?.requireSessionRecording === true ||
-    interview?.metadata?.tags?.includes("hackathon") === true ||
-    Boolean(
-      resolveHackathonInterviewHome(
-        currentInterviewReturnTo(interviewId) ?? returnToRef.current,
-      ),
-    );
+  /** Only explicit server flag (e.g. special events); hackathon uses the same optional opt-in as normal AI interviews. */
+  const requireSessionRecording = interview?.metadata?.requireSessionRecording === true;
 
   useEffect(() => {
     codingEmbedAutostartStartedRef.current = false;
@@ -1099,14 +1092,17 @@ export function RealtimeInterviewClient({
           returnToRef.current ??
           hackathonDashboardFromTags(data.metadata?.tags);
         const hackathonHome = resolveHackathonInterviewHome(returnTo);
-        const dest =
-          data.status === "processing"
+        const isHackathon =
+          data.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
+        const dest = isHackathon
+          ? returnTo ?? hackathonHome ?? "/dashboard/interviews"
+          : data.status === "processing"
             ? `/dashboard/interviews/${interviewId}/processing`
             : data.status === "completed"
-              ? hackathonHome ?? `/dashboard/interviews/${interviewId}/report`
-              : hackathonHome ?? "/dashboard/interviews";
+              ? `/dashboard/interviews/${interviewId}/report`
+              : "/dashboard/interviews";
         redirectedHome = true;
-        router.replace(withInterviewReturnTo(dest, returnTo));
+        router.replace(isHackathon ? dest : withInterviewReturnTo(dest, returnTo));
         return;
       }
       await connectWebSocket(data);
@@ -2650,8 +2646,14 @@ export function RealtimeInterviewClient({
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
       }
-      // Coding practice skips post-interview AI feedback; all AI interview sessions
-      // (including hackathons) route to feedback with a voluntary skip option.
+      const hackathonHome = resolveHackathonInterviewHome(returnTo);
+      const isHackathon =
+        interview?.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
+      if (isHackathon) {
+        router.push(returnTo ?? hackathonHome ?? "/dashboard/interviews");
+        return;
+      }
+      // Coding practice skips post-interview AI feedback; other AI sessions route to feedback.
       const afterPath = isCodingPractice
         ? `/dashboard/interviews/${interviewId}/processing`
         : `/dashboard/interviews/${interviewId}/feedback`;
@@ -3189,8 +3191,8 @@ export function RealtimeInterviewClient({
         if (!showRecordingOptIn) {
           setError(
             supportsDisplayMediaCapture()
-              ? "Screen recording is required for this hackathon interview. Allow screen sharing to continue."
-              : "This hackathon interview requires screen recording on a desktop browser.",
+              ? "Screen recording is required for this interview. Allow screen sharing to continue."
+              : "This interview requires screen recording on a desktop browser.",
           );
         }
         return false;
@@ -3242,12 +3244,12 @@ export function RealtimeInterviewClient({
       router.replace(home);
       return;
     }
-    setError("Screen recording is required for this hackathon interview. You cannot continue without it.");
+    setError("Screen recording is required for this interview. You cannot continue without it.");
   };
 
   /**
    * After user chooses in the recording dialog.
-   * Hackathon sessions must share the screen; declining sends them back.
+   * When recording is required, declining sends the candidate back.
    */
   const resolveRecordingOptIn = async (choice: "yes" | "no") => {
     if (launchingInterviewRef.current) return;
@@ -3660,7 +3662,7 @@ export function RealtimeInterviewClient({
             <DialogDescription className="text-sm leading-relaxed text-zinc-300 sm:text-base">
               {requireSessionRecording
                 ? canShareScreen
-                  ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this hackathon interview."
+                  ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this interview."
                   : "Phones can't share their screen, so we'll record your camera and microphone for assessment instead. Keep your face visible and stay on this screen during the interview."
                 : "Record your interview session for future reference and analysis of how you answered each question."}
             </DialogDescription>

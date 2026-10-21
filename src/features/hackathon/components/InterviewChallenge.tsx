@@ -8,7 +8,14 @@ import { AlertCircle, ArrowRight, CheckCircle2, Code2, FileBarChart2, Loader2, L
 import { eventTargets, toHackathonError, type ChallengeProgress, type HackathonChallengeKind, type HackathonMe, type InterviewSlotProgress } from "../api";
 import { hackathonDashboardPath } from "../config";
 import { failureReasonText, lockReasonText } from "../copy";
-import { useHackathonSlug, useStartHackathonInterview } from "../hooks";
+import {
+  hackathonKeys,
+  useHackathonSlug,
+  useReattemptHackathonInterview,
+  useStartHackathonInterview,
+  useSubmitHackathonInterview,
+} from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import { withInterviewReturnTo } from "@/lib/interview-return-to";
 import { cn } from "@/lib/utils";
 import { hkInputClass, hkSecondaryButton } from "./ResumeChallenge";
@@ -116,7 +123,10 @@ function SlotCard({
   slot,
   durationMinutes,
   starting,
+  deciding,
   onStart,
+  onSubmit,
+  onReattempt,
   dashboardPath,
   interviewTarget,
   kind,
@@ -124,13 +134,18 @@ function SlotCard({
   slot: InterviewSlotProgress;
   durationMinutes: number;
   starting: boolean;
+  deciding: boolean;
   onStart: (slot: number) => void;
+  onSubmit: (slot: number) => void;
+  onReattempt: (slot: number) => void;
   dashboardPath: string;
   interviewTarget: number;
   kind?: HackathonChallengeKind;
 }>) {
   const failure = failureReasonText(slot.lastFailureReason);
   const attemptsLeft = Math.max(0, slot.attemptsMax - slot.attemptsUsed);
+  const hideReport = kind === "screening" || !kind;
+  const canReattempt = attemptsLeft > 0;
 
   return (
     <div
@@ -155,17 +170,18 @@ function SlotCard({
 
       <div className="mt-4 flex flex-1 flex-col">
         {slot.state === "completed" ? (
-          // Status + score on the left, report action pinned right
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0 space-y-2">
               <div className="hk-pill-m flex items-center gap-2 text-sm font-semibold text-[#29d6a0]">
                 <CheckCircle2 className="size-4" aria-hidden /> Submitted
               </div>
-              {typeof slot.overallScore === "number" ? (
+              {!hideReport && typeof slot.overallScore === "number" ? (
                 <ScoreBadge score={slot.overallScore} target={interviewTarget} />
+              ) : hideReport ? (
+                <p className="text-sm text-[#9eb2ca]">Your attempt is recorded for the hackathon.</p>
               ) : null}
             </div>
-            {slot.interviewId || slot.sessionId ? (
+            {!hideReport && (slot.interviewId || slot.sessionId) ? (
               <Link
                 href={roundReportHref(kind, { interviewId: slot.interviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)}
                 className={cn(hkSecondaryButton, "shrink-0")}
@@ -178,11 +194,48 @@ function SlotCard({
         ) : slot.state === "processing" ? (
           <div className="space-y-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#2bd2ff]">
-              <Loader2 className="size-4 animate-spin" aria-hidden /> Generating your report…
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Processing your interview…
             </p>
             <p className="text-sm text-[#9eb2ca]">
-              Your interview is submitted once the report is ready. This usually takes about a minute.
+              Stay on this page — you can submit or take a reattempt once processing finishes. This usually takes about a
+              minute.
             </p>
+          </div>
+        ) : slot.state === "awaiting_decision" ? (
+          <div className="mt-auto space-y-4">
+            <p className="text-sm text-[#cfdbe8]">
+              Your interview is ready. Submit this attempt for the hackathon, or use a reattempt if you want another try
+              {canReattempt ? ` (${attemptsLeft} left).` : "."}
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                disabled={deciding}
+                onClick={() => onSubmit(slot.slot)}
+                className="hk-btn h-12 flex-1 px-5 text-sm disabled:pointer-events-none disabled:opacity-60"
+              >
+                {deciding ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden /> Submitting…
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-4" aria-hidden />
+                    Submit this attempt
+                  </>
+                )}
+              </button>
+              {canReattempt ? (
+                <button
+                  type="button"
+                  disabled={deciding}
+                  onClick={() => onReattempt(slot.slot)}
+                  className={cn(hkSecondaryButton, "h-12 flex-1 justify-center disabled:pointer-events-none disabled:opacity-60")}
+                >
+                  Reattempt
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : slot.state === "in_progress" ? (
           <div className="space-y-3">
@@ -222,8 +275,8 @@ function SlotCard({
             </button>
             <p className="text-[13px] text-[#cfdbe8]">
               {slot.attemptsMax <= 1
-                ? `You get one successful ${roundNoun(kind)}. If it fails because of an internal issue, you can retry.`
-                : `${attemptsLeft} of ${slot.attemptsMax} successful attempts left. Internal failures do not use an attempt.`}
+                ? `You get one ${roundNoun(kind)} try. Internal failures do not use an attempt.`
+                : `${attemptsLeft} of ${slot.attemptsMax} tries left (including reattempts). Internal failures do not use a try.`}
             </p>
           </div>
         ) : (
@@ -250,8 +303,12 @@ export function InterviewChallenge({
   const storageOwner = me.participant?.participantId ?? "anon";
   const targets = eventTargets(me.hackathon);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const start = useStartHackathonInterview();
+  const submitAttempt = useSubmitHackathonInterview();
+  const reattempt = useReattemptHackathonInterview();
   const [startingSlot, setStartingSlot] = useState<number | null>(null);
+  const [decidingSlot, setDecidingSlot] = useState<number | null>(null);
   const [setupSlot, setSetupSlot] = useState<number | null>(null);
   const [targetRole, setTargetRole] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
@@ -344,6 +401,38 @@ export function InterviewChallenge({
   };
 
   onStartRef.current = onStart;
+
+  useEffect(() => {
+    if (!slots.some((s) => s.state === "processing")) return;
+    const id = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [queryClient, slug, slots]);
+
+  const onSubmitAttempt = (slot: number) => {
+    setError(null);
+    setDecidingSlot(slot);
+    submitAttempt.mutate(
+      { slot, challengeId: challenge?.challengeId },
+      {
+        onSettled: () => setDecidingSlot(null),
+        onError: (err) => setError(toHackathonError(err).message),
+      },
+    );
+  };
+
+  const onReattempt = (slot: number) => {
+    setError(null);
+    setDecidingSlot(slot);
+    reattempt.mutate(
+      { slot, challengeId: challenge?.challengeId },
+      {
+        onSettled: () => setDecidingSlot(null),
+        onError: (err) => setError(toHackathonError(err).message),
+      },
+    );
+  };
 
   useEffect(() => {
     if (retryEpoch === 0 || retryAt.current === null) return;
@@ -452,7 +541,7 @@ export function InterviewChallenge({
                 : ""}
             {passTarget != null ? ` Aim for ${passTarget}+ on each.` : "."}
           </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className={cn("grid grid-cols-1 gap-4", slots.length > 1 ? "md:grid-cols-2" : "")}>
             {slots.map((slot) => (
               <SlotCard
                 key={slot.slot}
@@ -462,7 +551,10 @@ export function InterviewChallenge({
                 interviewTarget={slot.minScore ?? passTarget ?? targets.interviewScore}
                 durationMinutes={durationMinutes ?? 15}
                 starting={startingSlot === slot.slot && (start.isPending || start.isSuccess || retryIn !== null)}
+                deciding={decidingSlot === slot.slot && (submitAttempt.isPending || reattempt.isPending)}
                 onStart={openSetup}
+                onSubmit={onSubmitAttempt}
+                onReattempt={onReattempt}
               />
             ))}
           </div>
