@@ -320,7 +320,8 @@ export function ATSIssueMagicButton({
     issue.kind === "credibility_positive" ||
     issue.kind === "skill_present";
 
-  if (isPositive) return null;
+  // Nothing to rewrite for praise, or for a check that didn't finish.
+  if (isPositive || issue.title === "Analysis incomplete") return null;
 
   return (
     <>

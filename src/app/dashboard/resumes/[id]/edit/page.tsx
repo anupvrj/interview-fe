@@ -536,6 +536,8 @@ export default function EditResumePage() {
   useEffect(() => {
     if (searchParams.get("view") === "ats") {
       setViewMode("ats");
+      // A ?view=ats link means "show me the ATS check": open its panel on the canvas too.
+      setCanvasPanel((current) => current ?? "fix");
     }
   }, [searchParams]);
 
@@ -2187,8 +2189,9 @@ export default function EditResumePage() {
       if (!current) return false;
       const next = applyAtsIssueFixToResume(current, original, improved);
       if (!next) return false;
-      resumeRef.current = next;
+      // Record the undo step BEFORE moving the ref: the history snapshot reads resumeRef.
       setResume(next);
+      resumeRef.current = next;
       setHasChanges(true);
       invalidateAtsScoreDisplay();
       return true;
@@ -3952,7 +3955,15 @@ export default function EditResumePage() {
               }}
               onIgnore={(item) => {
                 resolveFix(item);
-                void handleIgnoreATSIssue(item.check, item.issue);
+                handleIgnoreATSIssue(item.check, item.issue).catch(() => {
+                  // Not saved: bring the card back so the list matches the score.
+                  setFixResolved((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
+                  showCanvasNotice("Couldn't dismiss that — check your connection and try again.");
+                });
               }}
               onRecheck={handleCheckATS}
               onTailor={() => setMatchJobOpen(true)}

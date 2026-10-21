@@ -23,16 +23,17 @@ export function ATSIssueIgnoreButton({ check, issue }: ATSIssueIgnoreButtonProps
     issue.kind === "credibility_positive" ||
     issue.kind === "skill_present";
 
-  if (isPositive) return null;
+  // "Analysis incomplete" is a notice to re-run the check, not a finding to dismiss.
+  if (isPositive || issue.title === "Analysis incomplete") return null;
 
   const handleIgnore = async () => {
     setLoading(true);
     try {
       await onIgnoreIssue(check, issue);
-      toast.success("Marked as fixed. It won't appear on the next ATS scan.");
+      toast.success("Dismissed — it won't count against your score or come back on the next check.");
     } catch (error) {
       console.error("Error ignoring ATS issue:", error);
-      toast.error("Could not mark this issue as fixed. Please try again.");
+      toast.error("Couldn't dismiss this. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -40,7 +41,7 @@ export function ATSIssueIgnoreButton({ check, issue }: ATSIssueIgnoreButtonProps
 
   return (
     <ATSIconActionButton
-      label="Mark fixed"
+      label="Dismiss"
       variant="outline"
       className="text-muted-foreground hover:text-foreground"
       onClick={() => void handleIgnore()}
