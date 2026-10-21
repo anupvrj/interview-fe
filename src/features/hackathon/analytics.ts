@@ -33,6 +33,8 @@ export const HK_EVENTS = {
   submissionCompleted: "hackathon_submission_completed",
   /** A page/action was still loading after its limit and we offered a way out. */
   stuckLoading: "hackathon_stuck_loading",
+  /** Signed-out Register: each step of the pre-sign-up questions (and the answers). */
+  preQuizStep: "hackathon_prequiz_step",
 } as const;
 
 export type HackathonCtaLocation =

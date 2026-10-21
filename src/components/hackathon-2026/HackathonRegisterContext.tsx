@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { HackathonPreQuizModal } from "@/features/hackathon/components/HackathonPreQuizModal";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { hackathonDashboardPath, hackathonProfilePath, HACKATHON_FEATURE_KEY } from "@/features/hackathon/config";
@@ -37,14 +38,16 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const { isAccessible } = usePlatformFeatures();
   const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
   const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered);
+  const [quizOpen, setQuizOpen] = useState(false);
 
   const openRegister = useCallback((ctaLocation: HackathonCtaLocation = "other") => {
     if (derived.disabled) return;
     const track = (destination: "sign_up" | "profile" | "dashboard") =>
       trackRegisterClick({ ctaLocation, ctaState: derived.labelKey, signedIn: Boolean(isSignedIn), destination });
     if (!isSignedIn) {
+      // Signed out: a few quick questions, then one-tap Google (not the full sign-up page).
       track("sign_up");
-      router.push(`/sign-up?redirect_url=${encodeURIComponent(profilePath)}`);
+      setQuizOpen(true);
       return;
     }
     if (me.waitingForMe) {
@@ -97,7 +100,10 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   );
 
   return (
-    <HackathonRegisterContext.Provider value={value}>{children}</HackathonRegisterContext.Provider>
+    <HackathonRegisterContext.Provider value={value}>
+      {children}
+      <HackathonPreQuizModal open={quizOpen} onOpenChange={setQuizOpen} returnTo={profilePath} />
+    </HackathonRegisterContext.Provider>
   );
 }
 

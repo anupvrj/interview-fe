@@ -1,7 +1,8 @@
 "use client";
 
 import { useLoadingTimeout } from "@/lib/stuck-loading";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { HackathonPreQuizModal } from "../components/HackathonPreQuizModal";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flag, Loader2, Users } from "lucide-react";
@@ -28,6 +29,7 @@ function PublicContent() {
   const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) && !preview });
   const dashboard = hackathonDashboardPath(slug);
   const profile = hackathonProfilePath(slug);
+  const [quizOpen, setQuizOpen] = useState(false);
 
   const adminPreview = useQuery({
     queryKey: ["admin", "hackathons", "slug", slug],
@@ -96,7 +98,8 @@ function PublicContent() {
   const onCta = () => {
     if (cta.disabled) return;
     if (!isSignedIn) {
-      router.push(`/sign-up?redirect_url=${encodeURIComponent(profile)}`);
+      // Quick questions, then one-tap Google (see HackathonPreQuizModal).
+      setQuizOpen(true);
       return;
     }
     if (me.waitingForMe) {
@@ -112,6 +115,7 @@ function PublicContent() {
 
   return (
     <div className="space-y-10">
+      <HackathonPreQuizModal open={quizOpen} onOpenChange={setQuizOpen} returnTo={profile} />
       {preview && data.visibility === "draft" ? (
         <p className="rounded-xl border border-[#8a6a20]/80 bg-[#2e2410]/70 px-4 py-2 text-center text-sm text-[#ffc44d]">
           Preview — this event is still a draft. Publish it to make this page public.
