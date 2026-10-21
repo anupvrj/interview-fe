@@ -3,7 +3,7 @@
 import { HackathonHelpOnWhatsApp } from "./HackathonHelpOnWhatsApp";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, CheckCircle2, Code2, FileBarChart2, Loader2, Lock, Mic, Network, PlayCircle } from "lucide-react";
 import { eventTargets, toHackathonError, type ChallengeProgress, type HackathonChallengeKind, type HackathonMe, type InterviewSlotProgress } from "../api";
 import { hackathonDashboardPath } from "../config";
@@ -16,7 +16,9 @@ import {
   useSubmitHackathonInterview,
 } from "../hooks";
 import { useQueryClient } from "@tanstack/react-query";
-import { withInterviewReturnTo } from "@/lib/interview-return-to";
+import { HACKATHON_RESULT_PARAM, withInterviewReturnTo } from "@/lib/interview-return-to";
+import { InterviewResultModal } from "./InterviewResultModal";
+import { pickResultSlot, resultPhaseFor } from "../interviewResult";
 import { cn } from "@/lib/utils";
 import { hkInputClass, hkSecondaryButton } from "./ResumeChallenge";
 
@@ -144,11 +146,9 @@ function SlotCard({
 }>) {
   const failure = failureReasonText(slot.lastFailureReason);
   const attemptsLeft = Math.max(0, slot.attemptsMax - slot.attemptsUsed);
-  const hideReport = kind === "screening" || !kind;
-  // The attempt waiting for a decision isn't counted yet; a reattempt counts it, so it
-  // needs a try left after this one (the server enforces the same rule).
-  const triesAfterThis = Math.max(0, attemptsLeft - 1);
-  const canReattempt = triesAfterThis > 0;
+  // Scores/reports come after the event: the server only sends a score once revealed.
+  const hideReport = typeof slot.overallScore !== "number";
+  const canReattempt = slot.canReattempt === true;
 
   return (
     <div
@@ -197,19 +197,19 @@ function SlotCard({
         ) : slot.state === "processing" ? (
           <div className="space-y-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#2bd2ff]">
-              <Loader2 className="size-4 animate-spin" aria-hidden /> Processing your interview…
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Analysing your interview…
             </p>
-            <p className="text-sm text-[#9eb2ca]">
-              Stay on this page — you can submit or take a reattempt once processing finishes. This usually takes about a
-              minute.
-            </p>
+            <p className="text-sm text-[#9eb2ca]">This usually takes about a minute. Keep this page open.</p>
           </div>
         ) : slot.state === "awaiting_decision" ? (
           <div className="mt-auto space-y-4">
             <p className="text-sm text-[#cfdbe8]">
+              {slot.decisionReason === "short_interview"
+                ? "Your interview was too short (under 8 minutes)."
+                : "Your interview scored low."}{" "}
               {canReattempt
-                ? `Your interview is ready. Submit this attempt for the hackathon, or use a reattempt if you want another try (${triesAfterThis} left).`
-                : "Your interview is ready. This was your last try, so submit it to count your score."}
+                ? "Take one re-attempt — we keep whichever scores higher — or submit this one."
+                : "This was your last try, so submit it."}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
@@ -225,7 +225,7 @@ function SlotCard({
                 ) : (
                   <>
                     <CheckCircle2 className="size-4" aria-hidden />
-                    Submit this attempt
+                    Submit this one
                   </>
                 )}
               </button>
@@ -236,7 +236,7 @@ function SlotCard({
                   onClick={() => onReattempt(slot.slot)}
                   className={cn(hkSecondaryButton, "h-12 flex-1 justify-center disabled:pointer-events-none disabled:opacity-60")}
                 >
-                  Reattempt
+                  Re-attempt
                 </button>
               ) : null}
             </div>
@@ -307,6 +307,7 @@ export function InterviewChallenge({
   const storageOwner = me.participant?.participantId ?? "anon";
   const targets = eventTargets(me.hackathon);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const start = useStartHackathonInterview();
   const submitAttempt = useSubmitHackathonInterview();
@@ -414,26 +415,94 @@ export function InterviewChallenge({
     return () => window.clearInterval(id);
   }, [queryClient, slug, slots]);
 
+  // ---- Result pop-up: analysing → (low? re-attempt / submit) → submitted -------------
+  const resultParam = searchParams.get(HACKATHON_RESULT_PARAM);
+  const resultSlot = pickResultSlot(slots, resultParam);
+  const resultPhase = resultPhaseFor(resultSlot);
+  const [resultOpen, setResultOpen] = useState(Boolean(resultParam));
+  const [resultBusy, setResultBusy] = useState<"reattempt" | "submit" | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
+  const [analysingSince, setAnalysingSince] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // A round waiting for a decision opens the pop-up on its own (once), so it can't be missed.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || !resultPhase) return;
+    if (resultParam || resultPhase === "low_score" || resultPhase === "short_interview") {
+      autoOpened.current = true;
+      setResultOpen(true);
+    }
+  }, [resultParam, resultPhase]);
+
+  // While analysing: poll quickly, and note when it's taking a while.
+  const analysing = resultOpen && resultPhase === "analysing";
+  useEffect(() => {
+    if (!analysing) {
+      setAnalysingSince(null);
+      return;
+    }
+    setAnalysingSince((since) => since ?? Date.now());
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+      void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [analysing, queryClient, slug]);
+
+  const closeResult = () => {
+    setResultOpen(false);
+    setResultError(null);
+    if (resultParam) router.replace(dashboardPath, { scroll: false });
+  };
+
+  /** Start the re-attempt right away with the last role/company (asks only if there's none). */
+  const startAgain = (slot: number) => {
+    closeResult();
+    const stored = readStoredTarget(slug, storageOwner);
+    if (asksForTarget(kind) && stored.targetRole) onStart(slot, { targetRole: stored.targetRole, targetCompany: stored.targetCompany || undefined });
+    else openSetup(slot);
+  };
+
   const onSubmitAttempt = (slot: number) => {
     setError(null);
+    setResultError(null);
     setDecidingSlot(slot);
+    setResultBusy("submit");
     submitAttempt.mutate(
       { slot, challengeId: challenge?.challengeId },
       {
-        onSettled: () => setDecidingSlot(null),
-        onError: (err) => setError(toHackathonError(err).message),
+        onSettled: () => {
+          setDecidingSlot(null);
+          setResultBusy(null);
+        },
+        onError: (err) => {
+          const message = toHackathonError(err).message;
+          setError(message);
+          setResultError(message);
+        },
       },
     );
   };
 
   const onReattempt = (slot: number) => {
     setError(null);
+    setResultError(null);
     setDecidingSlot(slot);
+    setResultBusy("reattempt");
     reattempt.mutate(
       { slot, challengeId: challenge?.challengeId },
       {
-        onSettled: () => setDecidingSlot(null),
-        onError: (err) => setError(toHackathonError(err).message),
+        onSuccess: () => startAgain(slot),
+        onSettled: () => {
+          setDecidingSlot(null);
+          setResultBusy(null);
+        },
+        onError: (err) => {
+          const message = toHackathonError(err).message;
+          setError(message);
+          setResultError(message);
+        },
       },
     );
   };
@@ -543,7 +612,7 @@ export function InterviewChallenge({
               : me.profile.targetJobRole
                 ? ` and uses your role (${me.profile.targetJobRole})`
                 : ""}
-            {passTarget != null ? ` Aim for ${passTarget}+ on each.` : "."}
+            .
           </p>
           <div className={cn("grid grid-cols-1 gap-4", slots.length > 1 ? "md:grid-cols-2" : "")}>
             {slots.map((slot) => (
@@ -564,6 +633,20 @@ export function InterviewChallenge({
           </div>
         </>
       )}
+      {resultSlot && resultPhase ? (
+        <InterviewResultModal
+          open={resultOpen}
+          phase={resultPhase}
+          canReattempt={resultSlot.canReattempt === true}
+          busy={resultBusy}
+          error={resultError}
+          slow={analysingSince !== null && now - analysingSince > 3 * 60_000}
+          onReattempt={() => onReattempt(resultSlot.slot)}
+          onSubmit={() => onSubmitAttempt(resultSlot.slot)}
+          onStartAgain={() => startAgain(resultSlot.slot)}
+          onClose={closeResult}
+        />
+      ) : null}
       {error ? (
         <>
           <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">

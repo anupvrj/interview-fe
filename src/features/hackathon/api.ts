@@ -79,6 +79,9 @@ export interface InterviewSlotProgress {
   lastFailureReason?: string;
   passed?: boolean;
   minScore?: number | null;
+  /** Waiting for Re-attempt / Submit: why (the score itself is never sent before results). */
+  decisionReason?: "low_score" | "short_interview";
+  canReattempt?: boolean;
 }
 
 export interface ChallengeProgress {

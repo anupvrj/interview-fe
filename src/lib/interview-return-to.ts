@@ -152,3 +152,13 @@ export function hackathonDashboardFromTags(
   const slug = !tagged || tagged === LEGACY_HACKATHON_SLUG ? HACKATHON_SLUG : tagged;
   return `/hackathon/${slug}/dashboard?fromInterview=1`;
 }
+
+/** Query param on the hackathon dashboard that opens the result pop-up for an interview. */
+export const HACKATHON_RESULT_PARAM = "result";
+
+/** The hackathon dashboard, opening the "analysing → result" pop-up for this interview. */
+export function hackathonResultPath(dashboard: string | null | undefined, interviewId: string): string {
+  const base = resolveHackathonInterviewHome(dashboard) ?? recentHackathonDashboard() ?? "/dashboard";
+  return `${base}?${HACKATHON_RESULT_PARAM}=${encodeURIComponent(interviewId)}`;
+}
+

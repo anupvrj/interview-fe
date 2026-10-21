@@ -21,6 +21,7 @@ import {
 import {
   clearStoredInterviewReturnTo,
   hackathonDashboardFromTags,
+  hackathonResultPath,
   isHackathonDashboardReturn,
   resolveInterviewReturnTo,
 } from "@/lib/interview-return-to";
@@ -71,6 +72,16 @@ export default function ProcessingPage() {
         const data = await interviewApi.get(interviewId);
         if (cancelled) return;
         setInterview(data);
+        // Hackathon results aren't shown here: the hackathon dashboard has the result pop-up.
+        if (data.metadata?.tags?.includes("hackathon")) {
+          router.replace(
+            hackathonResultPath(
+              resolveInterviewReturnTo(interviewId, searchParams) ?? hackathonDashboardFromTags(data.metadata?.tags),
+              interviewId,
+            ),
+          );
+          return;
+        }
         const stored = resolveInterviewReturnTo(interviewId, searchParams);
         if (stored) returnToRef.current = stored;
         else if (!returnToRef.current) {

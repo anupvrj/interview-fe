@@ -104,6 +104,7 @@ import {
   resolveHackathonInterviewHome,
   hackathonDashboardFromTags,
   recentHackathonDashboard,
+  hackathonResultPath,
   rememberInterviewReturnTo,
   resolveInterviewReturnTo,
   shouldAutoDiscardUnstartedInterview,
@@ -1103,7 +1104,7 @@ export function RealtimeInterviewClient({
         const isHackathon =
           data.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
         const dest = isHackathon
-          ? returnTo ?? hackathonHome ?? "/dashboard/interviews"
+          ? hackathonResultPath(hackathonHome ?? returnTo, interviewId)
           : data.status === "processing"
             ? `/dashboard/interviews/${interviewId}/processing`
             : data.status === "completed"
@@ -2657,7 +2658,13 @@ export function RealtimeInterviewClient({
       const isHackathon =
         interview?.metadata?.tags?.includes("hackathon") === true || Boolean(hackathonHome);
       if (isHackathon) {
-        router.push(returnTo ?? hackathonHome ?? "/dashboard/interviews");
+        // Feedback first; submitting it opens the result pop-up on the hackathon dashboard.
+        router.push(
+          withInterviewReturnTo(
+            `/dashboard/interviews/${interviewId}/feedback`,
+            hackathonHome ?? returnTo ?? recentHackathonDashboard(),
+          ),
+        );
         return;
       }
       // Coding practice skips post-interview AI feedback; other AI sessions route to feedback.

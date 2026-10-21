@@ -2,7 +2,7 @@
 
 import { JourneyCard, JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
@@ -46,6 +46,7 @@ import {
 } from "@/lib/interview-practice-hub";
 import {
   hackathonDashboardFromTags,
+  hackathonResultPath,
   resolveHackathonInterviewHome,
   resolveInterviewReturnTo,
 } from "@/lib/interview-return-to";
@@ -60,6 +61,7 @@ export default function ReportPage() {
   const params = useParams();
   const interviewId = params.id as string;
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useUser();
 
   const [report, setReport] = useState<InterviewReport | null>(null);
@@ -97,6 +99,11 @@ export default function ReportPage() {
       setReport(reportData);
       setInterview(interviewData);
     } catch (error: any) {
+      // Hackathon results come after the event: go to the hackathon's result pop-up instead.
+      if (error.response?.data?.code === "RESULTS_HIDDEN") {
+        router.replace(hackathonResultPath(resolveInterviewReturnTo(interviewId, searchParams), interviewId));
+        return;
+      }
       console.error("Error loading report:", error);
       setError(error.response?.data?.message || "Failed to load report");
       try {
