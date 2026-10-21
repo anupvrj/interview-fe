@@ -202,6 +202,8 @@ export function CanvasInteractionLayer({
   const [hoverBoxes, setHoverBoxes] = useState<Box[]>([]);
   const [hoverSectionBoxes, setHoverSectionBoxes] = useState<Box[]>([]);
   const [pages, setPages] = useState<Box[]>([]);
+  /** Skills sections with nothing in them yet: where to put the "Add skills" button. */
+  const [emptyTagBoxes, setEmptyTagBoxes] = useState<Array<Box & { sectionId: string; type: string; title: string }>>([]);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   /** Rect of the current text selection inside a description (for the style bar). */
@@ -213,13 +215,65 @@ export function CanvasInteractionLayer({
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
+  /**
+   * Keeps the selected item where it is on screen when the layout changes under it
+   * (pages re-flowing after an edit, autosave work). The user's own scrolling just
+   * moves the anchor.
+   */
+  const anchorRef = useRef<{ key: string; top: number } | null>(null);
+  const keepFocusInPlace = useCallback(
+    (root: HTMLElement) => {
+      if (!focus) {
+        anchorRef.current = null;
+        return;
+      }
+      const el = targetElements(root, focus)[0];
+      if (!el) return;
+      const key = `${focus.sectionId}:${focus.index}`;
+      const top = el.getBoundingClientRect().top;
+      const scroller = root.closest(".rx-canvas-scroll") as HTMLElement | null;
+      const prev = anchorRef.current;
+      if (scroller && prev && prev.key === key && Math.abs(top - prev.top) > 2) {
+        scroller.scrollTop += top - prev.top;
+        anchorRef.current = { key, top: el.getBoundingClientRect().top };
+        return;
+      }
+      anchorRef.current = { key, top };
+    },
+    [focus],
+  );
+
+  // Scrolling (by the user or by us) re-bases the anchor instead of fighting it.
+  useEffect(() => {
+    const scroller = rootRef.current?.closest(".rx-canvas-scroll") as HTMLElement | null;
+    if (!scroller) return;
+    const onScroll = () => {
+      const root = rootRef.current;
+      if (!root || !focus) return;
+      const el = targetElements(root, focus)[0];
+      if (el) anchorRef.current = { key: `${focus.sectionId}:${focus.index}`, top: el.getBoundingClientRect().top };
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, [rootRef, focus]);
+
   const measure = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
+    keepFocusInPlace(root);
     setPages(pageBoxes(root));
     setFocusBoxes(focus ? boxesFor(root, targetElements(root, focus)) : []);
     setHoverBoxes(hover && !sameTarget(hover, focus) ? boxesFor(root, targetElements(root, hover), 3) : []);
     setHoverSectionBoxes(hover ? boxesFor(root, targetElements(root, { sectionId: hover.sectionId, index: null }), 3) : []);
+    setEmptyTagBoxes(
+      sectionsRef.current
+        .filter((s) => TAG_SECTIONS.has(s.type) && handlersRef.current.getTags(s.type).length === 0)
+        .flatMap((s) => {
+          const boxes = boxesFor(root, targetElements(root, { sectionId: s.id, index: null }), 0);
+          const last = boxes[boxes.length - 1];
+          return last ? [{ ...last, sectionId: s.id, type: s.type, title: s.title }] : [];
+        }),
+    );
     const origin = root.getBoundingClientRect();
     setMarkBoxes(
       marks.flatMap((mark) =>
@@ -235,7 +289,7 @@ export function CanvasInteractionLayer({
         ),
       ),
     );
-  }, [rootRef, focus, hover, marks]);
+  }, [rootRef, focus, hover, marks, keepFocusInPlace]);
 
   // Bring the picked issue into view.
   useEffect(() => {
@@ -465,6 +519,21 @@ export function CanvasInteractionLayer({
               ...(DATED_SECTIONS.has(handleSection.type) ? [{ label: "Edit dates", icon: CalendarDays, run: openDates }] : []),
             ]
           : []),
+        ...(TAG_SECTIONS.has(handleSection.type) && handleBox
+          ? [
+              {
+                label: "Edit skills",
+                icon: Plus,
+                run: () =>
+                  setTagEdit({
+                    sectionType: handleSection.type,
+                    title: handleSection.title,
+                    top: handleBox.top + handleBox.height + 6,
+                    left: handleBox.left,
+                  }),
+              },
+            ]
+          : []),
         { label: "All fields…", icon: SlidersHorizontal, run: () => handlers.onOpenDetails(handleSection.id) },
         ...(handleSection.type !== "personalInfo"
           ? [
@@ -641,6 +710,18 @@ export function CanvasInteractionLayer({
           )}
           style={{ top: b.top, left: b.left, width: b.width, height: b.height, ...MARK_INLINE[b.tone] }}
         />
+      ))}
+      {emptyTagBoxes.map((b) => (
+        <button
+          key={`add-tags-${b.sectionId}`}
+          type="button"
+          data-rx-overlay
+          onClick={() => setTagEdit({ sectionType: b.type, title: b.title, top: b.top + b.height + 6, left: b.left })}
+          className="pointer-events-auto absolute z-20 inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-background px-3 py-1 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
+          style={{ top: b.top + Math.max(0, b.height / 2 - 13), left: Math.max(b.left, b.left + b.width - 118) }}
+        >
+          <Plus className="h-3.5 w-3.5" /> Add skills
+        </button>
       ))}
       {handle}
       {menu}

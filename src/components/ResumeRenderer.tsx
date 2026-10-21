@@ -432,10 +432,25 @@ export function ResumeRenderer({
     <EdText canvas={canvas} path={path} value={value} placeholder={placeholder} />
   );
   const rich = (path: string, placeholder?: string) => richEditProps(canvas, path, placeholder);
-  /** Dates open a From/To picker on the canvas; `entryPath` is e.g. "experience.2". */
+  // Empty optional slots (a missing date, description, contact) only appear for what is
+  // selected — otherwise the page shows exactly what will be exported.
+  const revealEntry = (sectionId: string, index: number) =>
+    !!canvas?.focus && canvas.focus.sectionId === sectionId && (canvas.focus.index === null || canvas.focus.index === index);
+  const revealPath = (entryPath: string) => {
+    const [type, idx] = entryPath.split(".");
+    return !!canvas?.focus && canvas.focus.sectionType === type && (canvas.focus.index === null || canvas.focus.index === Number(idx));
+  };
+  const revealContacts = canvas?.focus?.sectionType === "personalInfo";
+  /** Dates open a Start/End editor on the canvas; `entryPath` is e.g. "experience.2". */
   const edDate = (entryPath: string, content: React.ReactNode) =>
     canvas ? (
-      <span className="rx-date" data-rx-date={entryPath} data-placeholder="Add dates" role="button" tabIndex={0}>
+      <span
+        className="rx-date"
+        data-rx-date={entryPath}
+        data-placeholder={revealPath(entryPath) ? "Add dates" : undefined}
+        role="button"
+        tabIndex={0}
+      >
         {content}
       </span>
     ) : (
@@ -1247,7 +1262,7 @@ export function ResumeRenderer({
           ? personalInfo.website
           : `https://${personalInfo.website}`,
       },
-    ].filter((item) => item.value || (canvas && item.type in CONTACT_PLACEHOLDERS));
+    ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
 
     // Sidebar text color
     const textColor = isInSidebar
@@ -1650,7 +1665,7 @@ export function ResumeRenderer({
                     : `https://${websiteValue.replace(/^\/\//, "")}`
                   : undefined,
               },
-            ].filter((row) => row.value);
+            ].filter((row) => row.value?.trim() || (revealContacts && row.field));
 
             return (
               <div className={`${template.id}-contact`}>
@@ -1710,7 +1725,7 @@ export function ResumeRenderer({
                 ? personalInfo.website
                 : `https://${personalInfo.website}`,
             },
-          ].filter((item) => item.value || (canvas && item.type in CONTACT_PLACEHOLDERS));
+          ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
 
           // Group items into pairs for two-per-line display
           const pairs: (typeof contactItems)[] = [];
@@ -2578,7 +2593,7 @@ export function ResumeRenderer({
                             {ed(`experience.${index}.company`, exp.company)}
                           </div>
                         )}
-                        {(exp.description || canvas) && (
+                        {(exp.description || revealEntry(section.id, index)) && (
                           <div
                             className={`resume-content ${template.id}-description`}
                             style={{
@@ -2627,7 +2642,7 @@ export function ResumeRenderer({
                           </div>
                         </div>
                       </div>
-                      {(exp.description || canvas) && (
+                      {(exp.description || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${exp.id || `exp-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -2672,7 +2687,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       </div>
-                      {(exp.description || canvas) && (
+                      {(exp.description || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2700,7 +2715,7 @@ export function ResumeRenderer({
                           </>
                         )}
                       </div>
-                      {(formatExperienceDateRange(exp) || exp.location || canvas) && (
+                      {(formatExperienceDateRange(exp) || exp.location || revealEntry(section.id, index)) && (
                         <div className={`${template.id}-job-meta-line`}>
                           {edDate(
                             `experience.${index}`,
@@ -2708,7 +2723,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       )}
-                      {(exp.description || canvas) && (
+                      {(exp.description || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2750,7 +2765,7 @@ export function ResumeRenderer({
                           </div>
                         </div>
                       </div>
-                      {(exp.description || canvas) && (
+                      {(exp.description || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2833,7 +2848,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       </div>
-                      {(exp.description || canvas) && (
+                      {(exp.description || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           style={
@@ -3029,7 +3044,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                         <div className={`${template.id}-education-details-container`}>
-                          {(formatRoyalIndigoDateRange(edu) || canvas) && (
+                          {(formatRoyalIndigoDateRange(edu) || revealEntry(section.id, index)) && (
                             <div className={`${template.id}-education-date`}>
                               {edDate(`education.${index}`, formatRoyalIndigoDateRange(edu))}
                             </div>
@@ -3041,7 +3056,7 @@ export function ResumeRenderer({
                           {ed(`education.${index}.institution`, edu.institution)}
                         </div>
                       )}
-                      {(edu.description || canvas) && (
+                      {(edu.description || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${edu.id || `edu-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -3074,7 +3089,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                         <div className={`${template.id}-education-details-container`}>
-                          {(edu.startDate || edu.endDate || canvas) && (
+                          {(edu.startDate || edu.endDate || revealEntry(section.id, index)) && (
                             <div className={`${template.id}-education-date`}>
                               {edDate(
                                 `education.${index}`,
@@ -3954,7 +3969,7 @@ export function ResumeRenderer({
                             </>
                           )}
                         </div>
-                        {(formatProjectDates(project) || canvas) && (
+                        {(formatProjectDates(project) || revealEntry(section.id, index)) && (
                           <div className={`${template.id}-job-details-container`}>
                             <div className={`${template.id}-job-date`}>
                               {edDate(`projects.${index}`, formatProjectDates(project))}
@@ -3962,7 +3977,7 @@ export function ResumeRenderer({
                           </div>
                         )}
                       </div>
-                      {(project.description || canvas) && (
+                      {(project.description || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${itemId}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -3995,6 +4010,7 @@ export function ResumeRenderer({
                   const itemId = project.id || `project-${index}`;
                   const dateText = [project.startDate, project.endDate]
                     .filter(Boolean)
+                    .map((d) => formatResumeDateForDisplay(String(d)))
                     .join(" – ");
 
                   return (
@@ -4010,7 +4026,7 @@ export function ResumeRenderer({
                             {ed(`projects.${index}.name`, project.name)}
                           </div>
                         </div>
-                        {(dateText || canvas) && (
+                        {(dateText || revealEntry(section.id, index)) && (
                           <div className={`${template.id}-job-details-container`}>
                             <div className={`${template.id}-job-date`}>
                               {edDate(`projects.${index}`, dateText)}
@@ -4018,7 +4034,7 @@ export function ResumeRenderer({
                           </div>
                         )}
                       </div>
-                      {(project.description || canvas) && (
+                      {(project.description || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`projects.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -4107,7 +4123,7 @@ export function ResumeRenderer({
                       </a>
                     )}
                   </div>
-                  {(project.startDate || project.endDate || canvas) && (
+                  {(project.startDate || project.endDate || revealEntry(section.id, index)) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
@@ -4117,11 +4133,14 @@ export function ResumeRenderer({
                     >
                       {edDate(
                         `projects.${index}`,
-                        [project.startDate, project.endDate].filter(Boolean).join(" – "),
+                        [project.startDate, project.endDate]
+                          .filter(Boolean)
+                          .map((d) => formatResumeDateForDisplay(String(d)))
+                          .join(" – "),
                       )}
                     </div>
                   )}
-                  {(project.description || canvas) && (
+                  {(project.description || revealEntry(section.id, index)) && (
                     <div
                       className={`resume-content${
                         isConfidentGrid ? ` ${template.id}-project-description` : ""
@@ -4587,7 +4606,7 @@ export function ResumeRenderer({
                       {award.date ? <>, {ed(`awards.${index}.date`, award.date)}</> : null}
                     </div>
                   )}
-                  {(award.description || canvas) && (
+                  {(award.description || revealEntry(section.id, index)) && (
                     <div
                       className={
                         isInSidebar
@@ -5062,7 +5081,7 @@ export function ResumeRenderer({
                       {course.date ? <> • {ed(`courses.${index}.date`, course.date)}</> : null}
                     </div>
                   )}
-                  {(course.description || canvas) && (
+                  {(course.description || revealEntry(section.id, index)) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.body}px`,
@@ -5355,19 +5374,19 @@ export function ResumeRenderer({
                     <div style={{ fontSize: `${templateStyle.fontSize.body + 1}px`, fontWeight: "bold", color: textColor }}>
                       {ed(`organisations.${index}.role`, org.role, "Role")}
                       {org.role && org.name ? ", " : null}
-                      {org.name || canvas ? (
+                      {org.name || revealEntry(section.id, index) ? (
                         <span style={{ fontWeight: "normal", color: templateStyle.colors.secondary }}>
                           {ed(`organisations.${index}.name`, org.name, "Organisation")}
                         </span>
                       ) : null}
                     </div>
-                    {dates || canvas ? (
+                    {dates || revealEntry(section.id, index) ? (
                       <div style={{ fontSize: `${templateStyle.fontSize.small}px`, color: templateStyle.colors.secondary, whiteSpace: "nowrap" }}>
                         {edDate(`organisations.${index}`, dates)}
                       </div>
                     ) : null}
                   </div>
-                  {org.description || canvas ? (
+                  {org.description || revealEntry(section.id, index) ? (
                     <div
                       className="resume-content"
                       style={{ fontSize: `${templateStyle.fontSize.body}px`, lineHeight: templateStyle.lineHeight, color: textColor }}

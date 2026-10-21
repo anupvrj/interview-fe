@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 export interface EntryDates {
@@ -32,6 +34,9 @@ const selectClass =
 /** Month + year selects for one date ("2021-03" / "2021" / ""). */
 function MonthYear({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const parsed = parseResumeDate(value);
+  // A month picked before the year is held here until the year arrives (pick in any order).
+  const [pendingMonth, setPendingMonth] = useState<number | null>(null);
+  const month = parsed.year ? parsed.month : pendingMonth;
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: 61 }, (_, i) => thisYear + 6 - i);
   return (
@@ -40,9 +45,13 @@ function MonthYear({ label, value, onChange, disabled }: { label: string; value:
       <div className="flex gap-1.5">
         <select
           aria-label={`${label} month`}
-          disabled={disabled || !parsed.year}
-          value={parsed.month ?? ""}
-          onChange={(e) => parsed.year && onChange(formatResumeDateValue(parsed.year, e.target.value ? Number(e.target.value) : null))}
+          disabled={disabled}
+          value={month ?? ""}
+          onChange={(e) => {
+            const m = e.target.value ? Number(e.target.value) : null;
+            if (parsed.year) onChange(formatResumeDateValue(parsed.year, m));
+            else setPendingMonth(m);
+          }}
           className={selectClass}
         >
           <option value="">Month</option>
@@ -56,7 +65,15 @@ function MonthYear({ label, value, onChange, disabled }: { label: string; value:
           aria-label={`${label} year`}
           disabled={disabled}
           value={parsed.year ?? ""}
-          onChange={(e) => onChange(e.target.value ? formatResumeDateValue(Number(e.target.value), parsed.month) : "")}
+          onChange={(e) => {
+            if (!e.target.value) {
+              setPendingMonth(parsed.month);
+              onChange("");
+              return;
+            }
+            onChange(formatResumeDateValue(Number(e.target.value), month));
+            setPendingMonth(null);
+          }}
           className={selectClass}
         >
           <option value="">Year</option>

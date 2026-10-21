@@ -14,6 +14,8 @@ export interface CanvasEditApi {
   /** Called when a field gains focus, so toolbars can follow it. */
   onFieldFocus?: (path: string, element: HTMLElement) => void;
   onFieldBlur?: (path: string) => void;
+  /** What is selected on the page; empty optional slots are only shown for it. */
+  focus?: { sectionId: string; sectionType: string; index: number | null } | null;
 }
 
 const CanvasEditContext = createContext<CanvasEditApi | null>(null);

@@ -2888,10 +2888,17 @@ export default function EditResumePage() {
             commitField: (path, value) => commitCanvasFieldRef.current(path, value),
             commitSectionTitle: (id, title) => updateSectionTitle(id, title),
             onFieldFocus: handleCanvasFieldFocus,
+            focus: canvasFocus
+              ? {
+                  sectionId: canvasFocus.sectionId,
+                  sectionType: sections.find((s) => s.id === canvasFocus.sectionId)?.type ?? "",
+                  index: canvasFocus.index,
+                }
+              : null,
           }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canvasOn, pdfCapture, handleCanvasFieldFocus],
+    [canvasOn, pdfCapture, handleCanvasFieldFocus, canvasFocus, sections],
   );
 
   const sectionTypeOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.type ?? "";
