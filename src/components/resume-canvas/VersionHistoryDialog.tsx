@@ -106,28 +106,28 @@ export function VersionHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed inset-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 [&>button]:hidden">
+      <DialogContent className="fixed left-auto right-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-[min(100vw,980px)] translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 border-l p-0 shadow-2xl sm:rounded-l-2xl [&>button]:hidden">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-3 py-2 md:px-4">
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)} aria-label="Back to editor">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
             <History className="h-4 w-4 text-primary" />
-            Version history
+            Versions
           </DialogTitle>
           <div className="ml-auto flex gap-2">
             <Button type="button" size="sm" variant="outline" disabled={!selectedId || busy !== null} onClick={() => void restore(true)}>
               {busy === "copy" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-              Restore as a copy
+              Open as a new resume
             </Button>
             <Button type="button" size="sm" disabled={!selectedId || busy !== null} onClick={() => void restore(false)}>
               {busy === "restore" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-1.5 h-3.5 w-3.5" />}
-              Restore this version
+              Use this version
             </Button>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <aside className="max-h-48 shrink-0 overflow-y-auto border-b border-border bg-muted/30 md:max-h-none md:w-64 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 flex-1 flex-col-reverse md:flex-row-reverse">
+          <aside className="max-h-48 shrink-0 overflow-y-auto border-t border-border bg-background md:max-h-none md:w-60 md:border-l md:border-t-0">
             {error ? <p className="p-4 text-sm text-red-600">{error}</p> : null}
             {versions === null && !error ? (
               <div className="flex justify-center p-6">
@@ -136,13 +136,13 @@ export function VersionHistoryDialog({
             ) : null}
             {versions && versions.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">
-                No earlier versions yet. A version is saved every 10 minutes while you edit.
+                Nothing saved yet. We keep a version of your resume every 10 minutes while you work.
               </p>
             ) : null}
             {groups.map(([label, rows]) => (
               <div key={label}>
                 <p className="px-4 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {label} · {rows.length} {rows.length === 1 ? "version" : "versions"}
+                  {label}
                 </p>
                 {rows.map((v) => (
                   <button
@@ -150,11 +150,19 @@ export function VersionHistoryDialog({
                     type="button"
                     onClick={() => setSelectedId(v.versionId)}
                     className={cn(
-                      "flex w-full items-center gap-2 px-4 py-2 text-left text-sm",
-                      selectedId === v.versionId ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-muted",
+                      "relative flex w-full items-center gap-3 py-2 pl-8 pr-4 text-left text-sm",
+                      selectedId === v.versionId ? "font-semibold text-primary" : "text-foreground hover:bg-muted",
                     )}
                   >
-                    {time(v.createdAt)}
+                    <span className="absolute left-[18px] top-0 h-full w-px bg-border" aria-hidden />
+                    <span
+                      className={cn(
+                        "absolute left-[14px] h-[9px] w-[9px] rounded-full border-2",
+                        selectedId === v.versionId ? "border-primary bg-primary" : "border-muted-foreground/50 bg-background",
+                      )}
+                      aria-hidden
+                    />
+                    Saved at {time(v.createdAt)}
                     {v.templateId && v.templateId !== resume.templateId ? (
                       <span className="truncate text-[11px] font-normal text-muted-foreground">· {v.templateId}</span>
                     ) : null}
@@ -163,7 +171,7 @@ export function VersionHistoryDialog({
               </div>
             ))}
           </aside>
-          <div className="min-h-0 flex-1 overflow-auto bg-zinc-800/90 p-4 md:p-8">
+          <div className="rx-canvas-scroll min-h-0 flex-1 overflow-auto p-4 md:p-8">
             {previewResume ? (
               <div className="mx-auto w-fit [zoom:0.45] sm:[zoom:0.6] lg:[zoom:0.75] xl:[zoom:0.9]">
                 <CanvasEditProvider value={null}>

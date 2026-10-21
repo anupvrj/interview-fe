@@ -151,7 +151,7 @@ export function ResumePdfPreviewDialog({
               onClick={() => setView("recruiter")}
               className={cn("rounded-full px-3 py-1.5", view === "recruiter" ? "bg-white text-zinc-900" : "text-zinc-300 hover:text-white")}
             >
-              What recruiters see
+              Designed
             </button>
             <button
               type="button"
@@ -160,7 +160,7 @@ export function ResumePdfPreviewDialog({
               onClick={showAtsView}
               className={cn("rounded-full px-3 py-1.5", view === "ats" ? "bg-white text-zinc-900" : "text-zinc-300 hover:text-white")}
             >
-              What ATS sees
+              Plain text
             </button>
           </div>
           <DialogDescription className="text-zinc-400">
@@ -172,8 +172,8 @@ export function ResumePdfPreviewDialog({
           <div className="min-h-0 flex-1 overflow-auto bg-zinc-800/90 px-3 py-6 sm:px-8">
             <div className="mx-auto max-w-[210mm] rounded-sm bg-white px-6 py-8 text-zinc-900 shadow-xl sm:px-12">
               <p className="mb-4 rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600">
-                This is the text an applicant tracking system pulls out of your PDF. If something is missing or out of order here,
-                a recruiter&apos;s search may not find it.
+                Plain text, in the order a hiring system reads it from your PDF. Anything missing or jumbled here is
+                hard for a recruiter&apos;s search to find.
               </p>
               <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed">{atsText || "No text found."}</pre>
             </div>

@@ -1,5 +1,5 @@
 /**
- * "What ATS sees": the resume as plain text in reading order, the way a parser
+ * "Plain text" preview: the resume as plain text in reading order, the way a parser
  * reads our text-based PDF — headings, then lines, bullets as " - ". Columns come
  * out one after the other, which is also how most ATS read two-column layouts.
  */

@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface EntryDates {
@@ -28,66 +26,52 @@ export function formatResumeDateValue(year: number, month: number | null): strin
   return month ? `${year}-${String(month).padStart(2, "0")}` : String(year);
 }
 
-function Picker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+const selectClass =
+  "h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-primary";
+
+/** Month + year selects for one date ("2021-03" / "2021" / ""). */
+function MonthYear({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const parsed = parseResumeDate(value);
   const thisYear = new Date().getFullYear();
-  const [pageStart, setPageStart] = useState(() => {
-    const anchor = parsed.year ?? thisYear;
-    return anchor - (anchor % 12);
-  });
-  const years = Array.from({ length: 12 }, (_, i) => pageStart + i);
+  const years = Array.from({ length: 61 }, (_, i) => thisYear + 6 - i);
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between">
-        <button type="button" aria-label="Earlier years" onClick={() => setPageStart((y) => y - 12)} className="rounded p-1 hover:bg-muted">
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="text-xs font-semibold text-muted-foreground">
-          {pageStart} – {pageStart + 11}
-        </span>
-        <button type="button" aria-label="Later years" onClick={() => setPageStart((y) => y + 12)} className="rounded p-1 hover:bg-muted">
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-4 gap-1">
-        {years.map((y) => (
-          <button
-            key={y}
-            type="button"
-            onClick={() => onChange(formatResumeDateValue(y, parsed.month))}
-            disabled={y > thisYear + 6}
-            className={cn(
-              "rounded-md py-1.5 text-xs font-medium disabled:opacity-30",
-              parsed.year === y ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-            )}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
-      <div className="my-2 h-px bg-border" />
-      <div className="grid grid-cols-4 gap-1">
-        {MONTHS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            disabled={!parsed.year}
-            title={parsed.year ? undefined : "Pick a year first"}
-            onClick={() => parsed.year && onChange(formatResumeDateValue(parsed.year, parsed.month === i + 1 ? null : i + 1))}
-            className={cn(
-              "rounded-md py-1.5 text-xs font-medium disabled:opacity-30",
-              parsed.month === i + 1 ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+    <div className={cn("space-y-1", disabled && "opacity-40")}>
+      <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
+      <div className="flex gap-1.5">
+        <select
+          aria-label={`${label} month`}
+          disabled={disabled || !parsed.year}
+          value={parsed.month ?? ""}
+          onChange={(e) => parsed.year && onChange(formatResumeDateValue(parsed.year, e.target.value ? Number(e.target.value) : null))}
+          className={selectClass}
+        >
+          <option value="">Month</option>
+          {MONTHS.map((m, i) => (
+            <option key={m} value={i + 1}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} year`}
+          disabled={disabled}
+          value={parsed.year ?? ""}
+          onChange={(e) => onChange(e.target.value ? formatResumeDateValue(Number(e.target.value), parsed.month) : "")}
+          className={selectClass}
+        >
+          <option value="">Year</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
 }
 
-/** From / To date picker for one entry (Enhancv-style), with "Present" for ongoing roles. */
+/** Start / End editor for one entry, with a "Currently here" switch for ongoing roles. */
 export function DatePickerPopover({
   dates,
   allowPresent,
@@ -99,53 +83,37 @@ export function DatePickerPopover({
   onChange: (dates: EntryDates) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"from" | "to">("from");
+  const start = parseResumeDate(dates.startDate);
+  const end = parseResumeDate(dates.endDate);
   const startAfterEnd =
     !dates.current &&
-    dates.startDate &&
-    dates.endDate &&
-    formatResumeDateValue(parseResumeDate(dates.startDate).year ?? 0, parseResumeDate(dates.startDate).month ?? 1) >
-      formatResumeDateValue(parseResumeDate(dates.endDate).year ?? 0, parseResumeDate(dates.endDate).month ?? 12);
+    start.year !== null &&
+    end.year !== null &&
+    start.year * 100 + (start.month ?? 1) > end.year * 100 + (end.month ?? 12);
   return (
-    <div className="w-64 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl" role="dialog" aria-label="Dates">
-      <div className="mb-3 grid grid-cols-2 rounded-lg bg-muted p-0.5 text-xs font-semibold">
-        {(["from", "to"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={cn("rounded-md py-1.5", tab === t ? "bg-background text-primary shadow-sm" : "text-muted-foreground")}
-          >
-            {t === "from" ? "From" : "To"}
-          </button>
-        ))}
-      </div>
-      {tab === "from" ? (
-        <Picker value={dates.startDate} onChange={(startDate) => onChange({ ...dates, startDate })} />
-      ) : (
-        <>
-          {allowPresent ? (
-            <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs font-medium">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 accent-primary"
-                checked={dates.current}
-                onChange={(e) => onChange({ ...dates, current: e.target.checked, endDate: e.target.checked ? "" : dates.endDate })}
-              />
-              I currently work here (Present)
-            </label>
-          ) : null}
-          {dates.current ? null : <Picker value={dates.endDate} onChange={(endDate) => onChange({ ...dates, endDate })} />}
-        </>
-      )}
-      {startAfterEnd ? <p className="mt-2 text-[11px] font-medium text-red-600">The start date is after the end date.</p> : null}
-      <div className="mt-3 flex items-center justify-between">
+    <div className="w-72 space-y-3 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl" role="dialog" aria-label="Dates">
+      <MonthYear label="Start" value={dates.startDate} onChange={(startDate) => onChange({ ...dates, startDate })} />
+      <MonthYear label="End" value={dates.endDate} disabled={dates.current} onChange={(endDate) => onChange({ ...dates, endDate })} />
+      {allowPresent ? (
+        <label className="flex cursor-pointer items-center justify-between rounded-lg bg-muted/50 px-2.5 py-2 text-xs font-medium">
+          Currently here
+          <input
+            type="checkbox"
+            role="switch"
+            className="h-4 w-7 cursor-pointer appearance-none rounded-full bg-slate-300 transition before:block before:h-3 before:w-3 before:translate-x-0.5 before:rounded-full before:bg-white before:transition checked:bg-primary checked:before:translate-x-3.5"
+            checked={dates.current}
+            onChange={(e) => onChange({ ...dates, current: e.target.checked, endDate: e.target.checked ? "" : dates.endDate })}
+          />
+        </label>
+      ) : null}
+      {startAfterEnd ? <p className="text-[11px] font-medium text-rose-600">Start is after the end — check the years.</p> : null}
+      <div className="flex items-center justify-between pt-1">
         <button
           type="button"
           onClick={() => onChange({ startDate: "", endDate: "", current: false })}
           className="text-xs font-semibold text-muted-foreground hover:text-foreground"
         >
-          Clear dates
+          Remove dates
         </button>
         <button type="button" onClick={onClose} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
           Done

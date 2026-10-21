@@ -23,7 +23,7 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 /**
- * Check & Tailor beside the page: paste a job → match score, keyword table
+ * Job match beside the page: paste a job → match score, keyword chips
  * (found keywords are highlighted green on the page), strengths/gaps, then
  * one click to tailor with AI.
  */
@@ -90,7 +90,7 @@ export function TailorPanel({
             onClick={() => onCheck(draft.trim())}
           >
             {running ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-            {running ? "Checking…" : "Check match"}
+            {running ? "Comparing…" : "Compare with my resume"}
           </Button>
           {match ? (
             <Button type="button" variant="outline" onClick={() => setEditing(false)}>
@@ -108,7 +108,7 @@ export function TailorPanel({
   return (
     <div className="space-y-5 p-4">
       <section className="rounded-xl border border-border bg-card p-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Job match</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">How well you match</p>
         <div className="mt-2">
           <ScoreBar score={score ?? match.matchScore} />
         </div>
@@ -117,74 +117,83 @@ export function TailorPanel({
         <div className="mt-3 flex gap-2">
           <Button type="button" size="sm" className="flex-1" onClick={() => onTailor(jobDescription)} disabled={tailoring}>
             {tailoring ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-            Tailor with AI
+            Rewrite for this job
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
-            Change job
+            Try another job
           </Button>
         </div>
       </section>
 
-      <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-foreground">Keywords</h4>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-foreground">Keywords from the job</h4>
           <span className="text-xs text-muted-foreground">
-            {found}/{counted.length} on your resume
+            {found} of {counted.length} covered
           </span>
         </div>
-        <div className="overflow-hidden rounded-xl border border-border">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">Keyword</th>
-                <th className="px-2 py-2 text-center font-semibold">On resume</th>
-                <th className="w-16 px-2 py-2" aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {keywords.map(({ keyword, found: isFound }) => {
-                const off = excluded.has(keyword);
-                return (
-                  <tr key={keyword} className="border-t border-border">
-                    <td className={cn("px-3 py-1.5 font-medium text-foreground", off && "text-muted-foreground line-through")}>{keyword}</td>
-                    <td className="px-2 py-1.5 text-center">
-                      {isFound ? (
-                        <Check className="mx-auto h-4 w-4 text-emerald-600" aria-label="Found" />
-                      ) : (
-                        <X className={cn("mx-auto h-4 w-4", off ? "text-muted-foreground" : "text-red-500")} aria-label="Missing" />
+        {keywords.some((k) => !k.found) ? (
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-600">Missing</p>
+            <div className="flex flex-wrap gap-1.5">
+              {keywords
+                .filter((k) => !k.found)
+                .map(({ keyword }) => {
+                  const off = excluded.has(keyword);
+                  return (
+                    <span
+                      key={keyword}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border py-0.5 pl-2.5 pr-1 text-xs",
+                        off ? "border-dashed border-border text-muted-foreground line-through" : "border-rose-300 bg-rose-50 text-rose-900 dark:bg-rose-950/30 dark:text-rose-200",
                       )}
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex justify-end gap-1">
-                        {!isFound && !off ? (
-                          <button
-                            type="button"
-                            title="I have this skill — add it to Skills"
-                            aria-label={`Add ${keyword} to skills`}
-                            onClick={() => onAddSkill(keyword)}
-                            className="text-muted-foreground hover:text-emerald-600"
-                          >
-                            <PlusCircle className="h-4 w-4" />
-                          </button>
-                        ) : null}
+                    >
+                      {keyword}
+                      {!off ? (
                         <button
                           type="button"
-                          title={off ? "Count this keyword again" : "Not relevant — don't count it"}
-                          aria-label={off ? `Include ${keyword}` : `Exclude ${keyword}`}
-                          onClick={() => onToggleExclude(keyword)}
-                          className="text-muted-foreground hover:text-foreground"
+                          title="I have this skill — add it to Skills"
+                          aria-label={`Add ${keyword} to skills`}
+                          onClick={() => onAddSkill(keyword)}
+                          className="rounded-full p-0.5 hover:bg-emerald-100 hover:text-emerald-700"
                         >
-                          <MinusCircle className="h-4 w-4" />
+                          <PlusCircle className="h-3.5 w-3.5" />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-1.5 text-[11px] text-muted-foreground">Keywords already on your resume are highlighted green on the page.</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        title={off ? "Count it again" : "Not relevant for me — don't count it"}
+                        aria-label={off ? `Include ${keyword}` : `Exclude ${keyword}`}
+                        onClick={() => onToggleExclude(keyword)}
+                        className="rounded-full p-0.5 hover:bg-muted"
+                      >
+                        <MinusCircle className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  );
+                })}
+            </div>
+          </div>
+        ) : null}
+        {keywords.some((k) => k.found) ? (
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">On your resume</p>
+            <div className="flex flex-wrap gap-1.5">
+              {keywords
+                .filter((k) => k.found)
+                .map(({ keyword }) => (
+                  <span
+                    key={keyword}
+                    className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-teal-50 px-2.5 py-0.5 text-xs text-teal-900 dark:bg-teal-950/30 dark:text-teal-200"
+                  >
+                    <Check className="h-3 w-3" />
+                    {keyword}
+                  </span>
+                ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">These are underlined on your page.</p>
+          </div>
+        ) : null}
       </section>
 
       {match.strengths.length ? (

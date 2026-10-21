@@ -72,7 +72,7 @@ export function AiAssistPanel({
       <section className="rounded-xl border border-border bg-card p-3.5">
         <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
           <Wand2 className="h-4 w-4 text-primary" />
-          Rewrite with AI
+          Reword with AI Coach
         </h4>
         {target ? (
           <>
@@ -94,7 +94,7 @@ export function AiAssistPanel({
               disabled={loading || target.text.length < 3 || isSampleText(target.text)}
             >
               {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-              {suggestions.length ? "Suggest again" : "Suggest better wording"}
+              {suggestions.length ? "More options" : "Show me 3 options"}
             </Button>
             {error ? <p className="mt-2 text-xs text-muted-foreground">{error}</p> : null}
             {suggestions.length ? (
@@ -113,7 +113,7 @@ export function AiAssistPanel({
                       )}
                     >
                       {s}
-                      <span className="mt-1 block text-[11px] font-semibold text-primary">{appliedIndex === i ? "Applied ✓" : "Use this"}</span>
+                      <span className="mt-1 block text-[11px] font-semibold text-primary">{appliedIndex === i ? "In your resume ✓" : "Put this in"}</span>
                     </button>
                   </li>
                 ))}
@@ -137,7 +137,7 @@ export function AiAssistPanel({
         >
           <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span>
-            <span className="block text-sm font-semibold text-foreground">Tailor to a job</span>
+            <span className="block text-sm font-semibold text-foreground">Match a job</span>
             <span className="block text-xs text-muted-foreground">Paste a job description and match your resume to it.</span>
           </span>
         </button>
@@ -148,7 +148,7 @@ export function AiAssistPanel({
         >
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span>
-            <span className="block text-sm font-semibold text-foreground">Fix mistakes</span>
+            <span className="block text-sm font-semibold text-foreground">Raise my score</span>
             <span className="block text-xs text-muted-foreground">See the ATS report and apply suggested fixes.</span>
           </span>
         </button>

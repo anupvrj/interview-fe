@@ -6,16 +6,28 @@ import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { atsGrade } from "./CanvasChrome";
+import { ScoreRing, scoreBand } from "./CanvasChrome";
 import type { CanvasMark } from "./CanvasInteractionLayer";
 
 /** Fix-list groups, in the order a user should work through them. */
 const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["tone"] }> = [
-  { title: "Spelling & Grammar", checks: ["spellingGrammar"], tone: "error" },
-  { title: "Quantified Impact", checks: ["quantifyingImpact"], tone: "weak" },
-  { title: "Wording & Readability", checks: ["repetition", "bulletsConsistency"], tone: "weak" },
-  { title: "Recommendations", checks: ["datesLinksConsistency", "headerLinks", "emailAddress", "skillEvidence"], tone: "weak" },
+  { title: "Typos", checks: ["spellingGrammar"], tone: "error" },
+  { title: "Impact", checks: ["quantifyingImpact"], tone: "weak" },
+  { title: "Clarity", checks: ["repetition", "bulletsConsistency"], tone: "weak" },
+  { title: "Polish", checks: ["datesLinksConsistency", "headerLinks", "emailAddress", "skillEvidence"], tone: "weak" },
 ];
+
+/** Short card labels in our own words (not the backend's check names). */
+const CARD_LABEL: Partial<Record<ATSCheckId, string>> = {
+  spellingGrammar: "Typo",
+  quantifyingImpact: "Add a result",
+  repetition: "Repeated word",
+  bulletsConsistency: "Bullet length",
+  datesLinksConsistency: "Dates & links",
+  headerLinks: "Links",
+  emailAddress: "Email",
+  skillEvidence: "Skill proof",
+};
 
 export interface FixItem {
   id: string;
@@ -92,8 +104,8 @@ function IssueCard({
   const excerpt = issue.excerpt?.trim() ?? "";
   const isWord = check.id === "spellingGrammar" || check.id === "repetition";
   const chips = (issue.alternatives ?? []).filter(Boolean).slice(0, 5);
-  const label = (issue.kind ?? check.label).toString().replace(/_/g, " ");
-  const heading = isWord && chips[0] ? `Did you mean ${chips[0]}?` : issue.title;
+  const label = CARD_LABEL[check.id] ?? "Suggestion";
+  const heading = check.id === "spellingGrammar" ? "Possible typo" : check.id === "repetition" ? "Used a lot — try a different word" : issue.title;
 
   const rewrite = async () => {
     setAi({ loading: true, options: [] });
@@ -124,10 +136,11 @@ function IssueCard({
       </p>
       <p className="mt-1.5 text-sm font-medium text-foreground">{heading}</p>
       {excerpt ? (
-        <p className={cn("mt-1 text-xs text-muted-foreground", isWord ? "line-through" : "line-clamp-3")}>
+        <p className={cn("mt-1 text-xs", isWord ? "font-mono text-rose-700 dark:text-rose-300" : "line-clamp-3 text-muted-foreground")}>
           {isWord ? excerpt : `“${excerpt}”`}
         </p>
       ) : null}
+      {isWord && chips.length && excerpt ? <p className="mt-2 text-[11px] font-semibold text-muted-foreground">Replace with:</p> : null}
       {!isWord && issue.description ? <p className="mt-1 text-xs text-muted-foreground">{issue.description}</p> : null}
       <div className="mt-2.5 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
         {excerpt
@@ -136,7 +149,7 @@ function IssueCard({
                 key={chip}
                 type="button"
                 onClick={() => onApply(chip)}
-                className="rounded-md bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"
+                className="rounded-full border border-primary/40 bg-background px-3 py-1 text-xs font-semibold text-primary hover:bg-primary hover:text-primary-foreground"
               >
                 {chip}
               </button>
@@ -148,7 +161,7 @@ function IssueCard({
             onClick={() => onApply(issue.rewriteSuggestion!)}
             className="w-full rounded-md border border-emerald-500/50 bg-emerald-50 px-2.5 py-1.5 text-left text-xs text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-200"
           >
-            <span className="block font-semibold">Use suggestion</span>
+            <span className="block font-semibold">Suggested wording · tap to use</span>
             {issue.rewriteSuggestion}
           </button>
         ) : null}
@@ -160,7 +173,7 @@ function IssueCard({
             className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
           >
             {ai.loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-            Rewrite with AI
+            Ask AI Coach
           </button>
         ) : null}
       </div>
@@ -182,7 +195,7 @@ function IssueCard({
       {ai.error ? <p className="mt-1.5 text-xs text-muted-foreground">{ai.error}</p> : null}
       <div className="mt-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
         <button type="button" onClick={onIgnore} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-          Ignore
+          Dismiss
         </button>
       </div>
     </div>
@@ -222,43 +235,27 @@ export function FixMistakesPanel({
 }) {
   const groups = useMemo(() => buildFixItems(report), [report]);
   const open = groups.reduce((n, g) => n + g.items.filter((i) => !resolved.has(i.id)).length, 0);
-  const grade = atsGrade(score);
+  const band = scoreBand(score);
   const [showReport, setShowReport] = useState(false);
-  const position = Math.max(2, Math.min(98, score ?? 0));
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex gap-3 rounded-xl border border-border bg-card p-3.5">
-        <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-black", grade.tone)}>
-          {grade.letter}
-        </div>
+      <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background p-4 ring-1 ring-border">
+        <ScoreRing score={score} size={64} busy={checking} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">
-            {open > 0 ? (
-              <>
-                <span className="text-red-600">{open} issues</span> to fix
-              </>
-            ) : (
-              "Nothing urgent to fix"
-            )}
+          <p className={cn("text-xs font-bold uppercase tracking-wide", band.text)}>{band.label}</p>
+          <p className="mt-0.5 text-sm font-semibold text-foreground">
+            {open > 0 ? `${open} thing${open === 1 ? "" : "s"} to improve` : "Nothing urgent to improve"}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {edited ? "You've made changes — re-check to update your grade." : `ATS score ${score ?? "–"}/100`}
+            {edited ? "You've edited since the last check — re-run to update." : "Score out of 100 from our ATS check."}
           </p>
-          <div className="relative mt-2.5 h-1.5 rounded-full bg-muted">
-            <div className="h-1.5 rounded-full bg-gradient-to-r from-red-400 via-amber-400 to-emerald-500" style={{ width: `${position}%` }} />
-          </div>
-          <div className="mt-1 flex justify-between text-[10px] font-semibold text-muted-foreground">
-            {["F", "D", "C", "B", "A"].map((l) => (
-              <span key={l}>{l}</span>
-            ))}
-          </div>
         </div>
       </div>
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onRecheck} disabled={checking}>
           {checking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-          Re-check
+          Run check again
         </Button>
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onTailor}>
           <Target className="mr-1.5 h-3.5 w-3.5" />
@@ -307,7 +304,7 @@ export function FixMistakesPanel({
             onClick={() => setShowReport((v) => !v)}
             className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
           >
-            Recruiter checks & full report
+            Detailed report
             <span className="text-xs font-medium text-primary">{showReport ? "Hide" : "Show"}</span>
           </button>
           {showReport ? <div className="mt-3">{children}</div> : null}

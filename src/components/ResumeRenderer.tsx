@@ -71,10 +71,10 @@ interface PageBreak {
 
 /** Contact fields shown as empty placeholders while editing on the canvas. */
 const CONTACT_PLACEHOLDERS: Record<string, string> = {
-  phone: "Phone",
-  email: "Email",
-  linkedin: "LinkedIn/Portfolio",
-  location: "Location",
+  phone: "Phone number",
+  email: "Email address",
+  linkedin: "Profile link",
+  location: "City",
 };
 
 const ICON_MAP = {
@@ -435,7 +435,7 @@ export function ResumeRenderer({
   /** Dates open a From/To picker on the canvas; `entryPath` is e.g. "experience.2". */
   const edDate = (entryPath: string, content: React.ReactNode) =>
     canvas ? (
-      <span className="rx-date" data-rx-date={entryPath} data-placeholder="Date period" role="button" tabIndex={0}>
+      <span className="rx-date" data-rx-date={entryPath} data-placeholder="Add dates" role="button" tabIndex={0}>
         {content}
       </span>
     ) : (
@@ -4254,7 +4254,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No languages added. Add your language skills in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No languages added. Add your language skills in the editor."}
               </div>
             </div>
           );
@@ -4643,7 +4643,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No certificates added. Add your certifications in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No certificates added. Add your certifications in the editor."}
               </div>
             </div>
           );
@@ -4790,7 +4790,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No achievements added. Add your achievements in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No achievements added. Add your achievements in the editor."}
               </div>
             </div>
           );
@@ -5010,7 +5010,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No courses added. Add your courses in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No courses added. Add your courses in the editor."}
               </div>
             </div>
           );
@@ -5103,7 +5103,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No publications added. Add your publications in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No publications added. Add your publications in the editor."}
               </div>
             </div>
           );
@@ -5191,7 +5191,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Empty — click here, then use + to add one." : "No references added. Add your references in the editor."}
+                {canvas ? "Nothing here yet — click, then ＋ to add." : "No references added. Add your references in the editor."}
               </div>
             </div>
           );

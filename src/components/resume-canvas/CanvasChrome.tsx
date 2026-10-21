@@ -1,275 +1,156 @@
 "use client";
 
 import React from "react";
-import {
-  ArrowDownUp,
-  CircleCheckBig,
-  History,
-  Download,
-  Eye,
-  LayoutTemplate,
-  Link2,
-  Loader2,
-  Palette,
-  Plus,
-  Redo2,
-  Sparkles,
-  Target,
-  Undo2,
-} from "lucide-react";
+import { Brush, Gauge, LayoutPanelLeft, ListTree, Loader2, MoveVertical, Plus, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type CanvasPanel = "fix" | "tailor" | "templates" | "design" | "details" | "ai";
+export type CanvasPanel = "outline" | "fix" | "tailor" | "templates" | "design" | "details" | "ai";
 
-/** ATS score → letter grade shown on the Fix Mistakes chip. */
-export function atsGrade(score: number | null | undefined): { letter: string; tone: string } {
-  if (score == null) return { letter: "?", tone: "bg-slate-200 text-slate-700" };
-  if (score >= 90) return { letter: "A", tone: "bg-emerald-500 text-white" };
-  if (score >= 80) return { letter: "B", tone: "bg-lime-500 text-white" };
-  if (score >= 70) return { letter: "C", tone: "bg-amber-400 text-slate-900" };
-  if (score >= 60) return { letter: "D", tone: "bg-orange-500 text-white" };
-  return { letter: "F", tone: "bg-red-500 text-white" };
+/** ATS score → band shown next to the number (we show a 0–100 score, not a letter grade). */
+export function scoreBand(score: number | null | undefined): { label: string; ring: string; text: string } {
+  if (score == null) return { label: "Not checked yet", ring: "stroke-slate-300", text: "text-muted-foreground" };
+  if (score >= 80) return { label: "Strong", ring: "stroke-emerald-500", text: "text-emerald-600" };
+  if (score >= 60) return { label: "Getting there", ring: "stroke-amber-500", text: "text-amber-600" };
+  return { label: "Needs work", ring: "stroke-rose-500", text: "text-rose-600" };
 }
 
-function Chip({
-  active,
-  onClick,
-  children,
-  disabled,
-  label,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  disabled?: boolean;
-  label?: string;
-}) {
+/** Circular 0–100 score. */
+export function ScoreRing({ score, size = 28, busy = false }: { score: number | null; size?: number; busy?: boolean }) {
+  const band = scoreBand(score);
+  const r = size / 2 - 3;
+  const c = 2 * Math.PI * r;
+  const value = Math.max(0, Math.min(100, score ?? 0));
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      title={label}
-      className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 md:h-9 md:gap-2 md:px-3 md:text-sm",
-        active ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} className="fill-none stroke-muted" strokeWidth={3} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          className={cn("fill-none transition-all", band.ring)}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c - (value / 100) * c}
+        />
+      </svg>
+      <span className={cn("absolute font-bold tabular-nums", size >= 48 ? "text-base" : "text-[10px]", band.text)}>
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : score ?? "–"}
+      </span>
+    </span>
   );
 }
 
-export function CanvasToolRow({
-  activePanel,
-  onPanel,
-  atsScore,
-  checkingAts,
-  onTailor,
-  tailoring,
-  jobMatchScore,
-  onRearrange,
-  rearrangeDisabled,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
-  isMobile,
-  onAddSection,
-  onShare,
-  sharing,
-  onHistory,
-}: {
+interface StudioItem {
+  id: CanvasPanel | "reorder" | "add";
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const ITEMS: StudioItem[] = [
+  { id: "outline", label: "Outline", icon: ListTree },
+  { id: "fix", label: "Score", icon: Gauge },
+  { id: "tailor", label: "Job match", icon: Target },
+  { id: "ai", label: "AI Coach", icon: Sparkles },
+  { id: "templates", label: "Designs", icon: LayoutPanelLeft },
+  { id: "design", label: "Style", icon: Brush },
+  { id: "reorder", label: "Reorder", icon: MoveVertical },
+];
+
+export interface StudioProps {
   activePanel: CanvasPanel | null;
   onPanel: (panel: CanvasPanel) => void;
+  onReorder: () => void;
+  reorderDisabled: boolean;
+  onAddSection: () => void;
   atsScore: number | null;
   checkingAts: boolean;
-  onTailor: () => void;
+  jobMatchScore: number | null;
   tailoring: boolean;
-  /** Job match % once a job has been checked. */
-  jobMatchScore?: number | null;
-  onRearrange: () => void;
-  rearrangeDisabled: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
-  isMobile: boolean;
-  /** Mobile only: the desktop rail holds these. */
-  onAddSection: () => void;
-  onShare: () => void;
-  sharing: boolean;
-  onHistory: () => void;
-}) {
-  const grade = atsGrade(atsScore);
+}
+
+function badgeFor(id: StudioItem["id"], p: StudioProps): React.ReactNode {
+  if (id === "fix") return <ScoreRing score={p.atsScore} size={24} busy={p.checkingAts} />;
+  if (id === "tailor") {
+    if (p.tailoring) return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />;
+    if (typeof p.jobMatchScore === "number")
+      return <span className="rounded bg-primary/10 px-1 text-[10px] font-bold text-primary">{p.jobMatchScore}%</span>;
+  }
+  return null;
+}
+
+/** Desktop: vertical studio sidebar on the left edge of the editor. */
+export function StudioSidebar(props: StudioProps) {
   return (
-    <div className="flex items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto md:justify-center [&::-webkit-scrollbar]:hidden">
-        <Chip active={activePanel === "fix"} onClick={() => onPanel("fix")} label="ATS score and fixes">
-          <CircleCheckBig className="h-4 w-4 text-primary" />
-          Fix Mistakes
-          {checkingAts ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <span className={cn("inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold", grade.tone)}>
-              {grade.letter}
-            </span>
-          )}
-        </Chip>
-        <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
-        <Chip active={activePanel === "tailor"} onClick={onTailor} label="Match your resume to a job description">
-          {tailoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
-          Check &amp; Tailor
-          {typeof jobMatchScore === "number" ? (
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
-                jobMatchScore >= 75 ? "bg-emerald-500 text-white" : jobMatchScore >= 50 ? "bg-amber-400 text-slate-900" : "bg-red-500 text-white",
-              )}
-            >
-              {jobMatchScore}%
-            </span>
-          ) : null}
-        </Chip>
-        <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
-        <Chip onClick={onRearrange} disabled={rearrangeDisabled} label="Drag sections into a new order">
-          <ArrowDownUp className="h-4 w-4" />
-          Rearrange
-        </Chip>
-        <Chip active={activePanel === "templates"} onClick={() => onPanel("templates")}>
-          <LayoutTemplate className="h-4 w-4" />
-          Templates
-        </Chip>
-        <Chip active={activePanel === "design"} onClick={() => onPanel("design")}>
-          <Palette className="h-4 w-4" />
-          Design &amp; Font
-        </Chip>
-        {isMobile ? (
-          <>
-            <Chip active={activePanel === "ai"} onClick={() => onPanel("ai")}>
-              <Sparkles className="h-4 w-4" />
-              AI
-            </Chip>
-            <Chip onClick={onAddSection}>
-              <Plus className="h-4 w-4" />
-              Section
-            </Chip>
-            <Chip onClick={onShare} disabled={sharing}>
-              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-              Share
-            </Chip>
-          </>
-        ) : null}
+    <nav aria-label="Resume studio" className="flex w-[76px] shrink-0 flex-col items-stretch gap-1 border-r border-border bg-background px-1.5 py-3">
+      {ITEMS.map((item) => {
+        const active = item.id === props.activePanel;
+        const badge = badgeFor(item.id, props);
+        return (
+          <button
+            key={item.id}
+            type="button"
+            disabled={item.id === "reorder" && props.reorderDisabled}
+            aria-pressed={active}
+            onClick={() => (item.id === "reorder" ? props.onReorder() : props.onPanel(item.id as CanvasPanel))}
+            className={cn(
+              "relative flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition-colors disabled:opacity-40",
+              active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {active ? <span className="absolute left-0 top-2 h-[calc(100%-1rem)] w-[3px] rounded-r bg-primary" aria-hidden /> : null}
+            {item.id === "fix" ? badge : <item.icon className="h-5 w-5" />}
+            <span className="leading-tight">{item.label}</span>
+            {badge && item.id !== "fix" ? <span className="absolute right-0.5 top-0.5">{badge}</span> : null}
+          </button>
+        );
+      })}
+      <div className="mt-auto flex flex-col items-center gap-1 pt-2">
+        <button
+          type="button"
+          onClick={props.onAddSection}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-dashed border-primary/50 text-primary hover:bg-primary/5"
+          title="Insert section"
+          aria-label="Insert section"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+        <span className="text-[10px] text-muted-foreground">Section</span>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={!canUndo}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground/80 hover:bg-muted disabled:opacity-30"
-          title="Undo (Ctrl/⌘ Z)"
-          aria-label="Undo"
-        >
-          <Undo2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onRedo}
-          disabled={!canRedo}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground/80 hover:bg-muted disabled:opacity-30"
-          title="Redo (Ctrl/⌘ Shift Z)"
-          aria-label="Redo"
-        >
-          <Redo2 className="h-4 w-4" />
-        </button>
-        <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
-        <button
-          type="button"
-          onClick={onHistory}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-foreground/80 hover:bg-muted"
-          title="Version history"
-          aria-label="Version history"
-        >
-          <History className="h-4 w-4" />
-          <span className="hidden lg:inline">History</span>
-        </button>
-      </div>
-    </div>
+    </nav>
   );
 }
 
-function RailButton({
-  label,
-  onClick,
-  children,
-  busy,
-  active,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  busy?: boolean;
-  active?: boolean;
-}) {
+/** Mobile: the same studio as a bottom tab bar (scrolls sideways). */
+export function StudioTabBar(props: StudioProps) {
+  const items: StudioItem[] = [...ITEMS, { id: "add", label: "Section", icon: Plus }];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      title={label}
-      aria-label={label}
-      className={cn(
-        "group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-background shadow-sm transition-colors",
-        active ? "border-primary text-primary" : "border-border text-foreground/80 hover:border-primary/50 hover:text-primary",
-      )}
+    <nav
+      aria-label="Resume studio"
+      className="flex shrink-0 gap-1 overflow-x-auto border-t border-border bg-background px-2 pb-[max(env(safe-area-inset-bottom),0.4rem)] pt-1.5 [&::-webkit-scrollbar]:hidden"
     >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : children}
-      <span className="pointer-events-none absolute right-12 top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white group-hover:block">
-        {label}
-      </span>
-    </button>
-  );
-}
-
-/** Icon rail beside the page (desktop). */
-export function CanvasRail({
-  onPreview,
-  onDownload,
-  downloading,
-  onShare,
-  sharing,
-  onAi,
-  aiActive,
-  onAddSection,
-}: {
-  onPreview: () => void;
-  onDownload: () => void;
-  downloading: boolean;
-  onShare: () => void;
-  sharing: boolean;
-  onAi: () => void;
-  aiActive: boolean;
-  onAddSection: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2" role="toolbar" aria-label="Resume actions">
-      <RailButton label="Preview" onClick={onPreview}>
-        <Eye className="h-4 w-4" />
-      </RailButton>
-      <RailButton label="Download PDF" onClick={onDownload} busy={downloading}>
-        <Download className="h-4 w-4" />
-      </RailButton>
-      <RailButton label="Copy share link" onClick={onShare} busy={sharing}>
-        <Link2 className="h-4 w-4" />
-      </RailButton>
-      <RailButton label="AI assistant" onClick={onAi} active={aiActive}>
-        <Sparkles className="h-4 w-4" />
-      </RailButton>
-      <span className="mx-auto my-1 h-px w-6 bg-border" aria-hidden />
-      <RailButton label="Add section" onClick={onAddSection}>
-        <Plus className="h-4 w-4" />
-      </RailButton>
-    </div>
+      {items.map((item) => {
+        const active = item.id === props.activePanel;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={active}
+            disabled={item.id === "reorder" && props.reorderDisabled}
+            onClick={() =>
+              item.id === "reorder" ? props.onReorder() : item.id === "add" ? props.onAddSection() : props.onPanel(item.id as CanvasPanel)
+            }
+            className={cn(
+              "flex min-w-[64px] shrink-0 flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[10px] font-medium disabled:opacity-40",
+              active ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            {item.id === "fix" ? badgeFor("fix", props) : <item.icon className="h-5 w-5" />}
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }

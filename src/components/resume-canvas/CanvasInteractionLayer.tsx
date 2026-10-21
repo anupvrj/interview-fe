@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
+  GripVertical,
   CalendarDays,
   Copy,
   EyeOff,
@@ -51,11 +52,17 @@ export interface CanvasMark {
   wholeWord?: boolean;
 }
 
+/** Marks are underlines (not fills): wavy = typo, dotted = impact/clarity, solid = keyword, dashed = AI edit. */
+const WAVY =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2.5 Q1.5 0 3 2.5 T6 2.5' fill='none' stroke='%23e11d48' stroke-width='1'/%3E%3C/svg%3E\")";
 const MARK_STYLE: Record<CanvasMark["tone"], string> = {
-  error: "bg-red-400/30 border-b-2 border-red-500",
-  weak: "bg-sky-400/25",
-  keyword: "bg-emerald-400/30",
-  ai: "bg-orange-300/40 border-b-2 border-orange-500",
+  error: "",
+  weak: "border-b-2 border-dotted border-amber-500",
+  keyword: "border-b-2 border-teal-500",
+  ai: "border-b-2 border-dashed border-indigo-500 bg-indigo-500/[0.06]",
+};
+const MARK_INLINE: Partial<Record<CanvasMark["tone"], React.CSSProperties>> = {
+  error: { backgroundImage: WAVY, backgroundRepeat: "repeat-x", backgroundPosition: "left bottom", backgroundSize: "6px 3px" },
 };
 
 export interface CanvasSectionRef {
@@ -95,19 +102,6 @@ interface Box {
   height: number;
 }
 
-const ENTRY_LABEL: Record<string, string> = {
-  experience: "Entry",
-  education: "Entry",
-  projects: "Project",
-  certificates: "Certificate",
-  awards: "Award",
-  achievements: "Achievement",
-  languages: "Language",
-  references: "Reference",
-  publications: "Publication",
-  courses: "Course",
-  organisations: "Entry",
-};
 
 function isVisible(el: Element): boolean {
   if ((el as HTMLElement).closest("[id^='resume-measure-']")) return false;
@@ -175,41 +169,6 @@ function targetFromEvent(event: Event, sections: CanvasSectionRef[]): CanvasFocu
   return { sectionId, index: null };
 }
 
-function ToolButton({
-  label,
-  onClick,
-  children,
-  disabled,
-  tone = "default",
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  disabled?: boolean;
-  tone?: "default" | "primary" | "danger";
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      // Keep focus (and the text selection) in the field being edited.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35",
-        tone === "primary" && "bg-primary px-3 text-primary-foreground hover:bg-primary/90",
-        tone === "danger" && "text-slate-600 hover:bg-red-50 hover:text-red-600",
-        tone === "default" && "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-const Divider = () => <span className="mx-0.5 h-5 w-px bg-slate-200" aria-hidden />;
 
 export function CanvasInteractionLayer({
   rootRef,
@@ -245,6 +204,8 @@ export function CanvasInteractionLayer({
   const [pages, setPages] = useState<Box[]>([]);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** Rect of the current text selection inside a description (for the style bar). */
+  const [selBox, setSelBox] = useState<Box | null>(null);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
@@ -388,6 +349,49 @@ export function CanvasInteractionLayer({
     };
   }, [rootRef, onFocusChange]);
 
+  // Track text selections in rich fields so the style bar can follow them.
+  useEffect(() => {
+    const onSelection = () => {
+      const root = rootRef.current;
+      const sel = window.getSelection();
+      if (!root || !sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelBox(null);
+        return;
+      }
+      const node = sel.anchorNode;
+      const el = (node instanceof Element ? node : node?.parentElement)?.closest("[data-rx-rich]");
+      if (!el || !root.contains(el)) {
+        setSelBox(null);
+        return;
+      }
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      const o = root.getBoundingClientRect();
+      setSelBox({ top: r.top - o.top, left: r.left - o.left, width: r.width, height: r.height });
+    };
+    document.addEventListener("selectionchange", onSelection);
+    return () => document.removeEventListener("selectionchange", onSelection);
+  }, [rootRef]);
+
+  // Shortcuts for the selected item: Alt+↑/↓ move it, Ctrl/⌘+Enter adds one below.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!focus || focus.index === null) return;
+      const section = sectionsRef.current.find((s) => s.id === focus.sectionId);
+      if (!section || !isEntrySection(section.type)) return;
+      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        handlersRef.current.onMoveEntry(section.id, focus.index, e.key === "ArrowUp" ? -1 : 1);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        handlersRef.current.onAddEntry(section.id, focus.index);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focus]);
+
   // Escape (outside a field) leaves focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -422,241 +426,226 @@ export function CanvasInteractionLayer({
     document.execCommand(command);
   };
 
-  const anchor = focusBoxes[0];
-  const toolbarTop = anchor ? (anchor.top > 52 ? anchor.top - 48 : anchor.top + anchor.height + 8) : 0;
+  // The handle follows the selected item, or the item under the pointer.
+  const handleTarget: CanvasFocus | null = focus ?? hover;
+  const handleSection = handleTarget ? sections.find((s) => s.id === handleTarget.sectionId) : undefined;
+  const handleBox = focus ? focusBoxes[0] : hoverBoxes[0] ?? hoverSectionBoxes[0];
+  const handleIsEntry = Boolean(handleSection && handleTarget?.index !== null && isEntrySection(handleSection.type));
+  const handleIndex = handleTarget?.index ?? null;
+  const handleSectionIndex = handleSection ? sections.findIndex((s) => s.id === handleSection.id) : -1;
+  const handleCount = handleSection ? entryCounts[handleSection.id] ?? 0 : 0;
 
-  const toolbar = focusSection && focus && (
+  const addBelow = () => {
+    if (!handleSection) return;
+    if (isEntrySection(handleSection.type)) handlers.onAddEntry(handleSection.id, handleIndex);
+    else handlers.onAddSectionAfter(handleSection.id);
+  };
+  const openDates = () => {
+    if (!handleSection || handleIndex === null || !handleBox) return;
+    setDateEdit({ path: `${handleSection.type}.${handleIndex}`, top: handleBox.top + 22, left: handleBox.left + 8 });
+  };
+
+  type MenuItem = { label: string; icon: React.ComponentType<{ className?: string }>; run: () => void; off?: boolean; danger?: boolean; hint?: string };
+  const menuItems: MenuItem[] = handleSection
+    ? [
+        ...(isEntrySection(handleSection.type)
+          ? [{ label: "Add item below", icon: Plus, run: addBelow, hint: "Ctrl/⌘ ↵" }]
+          : []),
+        ...(handleIsEntry && handleIndex !== null
+          ? [
+              { label: "Duplicate item", icon: Copy, run: () => handlers.onDuplicateEntry(handleSection.id, handleIndex) },
+              { label: "Move item up", icon: ArrowUp, run: () => handlers.onMoveEntry(handleSection.id, handleIndex, -1), off: handleIndex <= 0, hint: "Alt ↑" },
+              {
+                label: "Move item down",
+                icon: ArrowDown,
+                run: () => handlers.onMoveEntry(handleSection.id, handleIndex, 1),
+                off: handleIndex >= handleCount - 1,
+                hint: "Alt ↓",
+              },
+              ...(DATED_SECTIONS.has(handleSection.type) ? [{ label: "Edit dates", icon: CalendarDays, run: openDates }] : []),
+            ]
+          : []),
+        { label: "All fields…", icon: SlidersHorizontal, run: () => handlers.onOpenDetails(handleSection.id) },
+        ...(handleSection.type !== "personalInfo"
+          ? [
+              { label: "Move section up", icon: ArrowUp, run: () => handlers.onMoveSection(handleSection.id, -1), off: handleSectionIndex <= 0 },
+              {
+                label: "Move section down",
+                icon: ArrowDown,
+                run: () => handlers.onMoveSection(handleSection.id, 1),
+                off: handleSectionIndex >= sections.length - 1,
+              },
+              { label: "Insert section below", icon: Plus, run: () => handlers.onAddSectionAfter(handleSection.id) },
+              { label: "Hide section", icon: EyeOff, run: () => handlers.onHideSection(handleSection.id) },
+            ]
+          : []),
+        ...(handleIsEntry && handleIndex !== null
+          ? [{ label: "Delete item", icon: Trash2, run: () => handlers.onDeleteEntry(handleSection.id, handleIndex), danger: true }]
+          : []),
+        ...(handleSection.type !== "personalInfo"
+          ? [{ label: "Delete section", icon: Trash2, run: () => handlers.onDeleteSection(handleSection.id), danger: true }]
+          : []),
+      ]
+    : [];
+
+  const menu = menuOpen && handleSection ? (
     <div
       data-rx-overlay
-      role="toolbar"
-      aria-label={`${focusSection.title} tools`}
+      role="menu"
       className={cn(
-        "pointer-events-auto z-30 flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/10",
-        isMobile ? "fixed inset-x-3 bottom-3 justify-start overflow-x-auto" : "absolute",
+        "pointer-events-auto z-40 w-56 rounded-xl border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl",
+        isMobile ? "fixed bottom-32 right-3" : "absolute",
       )}
-      style={isMobile || !anchor ? undefined : { top: toolbarTop, left: Math.max(anchor.left, 0) }}
+      style={isMobile || !handleBox ? undefined : { top: handleBox.top + 30, left: Math.max(0, handleBox.left - 44) }}
     >
-      {canAddEntry ? (
-        <ToolButton
-          label={`Add ${ENTRY_LABEL[focusSection.type] ?? "entry"}`}
-          tone="primary"
-          onClick={() => handlers.onAddEntry(focusSection.id, focus.index)}
+      {menuItems.map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          role="menuitem"
+          disabled={item.off}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setMenuOpen(false);
+            item.run();
+          }}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-muted disabled:opacity-40",
+            item.danger ? "text-rose-600" : "",
+          )}
         >
-          <Plus className="h-3.5 w-3.5" />
-          {ENTRY_LABEL[focusSection.type] ?? "Entry"}
-        </ToolButton>
-      ) : null}
-      {entryFocused && focus.index !== null ? (
-        <>
-          <ToolButton label="Move up" disabled={focus.index <= 0} onClick={() => handlers.onMoveEntry(focusSection.id, focus.index!, -1)}>
-            <ArrowUp className="h-4 w-4" />
-          </ToolButton>
-          <ToolButton
-            label="Move down"
-            disabled={focus.index >= count - 1}
-            onClick={() => handlers.onMoveEntry(focusSection.id, focus.index!, 1)}
-          >
-            <ArrowDown className="h-4 w-4" />
-          </ToolButton>
-          {DATED_SECTIONS.has(focusSection.type) ? (
-            <ToolButton
-              label="Dates"
-              onClick={() => {
-                const b = focusBoxes[0];
-                if (!b) return;
-                setDateEdit((prev) =>
-                  prev ? null : { path: `${focusSection.type}.${focus.index}`, top: b.top + 30, left: b.left + Math.max(0, b.width - 270) },
-                );
-              }}
-            >
-              <CalendarDays className="h-4 w-4" />
-            </ToolButton>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <ToolButton label="Move section up" disabled={sectionIndex <= 0} onClick={() => handlers.onMoveSection(focusSection.id, -1)}>
-            <ArrowUp className="h-4 w-4" />
-          </ToolButton>
-          <ToolButton
-            label="Move section down"
-            disabled={sectionIndex < 0 || sectionIndex >= sections.length - 1}
-            onClick={() => handlers.onMoveSection(focusSection.id, 1)}
-          >
-            <ArrowDown className="h-4 w-4" />
-          </ToolButton>
-        </>
-      )}
-      <Divider />
-      <ToolButton label="Bold" onClick={() => format("bold")}>
-        <Bold className="h-4 w-4" />
-      </ToolButton>
-      <ToolButton label="Italic" onClick={() => format("italic")}>
-        <Italic className="h-4 w-4" />
-      </ToolButton>
-      <ToolButton label="Underline" onClick={() => format("underline")}>
-        <Underline className="h-4 w-4" />
-      </ToolButton>
-      <ToolButton label="Bullet list" onClick={() => format("insertUnorderedList")}>
-        <List className="h-4 w-4" />
-      </ToolButton>
-      <Divider />
-      <ToolButton label="More fields (dates, links, photo…)" onClick={() => handlers.onOpenDetails(focusSection.id)}>
-        <SlidersHorizontal className="h-4 w-4" />
-        {isMobile ? null : <span className="hidden lg:inline">Details</span>}
-      </ToolButton>
-      {entryFocused && focus.index !== null ? (
-        <>
-          <ToolButton label="Duplicate" onClick={() => handlers.onDuplicateEntry(focusSection.id, focus.index!)}>
-            <Copy className="h-4 w-4" />
-          </ToolButton>
-          <ToolButton label="Delete entry" tone="danger" onClick={() => handlers.onDeleteEntry(focusSection.id, focus.index!)}>
-            <Trash2 className="h-4 w-4" />
-          </ToolButton>
-        </>
-      ) : null}
-      {focusSection.type !== "personalInfo" ? (
-        <div className="relative">
-          <ToolButton label="Section options" onClick={() => setMenuOpen((v) => !v)}>
-            <MoreHorizontal className="h-4 w-4" />
-          </ToolButton>
-          {menuOpen ? (
-            <div
-              className={cn(
-                "absolute z-40 w-48 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-xl",
-                isMobile ? "bottom-10 right-0" : "right-0 top-10",
-              )}
-            >
-              {[
-                { label: "Move section up", icon: ArrowUp, run: () => handlers.onMoveSection(focusSection.id, -1), off: sectionIndex <= 0 },
-                {
-                  label: "Move section down",
-                  icon: ArrowDown,
-                  run: () => handlers.onMoveSection(focusSection.id, 1),
-                  off: sectionIndex >= sections.length - 1,
-                },
-                { label: "Add section below", icon: Plus, run: () => handlers.onAddSectionAfter(focusSection.id) },
-                { label: "Hide section", icon: EyeOff, run: () => handlers.onHideSection(focusSection.id) },
-                { label: "Delete section", icon: Trash2, run: () => handlers.onDeleteSection(focusSection.id), danger: true },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  disabled={item.off}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    item.run();
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-slate-100 disabled:opacity-40",
-                    item.danger ? "text-red-600" : "text-slate-700",
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+          <item.icon className="h-4 w-4 opacity-70" />
+          <span className="flex-1">{item.label}</span>
+          {item.hint ? <span className="text-[10px] text-muted-foreground">{item.hint}</span> : null}
+        </button>
+      ))}
     </div>
-  );
+  ) : null;
 
-  // "+ Section" / "+ Entry" divider under the hovered section (desktop only).
-  const hoverBottom = hoverSectionBoxes.length ? hoverSectionBoxes[hoverSectionBoxes.length - 1] : null;
-  const divider =
-    !isMobile && hoverSection && hoverBottom && hoverSection.id !== focus?.sectionId ? (
+  // Desktop gutter handle (＋ / ⋮⋮) beside the item, Notion-style rather than a toolbar on top.
+  const handle =
+    !isMobile && handleSection && handleBox ? (
       <div
         data-rx-overlay
-        className="pointer-events-none absolute z-20 flex items-center"
-        style={{ top: hoverBottom.top + hoverBottom.height - 11, left: hoverBottom.left, width: hoverBottom.width }}
+        className="pointer-events-auto absolute z-30 flex flex-col overflow-hidden rounded-lg border border-border bg-background shadow-sm"
+        style={{ top: handleBox.top, left: Math.max(0, handleBox.left - 34) }}
       >
-        <span className="h-px flex-1 bg-primary/40" />
-        <div className="pointer-events-auto flex gap-1 px-1">
-          <button
-            type="button"
-            onClick={() => handlers.onAddSectionAfter(hoverSection.id)}
-            className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground shadow hover:bg-primary/90"
-          >
-            + Section
+        <button
+          type="button"
+          title={isEntrySection(handleSection.type) ? "Add item below" : "Insert section below"}
+          aria-label={isEntrySection(handleSection.type) ? "Add item below" : "Insert section below"}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={addBelow}
+          className="flex h-6 w-6 items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Item options"
+          aria-label="Item options"
+          aria-haspopup="menu"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            if (!focus && hover) onFocusChange(hover);
+            setMenuOpen((v) => !v);
+          }}
+          className="flex h-6 w-6 items-center justify-center border-t border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    ) : null;
+
+  // Mobile: compact action strip above the studio tab bar while an item is selected.
+  const mobileBar =
+    isMobile && focus && focusSection ? (
+      <div
+        data-rx-overlay
+        role="toolbar"
+        aria-label="Item actions"
+        className="pointer-events-auto fixed inset-x-2 bottom-[4.5rem] z-30 flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-900 p-1.5 text-white shadow-2xl [&::-webkit-scrollbar]:hidden"
+      >
+        {canAddEntry ? (
+          <button type="button" onClick={addBelow} className="flex shrink-0 items-center gap-1 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold">
+            <Plus className="h-4 w-4" /> Add item
           </button>
-          {isEntrySection(hoverSection.type) ? (
-            <button
-              type="button"
-              onClick={() => {
-                handlers.onAddEntry(hoverSection.id, null);
-              }}
-              className="rounded-full border border-primary/40 bg-white px-2.5 py-1 text-[11px] font-semibold text-primary shadow hover:bg-primary/5"
-            >
-              + {ENTRY_LABEL[hoverSection.type] ?? "Entry"}
-            </button>
-          ) : null}
-        </div>
-        <span className="h-px flex-1 bg-primary/40" />
+        ) : null}
+        {entryFocused && DATED_SECTIONS.has(focusSection.type) ? (
+          <button type="button" onClick={openDates} className="shrink-0 rounded-xl px-3 py-2 text-xs" aria-label="Edit dates">
+            <CalendarDays className="h-4 w-4" />
+          </button>
+        ) : null}
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => format("bold")} className="shrink-0 rounded-xl px-3 py-2" aria-label="Bold">
+          <Bold className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => format("insertUnorderedList")} className="shrink-0 rounded-xl px-3 py-2" aria-label="Bullet list">
+          <List className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => setMenuOpen((v) => !v)} className="ml-auto flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs" aria-label="More actions">
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </div>
+    ) : null;
+
+  // Formatting appears only while text is selected inside a description (Medium-style).
+  const selectionBar =
+    !isMobile && selBox ? (
+      <div
+        data-rx-overlay
+        role="toolbar"
+        aria-label="Text style"
+        className="pointer-events-auto absolute z-40 flex items-center gap-0.5 rounded-lg bg-slate-900 p-0.5 text-white shadow-xl"
+        style={{ top: Math.max(0, selBox.top - 38), left: Math.max(0, selBox.left + selBox.width / 2 - 70) }}
+      >
+        {[
+          { label: "Bold", icon: Bold, cmd: "bold" as const },
+          { label: "Italic", icon: Italic, cmd: "italic" as const },
+          { label: "Underline", icon: Underline, cmd: "underline" as const },
+          { label: "Bullet list", icon: List, cmd: "insertUnorderedList" as const },
+        ].map((b) => (
+          <button
+            key={b.cmd}
+            type="button"
+            title={b.label}
+            aria-label={b.label}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => format(b.cmd)}
+            className="flex h-7 w-8 items-center justify-center rounded-md hover:bg-white/15"
+          >
+            <b.icon className="h-3.5 w-3.5" />
+          </button>
+        ))}
       </div>
     ) : null;
 
   return (
     <div data-rx-overlay className="pointer-events-none absolute inset-0 z-10" aria-hidden={false}>
-      {/* Focus mode: dim each page except the active entry. */}
-      {focusBoxes.length
-        ? pages.map((page, i) => (
-            <div
-              key={`dim-${i}`}
-              className="absolute overflow-hidden"
-              style={{ top: page.top, left: page.left, width: page.width, height: page.height }}
-            >
-              {focusBoxes.some((b) => b.top < page.top + page.height && b.top + b.height > page.top) ? (
-                focusBoxes
-                  .filter((b) => b.top < page.top + page.height && b.top + b.height > page.top)
-                  .map((b, j) => (
-                    <div
-                      key={j}
-                      className="absolute rounded-md transition-all duration-150"
-                      style={{
-                        top: b.top - page.top,
-                        left: b.left - page.left,
-                        width: b.width,
-                        height: b.height,
-                        boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.10)",
-                      }}
-                    />
-                  ))
-              ) : (
-                <div className="absolute inset-0 bg-slate-900/10" />
-              )}
-            </div>
-          ))
-        : null}
+      {/* Selected item: soft tint + accent bar on the left (no page dimming). */}
       {focusBoxes.map((b, i) => (
-        <div
-          key={`focus-${i}`}
-          className="absolute rounded-md ring-2 ring-primary transition-all duration-150"
-          style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
-        />
+        <React.Fragment key={`focus-${i}`}>
+          <div className="absolute rounded-md bg-primary/[0.045] transition-all duration-150" style={{ top: b.top, left: b.left, width: b.width, height: b.height }} />
+          <div className="absolute w-[3px] rounded-full bg-primary transition-all duration-150" style={{ top: b.top + 2, left: b.left - 6, height: b.height - 4 }} />
+        </React.Fragment>
       ))}
       {hoverBoxes.map((b, i) => (
-        <div
-          key={`hover-${i}`}
-          className="absolute rounded-md border border-dashed border-primary/50"
-          style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
-        />
+        <div key={`hover-${i}`} className="absolute rounded-md bg-primary/[0.025]" style={{ top: b.top, left: b.left, width: b.width, height: b.height }} />
       ))}
       {markBoxes.map((b, i) => (
         <div
           key={`mark-${b.id}-${i}`}
           className={cn(
-            "absolute rounded-[2px] mix-blend-multiply",
+            "absolute",
             MARK_STYLE[b.tone],
-            b.id === activeMarkId && "animate-pulse ring-2 ring-offset-1 ring-red-500/70",
+            b.id === activeMarkId && "rounded-sm bg-primary/10 ring-2 ring-primary/60",
           )}
-          style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
+          style={{ top: b.top, left: b.left, width: b.width, height: b.height, ...MARK_INLINE[b.tone] }}
         />
       ))}
-      {divider}
-      {toolbar}
+      {handle}
+      {menu}
+      {mobileBar}
+      {selectionBar}
       {tagEdit ? (
         <div
           data-rx-overlay

@@ -43,6 +43,9 @@ import {
   LayoutGrid,
   Undo2,
   Redo2,
+  History,
+  Link2,
+  Sparkles,
   RefreshCw,
   Target,
 } from "lucide-react";
@@ -139,13 +142,14 @@ import {
   type CanvasInteractionHandlers,
   type CanvasSectionRef,
 } from "@/components/resume-canvas/CanvasInteractionLayer";
-import { CanvasRail, CanvasToolRow, type CanvasPanel } from "@/components/resume-canvas/CanvasChrome";
+import { StudioSidebar, StudioTabBar, type CanvasPanel, type StudioProps } from "@/components/resume-canvas/CanvasChrome";
 import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
+import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
 import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
 import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
 import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
@@ -443,7 +447,7 @@ export default function EditResumePage() {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   /** File name picked in the download dialog (used by the next PDF compile). */
   const downloadFilenameRef = useRef<string | null>(null);
-  /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
+  /** Score panel: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
@@ -451,7 +455,8 @@ export default function EditResumePage() {
     before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
     lines: string[];
   } | null>(null);
-  /** Check & Tailor: keywords the user marked as not relevant for this job. */
+  const [aiReviewListOpen, setAiReviewListOpen] = useState(false);
+  /** Job match: keywords the user marked as not relevant for this job. */
   const [excludedKeywords, setExcludedKeywords] = useState<Set<string>>(() => new Set());
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
@@ -2730,7 +2735,7 @@ export default function EditResumePage() {
     });
     // Imported content counts as saved; this restore must be saved again.
     setHasChanges(true);
-    showCanvasNotice("AI changes undone — your resume is back to how it was.");
+    showCanvasNotice("Undone — your resume is back to how it was before the rewrite.");
   };
 
   /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
@@ -3066,19 +3071,32 @@ export default function EditResumePage() {
   };
 
   const canvasPanelTitle =
-    canvasPanel === "fix"
-      ? "Fix Mistakes"
+    canvasPanel === "outline"
+      ? "Outline"
+      : canvasPanel === "fix"
+      ? "Score"
       : canvasPanel === "tailor"
-        ? "Check & Tailor"
+        ? "Job match"
       : canvasPanel === "templates"
-        ? "Templates"
+        ? "Designs"
         : canvasPanel === "design"
-          ? "Design & Font"
+          ? "Style"
           : canvasPanel === "ai"
-            ? "AI assistant"
+            ? "AI Coach"
             : canvasPanel === "details"
               ? sections.find((s) => s.id === editingSectionId)?.title ?? "Details"
               : "";
+  const studioProps: StudioProps = {
+    activePanel: canvasPanel,
+    onPanel: (panel) => openCanvasPanel(panel),
+    onReorder: () => setRearrangeSectionsOpen(true),
+    reorderDisabled: !layout || sections.length === 0,
+    onAddSection: () => setAddSectionAfter({ afterId: null }),
+    atsScore: displayAtsScore ?? resume?.atsScore ?? null,
+    checkingAts: refreshingATS,
+    jobMatchScore: resume?.jobMatchScore ?? null,
+    tailoring: matchingJob,
+  };
   const formPanelOpen = canvasOn && (canvasPanel === "fix" || canvasPanel === "details" || canvasPanel === "design");
 
 
@@ -3211,11 +3229,37 @@ export default function EditResumePage() {
             >
               {extensionSyncState === "syncing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChromeIcon className="h-4 w-4" />}
             </IconTooltipButton>
-            {isMobile ? (
-              <IconTooltipButton onClick={() => previewRef.current?.openPdfPreview()} variant="ghost" label="Preview">
-                <Eye className="h-4 w-4" />
-              </IconTooltipButton>
-            ) : null}
+            <span className="mx-0.5 hidden h-5 w-px bg-border md:block" aria-hidden />
+            <IconTooltipButton onClick={handleUndo} variant="ghost" label="Undo (Ctrl/⌘ Z)" disabled={!editorHistory.canUndo}>
+              <Undo2 className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={handleRedo}
+              variant="ghost"
+              label="Redo (Ctrl/⌘ Shift Z)"
+              disabled={!editorHistory.canRedo}
+              className="hidden sm:inline-flex"
+            >
+              <Redo2 className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={() => {
+                // Save pending edits first so they become part of the timeline.
+                void ensureResumePersisted()
+                  .catch((error) => console.error("Save before versions failed:", error))
+                  .finally(() => setHistoryOpen(true));
+              }}
+              variant="ghost"
+              label="Versions"
+            >
+              <History className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton onClick={() => previewRef.current?.openPdfPreview()} variant="ghost" label="Preview">
+              <Eye className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton onClick={() => void handleShareLink()} variant="ghost" label="Share link" disabled={sharing}>
+              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+            </IconTooltipButton>
             <Button
               type="button"
               size="sm"
@@ -3224,34 +3268,9 @@ export default function EditResumePage() {
               className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
             >
               {downloading ? <Loader2 className="h-4 w-4 animate-spin md:mr-1.5" /> : <Download className="h-4 w-4 md:mr-1.5" />}
-              <span className="hidden md:inline">{downloading ? "Preparing…" : "Download"}</span>
+              <span className="hidden md:inline">{downloading ? "Preparing…" : "Export"}</span>
             </Button>
           </div>
-          <CanvasToolRow
-            activePanel={canvasPanel}
-            onPanel={(panel) => openCanvasPanel(panel)}
-            atsScore={displayAtsScore ?? resume.atsScore ?? null}
-            checkingAts={refreshingATS}
-            onTailor={() => openCanvasPanel("tailor")}
-            tailoring={matchingJob}
-            jobMatchScore={resume.jobMatchScore ?? null}
-            onRearrange={() => setRearrangeSectionsOpen(true)}
-            rearrangeDisabled={!layout || sections.length === 0}
-            canUndo={editorHistory.canUndo}
-            canRedo={editorHistory.canRedo}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            isMobile={isMobile}
-            onAddSection={() => setAddSectionAfter({ afterId: null })}
-            onShare={() => void handleShareLink()}
-            sharing={sharing}
-            onHistory={() => {
-              // Save pending edits first so they become part of the history.
-              void ensureResumePersisted()
-                .catch((error) => console.error("Save before history failed:", error))
-                .finally(() => setHistoryOpen(true));
-            }}
-          />
         </>
       ) : (
         <>
@@ -3637,6 +3656,7 @@ export default function EditResumePage() {
       )}
       {/* Main Content: mobile = live preview canvas; md+ = side-by-side */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        {canvasOn && !isMobile ? <StudioSidebar {...studioProps} /> : null}
         {isMobile && showMobileEditPanel ? (
           <div className={resumeEditorMobileOverlay} aria-hidden />
         ) : null}
@@ -7419,7 +7439,7 @@ export default function EditResumePage() {
           </div>
         </div>
 
-        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai" || canvasPanel === "tailor") ? (
+        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai" || canvasPanel === "tailor" || canvasPanel === "outline") ? (
           <div
             className={
               isMobile
@@ -7432,7 +7452,7 @@ export default function EditResumePage() {
               <div className="flex items-center gap-1">
                 {canvasPanel === "templates" ? (
                   <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={closeCanvasPanel}>
-                    Continue editing
+                    Done
                   </Button>
                 ) : null}
                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={closeCanvasPanel} aria-label="Close panel">
@@ -7440,7 +7460,25 @@ export default function EditResumePage() {
                 </Button>
               </div>
             </div>
-            {canvasPanel === "tailor" ? (
+            {canvasPanel === "outline" ? (
+              <OutlinePanel
+                sections={sections.map((s) => ({ id: s.id, type: s.type, title: s.title, visible: s.visible, count: canvasEntryCounts[s.id] }))}
+                activeId={canvasFocus?.sectionId ?? null}
+                onJump={(id) => {
+                  setCanvasFocus({ sectionId: id, index: null });
+                  const target = Array.from(
+                    canvasRootRef.current?.querySelectorAll<HTMLElement>(`.resume-page [data-section="${CSS.escape(id)}"]`) ?? [],
+                  ).find((el) => el.getClientRects().length > 0);
+                  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                onToggle={(id) => {
+                  setSections((prev) => prev.map((s) => (s.id === id ? { ...s, visible: !s.visible } : s)));
+                  setHasChanges(true);
+                }}
+                onMove={(id, delta) => canvasHandlers.onMoveSection(id, delta)}
+                onInsert={() => setAddSectionAfter({ afterId: null })}
+              />
+            ) : canvasPanel === "tailor" ? (
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <TailorPanel
                   jobDescription={lastMatchedJd ?? resume.atsScoringContext?.lastJobDescription ?? ""}
@@ -7542,35 +7580,49 @@ export default function EditResumePage() {
                 }
               />
                 </CanvasEditProvider>
-                {canvasOn && !isMobile ? (
-                  <div className="absolute right-4 top-4 z-20">
-                    <CanvasRail
-                      onPreview={() => previewRef.current?.openPdfPreview()}
-                      onDownload={() => setDownloadDialogOpen(true)}
-                      downloading={downloading}
-                      onShare={() => void handleShareLink()}
-                      sharing={sharing}
-                      onAi={() => openCanvasPanel("ai")}
-                      aiActive={canvasPanel === "ai"}
-                      onAddSection={() => setAddSectionAfter({ afterId: null })}
-                    />
-                  </div>
-                ) : null}
                 {aiReview ? (
-                  <div className="absolute inset-x-0 bottom-4 z-30 flex justify-center px-3">
-                    <div className="flex max-w-xl flex-wrap items-center gap-3 rounded-2xl border border-orange-300 bg-background px-4 py-2.5 shadow-xl">
-                      <span className="text-sm text-foreground">
-                        <strong>AI tailored {aiReview.lines.length} {aiReview.lines.length === 1 ? "line" : "lines"}</strong>{" "}
-                        <span className="text-muted-foreground">— highlighted in orange. Edit anything on the page.</span>
-                      </span>
-                      <div className="ml-auto flex gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={rejectAiReview}>
-                          Reject all
-                        </Button>
-                        <Button type="button" size="sm" onClick={() => setAiReview(null)}>
-                          Approve all
-                        </Button>
+                  <div className="absolute inset-x-0 top-3 z-30 flex justify-center px-3">
+                    <div className="w-full max-w-xl rounded-2xl border border-indigo-200 bg-background/95 shadow-xl backdrop-blur dark:border-indigo-900">
+                      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                        <Sparkles className="h-4 w-4 shrink-0 text-indigo-500" />
+                        <span className="text-sm text-foreground">
+                          AI rewrote <strong>{aiReview.lines.length}</strong> {aiReview.lines.length === 1 ? "line" : "lines"} for this job
+                          <span className="text-muted-foreground"> · dashed underline</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAiReviewListOpen((v) => !v)}
+                          className="text-xs font-semibold text-indigo-600 hover:underline"
+                        >
+                          {aiReviewListOpen ? "Hide changes" : "See changes"}
+                        </button>
+                        <div className="ml-auto flex gap-2">
+                          <Button type="button" size="sm" variant="ghost" onClick={rejectAiReview}>
+                            Undo all
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => setAiReview(null)}>
+                            Keep all
+                          </Button>
+                        </div>
                       </div>
+                      {aiReviewListOpen ? (
+                        <ol className="max-h-56 space-y-1 overflow-y-auto border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                          {aiReview.lines.map((line, i) => (
+                            <li key={i}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveMarkId(null);
+                                  requestAnimationFrame(() => setActiveMarkId(`ai:${i}`));
+                                }}
+                                className="w-full truncate text-left hover:text-foreground"
+                              >
+                                {i + 1}. {line}
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
@@ -7593,6 +7645,7 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
       <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
       <DownloadDialog
         open={downloadDialogOpen}

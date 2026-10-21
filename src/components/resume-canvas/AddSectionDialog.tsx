@@ -1,8 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
-import { Check, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Award,
+  BadgeCheck,
+  BookOpen,
+  Briefcase,
+  CornerDownLeft,
+  FileSignature,
+  FolderGit2,
+  GraduationCap,
+  Heart,
+  HeartHandshake,
+  Languages,
+  Library,
+  ListChecks,
+  PenLine,
+  Search,
+  Star,
+  Users,
+  Wrench,
+} from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export interface AddableSection {
@@ -33,70 +52,26 @@ export const ADDABLE_SECTIONS: AddableSection[] = [
   { type: "custom", label: "Custom section", hint: "Anything else, your own title", preview: "paragraph", multiple: true },
 ];
 
-function Preview({ kind }: { kind: AddableSection["preview"] }) {
-  const line = (w: string, dark = false) => (
-    <span className={cn("block h-1.5 rounded-full", dark ? "bg-slate-400" : "bg-slate-200")} style={{ width: w }} />
-  );
-  if (kind === "entries")
-    return (
-      <div className="space-y-2.5">
-        {[0, 1].map((i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex justify-between">
-              {line("45%", true)}
-              {line("20%")}
-            </div>
-            {line("30%")}
-            {line("90%")}
-            {line("75%")}
-          </div>
-        ))}
-      </div>
-    );
-  if (kind === "tags")
-    return (
-      <div className="flex flex-wrap gap-1.5">
-        {["38%", "26%", "30%", "22%", "34%", "28%"].map((w, i) => (
-          <span key={i} className="h-4 rounded border border-slate-300" style={{ width: w }} />
-        ))}
-      </div>
-    );
-  if (kind === "bars")
-    return (
-      <div className="space-y-2">
-        {[80, 60, 40].map((v) => (
-          <div key={v} className="flex items-center gap-2">
-            {line("30%", true)}
-            <span className="flex flex-1 gap-0.5">
-              {[0, 1, 2, 3, 4].map((d) => (
-                <span key={d} className={cn("h-1.5 flex-1 rounded-full", d * 20 < v ? "bg-primary/60" : "bg-slate-200")} />
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  if (kind === "list")
-    return (
-      <div className="space-y-2">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="space-y-1">
-            {line(i === 1 ? "55%" : "65%", true)}
-            {line("40%")}
-          </div>
-        ))}
-      </div>
-    );
-  return (
-    <div className="space-y-1.5">
-      {line("95%")}
-      {line("88%")}
-      {line("92%")}
-      {line("60%")}
-    </div>
-  );
-}
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  profileSummary: PenLine,
+  experience: Briefcase,
+  education: GraduationCap,
+  skills: Wrench,
+  projects: FolderGit2,
+  certificates: BadgeCheck,
+  awards: Award,
+  achievements: Star,
+  languages: Languages,
+  courses: BookOpen,
+  organisations: HeartHandshake,
+  publications: Library,
+  interests: Heart,
+  references: Users,
+  declaration: FileSignature,
+  custom: ListChecks,
+};
 
+/** "Insert section": a searchable, keyboard-first command list. */
 export function AddSectionDialog({
   open,
   onOpenChange,
@@ -108,55 +83,93 @@ export function AddSectionDialog({
   usedTypes: Set<string>;
   onAdd: (type: string) => void;
 }) {
-  const [showUsed, setShowUsed] = useState(false);
-  const items = ADDABLE_SECTIONS.filter((s) => showUsed || s.multiple || !usedTypes.has(s.type));
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setActive(0);
+    }
+  }, [open]);
+  const items = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matches = ADDABLE_SECTIONS.filter((s) => !q || `${s.label} ${s.hint} ${s.type}`.toLowerCase().includes(q));
+    // New sections first; ones already on the page go last.
+    return [...matches.filter((s) => s.multiple || !usedTypes.has(s.type)), ...matches.filter((s) => !s.multiple && usedTypes.has(s.type))];
+  }, [query, usedTypes]);
+  const choose = (type: string) => {
+    onAdd(type);
+    onOpenChange(false);
+  };
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-5xl overflow-y-auto p-5 sm:p-7">
-        <DialogHeader className="flex-row items-start justify-between gap-4 space-y-0">
-          <div>
-            <DialogTitle>Add a section</DialogTitle>
-            <DialogDescription className="mt-1">Pick a section, then type straight onto the page.</DialogDescription>
-          </div>
-          <label className="mr-8 flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
-            <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={showUsed} onChange={(e) => setShowUsed(e.target.checked)} />
-            Show used sections
-          </label>
-        </DialogHeader>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {items.map((section) => {
-            const used = usedTypes.has(section.type) && !section.multiple;
+      <DialogContent className="top-[18%] w-[calc(100vw-1.5rem)] max-w-lg translate-y-0 gap-0 overflow-hidden p-0 [&>button]:hidden">
+        <DialogTitle className="sr-only">Insert section</DialogTitle>
+        <div className="flex items-center gap-2 border-b border-border px-4">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActive((i) => Math.min(items.length - 1, i + 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((i) => Math.max(0, i - 1));
+              } else if (e.key === "Enter" && items[active]) {
+                e.preventDefault();
+                choose(items[active].type);
+              }
+            }}
+            placeholder="Insert a section… (try “projects” or “volunteer”)"
+            className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            aria-label="Search sections"
+          />
+          <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">Esc</kbd>
+        </div>
+        <ul ref={listRef} role="listbox" aria-label="Sections" className="max-h-[50vh] overflow-y-auto p-1.5">
+          {items.map((section, index) => {
+            const Icon = ICONS[section.type] ?? ListChecks;
+            const onPage = usedTypes.has(section.type) && !section.multiple;
             return (
-              <button
-                key={section.type}
-                type="button"
-                onClick={() => {
-                  onAdd(section.type);
-                  onOpenChange(false);
-                }}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition hover:-translate-y-0.5 hover:border-primary hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <div className="relative h-28 bg-slate-50 p-4 dark:bg-slate-900/40">
-                  <span className="mb-2.5 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{section.label}</span>
-                  <Preview kind={section.preview} />
-                  <span className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition group-hover:bg-primary/10 group-hover:opacity-100 group-focus-visible:opacity-100">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow">
-                      {used ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                      {used ? "Show on resume" : "Add to resume"}
-                    </span>
+              <li key={section.type} role="option" aria-selected={index === active} data-index={index}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => choose(section.type)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left",
+                    index === active ? "bg-primary/10" : "hover:bg-muted",
+                  )}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/80">
+                    <Icon className="h-4 w-4" />
                   </span>
-                </div>
-                <div className="border-t border-border px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                    {section.label}
-                    {used ? <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Used</span> : null}
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{section.hint}</p>
-                </div>
-              </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-foreground">{section.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{section.hint}</span>
+                  </span>
+                  {onPage ? (
+                    <span className="shrink-0 text-[11px] text-muted-foreground">On page</span>
+                  ) : index === active ? (
+                    <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  ) : null}
+                </button>
+              </li>
             );
           })}
-        </div>
+          {items.length === 0 ? <li className="px-3 py-6 text-center text-sm text-muted-foreground">No section matches “{query}”.</li> : null}
+        </ul>
       </DialogContent>
     </Dialog>
   );
