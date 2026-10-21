@@ -656,7 +656,7 @@ export function CanvasInteractionLayer({
         >
           <item.icon className="h-4 w-4 opacity-70" />
           <span className="flex-1">{item.label}</span>
-          {item.hint ? <span className="text-[10px] text-muted-foreground">{item.hint}</span> : null}
+          {item.hint && !isMobile ? <span className="text-[10px] text-muted-foreground">{item.hint}</span> : null}
         </button>
       ))}
     </KeepInView>

@@ -276,7 +276,10 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                     maxHeight: `${A4_HEIGHT_MM}mm`,
                     overflow: "hidden",
                     position: "relative",
-                    background: isAtlanticBlue ? ATLANTIC_BLUE_PAGINATED_PAGE_BG : "#ffffff",
+                    // Sidebar band follows the chosen left-column width (Style panel).
+                    background: isAtlanticBlue
+                      ? ATLANTIC_BLUE_PAGINATED_PAGE_BG.replace(/40%/g, `${currentLayout.columnWidths?.left || 40}%`)
+                      : "#ffffff",
                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
                   }}
                 >

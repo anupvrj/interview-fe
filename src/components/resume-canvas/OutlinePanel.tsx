@@ -42,7 +42,7 @@ export function OutlinePanel({
         {typeof s.count === "number" && s.visible ? <span className="ml-auto text-[11px] text-muted-foreground">{s.count}</span> : null}
       </button>
       {s.visible && s.type !== "personalInfo" ? (
-        <span className="hidden items-center group-hover:flex">
+        <span className="flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           <button type="button" aria-label={`Move ${s.title} up`} disabled={i <= 1} onClick={() => onMove(s.id, -1)} className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
             <ArrowUp className="h-3.5 w-3.5" />
           </button>

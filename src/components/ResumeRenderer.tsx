@@ -5853,7 +5853,8 @@ export function ResumeRenderer({
           }
           style={
             isAtlanticBlueTwoColumn
-              ? undefined
+              ? // The Style panel's column widths drive the sidebar (and its background band).
+                ({ "--ab-sidebar-width-pct": `${effectiveResumeLayout.columnWidths?.left || 40}%` } as React.CSSProperties)
               : isSaffronLine || isConfidentGrid
                 ? { display: "flex", alignItems: "flex-start" }
                 : { display: "flex", minHeight: "270mm" }
@@ -5882,7 +5883,7 @@ export function ResumeRenderer({
                         boxSizing: "border-box",
                       }
                     : {
-                    width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
+                    width: templateStyle.headerStyle === "two-column" ? `${resumeLayout.columnWidths?.left || 40}%` : `${resumeLayout.columnWidths?.left || 60}%`,
                     paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
                     backgroundColor: templateStyle.headerStyle === "two-column" ? templateStyle.colors.sidebarBackground : "transparent",
                     minHeight: "100%",
@@ -5907,6 +5908,7 @@ export function ResumeRenderer({
                     paddingBottom: ATLANTIC_BLUE_INNER_PADDING_PX.vertical,
                     paddingLeft: ATLANTIC_BLUE_INNER_PADDING_PX.seam,
                     paddingRight: ATLANTIC_BLUE_INNER_PADDING_PX.outerEdge,
+                    width: `${100 - (effectiveResumeLayout.columnWidths?.left || 40)}%`,
                   }
                 : isSaffronLine
                   ? {
@@ -5919,7 +5921,7 @@ export function ResumeRenderer({
                         boxSizing: "border-box",
                       }
                     : {
-                    width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
+                    width: templateStyle.headerStyle === "two-column" ? `${resumeLayout.columnWidths?.right || 60}%` : `${resumeLayout.columnWidths?.right || 40}%`,
                     paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
                     ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
                   }

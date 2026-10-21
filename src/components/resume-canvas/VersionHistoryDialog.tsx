@@ -7,6 +7,7 @@ import { PaginatedPreview } from "@/components/PaginatedPreview";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { cssRegistry } from "@/lib/templateLoader";
 import { CanvasEditProvider } from "./CanvasEditContext";
 
 type VersionRow = { versionId: string; title: string; templateId: string; createdAt: string };
@@ -64,6 +65,33 @@ export function VersionHistoryDialog({
       .catch(() => setError("Couldn't load that version."));
   }, [open, selectedId, resume.resumeId]);
 
+  // A version saved on another design previews in THAT design (its CSS and renderer).
+  const [versionTemplate, setVersionTemplate] = useState<ResumeTemplate | null>(null);
+  const versionTemplateId = selected?.templateId;
+  useEffect(() => {
+    if (!open) return;
+    if (!versionTemplateId || versionTemplateId === template.id) {
+      setVersionTemplate(null);
+      void cssRegistry.loadTemplateCSS(template.id);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const list = await resumeApi.getTemplates();
+      const match = list.find((t) => t.id === versionTemplateId);
+      if (!match || cancelled) return;
+      await cssRegistry.loadTemplateCSS(match.id);
+      if (!cancelled) setVersionTemplate(match);
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, versionTemplateId, template.id]);
+  // The registry holds one design's CSS at a time: give the editor its own back on close.
+  useEffect(() => {
+    if (!open) void cssRegistry.loadTemplateCSS(template.id);
+  }, [open, template.id]);
+
   const groups = useMemo(() => {
     const map = new Map<string, VersionRow[]>();
     for (const v of versions ?? []) {
@@ -82,6 +110,7 @@ export function VersionHistoryDialog({
             profileSummary: selected.profileSummary,
             sectionOrder: selected.sectionOrder,
             layout: selected.layout ?? resume.layout,
+            templateId: selected.templateId || resume.templateId,
           } as Resume)
         : null,
     [selected, resume],
@@ -172,13 +201,13 @@ export function VersionHistoryDialog({
             ))}
           </aside>
           <div className="rx-canvas-scroll min-h-0 flex-1 overflow-auto p-2 md:p-8">
-            {previewResume ? (
+            {previewResume && (!versionTemplateId || versionTemplateId === template.id || versionTemplate?.id === versionTemplateId) ? (
               <div className="mx-auto w-fit [zoom:0.4] sm:[zoom:0.6] lg:[zoom:0.75] xl:[zoom:0.9]">
                 <CanvasEditProvider value={null}>
                   <PaginatedPreview
                     key={selectedId ?? "none"}
                     resume={previewResume}
-                    template={template}
+                    template={versionTemplate ?? template}
                     sections={previewResume.sectionOrder ?? undefined}
                     layout={previewResume.layout}
                   />

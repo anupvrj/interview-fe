@@ -403,6 +403,11 @@ export default function EditResumePage() {
         .split(",")[0]
         ?.replace(/^['"]|['"]$/g, "")
         .trim() || "Custom";
+    // The template's own stack ("'Zilla Slab', 'Roboto Slab', …") is the same font as the
+    // listed one: reuse that entry instead of listing it twice.
+    if (FONT_FAMILY_OPTIONS.some((opt) => opt.label === shortLabel)) {
+      return FONT_FAMILY_OPTIONS.map((opt) => (opt.label === shortLabel ? { ...opt, value: current } : opt));
+    }
     return [{ value: current, label: shortLabel }, ...FONT_FAMILY_OPTIONS];
   }, [effectiveTypography?.fontFamily]);
 
@@ -826,7 +831,9 @@ export default function EditResumePage() {
         })
         .catch((error) => {
           hasChangesRef.current = true;
-          console.error("Saving on leave failed:", error);
+          if ((error as { response?: { status?: number } })?.response?.status !== 409) {
+            console.error("Saving on leave failed:", error);
+          }
         });
     };
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1013,7 +1020,10 @@ export default function EditResumePage() {
         setLastSaved(new Date());
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
-        console.error("Autosave failed:", error);
+        // A save refused because another tab saved first is handled by the conflict banner.
+        if ((error as { response?: { status?: number } })?.response?.status !== 409) {
+          console.error("Autosave failed:", error);
+        }
       } finally {
         setAutoSaving(false);
       }
@@ -7855,8 +7865,17 @@ export default function EditResumePage() {
               router.push(`/dashboard/resumes/${restored.resumeId}/edit`);
               return;
             }
-            handleResumeImported(restored);
-            showCanvasNotice("Version restored. The version before it is in History too.");
+            void (async () => {
+              // A version saved on another design brings that design back too.
+              if (restored.templateId && restored.templateId !== template.id) {
+                const { TemplateLoader } = await import("@/lib/templateLoader");
+                await TemplateLoader.loadTemplate(restored.templateId);
+                const next = (await resumeApi.getTemplates()).find((t) => t.id === restored.templateId);
+                if (next) setTemplate(next);
+              }
+              handleResumeImported(restored);
+              showCanvasNotice("Version restored. The version before it is in History too.");
+            })();
           }}
         />
       ) : null}
