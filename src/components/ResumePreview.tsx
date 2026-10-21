@@ -95,6 +95,8 @@ export type ResumePreviewHandle = {
     /** Keep the scroll position (e.g. re-paginating for a PDF). */
     keepScroll?: boolean;
   }) => void;
+  /** Zoom in to at least this level, as if the user did it (fit-to-screen stops re-fitting). */
+  zoomAtLeast: (zoom: number) => void;
 };
 
 export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>(
@@ -275,8 +277,16 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
 
   useImperativeHandle(
     ref,
-    () => ({ resetPreview, openPdfPreview: () => setPdfPreviewOpen(true) }),
-    [resetPreview],
+    () => ({
+      resetPreview,
+      openPdfPreview: () => setPdfPreviewOpen(true),
+      zoomAtLeast: (zoom: number) => {
+        if (zoomLevelRef.current >= zoom) return;
+        markUserAdjusted();
+        setZoomLevel(Math.min(zoom, 200));
+      },
+    }),
+    [resetPreview, markUserAdjusted, setZoomLevel],
   );
 
   const handleRefreshPreview = useCallback(() => {

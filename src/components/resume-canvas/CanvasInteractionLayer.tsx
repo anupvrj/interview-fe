@@ -402,7 +402,14 @@ export function CanvasInteractionLayer({
     const scroller = root.closest(".rx-canvas-scroll") as HTMLElement | null;
     if (scroller) {
       const box = scroller.getBoundingClientRect();
-      scroller.scrollBy({ top: rect.top - box.top - box.height / 3, behavior: "smooth" });
+      // Sideways only when it's off screen (a zoomed-in page on a phone): centre it.
+      const left = rect.left - box.left;
+      const offX = left < 0 || left + rect.width > box.width;
+      scroller.scrollBy({
+        top: rect.top - box.top - box.height / 3,
+        left: offX ? left - (box.width - Math.min(rect.width, box.width)) / 2 : 0,
+        behavior: "smooth",
+      });
     }
   }, [activeMarkId, marks, rootRef]);
 

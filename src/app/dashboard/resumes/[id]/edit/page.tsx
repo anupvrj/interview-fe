@@ -157,6 +157,7 @@ import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
@@ -296,6 +297,9 @@ function htmlToPlainText(html: string): string {
   return html.replace(/<\/(p|li|div)>|<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 }
 
+
+/** Phones: zoom for reading an ATS issue picked from the report (the fitted page is ~40%). */
+const MOBILE_ISSUE_ZOOM = 85;
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
@@ -477,6 +481,8 @@ export default function EditResumePage() {
   /** Score panel: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
+  const [peekId, setPeekId] = useState<string | null>(null);
   /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
   const [aiReview, setAiReview] = useState<{
     before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
@@ -2920,6 +2926,23 @@ export default function EditResumePage() {
     return [];
   }, [aiReview, canvasPanel, fixGroups, fixResolved, matchedKeywords, excludedKeywords]);
 
+  // Phones: the peek bar steps through the issues marked on the page.
+  const peekIndex = peekId ? canvasMarks.findIndex((m) => m.id === peekId) : -1;
+  const peekActive = isMobile && canvasOn && canvasPanel === "fix" && peekIndex >= 0;
+  const peekItem = useMemo(
+    () => (peekIndex >= 0 ? fixGroups.flatMap((g) => g.items).find((i) => i.id === canvasMarks[peekIndex].id) ?? null : null),
+    [fixGroups, canvasMarks, peekIndex],
+  );
+  // Panel closed or switched, or the issue was fixed / dismissed: back to normal.
+  useEffect(() => {
+    if (peekId && (canvasPanel !== "fix" || !isMobile || peekIndex < 0)) setPeekId(null);
+  }, [peekId, canvasPanel, isMobile, peekIndex]);
+  /** Select an issue again (re-runs the page scroll and the card scroll). */
+  const pickMark = useCallback((id: string) => {
+    setActiveMarkId(null);
+    requestAnimationFrame(() => setActiveMarkId(id));
+  }, []);
+
   const rejectAiReview = () => {
     const current = resumeRef.current;
     if (!aiReview || !current) return;
@@ -3932,14 +3955,14 @@ export default function EditResumePage() {
         {isMobile && showMobileEditPanel ? (
           <div className={resumeEditorMobileOverlay} aria-hidden />
         ) : null}
-        {isMobile && canvasOn && canvasPanel && !tryOnTemplate ? (
+        {isMobile && canvasOn && canvasPanel && !tryOnTemplate && !peekActive ? (
           <button type="button" aria-label="Close panel" className="fixed inset-0 z-[59] bg-black/30" onClick={closeCanvasPanel} />
         ) : null}
         {/* Edit panel — centered popup on mobile when editing; a docked side panel on the canvas */}
         <div
           className={cn(
             canvasOn
-              ? formPanelOpen
+              ? formPanelOpen && !peekActive
                 ? isMobile
                   ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl"
                   : "resume-editor-fields flex min-h-0 w-[380px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
@@ -4021,8 +4044,13 @@ export default function EditResumePage() {
               activeId={activeMarkId}
               onLocate={(id) => {
                 // Re-picking the same issue should scroll to it again.
-                setActiveMarkId(null);
-                requestAnimationFrame(() => setActiveMarkId(id));
+                pickMark(id);
+                // Phones: the sheet covers the page, so step aside to show the marked text,
+                // zoomed in enough to read it (the page is fitted to the screen, ~40%).
+                if (isMobile) {
+                  setPeekId(id);
+                  previewRef.current?.zoomAtLeast(MOBILE_ISSUE_ZOOM);
+                }
               }}
               onApply={(item, improved) => {
                 // `quote` is the exact text to replace (a typo's single word, not its whole phrase).
@@ -7871,6 +7899,32 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      {peekActive && peekItem ? (
+        <AtsIssuePeekBar
+          title={peekItem.issue.title || "ATS issue"}
+          tone={peekItem.tone}
+          index={peekIndex}
+          total={canvasMarks.length}
+          onPrev={() => {
+            const id = canvasMarks[peekIndex - 1]?.id;
+            if (!id) return;
+            setPeekId(id);
+            pickMark(id);
+          }}
+          onNext={() => {
+            const id = canvasMarks[peekIndex + 1]?.id;
+            if (!id) return;
+            setPeekId(id);
+            pickMark(id);
+          }}
+          onShowList={() => {
+            const id = peekId;
+            setPeekId(null);
+            // Re-select so the list scrolls its card into view once it's shown again.
+            if (id) pickMark(id);
+          }}
+        />
+      ) : null}
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
       <input
         ref={canvasPhotoInputRef}
