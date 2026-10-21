@@ -45,9 +45,15 @@ export function TemplateTryOn({
         sectionOrder: resume.sectionOrder,
       });
       if (cancelled) return;
+      // Keep the user's own show/hide choices, exactly as applying would.
+      const current = (resume.sectionOrder ?? []) as Array<{ id: string; type: string; visible?: boolean }>;
+      const sectionOrder = (application.sectionOrder ?? []).map((s) => {
+        const match = current.find((c) => c.id === s.id) ?? current.find((c) => c.type === s.type);
+        return match ? { ...s, visible: match.visible ?? s.visible } : s;
+      });
       setPrepared({
-        resume: { ...resume, templateId: template.id, layout: application.layout, sectionOrder: application.sectionOrder } as Resume,
-        sections: (application.sectionOrder ?? []) as unknown[],
+        resume: { ...resume, templateId: template.id, layout: application.layout, sectionOrder } as Resume,
+        sections: sectionOrder as unknown[],
       });
     })().catch((error) => console.error("Template preview failed:", error));
     return () => {

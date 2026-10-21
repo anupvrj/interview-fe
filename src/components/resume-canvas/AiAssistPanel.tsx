@@ -27,7 +27,10 @@ export function AiAssistPanel({
   targetRole,
   onTailor,
   onFixMistakes,
+  liveText,
 }: {
+  /** Lower-cased resume text now, so "In your resume" clears after an undo. */
+  liveText?: string;
   target: AiTarget | null;
   targetRole?: string;
   onTailor: () => void;
@@ -37,6 +40,8 @@ export function AiAssistPanel({
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [appliedIndex, setAppliedIndex] = useState<number | null>(null);
+  const onResume = (text: string) =>
+    !liveText || liveText.replace(/\s+/g, " ").includes(text.replace(/\s+/g, " ").trim().toLowerCase());
 
   // New target → old suggestions no longer apply.
   useEffect(() => {
@@ -109,11 +114,11 @@ export function AiAssistPanel({
                       }}
                       className={cn(
                         "w-full rounded-lg border px-2.5 py-2 text-left text-xs leading-relaxed transition-colors",
-                        appliedIndex === i ? "border-primary bg-primary/5" : "border-border hover:border-primary/60 hover:bg-muted/40",
+                        appliedIndex === i && onResume(s) ? "border-primary bg-primary/5" : "border-border hover:border-primary/60 hover:bg-muted/40",
                       )}
                     >
                       {s}
-                      <span className="mt-1 block text-[11px] font-semibold text-primary">{appliedIndex === i ? "In your resume ✓" : "Put this in"}</span>
+                      <span className="mt-1 block text-[11px] font-semibold text-primary">{appliedIndex === i && onResume(s) ? "In your resume ✓" : "Put this in"}</span>
                     </button>
                   </li>
                 ))}

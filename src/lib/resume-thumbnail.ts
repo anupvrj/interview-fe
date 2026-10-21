@@ -239,12 +239,19 @@ export async function captureResumeThumbnail(
       await (document as Document & { fonts: FontFaceSet }).fonts.ready;
     }
 
-    const captureRoot = element.cloneNode(true) as HTMLElement;
+    // The preview may have re-mounted while we waited (undo, re-pagination): clone the
+    // live node, not a detached one (which has no size and yields an empty canvas).
+    const source = document.getElementById(elementId) ?? element;
+    if (!source.isConnected || source.offsetWidth < 100) {
+      console.warn("Thumbnail skipped: preview is re-rendering");
+      return null;
+    }
+    const captureRoot = source.cloneNode(true) as HTMLElement;
     captureRoot.removeAttribute("id");
     captureRoot.style.position = "fixed";
     captureRoot.style.left = "-9999px";
     captureRoot.style.top = "0";
-    captureRoot.style.width = `${element.offsetWidth}px`;
+    captureRoot.style.width = `${source.offsetWidth}px`;
     captureRoot.style.visibility = "visible";
     captureRoot.style.transform = "none";
     captureRoot.style.opacity = "1";
@@ -271,6 +278,7 @@ export async function captureResumeThumbnail(
           cloned.querySelectorAll<HTMLElement>("[data-placeholder]").forEach((el) => {
             el.removeAttribute("data-placeholder");
           });
+          cloned.querySelectorAll<HTMLElement>("[data-rx-empty-section]").forEach((el) => el.remove());
         },
       } as any);
     } finally {

@@ -412,6 +412,28 @@ function parseRoyalIndigoSkillItems(skillsData: unknown): string[] {
   return [];
 }
 
+/** Real text in a field that may be HTML, an array of lines, or [""] from an empty editor. */
+function hasText(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasText);
+  if (typeof value === "string") return value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
+  return !!value;
+}
+
+/** What an empty section offers on the canvas (never rendered in the PDF). */
+const EMPTY_SECTION_ACTION: Record<string, string> = {
+  experience: "Add a job",
+  education: "Add education",
+  projects: "Add a project",
+  awards: "Add an award",
+  certificates: "Add a certificate",
+  courses: "Add a course",
+  publications: "Add a publication",
+  references: "Add a reference",
+  organisations: "Add an organisation",
+  languages: "Add a language",
+  achievements: "Add an achievement",
+};
+
 export function ResumeRenderer({
   resume,
   template,
@@ -1464,6 +1486,22 @@ export function ResumeRenderer({
   };
 
   // Render section content based on type and template configuration
+  /** In the editor an empty section keeps its heading and an "Add …" slot, so it can be filled in place. */
+  const renderSectionOrEmpty = (section: Section, column?: "left" | "right") => {
+    const content = renderSectionContent(section, column);
+    if (content != null || !canvas || !EMPTY_SECTION_ACTION[section.type]) return content;
+    // Only truly empty sections (some templates leave a section out on purpose).
+    const items = (resume.content as unknown as Record<string, unknown>)[section.type];
+    if (Array.isArray(items) ? items.length > 0 : !!items) return content;
+    const isInSidebar = templateStyle.headerStyle === "two-column" && column === "left";
+    return (
+      <div style={{ marginBottom: `${templateStyle.sectionSpacing}px` }}>
+        {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+        <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type]}</span>
+      </div>
+    );
+  };
+
   const renderSectionContent = (
     section: Section,
     column?: "left" | "right",
@@ -2595,7 +2633,7 @@ export function ResumeRenderer({
                             {ed(`experience.${index}.company`, exp.company)}
                           </div>
                         )}
-                        {(exp.description || revealEntry(section.id, index)) && (
+                        {(hasText(exp.description) || revealEntry(section.id, index)) && (
                           <div
                             className={`resume-content ${template.id}-description`}
                             style={{
@@ -2644,7 +2682,7 @@ export function ResumeRenderer({
                           </div>
                         </div>
                       </div>
-                      {(exp.description || revealEntry(section.id, index)) && (
+                      {(hasText(exp.description) || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${exp.id || `exp-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -2689,7 +2727,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       </div>
-                      {(exp.description || revealEntry(section.id, index)) && (
+                      {(hasText(exp.description) || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2725,7 +2763,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       )}
-                      {(exp.description || revealEntry(section.id, index)) && (
+                      {(hasText(exp.description) || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2767,7 +2805,7 @@ export function ResumeRenderer({
                           </div>
                         </div>
                       </div>
-                      {(exp.description || revealEntry(section.id, index)) && (
+                      {(hasText(exp.description) || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`experience.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -2850,7 +2888,7 @@ export function ResumeRenderer({
                           )}
                         </div>
                       </div>
-                      {(exp.description || revealEntry(section.id, index)) && (
+                      {(hasText(exp.description) || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           style={
@@ -3058,7 +3096,7 @@ export function ResumeRenderer({
                           {ed(`education.${index}.institution`, edu.institution)}
                         </div>
                       )}
-                      {(edu.description || revealEntry(section.id, index)) && (
+                      {(hasText(edu.description) || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${edu.id || `edu-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -3229,7 +3267,7 @@ export function ResumeRenderer({
                           }
                         >
                           <div className={`${template.id}-education-date`}>
-                            {edDate(`education.${index}`, `${edu.startDate ?? ""}${edu.startDate || edu.endDate ? " - " : ""}${edu.endDate ?? ""}`)}
+                            {edDate(`education.${index}`, `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`)}
                           </div>
                           {(edu.location || pathRevealed(canvas, `education.${index}.location`)) && (
                             <div
@@ -3979,7 +4017,7 @@ export function ResumeRenderer({
                           </div>
                         )}
                       </div>
-                      {(project.description || revealEntry(section.id, index)) && (
+                      {(hasText(project.description) || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${itemId}-body`}
                           className={`resume-content ${template.id}-description`}
@@ -4036,7 +4074,7 @@ export function ResumeRenderer({
                           </div>
                         )}
                       </div>
-                      {(project.description || revealEntry(section.id, index)) && (
+                      {(hasText(project.description) || revealEntry(section.id, index)) && (
                         <div
                           className={`resume-content ${template.id}-description`}
                           {...rich(`projects.${index}.description`)} dangerouslySetInnerHTML={stableHtml({
@@ -4142,7 +4180,7 @@ export function ResumeRenderer({
                       )}
                     </div>
                   )}
-                  {(project.description || revealEntry(section.id, index)) && (
+                  {(hasText(project.description) || revealEntry(section.id, index)) && (
                     <div
                       className={`resume-content${
                         isConfidentGrid ? ` ${template.id}-project-description` : ""
@@ -4257,6 +4295,7 @@ export function ResumeRenderer({
 
         if (languagesData.length === 0) {
           // Show placeholder if section is visible but empty
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id}
               style={{
@@ -4275,7 +4314,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No languages added. Add your language skills in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -4605,10 +4644,10 @@ export function ResumeRenderer({
                       }}
                     >
                       {ed(`awards.${index}.issuer`, award.issuer)}
-                      {(award.date || pathRevealed(canvas, `awards.${index}.date`)) ? <>{award.issuer || canvas ? ", " : ""}{ed(`awards.${index}.date`, award.date)}</> : null}
+                      {(award.date || pathRevealed(canvas, `awards.${index}.date`)) ? <>{award.issuer || canvas ? ", " : ""}{ed(`awards.${index}.date`, formatResumeDateForDisplay(String(award.date ?? "")))}</> : null}
                     </div>
                   )}
-                  {(award.description || revealEntry(section.id, index)) && (
+                  {(hasText(award.description) || revealEntry(section.id, index)) && (
                     <div
                       className={
                         isInSidebar
@@ -4651,6 +4690,7 @@ export function ResumeRenderer({
         }
 
         if (certificatesData.length === 0) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
@@ -4664,7 +4704,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No certificates added. Add your certifications in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -4706,17 +4746,25 @@ export function ResumeRenderer({
                   >
                     {ed(`certificates.${index}.title`, cert.title)}
                   </div>
-                  <div
-                    style={{
-                      fontSize: `${templateStyle.fontSize.small}px`,
-                      color: templateStyle.colors.secondary,
-                      marginBottom: "4px",
-                    }}
-                  >
-                    {ed(`certificates.${index}.issuer`, cert.issuer)}
-                    {(cert.issueDate || pathRevealed(canvas, `certificates.${index}.issueDate`)) ? <> • {ed(`certificates.${index}.issueDate`, cert.issueDate)}</> : null}
-                    {cert.expiryDate && ` - ${cert.expiryDate}`}
-                  </div>
+                  {/* No empty line when a certificate has only a name. */}
+                  {cert.issuer || cert.issueDate || cert.expiryDate || pathRevealed(canvas, `certificates.${index}.issuer`) ? (
+                    <div
+                      style={{
+                        fontSize: `${templateStyle.fontSize.small}px`,
+                        color: templateStyle.colors.secondary,
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {ed(`certificates.${index}.issuer`, cert.issuer)}
+                      {(cert.issueDate || pathRevealed(canvas, `certificates.${index}.issueDate`)) ? (
+                        <>
+                          {cert.issuer || canvas ? " • " : ""}
+                          {ed(`certificates.${index}.issueDate`, formatResumeDateForDisplay(String(cert.issueDate ?? "")))}
+                        </>
+                      ) : null}
+                      {cert.expiryDate && ` - ${cert.expiryDate}`}
+                    </div>
+                  ) : null}
                   {cert.certificateId && (
                     <div
                       style={{
@@ -4758,6 +4806,7 @@ export function ResumeRenderer({
             achievementsString.trim() === "<p></p>";
 
           if (isEmpty) {
+            if (!canvas) return null; // empty sections never reach the PDF
             return (
               <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
                 {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
@@ -4771,7 +4820,6 @@ export function ResumeRenderer({
                     opacity: 0.7,
                   }}
                 >
-                  {canvas ? null : "No achievements added. Add your achievements in the editor."}
                 </div>
               </div>
             );
@@ -4798,6 +4846,7 @@ export function ResumeRenderer({
 
         // Handle array format
         if (Array.isArray(achievementsData) && achievementsData.length === 0) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
@@ -4811,7 +4860,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No achievements added. Add your achievements in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -4968,6 +5017,7 @@ export function ResumeRenderer({
             interestsRaw.trim() === "<p></p>");
 
         if (isEmpty) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
@@ -4981,7 +5031,6 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? null : "No interests added. Add your interests in the editor."}
               </div>
             </div>
           );
@@ -5013,6 +5062,7 @@ export function ResumeRenderer({
       case "courses":
         const coursesData = resume.content.courses || [];
         if (coursesData.length === 0) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id}
               style={{
@@ -5031,7 +5081,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No courses added. Add your courses in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -5057,7 +5107,7 @@ export function ResumeRenderer({
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {coursesData.map((course: any, index: number) => (
-                <div key={index} data-item-id={course.id || `course-${index}`} style={{ marginBottom: "12px" }}>
+                <div key={index} data-item-id={course.id || `course-${index}`} data-item-index={index} style={{ marginBottom: "12px" }}>
                   <div
                     style={{
                       fontWeight: "600",
@@ -5069,7 +5119,7 @@ export function ResumeRenderer({
                   >
                     {ed(`courses.${index}.${course.title && !course.name ? "title" : "name"}`, course.name || course.title, "Course")}
                   </div>
-                  {(course.institution || course.provider) && (
+                  {(course.institution || course.provider || course.date || pathRevealed(canvas, `courses.${index}.institution`)) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
@@ -5080,10 +5130,15 @@ export function ResumeRenderer({
                       }}
                     >
                       {ed(`courses.${index}.${course.institution || !course.provider ? "institution" : "provider"}`, course.institution || course.provider)}
-                      {(course.date || pathRevealed(canvas, `courses.${index}.date`)) ? <> • {ed(`courses.${index}.date`, course.date)}</> : null}
+                      {(course.date || pathRevealed(canvas, `courses.${index}.date`)) ? (
+                        <>
+                          {course.institution || course.provider || canvas ? " • " : ""}
+                          {ed(`courses.${index}.date`, formatResumeDateForDisplay(String(course.date ?? "")))}
+                        </>
+                      ) : null}
                     </div>
                   )}
-                  {(course.description || revealEntry(section.id, index)) && (
+                  {(hasText(course.description) || revealEntry(section.id, index)) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.body}px`,
@@ -5106,6 +5161,7 @@ export function ResumeRenderer({
       case "publications":
         const publicationsData = resume.content.publications || [];
         if (publicationsData.length === 0) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id}
               style={{
@@ -5124,7 +5180,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No publications added. Add your publications in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -5172,7 +5228,7 @@ export function ResumeRenderer({
                     }}
                   >
                     {ed(`publications.${index}.publisher`, pub.publisher)}
-                    {(pub.date || pathRevealed(canvas, `publications.${index}.date`)) ? <> • {ed(`publications.${index}.date`, pub.date)}</> : null}
+                    {(pub.date || pathRevealed(canvas, `publications.${index}.date`)) ? <> • {ed(`publications.${index}.date`, formatResumeDateForDisplay(String(pub.date ?? "")))}</> : null}
                   </div>
                   {(pub.link || pathRevealed(canvas, `publications.${index}.link`)) && (
                     <div
@@ -5194,6 +5250,7 @@ export function ResumeRenderer({
       case "references":
         const referencesData = resume.content.references || [];
         if (referencesData.length === 0) {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id}
               style={{
@@ -5212,7 +5269,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? "Nothing here yet — click, then ＋ to add." : "No references added. Add your references in the editor."}
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
               </div>
             </div>
           );
@@ -5238,7 +5295,7 @@ export function ResumeRenderer({
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {referencesData.map((ref: any, index: number) => (
-                <div key={index} style={{ marginBottom: "12px" }}>
+                <div key={index} data-item-id={ref.id || `reference-${index}`} data-item-index={index} style={{ marginBottom: "12px" }}>
                   <div
                     style={{
                       fontWeight: "600",
@@ -5388,7 +5445,7 @@ export function ResumeRenderer({
                       </div>
                     ) : null}
                   </div>
-                  {org.description || revealEntry(section.id, index) ? (
+                  {hasText(org.description) || revealEntry(section.id, index) ? (
                     <div
                       className="resume-content"
                       style={{ fontSize: `${templateStyle.fontSize.body}px`, lineHeight: templateStyle.lineHeight, color: textColor }}
@@ -5406,6 +5463,7 @@ export function ResumeRenderer({
       case "declaration":
         const declarationText = resume.content.declaration;
         if (!declarationText || declarationText.trim() === "") {
+          if (!canvas) return null; // empty sections never reach the PDF
           return (
             <div data-section={section.id}
               style={{
@@ -5424,7 +5482,6 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                {canvas ? null : "No declaration added. Add your declaration in the editor."}
               </div>
             </div>
           );
@@ -5835,7 +5892,7 @@ export function ResumeRenderer({
           >
             {leftColumn.map((section) => (
               <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
-                {renderSectionContent(section, "left")}
+                {renderSectionOrEmpty(section, "left")}
               </div>
             ))}
           </div>
@@ -5870,7 +5927,7 @@ export function ResumeRenderer({
           >
             {rightColumn.map((section) => (
               <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
-                {renderSectionContent(section, "right")}
+                {renderSectionOrEmpty(section, "right")}
               </div>
             ))}
           </div>
@@ -5879,7 +5936,7 @@ export function ResumeRenderer({
         <div>
           {leftColumn.map((section) => (
             <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
-              {renderSectionContent(section)}
+              {renderSectionOrEmpty(section)}
             </div>
           ))}
         </div>

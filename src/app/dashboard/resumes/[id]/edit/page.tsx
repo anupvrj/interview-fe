@@ -158,6 +158,7 @@ import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
+import { keywordOnResume, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
 import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
 import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
@@ -672,11 +673,28 @@ export default function EditResumePage() {
   }, []);
 
   const bumpPreviewKey = useCallback((reason: string) => {
+    // A remount replaces the canvas scroller; bring the user back to where they were
+    // once the re-paginated pages are tall enough (undo/redo, photo upload…).
+    const top = document.querySelector<HTMLElement>(".rx-canvas-scroll")?.scrollTop ?? 0;
     setPreviewKey((prev) => {
       const next = prev + 1;
       debugResumePagination("previewKey:bump", { reason, next });
       return next;
     });
+    if (top > 0) {
+      let frames = 0;
+      let settled = 0;
+      const restore = () => {
+        const el = document.querySelector<HTMLElement>(".rx-canvas-scroll");
+        if (el && el.scrollHeight - el.clientHeight >= top - 1) {
+          if (Math.abs(el.scrollTop - top) > 2) el.scrollTop = top;
+          // Hold it a few frames: the new scroller can replace the old one late.
+          if (++settled >= 8) return;
+        }
+        if (++frames < 150) requestAnimationFrame(restore);
+      };
+      requestAnimationFrame(restore);
+    }
   }, []);
 
   const handleRearrangeDialogOpenChange = useCallback((open: boolean) => {
@@ -923,7 +941,8 @@ export default function EditResumePage() {
             };
           });
         } else {
-          console.error("Auto thumbnail upload failed:", result.error);
+          // Non-critical: the next save captures it again.
+          console.warn("Auto thumbnail upload skipped:", result.error);
         }
       } catch (error) {
         console.error("Error during auto thumbnail capture:", error);
@@ -2795,13 +2814,23 @@ export default function EditResumePage() {
   }, [sections, resume?.content]);
 
   const atsReportV3 = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
-  const fixGroups = useMemo(() => buildFixItems(atsReportV3), [atsReportV3]);
   // A fresh report replaces the session's fixed/ignored list.
   useEffect(() => {
     setFixResolved(new Set());
     setActiveMarkId(null);
   }, [atsReportV3]);
-  const matchedKeywords = resume?.jobMatchFeedback?.matchedSkills;
+  const resumeRawText = useMemo(
+    () => resumePlainText([resume?.content, resume?.profileSummary]),
+    [resume?.content, resume?.profileSummary],
+  );
+  const resumeText = useMemo(() => resumeRawText.toLowerCase(), [resumeRawText]);
+  const fixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  // Keywords on the page now: the report's matches plus any "missing" ones added since.
+  const matchedKeywords = useMemo(() => {
+    const feedback = resume?.jobMatchFeedback;
+    if (!feedback) return undefined;
+    return [...feedback.matchedSkills, ...feedback.missingSkills.filter((k) => keywordOnResume(k, resumeText))];
+  }, [resume?.jobMatchFeedback, resumeText]);
   const canvasMarks = useMemo<CanvasMark[]>(() => {
     const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
     if (aiMarks.length) return aiMarks;
@@ -3305,7 +3334,17 @@ export default function EditResumePage() {
         </div>
       ) : null}
       {extensionSyncState !== "idle" ? (
-        <div className="border-b border-border bg-primary/5 px-4 py-2 text-center text-sm text-foreground md:text-left">
+        <div className="relative border-b border-border bg-primary/5 px-4 py-2 pr-10 text-center text-sm text-foreground md:text-left">
+          {extensionSyncState !== "syncing" ? (
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setExtensionSyncState("idle")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
           {extensionSyncState === "syncing"
             ? "Syncing this resume with Chrome…"
             : null}
@@ -3893,6 +3932,7 @@ export default function EditResumePage() {
 
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
+              liveText={resumeRawText}
               report={atsReportV3}
               score={displayAtsScore ?? resume.atsScore ?? null}
               checking={refreshingATS}
@@ -7544,6 +7584,7 @@ export default function EditResumePage() {
             ) : canvasPanel === "tailor" ? (
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <TailorPanel
+                  resumeText={resumeText}
                   jobDescription={lastMatchedJd ?? resume.atsScoringContext?.lastJobDescription ?? ""}
                   match={resume.jobMatchFeedback ?? null}
                   score={resume.jobMatchScore ?? null}
@@ -7578,6 +7619,7 @@ export default function EditResumePage() {
               />
             ) : (
               <AiAssistPanel
+                liveText={resumeText}
                 target={aiTarget}
                 targetRole={resume.content.personalInfo?.portfolio}
                 onTailor={() => setMatchJobOpen(true)}

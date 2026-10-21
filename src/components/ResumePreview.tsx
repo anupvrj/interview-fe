@@ -241,6 +241,22 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
       }
       if (!options?.keepScroll) {
         containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      } else {
+        // Re-paginating empties the pages for a moment and the browser clamps the scroll
+        // to 0; put it back once the pages are tall enough again.
+        const el = containerRef.current;
+        const top = el?.scrollTop ?? 0;
+        let frames = 0;
+        const restore = () => {
+          if (!el || top <= 0) return;
+          if (el.scrollHeight - el.clientHeight >= top - 1 || frames > 90) {
+            el.scrollTop = top;
+            return;
+          }
+          frames += 1;
+          requestAnimationFrame(restore);
+        };
+        requestAnimationFrame(restore);
       }
       const remount = options?.remount ?? "full";
       if (remount === "full" && onRefresh) {

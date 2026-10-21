@@ -415,14 +415,14 @@ export function RearrangeSectionsDialog({
         <div className="sticky top-0 z-10 shrink-0 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-card to-card px-4 py-4 sm:px-6 sm:py-5">
           <DialogHeader className="space-y-1 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0] dark:text-[#a59cf7]">
-              Resume layout
+              Page order
             </p>
             <DialogTitle className="text-lg font-semibold text-foreground sm:text-xl">
-              Hold &amp; Drag the boxes to rearrange the sections
+              Order your sections
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Drag to reorder sections or remove optional ones with the trash
-              icon. Changes apply instantly to your live preview.
+              Grab a section by its handle and move it up, down or to the other
+              column. The page updates as you go.
             </DialogDescription>
           </DialogHeader>
         </div>

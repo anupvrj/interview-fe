@@ -81,6 +81,21 @@ export function pathRevealed(canvas: CanvasEditApi | null, path: string): boolea
   return true;
 }
 
+/** Descriptions that are bullet lists on every template: typing into an empty one starts a bullet. */
+const BULLET_PATH = /^(experience|projects)\.\d+\.description$/;
+
+function startBulletList(el: HTMLElement) {
+  el.innerHTML = "<ul><li><br></li></ul>";
+  const li = el.querySelector("li");
+  if (!li) return;
+  const range = document.createRange();
+  range.setStart(li, 0);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
 /** Text the field had when it gained focus, so Escape can revert and blur can skip no-op commits. */
 const ORIGINAL = "data-rx-original";
 
@@ -199,11 +214,15 @@ export function richEditProps(
     role: "textbox",
     "aria-multiline": true,
     onFocus: (e: React.FocusEvent<HTMLElement>) => {
-      e.currentTarget.setAttribute(ORIGINAL, e.currentTarget.innerHTML);
-      canvas.onFieldFocus?.(path, e.currentTarget);
+      const el = e.currentTarget;
+      el.setAttribute(ORIGINAL, el.innerHTML);
+      if (BULLET_PATH.test(path) && !(el.textContent ?? "").trim()) startBulletList(el);
+      canvas.onFieldFocus?.(path, el);
     },
     onBlur: (e: React.FocusEvent<HTMLElement>) => {
       const el = e.currentTarget;
+      // Nothing typed into the starter bullet: leave the field empty again.
+      if (!(el.textContent ?? "").trim() && !el.querySelector("img")) el.innerHTML = "";
       const original = el.getAttribute(ORIGINAL);
       el.removeAttribute(ORIGINAL);
       canvas.onFieldBlur?.(path);

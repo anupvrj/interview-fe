@@ -5,10 +5,12 @@ import { Check, Loader2, MinusCircle, PlusCircle, Sparkles, X } from "lucide-rea
 import type { Resume } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { keywordOnResume } from "./jobKeywords";
 
 type JobMatch = NonNullable<Resume["jobMatchFeedback"]>;
 
 const MIN_JD_CHARS = 80;
+
 
 function ScoreBar({ score }: { score: number }) {
   const tone = score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-400" : "bg-red-500";
@@ -38,7 +40,10 @@ export function TailorPanel({
   onCheck,
   onTailor,
   onAddSkill,
+  resumeText,
 }: {
+  /** Current resume text (see resumeSearchText): keywords move to "On your resume" as you add them. */
+  resumeText: string;
   jobDescription: string;
   match: JobMatch | null;
   score: number | null;
@@ -62,7 +67,7 @@ export function TailorPanel({
 
   const keywords = match
     ? [
-        ...match.missingSkills.map((k) => ({ keyword: k, found: false })),
+        ...match.missingSkills.map((k) => ({ keyword: k, found: keywordOnResume(k, resumeText) })),
         ...match.matchedSkills.map((k) => ({ keyword: k, found: true })),
       ]
     : [];

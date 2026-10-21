@@ -108,6 +108,34 @@ interface Box {
 }
 
 
+/**
+ * A popover anchored on the page that slides up when it would run past the bottom of
+ * the window (a menu or date picker opened near the fold must stay fully usable).
+ */
+const KeepInView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { "data-rx-overlay"?: boolean }>(
+  function KeepInView(props, forwarded) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    useLayoutEffect(() => {
+      const el = ref.current;
+      if (!el || getComputedStyle(el).position === "fixed") return;
+      el.style.translate = "";
+      const rect = el.getBoundingClientRect();
+      const overflow = rect.bottom - (window.innerHeight - 12);
+      if (overflow > 0) el.style.translate = `0 ${-Math.min(overflow, Math.max(0, rect.top - 64))}px`;
+    });
+    return (
+      <div
+        {...props}
+        ref={(node) => {
+          ref.current = node;
+          if (typeof forwarded === "function") forwarded(node);
+          else if (forwarded) forwarded.current = node;
+        }}
+      />
+    );
+  },
+);
+
 function isVisible(el: Element): boolean {
   if ((el as HTMLElement).closest("[id^='resume-measure-']")) return false;
   return el.getClientRects().length > 0;
@@ -335,7 +363,14 @@ export function CanvasInteractionLayer({
       settle = setTimeout(measure, 260);
     };
     const observer = new MutationObserver(schedule);
-    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class"] });
+    // Text and index changes too: adding/moving an entry often reuses DOM nodes in place.
+    observer.observe(root, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["style", "class", "data-item-index", "data-section"],
+    });
     const resize = new ResizeObserver(schedule);
     resize.observe(root);
     window.addEventListener("resize", schedule);
@@ -363,6 +398,13 @@ export function CanvasInteractionLayer({
     const onLeave = () => setHover(null);
     const onClick = (e: MouseEvent) => {
       if (inOverlay(e)) return;
+      // "Add …" slot of an empty section: create its first entry right there.
+      const emptySlot = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-empty-section]");
+      if (emptySlot) {
+        e.preventDefault();
+        handlersRef.current.onAddEntry(emptySlot.getAttribute("data-rx-empty-section") ?? "", null);
+        return;
+      }
       const dateEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-date]");
       if (dateEl && dateEl.closest(".resume-page")) {
         const origin = root.getBoundingClientRect();
@@ -407,10 +449,23 @@ export function CanvasInteractionLayer({
       setPhotoMenu(!!(e.target as HTMLElement | null)?.closest?.("[data-rx-photo]"));
       onFocusChange(next);
     };
+    // Clicking the canvas around the pages leaves the selection, like clicking outside a doc.
+    const scroller = root.closest(".rx-canvas-scroll");
+    const onCanvasClick = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || root.contains(target) || target.closest("[data-rx-overlay], button, a, input, select, textarea")) return;
+      setMenuOpen(false);
+      setPhotoMenu(false);
+      setDateEdit(null);
+      setTagEdit(null);
+      onFocusChange(null);
+    };
+    scroller?.addEventListener("click", onCanvasClick);
     root.addEventListener("pointermove", onMove);
     root.addEventListener("pointerleave", onLeave);
     root.addEventListener("click", onClick, true);
     return () => {
+      scroller?.removeEventListener("click", onCanvasClick);
       root.removeEventListener("pointermove", onMove);
       root.removeEventListener("pointerleave", onLeave);
       root.removeEventListener("click", onClick, true);
@@ -574,7 +629,7 @@ export function CanvasInteractionLayer({
     : [];
 
   const menu = menuOpen && handleSection ? (
-    <div
+    <KeepInView
       data-rx-overlay
       role="menu"
       className={cn(
@@ -604,7 +659,7 @@ export function CanvasInteractionLayer({
           {item.hint ? <span className="text-[10px] text-muted-foreground">{item.hint}</span> : null}
         </button>
       ))}
-    </div>
+    </KeepInView>
   ) : null;
 
   // Desktop gutter handle (＋ / ⋮⋮) beside the item, Notion-style rather than a toolbar on top.
@@ -762,7 +817,7 @@ export function CanvasInteractionLayer({
             <Pencil className="h-3.5 w-3.5" />
           </button>
           {photoMenu ? (
-            <div
+            <KeepInView
               data-rx-overlay
               role="menu"
               className="pointer-events-auto absolute z-40 w-44 rounded-xl border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl"
@@ -794,7 +849,7 @@ export function CanvasInteractionLayer({
                   <Trash2 className="h-4 w-4 opacity-70" /> Remove photo
                 </button>
               ) : null}
-            </div>
+            </KeepInView>
           ) : null}
         </>
       ) : null}
@@ -803,7 +858,7 @@ export function CanvasInteractionLayer({
       {mobileBar}
       {selectionBar}
       {tagEdit ? (
-        <div
+        <KeepInView
           data-rx-overlay
           className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
           style={isMobile ? undefined : { top: tagEdit.top, left: Math.max(0, tagEdit.left) }}
@@ -814,10 +869,10 @@ export function CanvasInteractionLayer({
             onChange={(tags) => handlers.onSetTags(tagEdit.sectionType, tags)}
             onClose={() => setTagEdit(null)}
           />
-        </div>
+        </KeepInView>
       ) : null}
       {dateEdit ? (
-        <div
+        <KeepInView
           data-rx-overlay
           className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
           style={isMobile ? undefined : { top: dateEdit.top, left: Math.max(0, dateEdit.left) }}
@@ -829,7 +884,7 @@ export function CanvasInteractionLayer({
             onChange={(dates) => handlers.onSetDates(dateEdit.path, dates)}
             onClose={() => setDateEdit(null)}
           />
-        </div>
+        </KeepInView>
       ) : null}
     </div>
   );

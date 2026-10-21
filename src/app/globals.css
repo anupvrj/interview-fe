@@ -1937,6 +1937,29 @@
   background-color: rgb(59 130 246 / 0.08);
   box-shadow: 0 0 0 1px rgb(59 130 246 / 0.3);
 }
+/* Empty section in the editor: a dashed "Add …" slot (never in the PDF). */
+.resume-page [data-rx-empty-section] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 3px 10px;
+  border: 1px dashed hsl(var(--primary) / 0.55);
+  border-radius: 999px;
+  color: hsl(var(--primary));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 1;
+}
+.resume-page [data-rx-empty-section]::before {
+  content: "+";
+  font-weight: 700;
+}
+.resume-page [data-rx-empty-section]:hover {
+  background-color: hsl(var(--primary) / 0.08);
+}
 .resume-page .rx-date:empty::before {
   content: attr(data-placeholder);
   color: rgb(148 163 184);

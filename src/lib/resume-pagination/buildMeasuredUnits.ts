@@ -169,11 +169,25 @@ export function buildMeasuredUnits(
   // Section headers. id = data-section-id so hiding can target [data-section-id="X"] in the page DOM.
   for (const node of measureRoot.querySelectorAll("[data-section-header]")) {
     const elNode = node as HTMLElement;
+    const sectionNode = nearestAncestor(elNode, "[data-section]");
+    // A section whose body has no item markers (e.g. a one-line skills list) has nothing
+    // to glue its header to — gluing would chain it to the NEXT section's header and
+    // first item, pushing a small section to the next page and leaving a gap. Treat the
+    // whole section as one block instead.
+    const bodyless = !!sectionNode && !sectionNode.querySelector("[data-item-id], [data-item-body-block]");
+    const before = raw.length;
     push(elNode, {
       kind: "header",
       id: elNode.getAttribute("data-section-id") ?? `header-${raw.length}`,
-      keepWithNext: true,
+      keepWithNext: !bodyless,
     });
+    if (bodyless && raw.length > before) {
+      const unit = raw[raw.length - 1];
+      // Border box: the body below the header (the bottom margin is added later).
+      const section = rectToContainerY(sectionNode!, containerTop, scale);
+      unit.bottom = Math.max(unit.bottom, section.bottom);
+      unit.height = unit.bottom - unit.top;
+    }
   }
 
   // Body blocks (additive, optional) — finest grain; recorded first so item bodies

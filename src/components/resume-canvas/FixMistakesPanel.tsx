@@ -9,8 +9,32 @@ import { cn } from "@/lib/utils";
 import { ScoreRing, scoreBand } from "./CanvasChrome";
 import type { CanvasMark } from "./CanvasInteractionLayer";
 
+/** Our own check: "{XX%}"-style blanks left by suggestions, which would print as-is. */
+const PLACEHOLDER_CHECK = "placeholderValues" as ATSCheckId;
+const PLACEHOLDER_RE = /\{[^{}\n]{1,15}\}/g;
+
+/** Blanks still on the resume, each with the line it sits in. */
+export function placeholderIssues(text: string): ATSIssue[] {
+  const issues: ATSIssue[] = [];
+  for (const line of text.split(/\n/)) {
+    for (const match of line.matchAll(PLACEHOLDER_RE)) {
+      const context = line.trim().replace(/\s+/g, " ");
+      issues.push({
+        title: "Fill in the real number",
+        description: `“${context.length > 140 ? `${context.slice(0, 137)}…` : context}” — replace ${match[0]} with your actual result before you send this.`,
+        excerpt: match[0],
+        severity: "fail",
+      } as ATSIssue);
+    }
+  }
+  return issues;
+}
+
+const squash = (text: string) => text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
 /** Fix-list groups, in the order a user should work through them. */
 const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["tone"] }> = [
+  { title: "Fill in", checks: [PLACEHOLDER_CHECK], tone: "error" },
   { title: "Typos", checks: ["spellingGrammar"], tone: "error" },
   { title: "Impact", checks: ["quantifyingImpact"], tone: "weak" },
   { title: "Clarity", checks: ["repetition", "bulletsConsistency"], tone: "weak" },
@@ -19,6 +43,7 @@ const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["ton
 
 /** Short card labels in our own words (not the backend's check names). */
 const CARD_LABEL: Partial<Record<ATSCheckId, string>> = {
+  [PLACEHOLDER_CHECK]: "Blank to fill",
   spellingGrammar: "Typo",
   quantifyingImpact: "Add a result",
   repetition: "Repeated word",
@@ -44,10 +69,30 @@ function checksById(report: ATSReportV3): Map<ATSCheckId, ATSCheckResult> {
   return map;
 }
 
-/** Issues that point at text on the page, grouped for the panel. */
-export function buildFixItems(report: ATSReportV3 | null): Array<{ title: string; items: FixItem[] }> {
-  if (!report) return [];
-  const checks = checksById(report);
+/**
+ * Issues that point at text on the page, grouped for the panel. With `liveText` (the
+ * resume's text now), issues about text that is no longer there are dropped and blanks
+ * like "{XX%}" are listed even before the next check.
+ */
+export function buildFixItems(
+  report: ATSReportV3 | null,
+  liveText?: string,
+): Array<{ title: string; items: FixItem[] }> {
+  if (!report && !liveText) return [];
+  const checks = report ? checksById(report) : new Map<ATSCheckId, ATSCheckResult>();
+  if (liveText) {
+    const issues = placeholderIssues(liveText);
+    checks.set(PLACEHOLDER_CHECK, {
+      id: PLACEHOLDER_CHECK,
+      label: "Blanks to fill",
+      description: "",
+      status: issues.length ? "fail" : "pass",
+      score: issues.length ? 0 : 100,
+      issueCount: issues.length,
+      issues,
+    } as unknown as ATSCheckResult);
+  }
+  const live = liveText ? squash(liveText) : null;
   return GROUPS.map((group) => ({
     title: group.title,
     items: group.checks.flatMap((id) => {
@@ -55,7 +100,12 @@ export function buildFixItems(report: ATSReportV3 | null): Array<{ title: string
       // Content-based ids (ignoring an issue re-sends the report, so indexes would shift);
       // repeats of the same text get #2, #3…
       const seen = new Map<string, number>();
-      return (check?.issues ?? []).map((issue, i) => {
+      const isWordCheck = id === "spellingGrammar" || id === "repetition";
+      const current = (check?.issues ?? []).filter(
+        // Quoted text the user has since changed: the card no longer applies.
+        (issue) => !live || isWordCheck || !issue.excerpt || live.includes(squash(issue.excerpt)),
+      );
+      return current.map((issue, i) => {
         const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
         const n = (seen.get(key) ?? 0) + 1;
         seen.set(key, n);
@@ -105,7 +155,14 @@ function IssueCard({
   const isWord = check.id === "spellingGrammar" || check.id === "repetition";
   const chips = (issue.alternatives ?? []).filter(Boolean).slice(0, 5);
   const label = CARD_LABEL[check.id] ?? "Suggestion";
-  const heading = check.id === "spellingGrammar" ? "Possible typo" : check.id === "repetition" ? "Used a lot — try a different word" : issue.title;
+  const heading = !excerpt
+    ? issue.title
+    : check.id === "spellingGrammar"
+      ? "Possible typo"
+      : check.id === "repetition"
+        ? "Used a lot — try a different word"
+        : issue.title;
+  const isBlank = check.id === PLACEHOLDER_CHECK;
 
   const rewrite = async () => {
     setAi({ loading: true, options: [] });
@@ -141,7 +198,7 @@ function IssueCard({
         </p>
       ) : null}
       {isWord && chips.length && excerpt ? <p className="mt-2 text-[11px] font-semibold text-muted-foreground">Replace with:</p> : null}
-      {!isWord && issue.description ? <p className="mt-1 text-xs text-muted-foreground">{issue.description}</p> : null}
+      {(!isWord || !excerpt) && issue.description ? <p className="mt-1 text-xs text-muted-foreground">{issue.description}</p> : null}
       <div className="mt-2.5 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
         {excerpt
           ? chips.map((chip) => (
@@ -155,7 +212,7 @@ function IssueCard({
               </button>
             ))
           : null}
-        {excerpt && issue.rewriteSuggestion && !isWord ? (
+        {excerpt && issue.rewriteSuggestion && !isWord && !isBlank ? (
           <button
             type="button"
             onClick={() => onApply(issue.rewriteSuggestion!)}
@@ -165,7 +222,7 @@ function IssueCard({
             {issue.rewriteSuggestion}
           </button>
         ) : null}
-        {excerpt && !isWord && !/^(sample|your)\b/i.test(excerpt) ? (
+        {excerpt && !isWord && !isBlank && !/^(sample|your)\b/i.test(excerpt) ? (
           <button
             type="button"
             onClick={() => void rewrite()}
@@ -215,8 +272,11 @@ export function FixMistakesPanel({
   onRecheck,
   onTailor,
   targetRole,
+  liveText,
   children,
 }: {
+  /** The resume's text now (keeps the list in step with edits). */
+  liveText?: string;
   report: ATSReportV3 | null;
   score: number | null;
   checking: boolean;
@@ -233,7 +293,7 @@ export function FixMistakesPanel({
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
 }) {
-  const groups = useMemo(() => buildFixItems(report), [report]);
+  const groups = useMemo(() => buildFixItems(report, liveText), [report, liveText]);
   const open = groups.reduce((n, g) => n + g.items.filter((i) => !resolved.has(i.id)).length, 0);
   const band = scoreBand(score);
   const [showReport, setShowReport] = useState(false);
@@ -265,6 +325,8 @@ export function FixMistakesPanel({
 
       {groups.map((group) => {
         const items = group.items.filter((i) => !resolved.has(i.id));
+        // Our own blank check only shows up when there is something to fill.
+        if (group.title === "Fill in" && !items.length) return null;
         return (
           <section key={group.title}>
             <div className="mb-2 flex items-center justify-between">
