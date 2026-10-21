@@ -203,7 +203,16 @@ export function buildFixItems(
   if (!report && !liveText) return [];
   const checks = report ? checksById(report) : new Map<ATSCheckId, ATSCheckResult>();
   if (liveText) {
-    const issues = placeholderIssues(liveText);
+    // Live blanks/sample lines (update as you type) plus what the server also counts —
+    // placeholder headings and contact details — so the list matches the score.
+    const fromReport = checks.get(PLACEHOLDER_CHECK)?.issues ?? [];
+    const seenExcerpts = new Set<string>();
+    const issues = [...placeholderIssues(liveText), ...fromReport].filter((issue) => {
+      const key = (issue.excerpt ?? issue.title).trim().toLowerCase();
+      if (seenExcerpts.has(key)) return false;
+      seenExcerpts.add(key);
+      return true;
+    });
     checks.set(PLACEHOLDER_CHECK, {
       id: PLACEHOLDER_CHECK,
       label: "Blanks to fill",

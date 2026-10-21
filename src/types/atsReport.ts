@@ -16,6 +16,7 @@ export type ATSCheckId =
   | "repetition"
   | "spellingGrammar"
   | "bulletsConsistency"
+  | "placeholderValues"
   | "essentialSections"
   | "contactInformation"
   | "sectionOrder"
@@ -206,6 +207,7 @@ export const CHECK_LABELS: Record<ATSCheckId, string> = {
   repetition: "Repetition",
   spellingGrammar: "Spelling & Grammar",
   bulletsConsistency: "Bullets Consistency",
+  placeholderValues: "Sample Text & Blanks",
   essentialSections: "Essential Sections",
   contactInformation: "Contact Information",
   sectionOrder: "Section Order",
@@ -243,6 +245,7 @@ export const CHECKS_BY_CATEGORY: Record<ATSCategoryId, ATSCheckId[]> = {
     "repetition",
     "spellingGrammar",
     "bulletsConsistency",
+    "placeholderValues",
   ],
   sections: ["essentialSections", "contactInformation", "sectionOrder"],
   atsEssentials: [

@@ -2284,6 +2284,20 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /**
+   * Update the ATS report after an edit without the AI: rule checks re-run, fixed
+   * findings drop, score recomputed by the formula. null = no report yet, or a newer
+   * edit/check got there first.
+   */
+  rescoreATS: async (
+    resumeId: string,
+  ): Promise<{ atsScore: number; atsFeedback: NonNullable<Resume["atsFeedback"]> } | null> => {
+    const response = await apiClient.post<{ data: { atsScore: number; atsFeedback: NonNullable<Resume["atsFeedback"]> } | null }>(
+      `/resumes/${resumeId}/ats-rescore`,
+    );
+    return response.data.data;
+  },
+
   ignoreATSIssue: async (
     resumeId: string,
     body: {

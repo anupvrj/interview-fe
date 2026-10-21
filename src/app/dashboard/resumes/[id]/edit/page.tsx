@@ -2241,6 +2241,36 @@ export default function EditResumePage() {
     [resumeId],
   );
 
+  // After each save, bring the ATS report up to date without the AI: fixed findings drop
+  // off and the score moves by the formula, so "Run check again" is only for a fresh AI read.
+  const hasAtsReport = !!resume?.atsFeedback && isATSReportV3(resume.atsFeedback);
+  useEffect(() => {
+    if (!lastSaved || !resumeId || !hasAtsReport || refreshingATS) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        let rescored = await resumeApi.rescoreATS(resumeId);
+        // Skipped because another write landed at the same moment: try once more.
+        if (!rescored && !cancelled) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          if (!cancelled) rescored = await resumeApi.rescoreATS(resumeId);
+        }
+        if (cancelled || !rescored) return;
+        setResumeState((prev) =>
+          prev ? { ...prev, atsScore: rescored.atsScore, atsFeedback: rescored.atsFeedback } : prev,
+        );
+        // Still typing: the score is for the last save, so keep showing it as out of date.
+        if (!hasChangesRef.current) setDisplayAtsScore(rescored.atsScore);
+      } catch {
+        // Not critical: the panel keeps the last report and "Run check again" still works.
+      }
+    }, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lastSaved, resumeId, hasAtsReport, refreshingATS]);
+
   const handleDownload = async () => {
     if (!canUse("resumeDownload") && !suppressHackathonTrial) {
       setTrialUpsellOpen(true);

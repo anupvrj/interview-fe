@@ -92,3 +92,29 @@ describe("quotes copied with a layout label", () => {
     expect(items.map((i) => i.quote)).toEqual(["Python, Go, Rag"]);
   });
 });
+
+describe("Fill in matches what the score counts", () => {
+  it("adds the server's placeholder headings/contact details to the live blanks, once each", () => {
+    const report = {
+      categories: {
+        content: {
+          checks: [
+            {
+              id: "placeholderValues",
+              status: "fail",
+              score: 0,
+              issues: [
+                { title: "Replace the placeholder", excerpt: "anup@example.com" },
+                { title: "Replace the sample text", excerpt: "Sample Project" },
+              ],
+            },
+          ],
+        },
+      },
+    } as unknown as ATSReportV3;
+    const fill = buildFixItems(report, "anup@example.com\nSample Project").find((g) => g.title === "Fill in")!;
+    expect(fill.items.map((i) => i.issue.excerpt)).toEqual(["Sample Project", "anup@example.com"]);
+    // Fixed on the page: gone right away, before any re-score.
+    expect(buildFixItems(report, "anup@gmail.com\nLedger app").find((g) => g.title === "Fill in")!.items).toEqual([]);
+  });
+});

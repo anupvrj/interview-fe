@@ -143,3 +143,22 @@ Notes
 | B14 | AI quoted "Skills: Python, Go…" (layout label); card hidden as stale, no box. On Ember (skills as blocks) a quoted list never matched | Strip layout labels (server + panel); punctuation-insensitive stale check; a quoted list boxes each item, in the section most items share |
 | B15 | — | Saffron "no Company slot" was a mis-click (layout moved); slot works |
 | B16 | AI check scored 70 with no findings: row said "about text you've since changed" and the user lost points with nothing to fix | Row says "No specific line was flagged"; normaliser floors a check with no negative findings at the pass line (80) and stops counting praise against the score |
+
+### Follow-up — placeholders in the score, automatic re-score (2026-10-21)
+
+- **Why the resume scored 86 with sample text:** "Fill in" was computed in the browser only; the
+  backend score had no placeholder check. Now `placeholderValues` (content category) is a scored rule
+  check — `{XX%}` blanks, the editor's "Sample …" lines, placeholder headings/contact details — at
+  34 points per placeholder, and the overall score is capped at 79 (below "Strong") while any remain.
+  Test resume: 86–87 → **79 "Getting there"** (uncapped 81).
+- **Fixed items now drop automatically:** after each save the editor calls `POST /resumes/:id/ats-rescore`
+  (no AI): content rule checks re-run, AI findings whose quoted text was on the resume at check time
+  and is gone now are removed (a check never scores lower for it), and the score is recomputed by the
+  formula. Verified in Chrome: filling two blanks → placeholders 8 → 7 → 6, things to improve
+  23 → 22 → 20, no "Run check again". Same resume ⇒ same score (unit-tested).
+- Bugs hit while building it: placeholder walk recursed forever on a Mongoose document (500 on full
+  check; regression test added); one placeholder counted twice ("languages"); "Fill in" showed 4 while
+  the score counted 6 (now merged with the server's list); re-score skipped when a thumbnail upload
+  landed at the same moment (condition now revision + report identity, plus one retry).
+- Not reproduced: the editor tab froze once while that full check returned a 500; a fresh tab with the
+  fixed server stayed responsive through several checks.
