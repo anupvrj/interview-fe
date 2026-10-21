@@ -112,6 +112,7 @@ import {
   downloadPdfFromUrl,
   fetchPdfBlobFromUrl,
   resumePdfFilenameFromResume,
+  sanitizePdfFilename,
   triggerBlobDownload,
 } from "@/lib/download-pdf";
 import {
@@ -146,6 +147,8 @@ import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopo
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
+import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
+import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
@@ -437,6 +440,9 @@ export default function EditResumePage() {
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  /** File name picked in the download dialog (used by the next PDF compile). */
+  const downloadFilenameRef = useRef<string | null>(null);
   /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
@@ -1431,7 +1437,7 @@ export default function EditResumePage() {
         getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
       ),
     );
-    const filename = resumePdfFilenameFromResume(resume);
+    const filename = downloadFilenameRef.current || resumePdfFilenameFromResume(resume);
     // Capture plain markup: turn on-page editing off while the PDF is made.
     const editingWasOn = canvasOnRef.current;
     if (editingWasOn) {
@@ -3213,7 +3219,7 @@ export default function EditResumePage() {
             <Button
               type="button"
               size="sm"
-              onClick={handleDownload}
+              onClick={() => setDownloadDialogOpen(true)}
               disabled={downloading}
               className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
             >
@@ -7522,7 +7528,7 @@ export default function EditResumePage() {
                   <div className="absolute right-4 top-4 z-20">
                     <CanvasRail
                       onPreview={() => previewRef.current?.openPdfPreview()}
-                      onDownload={handleDownload}
+                      onDownload={() => setDownloadDialogOpen(true)}
                       downloading={downloading}
                       onShare={() => void handleShareLink()}
                       sharing={sharing}
@@ -7570,6 +7576,33 @@ export default function EditResumePage() {
       </div>
 
       <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
+      <DownloadDialog
+        open={downloadDialogOpen}
+        onOpenChange={setDownloadDialogOpen}
+        defaultName={resumePdfFilenameFromResume(resume).replace(/\.pdf$/i, "")}
+        downloadingPdf={downloading}
+        onPdf={(name) => {
+          downloadFilenameRef.current = `${sanitizePdfFilename(name)}.pdf`;
+          setDownloadDialogOpen(false);
+          void handleDownload();
+        }}
+        onTxt={async (name) => {
+          // Plain text of the finished page (editing off, so no empty-field hints).
+          setPdfCapture(true);
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          try {
+            const pages = Array.from(
+              document.querySelectorAll<HTMLElement>(`#resume-preview-container-${resumeId} .resume-page`),
+            );
+            const text = atsPlainText(pages);
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            triggerBlobDownload(blob, `${sanitizePdfFilename(name)}.txt`);
+            setDownloadDialogOpen(false);
+          } finally {
+            setPdfCapture(false);
+          }
+        }}
+      />
       {resume && template ? (
         <VersionHistoryDialog
           open={historyOpen}
