@@ -29,6 +29,9 @@ export type PostInterviewFeedbackPayload = {
 type PostInterviewFeedbackFormProps = {
   interviewId: string;
   onSubmitFeedback: (payload: PostInterviewFeedbackPayload) => void;
+  onSkip?: () => void;
+  submitButtonLabel?: string;
+  skipButtonLabel?: string;
   compact?: boolean;
   submitting?: boolean;
 };
@@ -104,6 +107,9 @@ function YesNoToggle({
 export function PostInterviewFeedbackForm({
   interviewId,
   onSubmitFeedback,
+  onSkip,
+  submitButtonLabel,
+  skipButtonLabel,
   compact,
   submitting = false,
 }: PostInterviewFeedbackFormProps) {
@@ -241,7 +247,7 @@ export function PostInterviewFeedbackForm({
         />
       </div>
 
-      <div className="pt-3">
+      <div className="pt-3 space-y-2">
         <Button
           type="submit"
           disabled={submitting}
@@ -253,9 +259,20 @@ export function PostInterviewFeedbackForm({
               Submitting…
             </>
           ) : (
-            "Submit & generate report"
+            submitButtonLabel ?? "Submit & generate report"
           )}
         </Button>
+        {onSkip && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onSkip}
+            disabled={submitting}
+            className="h-9 w-full text-muted-foreground hover:text-foreground"
+          >
+            {skipButtonLabel ?? "Skip for now →"}
+          </Button>
+        )}
       </div>
     </form>
   );

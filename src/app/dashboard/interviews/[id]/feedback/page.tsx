@@ -12,7 +12,11 @@ import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 import { appCardElevated } from "@/lib/app-theme";
 import { journey } from "@/components/interview/journey-ui";
-import { resolveInterviewReturnTo, withInterviewReturnTo } from "@/lib/interview-return-to";
+import {
+  isHackathonDashboardReturn,
+  resolveInterviewReturnTo,
+  withInterviewReturnTo,
+} from "@/lib/interview-return-to";
 
 export default function PostInterviewFeedbackPage() {
   const params = useParams();
@@ -22,6 +26,14 @@ export default function PostInterviewFeedbackPage() {
   const returnTo = resolveInterviewReturnTo(interviewId, searchParams);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const isHackathon = isHackathonDashboardReturn(returnTo);
+
+  const goToProcessing = () => {
+    router.push(
+      withInterviewReturnTo(`/dashboard/interviews/${interviewId}/processing`, returnTo),
+    );
+  };
 
   const handleFeedbackSubmit = async (payload: PostInterviewFeedbackPayload) => {
     setSubmitError(null);
@@ -34,9 +46,7 @@ export default function PostInterviewFeedbackPage() {
         sessionChallenge: payload.sessionChallenge,
         comment: payload.comment || undefined,
       });
-      router.push(
-        withInterviewReturnTo(`/dashboard/interviews/${interviewId}/processing`, returnTo),
-      );
+      goToProcessing();
     } catch (err: unknown) {
       setSubmitError(
         getApiErrorMessage(err, "Error saving feedback. Please try again."),
@@ -46,15 +56,33 @@ export default function PostInterviewFeedbackPage() {
     }
   };
 
+  const handleSkip = () => {
+    goToProcessing();
+  };
+
   return (
     <section className="px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-xl">
         <div className={cn(appCardElevated, "overflow-hidden")}>
           <div className={journey.headerBand}>
-            <p className={journey.eyebrow}>Before your report</p>
+            <div className="flex items-center justify-between">
+              <p className={journey.eyebrow}>
+                {isHackathon ? "Interview complete" : "Before your report"}
+              </p>
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={submitting}
+                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                Skip for now →
+              </button>
+            </div>
             <h1 className={cn(journey.title, "mt-2")}>How was your mock interview?</h1>
             <p className={journey.description}>
-              Quick feedback, then we&apos;ll generate your report.
+              {isHackathon
+                ? "Quick feedback before checking your results."
+                : "Quick feedback, then we\u2019ll generate your report."}
             </p>
           </div>
 
@@ -71,6 +99,13 @@ export default function PostInterviewFeedbackPage() {
             <PostInterviewFeedbackForm
               interviewId={interviewId}
               onSubmitFeedback={handleFeedbackSubmit}
+              onSkip={handleSkip}
+              submitButtonLabel={
+                isHackathon ? "Submit & view results" : "Submit & generate report"
+              }
+              skipButtonLabel={
+                isHackathon ? "Skip and view results →" : "Skip, show report →"
+              }
               submitting={submitting}
             />
           </div>
