@@ -51,6 +51,31 @@ const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["ton
   { title: "Impact (optional)", checks: ["quantifyingImpact"], tone: "weak" },
 ];
 
+/** Where a finding lives on the page, for findings that quote no text (e.g. "Missing LinkedIn"). */
+const CHECK_SECTION: Partial<Record<ATSCheckId, string>> = {
+  contactInformation: "personalInfo",
+  headerLinks: "personalInfo",
+  emailAddress: "personalInfo",
+  titleMatch: "personalInfo",
+  mustHaveSkillsMatch: "skills",
+  hardSkillsMatch: "skills",
+  softSkillsMatch: "skills",
+  preferredSkillsMatch: "skills",
+  skillEvidence: "skills",
+  peerBenchmarking: "skills",
+  educationMatch: "education",
+  ageismDateBias: "education",
+  certificationMatch: "certificates",
+  employmentGaps: "experience",
+  careerProgression: "experience",
+  leadershipSignals: "experience",
+  experienceMatch: "experience",
+  responsibilitiesMatch: "experience",
+  actionVerbs: "experience",
+  quantifyingImpact: "experience",
+  bulletsConsistency: "experience",
+};
+
 /** Findings that praise the resume — shown in the full report, not as things to fix. */
 const POSITIVE_KINDS = new Set(["positive", "credibility_positive", "skill_present"]);
 
@@ -171,16 +196,21 @@ export function buildFixItems(
   }));
 }
 
-/** Highlights for the page: the exact text each open finding is about. */
+/**
+ * Highlights for the page: the exact text each open finding is about (red boxes by
+ * default). Findings without a quote carry their section, outlined when picked.
+ */
 export function fixMarks(groups: Array<{ items: FixItem[] }>, resolved: Set<string>): CanvasMark[] {
   return groups.flatMap((g) =>
     g.items
-      .filter((item) => !resolved.has(item.id) && !item.incomplete && item.issue.excerpt && item.issue.excerpt.trim().length > 1)
+      .filter((item) => !resolved.has(item.id) && !item.incomplete)
+      .filter((item) => (item.issue.excerpt?.trim().length ?? 0) > 1 || !!CHECK_SECTION[item.check.id])
       .map((item) => ({
         id: item.id,
-        text: item.issue.excerpt!.trim(),
+        text: item.issue.excerpt?.trim() ?? "",
         tone: item.tone,
         wholeWord: item.wordFix,
+        section: CHECK_SECTION[item.check.id],
       })),
   );
 }
@@ -213,7 +243,7 @@ function IssueCard({
       : isWord && check.id === "repetition"
         ? "Used a lot — try a different word"
         : issue.title;
-  const locatable = !!excerpt;
+  const locatable = !!excerpt || !!CHECK_SECTION[check.id];
   // Whole-bullet suggestions only: a fragment would replace the entire line.
   const canTapRewrite =
     !!excerpt && !isWord && !isBlank && !!issue.rewriteSuggestion && issue.rewriteSuggestion.trim() !== excerpt;

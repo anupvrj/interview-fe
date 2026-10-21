@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isEntrySection } from "./canvasOps";
-import { locateText } from "./textLocator";
+import { locateText, type TextHit } from "./textLocator";
 import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
 import { TagListPopover } from "./TagListPopover";
 
@@ -52,20 +52,44 @@ export interface CanvasMark {
   text: string;
   tone: "error" | "weak" | "keyword" | "ai";
   wholeWord?: boolean;
+  /** Section type the finding is about — outlined when it's picked and its text can't be pointed at. */
+  section?: string;
 }
 
-/** Marks are underlines (not fills): wavy = typo, dotted = impact/clarity, solid = keyword, dashed = AI edit. */
+/**
+ * ATS findings (error/weak) are red boxes with a border so they stand out on the page;
+ * keywords are a green underline and AI edits a dashed indigo one.
+ */
 const WAVY =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2.5 Q1.5 0 3 2.5 T6 2.5' fill='none' stroke='%23e11d48' stroke-width='1'/%3E%3C/svg%3E\")";
 const MARK_STYLE: Record<CanvasMark["tone"], string> = {
-  error: "",
-  weak: "border-b-2 border-dotted border-amber-500",
+  error: "rounded-[3px] border border-rose-600/80 bg-rose-500/[0.14]",
+  weak: "rounded-[3px] border border-rose-500/70 bg-rose-500/[0.08]",
   keyword: "border-b-2 border-teal-500",
   ai: "border-b-2 border-dashed border-indigo-500 bg-indigo-500/[0.06]",
 };
-const MARK_INLINE: Partial<Record<CanvasMark["tone"], React.CSSProperties>> = {
-  error: { backgroundImage: WAVY, backgroundRepeat: "repeat-x", backgroundPosition: "left bottom", backgroundSize: "6px 3px" },
-};
+const MARK_INLINE: Partial<Record<CanvasMark["tone"], React.CSSProperties>> = {};
+/** Typos keep a wavy line under the word inside the red box. */
+const TYPO_WAVE: React.CSSProperties = { backgroundImage: WAVY, backgroundRepeat: "repeat-x", backgroundPosition: "left bottom", backgroundSize: "6px 3px" };
+
+/**
+ * Find a mark's text on the page. AI quotes don't always match the page word for word
+ * (trailing words cut, punctuation), so fall back to the first words of the quote.
+ */
+function locateMark(root: HTMLElement, mark: CanvasMark, max: number): TextHit[] {
+  if (!mark.text.trim()) return [];
+  const exact = locateText(root, mark.text, { wholeWord: mark.wholeWord, max });
+  if (exact.length || mark.wholeWord) return exact;
+  const words = mark.text.trim().split(/\s+/);
+  for (const n of [8, 5, 3]) {
+    if (words.length <= n) continue;
+    const prefix = words.slice(0, n).join(" ");
+    if (prefix.length < 8) continue;
+    const hits = locateText(root, prefix, { max });
+    if (hits.length) return hits;
+  }
+  return [];
+}
 
 export interface CanvasSectionRef {
   id: string;
@@ -135,6 +159,14 @@ const KeepInView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
     );
   },
 );
+
+/** Visible page elements of the sections with this type ("skills", "personalInfo"…). */
+function sectionElementsOfType(root: HTMLElement, sections: CanvasSectionRef[], type: string): HTMLElement[] {
+  const ids = new Set(sections.filter((s) => s.type === type).map((s) => s.id));
+  return Array.from(root.querySelectorAll<HTMLElement>(".resume-page [data-section]")).filter(
+    (el) => ids.has(el.getAttribute("data-section") ?? "") && isVisible(el) && el.getBoundingClientRect().height > 0,
+  );
+}
 
 function isVisible(el: Element): boolean {
   if ((el as HTMLElement).closest("[id^='resume-measure-']")) return false;
@@ -239,7 +271,7 @@ export function CanvasInteractionLayer({
   const [emptyTagBoxes, setEmptyTagBoxes] = useState<Array<Box & { sectionId: string; type: string; title: string }>>([]);
   const [photoBox, setPhotoBox] = useState<Box | null>(null);
   const [photoMenu, setPhotoMenu] = useState(false);
-  const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
+  const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"]; typo: boolean }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   /** Rect of the current text selection inside a description (for the style bar). */
   const [selBox, setSelBox] = useState<Box | null>(null);
@@ -316,20 +348,33 @@ export function CanvasInteractionLayer({
     setPhotoBox(photo ? boxesFor(root, [photo], 0)[0] ?? null : null);
     const origin = root.getBoundingClientRect();
     setMarkBoxes(
-      marks.flatMap((mark) =>
-        locateText(root, mark.text, { wholeWord: mark.wholeWord, max: mark.tone === "keyword" ? 6 : 2 }).flatMap((hit) =>
-          hit.rects.map((r) => ({
-            id: mark.id,
-            tone: mark.tone,
-            top: r.top - origin.top - 1,
-            left: r.left - origin.left - 1,
-            width: r.width + 2,
-            height: r.height + 2,
-          })),
-        ),
-      ),
+      marks.flatMap((mark) => {
+        // Keywords: every mention; typos: up to 2; a quoted sentence: where it is, once.
+        const hits = locateMark(root, mark, mark.tone === "keyword" ? 6 : mark.wholeWord ? 2 : 1);
+        if (hits.length) {
+          return hits.flatMap((hit) =>
+            hit.rects.map((r) => ({
+              id: mark.id,
+              tone: mark.tone,
+              typo: !!mark.wholeWord,
+              top: r.top - origin.top - 1,
+              left: r.left - origin.left - 1,
+              width: r.width + 2,
+              height: r.height + 2,
+            })),
+          );
+        }
+        // Nothing quotable (e.g. "Missing LinkedIn"): outline its section once it's picked.
+        if (mark.section && mark.id === activeMarkId) {
+          return sectionElementsOfType(root, sectionsRef.current, mark.section)
+            .slice(0, 1)
+            .flatMap((el) => boxesFor(root, [el], 3))
+            .map((b) => ({ ...b, id: mark.id, tone: mark.tone, typo: false }));
+        }
+        return [];
+      }),
     );
-  }, [rootRef, focus, hover, marks, keepFocusInPlace]);
+  }, [rootRef, focus, hover, marks, keepFocusInPlace, activeMarkId]);
 
   // Bring the picked issue into view.
   useEffect(() => {
@@ -337,8 +382,10 @@ export function CanvasInteractionLayer({
     if (!root || !activeMarkId) return;
     const mark = marks.find((m) => m.id === activeMarkId);
     if (!mark) return;
-    const hit = locateText(root, mark.text, { wholeWord: mark.wholeWord, max: 1 })[0];
-    const rect = hit?.rects[0];
+    const hit = locateMark(root, mark, 1)[0];
+    const rect =
+      hit?.rects[0] ??
+      (mark.section ? sectionElementsOfType(root, sectionsRef.current, mark.section)[0]?.getBoundingClientRect() : undefined);
     if (!rect) return;
     const scroller = root.closest(".rx-canvas-scroll") as HTMLElement | null;
     if (scroller) {
@@ -775,11 +822,14 @@ export function CanvasInteractionLayer({
         <div
           key={`mark-${b.id}-${i}`}
           className={cn(
-            "absolute",
+            "absolute transition-shadow",
             MARK_STYLE[b.tone],
-            b.id === activeMarkId && "rounded-sm bg-primary/10 ring-2 ring-primary/60",
+            b.id === activeMarkId &&
+              (b.tone === "error" || b.tone === "weak"
+                ? "z-10 border-2 border-rose-600 bg-rose-500/20 shadow-[0_0_0_4px_rgba(225,29,72,0.18)]"
+                : "rounded-sm bg-primary/10 ring-2 ring-primary/60"),
           )}
-          style={{ top: b.top, left: b.left, width: b.width, height: b.height, ...MARK_INLINE[b.tone] }}
+          style={{ top: b.top, left: b.left, width: b.width, height: b.height, ...MARK_INLINE[b.tone], ...(b.typo && b.tone === "error" ? TYPO_WAVE : {}) }}
         />
       ))}
       {emptyTagBoxes.map((b) => (
