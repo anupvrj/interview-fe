@@ -148,6 +148,7 @@ import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLay
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
   addEntry,
+  changedTextLines,
   deleteEntry,
   duplicateEntry,
   escapeHtmlText,
@@ -435,6 +436,11 @@ export default function EditResumePage() {
   /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
+  const [aiReview, setAiReview] = useState<{
+    before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
+    lines: string[];
+  } | null>(null);
   /** Check & Tailor: keywords the user marked as not relevant for this job. */
   const [excludedKeywords, setExcludedKeywords] = useState<Set<string>>(() => new Set());
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
@@ -1873,6 +1879,11 @@ export default function EditResumePage() {
     // stale creation-time JD), even if the request below fails.
     setLastMatchedJd(jobDescription);
 
+    const before = {
+      content: resume.content,
+      profileSummary: resume.profileSummary,
+      sectionOrder: resume.sectionOrder,
+    };
     try {
       setMatchingJob(true);
       const matchInsights = isATSReportV3(resume.atsFeedback)
@@ -1917,6 +1928,14 @@ export default function EditResumePage() {
 
       handleResumeImported(updatedResume);
       setMatchJobOpen(false);
+      if (canvasOnRef.current) {
+        // Show what AI changed (orange) so the user can approve or undo it.
+        const lines = changedTextLines(
+          { ...before.content, profileSummary: before.profileSummary },
+          { ...result.content, profileSummary: result.profileSummary },
+        );
+        setAiReview(lines.length ? { before, lines } : null);
+      }
     } catch (error: any) {
       const serverMessage = error?.response?.data?.message;
       console.error("Error tailoring resume to job description:", {
@@ -2676,6 +2695,8 @@ export default function EditResumePage() {
   }, [atsReportV3]);
   const matchedKeywords = resume?.jobMatchFeedback?.matchedSkills;
   const canvasMarks = useMemo<CanvasMark[]>(() => {
+    const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
+    if (aiMarks.length) return aiMarks;
     if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
     if (canvasPanel === "tailor") {
       // Job keywords already on the resume, highlighted green while tailoring.
@@ -2684,7 +2705,23 @@ export default function EditResumePage() {
         .map((k) => ({ id: `kw:${k}`, text: k, tone: "keyword" as const, wholeWord: true }));
     }
     return [];
-  }, [canvasPanel, fixGroups, fixResolved, matchedKeywords, excludedKeywords]);
+  }, [aiReview, canvasPanel, fixGroups, fixResolved, matchedKeywords, excludedKeywords]);
+
+  const rejectAiReview = () => {
+    const current = resumeRef.current;
+    if (!aiReview || !current) return;
+    const { before } = aiReview;
+    setAiReview(null);
+    handleResumeImported({
+      ...current,
+      content: JSON.parse(JSON.stringify(before.content)),
+      profileSummary: before.profileSummary,
+      sectionOrder: before.sectionOrder,
+    });
+    // Imported content counts as saved; this restore must be saved again.
+    setHasChanges(true);
+    showCanvasNotice("AI changes undone — your resume is back to how it was.");
+  };
 
   /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
   const addSkillFromJob = (skill: string) => {
@@ -7456,6 +7493,24 @@ export default function EditResumePage() {
                       aiActive={canvasPanel === "ai"}
                       onAddSection={() => setAddSectionAfter({ afterId: null })}
                     />
+                  </div>
+                ) : null}
+                {aiReview ? (
+                  <div className="absolute inset-x-0 bottom-4 z-30 flex justify-center px-3">
+                    <div className="flex max-w-xl flex-wrap items-center gap-3 rounded-2xl border border-orange-300 bg-background px-4 py-2.5 shadow-xl">
+                      <span className="text-sm text-foreground">
+                        <strong>AI tailored {aiReview.lines.length} {aiReview.lines.length === 1 ? "line" : "lines"}</strong>{" "}
+                        <span className="text-muted-foreground">— highlighted in orange. Edit anything on the page.</span>
+                      </span>
+                      <div className="ml-auto flex gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={rejectAiReview}>
+                          Reject all
+                        </Button>
+                        <Button type="button" size="sm" onClick={() => setAiReview(null)}>
+                          Approve all
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
                 {canvasNotice ? (

@@ -80,3 +80,23 @@ describe("plainFieldText", () => {
     expect(plainFieldText("  Senior  Engineer \n")).toBe("Senior Engineer");
   });
 });
+
+describe("changedTextLines", () => {
+  it("lists only new or reworded lines, bullet by bullet", async () => {
+    const { changedTextLines } = await import("../canvasOps");
+    const before = {
+      personalInfo: { portfolio: "Backend Engineer" },
+      experience: [{ id: "a", company: "Acme", description: "<ul><li>Built APIs</li><li>Ran on-call</li></ul>" }],
+    };
+    const after = {
+      personalInfo: { portfolio: "Backend Engineer | Payments" },
+      experience: [{ id: "a", company: "Acme", description: "<ul><li>Built payment APIs used by 3 teams</li><li>Ran on-call</li></ul>" }],
+    };
+    expect(changedTextLines(before, after)).toEqual(["Backend Engineer | Payments", "Built payment APIs used by 3 teams"]);
+  });
+
+  it("decodes entities and ignores ids", async () => {
+    const { changedTextLines } = await import("../canvasOps");
+    expect(changedTextLines({ a: "R&amp;D" }, { a: "<p>R&amp;D</p>", id: "x9" })).toEqual([]);
+  });
+});

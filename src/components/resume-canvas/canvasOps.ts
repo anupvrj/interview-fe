@@ -205,3 +205,56 @@ export function plainFieldText(text: string): string {
 export function escapeHtmlText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+/** Text lines of a value: plain strings as-is, HTML split on list items / paragraphs / line breaks. */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+function textLines(value: string): string[] {
+  if (!/<[a-z][\s\S]*>/i.test(value)) return [decodeEntities(value)];
+  return value.split(/<\/(?:li|p|div|h\d)>|<br\s*\/?>/i).map((part) => decodeEntities(part.replace(/<[^>]+>/g, " ")));
+}
+
+function collectLines(value: unknown, out: string[]): void {
+  if (typeof value === "string") {
+    for (const line of textLines(value)) {
+      const clean = line.replace(/\s+/g, " ").trim();
+      if (clean.length > 1) out.push(clean);
+    }
+  } else if (Array.isArray(value)) {
+    value.forEach((v) => collectLines(v, out));
+  } else if (value && typeof value === "object") {
+    for (const [key, v] of Object.entries(value)) {
+      if (key === "id") continue;
+      collectLines(v, out);
+    }
+  }
+}
+
+/**
+ * Lines that are new or reworded in `after` compared with `before` — what an AI
+ * edit changed, so it can be highlighted on the page for review.
+ */
+export function changedTextLines(before: unknown, after: unknown, limit = 60): string[] {
+  const old: string[] = [];
+  collectLines(before, old);
+  const seen = new Set(old.map((l) => l.toLowerCase()));
+  const next: string[] = [];
+  collectLines(after, next);
+  const changed: string[] = [];
+  for (const line of next) {
+    const key = line.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    changed.push(line);
+    if (changed.length >= limit) break;
+  }
+  return changed;
+}
