@@ -298,7 +298,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     <div className={cn("relative flex h-full flex-col", canvasMode ? "bg-transparent" : "bg-muted/25")}>
       {/* Zoom Controls (canvas editor: a small pill floating at the bottom-left) */}
       <div
-        className={canvasMode ? "absolute bottom-3 left-3 z-20 flex items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-md backdrop-blur [&_button]:rounded-full [&>div]:gap-1" : cn(
+        className={canvasMode && compact ? "hidden" : canvasMode ? "absolute bottom-3 left-3 z-20 flex items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-md backdrop-blur [&_button]:rounded-full [&>div]:gap-1" : cn(
           resumePreviewZoomHeader,
           compact
             ? resumePreviewZoomHeaderMobile

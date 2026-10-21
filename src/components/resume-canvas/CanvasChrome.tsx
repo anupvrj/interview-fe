@@ -51,7 +51,7 @@ function Chip({
       aria-pressed={active}
       title={label}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors disabled:opacity-50",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 md:h-9 md:gap-2 md:px-3 md:text-sm",
         active ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-muted hover:text-foreground",
       )}
     >

@@ -432,7 +432,7 @@ export function CanvasInteractionLayer({
       aria-label={`${focusSection.title} tools`}
       className={cn(
         "pointer-events-auto z-30 flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/10",
-        isMobile ? "fixed inset-x-3 bottom-3 justify-between overflow-x-auto" : "absolute",
+        isMobile ? "fixed inset-x-3 bottom-3 justify-start overflow-x-auto" : "absolute",
       )}
       style={isMobile || !anchor ? undefined : { top: toolbarTop, left: Math.max(anchor.left, 0) }}
     >
