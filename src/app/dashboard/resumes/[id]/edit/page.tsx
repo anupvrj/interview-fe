@@ -291,6 +291,11 @@ function descriptionToEditorHtml(description: unknown): string {
   return description == null ? "" : String(description);
 }
 
+/** Plain text of a stored rich-text field (for AI rewrites). */
+function htmlToPlainText(html: string): string {
+  return html.replace(/<\/(p|li|div)>|<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+}
+
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
@@ -2837,7 +2842,27 @@ export default function EditResumePage() {
     [resume?.content, resume?.profileSummary],
   );
   const resumeText = useMemo(() => resumeRawText.toLowerCase(), [resumeRawText]);
-  const fixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  // Suggestion types the user switched off in the ATS panel (remembered in this browser).
+  const [hiddenFixGroups, setHiddenFixGroups] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("rx-ats-hidden-groups") ?? "[]") as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const updateHiddenFixGroups = useCallback((next: Set<string>) => {
+    setHiddenFixGroups(next);
+    try {
+      window.localStorage.setItem("rx-ats-hidden-groups", JSON.stringify([...next]));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const allFixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  const fixGroups = useMemo(
+    () => allFixGroups.map((g) => (hiddenFixGroups.has(g.title) ? { ...g, items: [] } : g)),
+    [allFixGroups, hiddenFixGroups],
+  );
   // Keywords on the page now: the report's matches plus any "missing" ones added since.
   const matchedKeywords = useMemo(() => {
     const feedback = resume?.jobMatchFeedback;
@@ -3955,6 +3980,8 @@ export default function EditResumePage() {
               liveText={resumeRawText}
               onDone={resolveFix}
               onAddSkill={addSkillFromJob}
+              hiddenGroups={hiddenFixGroups}
+              onHiddenGroupsChange={updateHiddenFixGroups}
               report={atsReportV3}
               score={displayAtsScore ?? resume.atsScore ?? null}
               checking={refreshingATS}
@@ -7615,6 +7642,19 @@ export default function EditResumePage() {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <TailorPanel
                   resumeText={resumeText}
+                  report={atsReportV3}
+                  onShowCheck={(checkId) => {
+                    // Jump into the ATS panel on that check's first open finding.
+                    const target = fixGroups
+                      .flatMap((g) => g.items)
+                      .find((item) => item.check.id === checkId && !item.incomplete && !fixResolved.has(item.id));
+                    openCanvasPanel("fix");
+                    setActiveMarkId(null);
+                    if (target) requestAnimationFrame(() => setActiveMarkId(target.id));
+                  }}
+                  summaryText={htmlToPlainText(resume.profileSummary ?? "")}
+                  onApplySummary={(text) => commitCanvasFieldRef.current?.("@profileSummary", `<p>${escapeHtmlText(text)}</p>`)}
+                  targetRole={resume.content.personalInfo?.portfolio}
                   jobDescription={lastMatchedJd ?? resume.atsScoringContext?.lastJobDescription ?? ""}
                   match={resume.jobMatchFeedback ?? null}
                   score={resume.jobMatchScore ?? null}

@@ -28,3 +28,15 @@ export function keywordOnResume(keyword: string, text: string): boolean {
     .filter(Boolean)
     .some((k) => new RegExp(`(^|[^a-z0-9])${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(text));
 }
+
+/** How many times a keyword (or any of its "A or B" forms) appears in lower-cased text. */
+export function keywordCount(keyword: string, text: string): number {
+  return keyword
+    .split(/\s+or\s+|\s*\/\s*/i)
+    .map((k) => k.trim().toLowerCase())
+    .filter(Boolean)
+    .reduce((sum, k) => {
+      const re = new RegExp(`(^|[^a-z0-9])${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[^a-z0-9]|$)`, "g");
+      return sum + (text.match(re)?.length ?? 0);
+    }, 0);
+}

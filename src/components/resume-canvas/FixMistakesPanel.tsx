@@ -551,8 +551,13 @@ export function FixMistakesPanel({
   liveText,
   onDone,
   onAddSkill,
+  hiddenGroups,
+  onHiddenGroupsChange,
   children,
 }: {
+  /** Suggestion types the user switched off (their cards and page marks are hidden). */
+  hiddenGroups?: Set<string>;
+  onHiddenGroupsChange?: (next: Set<string>) => void;
   /** The resume's text now (keeps the list in step with edits). */
   liveText?: string;
   onDone?: (item: FixItem) => void;
@@ -575,7 +580,10 @@ export function FixMistakesPanel({
   children?: React.ReactNode;
 }) {
   const groups = useMemo(() => buildFixItems(report, liveText), [report, liveText]);
-  const open = groups.reduce((n, g) => n + g.items.filter((i) => !i.incomplete && !resolved.has(i.id)).length, 0);
+  const open = groups.reduce(
+    (n, g) => (hiddenGroups?.has(g.title) ? n : n + g.items.filter((i) => !i.incomplete && !resolved.has(i.id)).length),
+    0,
+  );
   const unfinished = useMemo(
     () => [...new Set(groups.flatMap((g) => g.items.filter((i) => i.incomplete).map((i) => i.check.label)))],
     [groups],
@@ -624,7 +632,7 @@ export function FixMistakesPanel({
       ) : null}
 
       {(() => {
-        const top = groups.filter((g) => TOP_GROUPS.has(g.title));
+        const top = groups.filter((g) => TOP_GROUPS.has(g.title) && !hiddenGroups?.has(g.title));
         const visible = top
           .map((g) => ({ ...g, items: g.items.filter((i) => !i.incomplete && !resolved.has(i.id)) }))
           .filter((g) => g.items.length);
@@ -697,6 +705,32 @@ export function FixMistakesPanel({
             );
           })
         : null}
+
+      {onHiddenGroupsChange ? (
+        <section className="space-y-1.5 border-t border-border pt-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Show suggestions for</p>
+          {[...TOP_GROUPS].map((title) => {
+            const on = !hiddenGroups?.has(title);
+            return (
+              <label key={title} className="flex cursor-pointer items-center justify-between text-sm text-foreground">
+                {title}
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={on}
+                  onChange={() => {
+                    const next = new Set(hiddenGroups ?? []);
+                    if (on) next.add(title);
+                    else next.delete(title);
+                    onHiddenGroupsChange(next);
+                  }}
+                  className="h-4 w-4 accent-[hsl(var(--primary))]"
+                />
+              </label>
+            );
+          })}
+        </section>
+      ) : null}
 
       {children ? (
         <section className="border-t border-border pt-3">

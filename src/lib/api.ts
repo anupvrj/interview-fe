@@ -2053,6 +2053,8 @@ export const resumeApi = {
     role?: string;
     company?: string;
     targetRole?: string;
+    /** Tailor toward this job (summary rewrites from the job panel). */
+    jobDescription?: string;
   }): Promise<string[]> => {
     const response = await apiClient.post<{ data: { suggestions: string[] } }>("/resumes/ai-rewrite", body, {
       timeout: 60000,

@@ -21,3 +21,14 @@ describe("job keywords against the live resume", () => {
     expect(keywordOnResume("Grafana", text)).toBe(false);
   });
 });
+
+import { keywordCount } from "../jobKeywords";
+
+describe("keyword counts for the job table", () => {
+  it("counts whole-word occurrences, including either/or forms", () => {
+    const text = "built rest apis. rest and grpc services; restful? no. aws, aws lambda";
+    expect(keywordCount("AWS", text)).toBe(2);
+    expect(keywordCount("REST or gRPC", text)).toBe(3);
+    expect(keywordCount("Kafka", text)).toBe(0);
+  });
+});
