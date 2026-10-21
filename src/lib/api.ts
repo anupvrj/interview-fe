@@ -2013,11 +2013,6 @@ export const resumeApi = {
     return response.data.data;
   },
 
-  /**
-   * Sample/placeholder data in the resume's key fields ("Your Name", "Sample Job 1", …).
-   * The server owns the rules (same check gates hackathon submission). Posts the
-   * content so unsaved editor edits are checked.
-   */
   /** Seven-day link to the resume's latest compiled PDF (409 PDF_NOT_READY if none). */
   createShareLink: async (resumeId: string): Promise<{ url: string; expiresAt: string }> => {
     const response = await apiClient.post<{ data: { url: string; expiresAt: string } }>(
@@ -2055,6 +2050,12 @@ export const resumeApi = {
     targetRole?: string;
     /** Tailor toward this job (summary rewrites from the job panel). */
     jobDescription?: string;
+    /** The finding the rewrite should fix, e.g. "Bullet too short: only 8 words". */
+    goal?: string;
+    /** Options shorter than this are dropped. */
+    minWords?: number;
+    /** Job keywords the resume doesn't have; options that claim them are dropped. */
+    avoidTerms?: string[];
   }): Promise<string[]> => {
     const response = await apiClient.post<{ data: { suggestions: string[] } }>("/resumes/ai-rewrite", body, {
       timeout: 60000,
@@ -2062,6 +2063,11 @@ export const resumeApi = {
     return response.data.data.suggestions ?? [];
   },
 
+  /**
+   * Sample/placeholder data in the resume's key fields ("Your Name", "Sample Job 1", …).
+   * The server owns the rules (same check gates hackathon submission). Posts the
+   * content so unsaved editor edits are checked.
+   */
   checkPlaceholders: async (
     content: Resume["content"] | undefined,
   ): Promise<ResumePlaceholderIssue[]> => {

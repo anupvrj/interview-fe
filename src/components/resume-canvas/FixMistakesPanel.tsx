@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, Loader2, Plus, RefreshCw, Sparkles, Target } from "lucide-react";
 import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ScoreRing, scoreBand } from "./CanvasChrome";
 import type { CanvasMark } from "./CanvasInteractionLayer";
+import { keywordOnResume } from "./jobKeywords";
 
 /** Our own check: "{XX%}"-style blanks left by suggestions, which would print as-is. */
 const PLACEHOLDER_CHECK = "placeholderValues" as ATSCheckId;
@@ -33,10 +34,31 @@ export function placeholderIssues(text: string): ATSIssue[] {
       } as ATSIssue);
     }
   }
+  for (const raw of text.split(/\n/)) {
+    const line = raw.trim().replace(/\s+/g, " ");
+    if (!SAMPLE_RE.test(line)) continue;
+    issues.push({
+      title: "Replace the sample text",
+      description: `“${line.length > 140 ? `${line.slice(0, 137)}…` : line}” is sample text from a new entry — write your own or delete the entry.`,
+      excerpt: line,
+      severity: "fail",
+    } as ATSIssue);
+  }
   return issues;
 }
 
-const squash = (text: string) => text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+/** Labels and lines the editor puts in new entries ("Sample Project", "Sample — describe …"). */
+const SAMPLE_RE = /^Sample(?: [A-Z][a-z]+){0,2}$|^Sample(?: [a-z]+)? — /;
+const isSampleText = (excerpt: string) =>
+  excerpt.split(/\n/).some((line) => SAMPLE_RE.test(line.trim().replace(/\s+/g, " ")));
+
+/** Words only: punctuation and line breaks differ between the quote and the page (lists, tags). */
+const squash = (text: string) =>
+  text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[^\p{L}\p{N}{}%]+/gu, " ")
+    .trim()
+    .toLowerCase();
 
 /** Fix-list groups, in the order a user should work through them. Every scored check is covered. */
 const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["tone"] }> = [
@@ -123,7 +145,18 @@ export interface FixItem {
   incomplete: boolean;
   /** A single word with real replacement words (typo / repeated word chips). */
   wordFix: boolean;
+  /** Resume text the finding is about ("" when its excerpt quotes the job ad instead). */
+  quote: string;
+  /** Replacement words offered as one-tap chips. */
+  chips: string[];
 }
+
+/** Job-fit checks quote the job ad ("Kafka, Docker…"), not the resume. */
+const JOB_FIT_CHECKS = new Set<ATSCheckId>(GROUPS.find((g) => g.title === "Fit for the job")!.checks);
+/** Labels from the text the AI reads ("Skills: Python, Go"); the page shows only the list. */
+const LAYOUT_LABEL = /^(?:Technical Skills|Skills|Technologies|Tools|Languages|Certifications|Interests):\s*/i;
+const quoteOf = (id: ATSCheckId, issue: ATSIssue) =>
+  JOB_FIT_CHECKS.has(id) ? "" : (issue.excerpt?.trim().replace(LAYOUT_LABEL, "") ?? "");
 
 function checksById(report: ATSReportV3): Map<ATSCheckId, ATSCheckResult> {
   const map = new Map<ATSCheckId, ATSCheckResult>();
@@ -139,6 +172,23 @@ export function isWordFix(issue: ATSIssue): boolean {
   if (!excerpt || /\s/.test(excerpt)) return false;
   const alts = (issue.alternatives ?? []).filter(Boolean);
   return alts.length > 0 && alts.every((a) => a.trim().split(/\s+/).length <= 2 && !/\b(your|use|try|vary|avoid)\b/i.test(a));
+}
+
+const bare = (word: string) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+
+/**
+ * A typo quoted inside a phrase ("over 7 years of experiance" → "… experience"):
+ * the one word that changes, so it can be marked and fixed like a single-word typo.
+ */
+export function typoWord(issue: ATSIssue): { word: string; fix: string } | null {
+  const from = issue.excerpt?.trim().split(/\s+/) ?? [];
+  const to = issue.rewriteSuggestion?.trim().split(/\s+/) ?? [];
+  if (from.length < 2 || from.length !== to.length) return null;
+  const changed = from.map((w, i) => i).filter((i) => bare(from[i]) !== bare(to[i]));
+  if (changed.length !== 1) return null;
+  const word = bare(from[changed[0]]);
+  const fix = bare(to[changed[0]]);
+  return word && fix ? { word, fix } : null;
 }
 
 /**
@@ -176,11 +226,15 @@ export function buildFixItems(
       const current = check.issues.filter(
         (issue) =>
           !POSITIVE_KINDS.has(issue.kind ?? "") &&
+          // Sample text is listed once under "Fill in", not as a short bullet or vague claim too.
+          (id === PLACEHOLDER_CHECK || !quoteOf(id, issue) || !isSampleText(quoteOf(id, issue))) &&
           // Quoted text the user has since changed: the card no longer applies.
-          (!live || isWordFix(issue) || !issue.excerpt || live.includes(squash(issue.excerpt))),
+          (!live || isWordFix(issue) || !quoteOf(id, issue) || live.includes(squash(quoteOf(id, issue)))),
       );
       return current.map((issue, i) => {
         const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
+        const typo = id === "spellingGrammar" && !isWordFix(issue) ? typoWord(issue) : null;
+        const wordFix = isWordFix(issue) || !!typo;
         const n = (seen.get(key) ?? 0) + 1;
         seen.set(key, n);
         return {
@@ -189,7 +243,9 @@ export function buildFixItems(
           issue,
           tone: group.tone,
           incomplete: issue.title === INCOMPLETE_TITLE,
-          wordFix: isWordFix(issue),
+          wordFix,
+          quote: typo?.word ?? quoteOf(id, issue),
+          chips: typo ? [typo.fix] : wordFix ? (issue.alternatives ?? []).filter(Boolean).slice(0, 5) : [],
         };
       });
     }),
@@ -204,10 +260,10 @@ export function fixMarks(groups: Array<{ items: FixItem[] }>, resolved: Set<stri
   return groups.flatMap((g) =>
     g.items
       .filter((item) => !resolved.has(item.id) && !item.incomplete)
-      .filter((item) => (item.issue.excerpt?.trim().length ?? 0) > 1 || !!CHECK_SECTION[item.check.id])
+      .filter((item) => item.quote.length > 1 || !!CHECK_SECTION[item.check.id])
       .map((item) => ({
         id: item.id,
-        text: item.issue.excerpt?.trim() ?? "",
+        text: item.quote,
         tone: item.tone,
         wholeWord: item.wordFix,
         section: CHECK_SECTION[item.check.id],
@@ -293,12 +349,19 @@ function CheckRow({
   const band = rowBand(score);
   const summary = check.summary as { headline?: string; intro?: string; strongTrustSignal?: string } | undefined;
   const positives = check.issues.filter((i) => POSITIVE.has(i.kind ?? ""));
-  const meta = (check.meta ?? {}) as { benchmarkSkills?: Array<{ name: string; present: boolean }> };
+  const meta = (check.meta ?? {}) as { benchmarkSkills?: Array<{ name: string; present: boolean }>; missing?: string[] };
   const skills = meta.benchmarkSkills ?? [];
   const live = (liveText ?? "").toLowerCase();
   // A skill the user has just added counts as present right away.
   const missingSkills = skills.filter((sk) => !sk.present && !live.includes(sk.name.toLowerCase()));
   const presentCount = skills.length - missingSkills.length;
+  // Required skills from the job ad still missing ("REST or gRPC" offers each form).
+  const jobSkills =
+    check.id === "mustHaveSkillsMatch"
+      ? [...new Set((meta.missing ?? []).flatMap((m) => m.split(/\s+or\s+/i)).map((m) => m.trim()).filter(Boolean))].filter(
+          (sk) => !keywordOnResume(sk, live),
+        )
+      : [];
   // Peer skills are counted live (adding one from the chips removes it right away).
   const toFix = check.id === "peerBenchmarking" && skills.length ? missingSkills.length : open.length;
   const headline =
@@ -358,6 +421,25 @@ function CheckRow({
               ) : null}
             </div>
           ) : null}
+          {jobSkills.length && onAddSkill ? (
+            <div className="rounded-lg border border-border p-2.5">
+              <p className="text-[11px] font-semibold text-muted-foreground">Have any of these? Add them to Skills</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {jobSkills.map((sk) => (
+                  <button
+                    key={sk}
+                    type="button"
+                    title="I have this — add it to Skills"
+                    onClick={() => onAddSkill(sk)}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/40 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {sk}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {summary?.strongTrustSignal || positives.length ? (
             <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
               <p className="mb-1 font-semibold">Working for you</p>
@@ -372,11 +454,14 @@ function CheckRow({
           {open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
             <div className="space-y-2">{open.map((item) => renderCard(item))}</div>
           ) : !handled && !incomplete && !(check.id === "peerBenchmarking" && missingSkills.length) ? (
-            score < 80 ? (
+            score < 80 && check.issues.some((i) => !POSITIVE.has(i.kind ?? "")) ? (
               // Its findings were about text that has changed since — the score is from before.
               <p className="text-xs text-muted-foreground">
                 The findings here were about text you&apos;ve since changed. Run the check again to update this score.
               </p>
+            ) : score < 80 ? (
+              // Scored low without pointing at any line: say so rather than suggest the user changed something.
+              <p className="text-xs text-muted-foreground">No specific line was flagged for this check.</p>
             ) : (
               <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" /> Nothing to change here.
@@ -409,10 +494,11 @@ function IssueCard({
 }) {
   const { issue, check } = item;
   const [ai, setAi] = useState<{ loading: boolean; options: string[]; error?: string }>({ loading: false, options: [] });
-  const excerpt = issue.excerpt?.trim() ?? "";
+  const excerpt = item.quote;
+  const jobQuote = !excerpt ? (issue.excerpt?.trim() ?? "") : "";
   const isWord = item.wordFix;
   const isBlank = check.id === PLACEHOLDER_CHECK;
-  const chips = isWord ? (issue.alternatives ?? []).filter(Boolean).slice(0, 5) : [];
+  const chips = item.chips;
   const label = CARD_LABEL[check.id] ?? "Suggestion";
   const heading =
     isWord && check.id === "spellingGrammar"
@@ -426,11 +512,19 @@ function IssueCard({
     !!excerpt && !isWord && !isBlank && !!issue.rewriteSuggestion && issue.rewriteSuggestion.trim() !== excerpt;
   const canAskAi = !!excerpt && !isWord && !isBlank && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
   const howToFix = issue.fixBody || issue.suggestion;
+  // Picked from elsewhere (job checklist "Show", a mark on the page): bring the card into view.
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (active) cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [active]);
 
   const rewrite = async () => {
     setAi({ loading: true, options: [] });
     try {
-      const options = await resumeApi.aiRewrite({ text: excerpt, kind: "bullet", targetRole });
+      const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
+      // "Too short" findings say the floor ("recommended: 10–35"); options below it wouldn't fix anything.
+      const floor = /too short/i.test(issue.title ?? "") ? Number(issue.description?.match(/recommended:?\s*(\d+)/i)?.[1]) || 10 : undefined;
+      const options = await resumeApi.aiRewrite({ text: excerpt, kind: "bullet", targetRole, goal, minWords: floor });
       setAi({ loading: false, options, error: options.length ? undefined : "No better wording found." });
     } catch {
       setAi({ loading: false, options: [], error: "Couldn't reach AI. Try again." });
@@ -439,6 +533,7 @@ function IssueCard({
 
   return (
     <div
+      ref={cardRef}
       role={locatable ? "button" : undefined}
       tabIndex={locatable ? 0 : undefined}
       onClick={locatable ? onLocate : undefined}
@@ -459,6 +554,12 @@ function IssueCard({
       {excerpt && !isBlank ? (
         <p className={cn("mt-1 text-xs", isWord ? "font-mono text-rose-700 dark:text-rose-300" : "line-clamp-3 text-muted-foreground")}>
           {isWord ? excerpt : `“${excerpt}”`}
+        </p>
+      ) : null}
+      {jobQuote ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          <span className="font-semibold">From the job ad: </span>
+          {jobQuote}
         </p>
       ) : null}
       {!isWord && issue.description ? <p className="mt-1 text-xs text-muted-foreground">{issue.description}</p> : null}

@@ -6,7 +6,7 @@ import { resumeApi, type Resume } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSReportV3 } from "@/types/atsReport";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { keywordCount, keywordOnResume } from "./jobKeywords";
+import { keywordCount, keywordOnResume, partialJobKeywords } from "./jobKeywords";
 
 type JobMatch = NonNullable<Resume["jobMatchFeedback"]>;
 
@@ -109,8 +109,16 @@ export function TailorPanel({
   const jobText = jobDescription.toLowerCase();
   const rows = useMemo(() => {
     if (!match) return [];
-    const all = [...match.missingSkills, ...match.matchedSkills];
-    return [...new Set(all)].map((keyword) => {
+    // Requirements the ATS check found only partly (e.g. "Kafka") belong in the table too.
+    const partial = partialJobKeywords(report);
+    const seen = new Set<string>();
+    const all = [...match.missingSkills, ...partial, ...match.matchedSkills].filter((k) => {
+      const key = k.trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return all.map((keyword) => {
       const inResume = keywordCount(keyword, resumeText);
       return {
         keyword,
@@ -119,7 +127,7 @@ export function TailorPanel({
         found: inResume > 0 || keywordOnResume(keyword, resumeText),
       };
     });
-  }, [match, resumeText, jobText]);
+  }, [match, report, resumeText, jobText]);
   const counted = rows.filter((r) => !excluded.has(r.keyword));
   const found = counted.filter((r) => r.found).length;
 
@@ -127,7 +135,9 @@ export function TailorPanel({
     if (!summaryText?.trim()) return;
     setSummaryAi({ loading: true, options: [] });
     try {
-      const options = await resumeApi.aiRewrite({ text: summaryText, kind: "summary", targetRole, jobDescription });
+      // Job keywords not on the resume: the summary must not claim them.
+      const avoidTerms = rows.filter((r) => !r.found).flatMap((r) => r.keyword.split(/\s+or\s+|\s*\/\s*/i));
+      const options = await resumeApi.aiRewrite({ text: summaryText, kind: "summary", targetRole, jobDescription, avoidTerms });
       setSummaryAi({ loading: false, options, error: options.length ? undefined : "No better wording found." });
     } catch {
       setSummaryAi({ loading: false, options: [], error: "Couldn't reach AI. Try again." });

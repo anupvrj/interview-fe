@@ -158,7 +158,7 @@ import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
-import { keywordOnResume, resumePlainText } from "@/components/resume-canvas/jobKeywords";
+import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
 import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
 import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
@@ -2867,8 +2867,9 @@ export default function EditResumePage() {
   const matchedKeywords = useMemo(() => {
     const feedback = resume?.jobMatchFeedback;
     if (!feedback) return undefined;
-    return [...feedback.matchedSkills, ...feedback.missingSkills.filter((k) => keywordOnResume(k, resumeText))];
-  }, [resume?.jobMatchFeedback, resumeText]);
+    const extra = [...feedback.missingSkills, ...partialJobKeywords(atsReportV3)].filter((k) => keywordOnResume(k, resumeText));
+    return [...new Set([...feedback.matchedSkills, ...extra])];
+  }, [resume?.jobMatchFeedback, atsReportV3, resumeText]);
   const canvasMarks = useMemo<CanvasMark[]>(() => {
     const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
     if (aiMarks.length) return aiMarks;
@@ -3994,7 +3995,8 @@ export default function EditResumePage() {
                 requestAnimationFrame(() => setActiveMarkId(id));
               }}
               onApply={(item, improved) => {
-                const ok = handleApplyAtsIssueFix(item.issue.excerpt ?? "", improved);
+                // `quote` is the exact text to replace (a typo's single word, not its whole phrase).
+                const ok = handleApplyAtsIssueFix(item.quote || item.issue.excerpt || "", improved);
                 if (ok) resolveFix(item);
                 else showCanvasNotice("Couldn't find that text on your resume — it may have changed already.");
                 return ok;

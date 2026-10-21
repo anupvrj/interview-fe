@@ -1,3 +1,5 @@
+import type { ATSReportV3 } from "@/types/atsReport";
+
 /** All text values of a resume, one line per field / bullet, markup removed (case kept). */
 export function resumePlainText(value: unknown): string {
   const out: string[] = [];
@@ -39,4 +41,12 @@ export function keywordCount(keyword: string, text: string): number {
       const re = new RegExp(`(^|[^a-z0-9])${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[^a-z0-9]|$)`, "g");
       return sum + (text.match(re)?.length ?? 0);
     }, 0);
+}
+
+/** Job requirements the ATS check found only partly ("Kafka"): shown with the job's keywords. */
+export function partialJobKeywords(report: ATSReportV3 | null | undefined): string[] {
+  const check = Object.values(report?.categories ?? {})
+    .flatMap((c) => c?.checks ?? [])
+    .find((c) => c.id === "mustHaveSkillsMatch");
+  return ((check?.meta ?? {}) as { partial?: string[] }).partial ?? [];
 }

@@ -308,21 +308,21 @@ export async function captureResumeThumbnail(
     // Check if canvas has any non-white pixels (basic content check)
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      // Sample multiple areas of the canvas to check for content
-      const sampleSize = Math.min(200, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+      // Sample a grid over the whole page: centred designs (e.g. Classic) have an empty
+      // top-left corner, so a corner-only sample rejected real captures as blank.
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const step = Math.max(1, Math.floor(Math.sqrt((canvas.width * canvas.height) / 40000)));
       let nonWhitePixels = 0;
       let totalPixels = 0;
 
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const r = imageData.data[i];
-        const g = imageData.data[i + 1];
-        const b = imageData.data[i + 2];
-        totalPixels++;
-
-        // Check if pixel is not white (RGB all > 250)
-        if (r < 250 || g < 250 || b < 250) {
-          nonWhitePixels++;
+      for (let y = 0; y < canvas.height; y += step) {
+        for (let x = 0; x < canvas.width; x += step) {
+          const i = (y * canvas.width + x) * 4;
+          totalPixels++;
+          // Not white (any channel at or below 250)
+          if (imageData.data[i] < 250 || imageData.data[i + 1] < 250 || imageData.data[i + 2] < 250) {
+            nonWhitePixels++;
+          }
         }
       }
 
@@ -338,7 +338,7 @@ export async function captureResumeThumbnail(
       // Light/minimal resumes can be mostly white; avoid rejecting real captures.
       if (contentRatio < 0.002) {
         console.error(
-          "❌ Canvas appears to be blank (less than 1% non-white pixels)",
+          "❌ Canvas appears to be blank (less than 0.2% non-white pixels)",
         );
         return null;
       }

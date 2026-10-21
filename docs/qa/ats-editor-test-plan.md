@@ -71,3 +71,75 @@ Legend: ✅ pass · ❌ fail (bug filed below) · ⏭ not applicable
 ## C. Results log
 
 (filled in during the run — see bottom of file)
+
+### Run 1 — Clean Slate (2026-10-21)
+
+| ID | Result | Notes |
+|---|---|---|
+| T1 | ✅ | Applied from Designs; DB `templateId=clean-slate`, content intact |
+| T2 | ✅ | Title edit saved; "Kubernetes, PostgreSQL" pasted → two skills |
+| T3 | ✅ | Cleared company: nothing printed; "Company" slot on select; typed back, saved |
+| A1 | ✅ | Busy state, finished, ring = panel = DB = 86 |
+| A2 | ✅ | Recomputed 86/85/87/88 on four runs — always equal, no category mismatch |
+| H1 | ✅ | Red boxes on every quoted finding (after B1/B3) |
+| H2 | ✅ | Click → scrolls, thicker border |
+| H3 | ✅ | Must-have finding outlines Skills |
+| H4 | ✅ | Edited quoted bullet → card and box gone; no scroll jump on save |
+| H5 | ✅ (after B9) | Typo "experiance" marked with panel closed |
+| F1 | ✅ (after B9) | Chip "experience" replaced only that word; HTML intact |
+| F2 | ✅ (after B5) | AI options ≥ 10 words for "too short"; only that `<li>` replaced |
+| F3 | ✅ | Undo restored bullet, card and box |
+| F4 | ✅ | Dismiss changed only `bulletsConsistency` (5→4 issues, score held) |
+| F5 | ✅ | Mark done: 18 → 17 things, score unchanged |
+| F6 | ⏭ | No incomplete check this run (verified previous round) |
+| F7 | ⏭ | Covered previous round (stale insert → "couldn't find") |
+| S1 | ✅ | Filled {XX%}: credibility 28→46, bullets 74→79, must-have 43→57 (Grafana); overall by formula |
+| S2 | ✅ | Removed 3 skills: must-have 57→29, **Job match 73→59**; ATS score is separate by design |
+| S3 | ✅ | Rule checks identical; AI checks moved ≤ 10 (careerProgression change was the B7 fix) |
+| J1 | ✅ | Yours/Job counts equal an independent count; "x of y" correct |
+| J2 | ✅ | + Kafka → Skills, row found, 4→5 of 12 |
+| J3 | ✅ | Exclude Java → struck, 5 of 11 |
+| J4 | ✅ (after B10) | "Show" opens ATS panel scrolled to the card, Skills outlined |
+| J5 | ✅ (after B11) | Tailored summary put in, undo restores exactly |
+
+#### Bugs found and fixed in this run
+
+| # | Bug | Fix |
+|---|---|---|
+| B1 | Sample text from new entries ("Sample Project", "Sample Language") not listed as "Fill in"; shown as "too short"/"unclear impact" instead | `placeholderIssues` lists sample lines; other cards quoting them are dropped |
+| B2 | `checkPlaceholders` doc comment sat above `createShareLink` | Moved back |
+| B3 | Job-fit findings quote the **job ad**; panel treated them as stale resume text, hid the card and said "you've since changed" | `FixItem.quote` is empty for job-fit checks; card shows "From the job ad" |
+| B4 | Must-have card listed missing skills with no way to add them | "+ skill" chips (each "A or B" form), live-filtered |
+| B5 | AI rewrite for "Bullet too short" returned bullets that were still too short | Rewrite gets the finding as `goal` and a `minWords` floor |
+| B6 | — | Misplaced boxes were stale screenshot frames, not a bug (DOM positions correct) |
+| B7 | AI quoted our prompt layout ("### Lead Engineer at"), giving a false "incomplete title" and an unfindable quote | Serializer omits " at " with no company; normaliser `cleanExcerpt` strips layout |
+| B8 | Skill ✕ couldn't be clicked: hover revealed move arrows that shifted ✕ away | Arrows keep their space (fade in), ✕ never moves |
+| B9 | Typos quoted as a phrase ("over 7 years of experiance") weren't marked with panel closed and had no word chip | `typoWord` narrows to the changed word; apply uses `item.quote` |
+| B10 | Job checklist "Show" opened the ATS panel but not at the card | Active card scrolls into view |
+| B11 | "Tailor summary" claimed job skills the resume lacks (REST APIs) | Missing keywords sent as `avoidTerms`; prompt forbids, server drops |
+| B12 | Keyword table/underlines left out partial requirements (Kafka, Docker) | `partialJobKeywords` from the must-have check |
+
+### Runs 2–5 — Classic, Ember Timeline, Saffron Line, Atlantic Blue (2026-10-21)
+
+| ID | Classic | Ember Timeline | Saffron Line | Atlantic Blue |
+|---|---|---|---|---|
+| T1 apply, content intact | ✅ | ✅ | ✅ | ✅ |
+| T3 clear company → nothing printed → slot → retype | ✅ | ✅ | ✅ | (Clean Slate/Classic path same code) |
+| H1 every box on resume text, none misplaced | ✅ | ✅ (after B14) | ✅ | ✅ |
+| H2 click → scroll + thick border | ✅ | — | — | — |
+| F2 AI rewrite → only that bullet | ✅ | — | — | — |
+| A1/A2 run → ring = panel = DB = formula | ✅ 87 | ✅ 86 | ✅ 88 | ✅ 87 |
+
+Notes
+- Saffron Line puts Education/Skills in its sidebar, so the stored section order has Education before Experience and the rule check `sectionOrder` warns (82). Atlantic Blue's order passes again. Real, template-driven.
+- AI checks vary run to run by up to ~20 points on a single check (e.g. hardSkillsMatch 50–70); the overall moved ±1–2 across seven runs (85–88).
+- Two backend suites fail independently of this work: `hackathon/importBoundary` and `couponCheckoutService`.
+
+#### More bugs found and fixed
+
+| # | Bug | Fix |
+|---|---|---|
+| B13 | Thumbnail rejected as "blank" on Classic (centred header ⇒ empty top-left 200 px sample) | Sample a grid over the whole page |
+| B14 | AI quoted "Skills: Python, Go…" (layout label); card hidden as stale, no box. On Ember (skills as blocks) a quoted list never matched | Strip layout labels (server + panel); punctuation-insensitive stale check; a quoted list boxes each item, in the section most items share |
+| B15 | — | Saffron "no Company slot" was a mis-click (layout moved); slot works |
+| B16 | AI check scored 70 with no findings: row said "about text you've since changed" and the user lost points with nothing to fix | Row says "No specific line was flagged"; normaliser floors a check with no negative findings at the pass line (80) and stops counting praise against the score |

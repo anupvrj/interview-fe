@@ -88,6 +88,18 @@ function locateMark(root: HTMLElement, mark: CanvasMark, max: number): TextHit[]
     const hits = locateText(root, prefix, { max });
     if (hits.length) return hits;
   }
+  // A quoted list ("Python, Go, Rag") where the design shows each item on its own (tags,
+  // blocks): box each item instead.
+  const items = mark.text.split(/\s*[,;]\s*/).map((t) => t.trim()).filter(Boolean);
+  if (items.length >= 2 && items.every((t) => t.split(/\s+/).length <= 4)) {
+    // Each item can also appear elsewhere ("AWS" in a bullet): keep the section most items share.
+    const sectionOf = (hit: TextHit) => hit.field?.closest("[data-section]")?.getAttribute("data-section") ?? "";
+    const perItem = items.map((item) => locateText(root, item, { wholeWord: true, max: 8 }));
+    const votes = new Map<string, number>();
+    for (const hits of perItem) for (const id of new Set(hits.map(sectionOf))) votes.set(id, (votes.get(id) ?? 0) + 1);
+    const best = [...votes.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
+    return perItem.flatMap((hits) => hits.filter((h) => sectionOf(h) === best).slice(0, 1));
+  }
   return [];
 }
 

@@ -73,15 +73,16 @@ export function TagListPopover({
     <div className="w-80 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl" role="dialog" aria-label={title}>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+        {/* Move arrows keep their space (fade in on hover) so "remove" never slides under the pointer. */}
         {tags.map((tag, i) => (
           <span key={`${tag}-${i}`} className="group inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/50 py-0.5 pl-2 pr-0.5 text-xs">
-            <button type="button" aria-label={`Move ${tag} earlier`} onClick={() => move(i, -1)} className="hidden text-muted-foreground hover:text-foreground group-hover:inline">
+            <button type="button" aria-label={`Move ${tag} earlier`} onClick={() => move(i, -1)} className="text-muted-foreground opacity-0 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100">
               <ArrowLeft className="h-3 w-3" />
             </button>
             <span className="max-w-[14rem] truncate" title={tag}>
               {tag}
             </span>
-            <button type="button" aria-label={`Move ${tag} later`} onClick={() => move(i, 1)} className="hidden text-muted-foreground hover:text-foreground group-hover:inline">
+            <button type="button" aria-label={`Move ${tag} later`} onClick={() => move(i, 1)} className="text-muted-foreground opacity-0 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100">
               <ArrowRight className="h-3 w-3" />
             </button>
             <button
