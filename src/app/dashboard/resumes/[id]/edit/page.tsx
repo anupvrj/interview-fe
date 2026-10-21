@@ -142,6 +142,7 @@ import { CanvasRail, CanvasToolRow, type CanvasPanel } from "@/components/resume
 import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
+import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
@@ -152,6 +153,7 @@ import {
   deleteEntry,
   duplicateEntry,
   escapeHtmlText,
+  getAtPath,
   isEntrySection,
   moveEntry,
   sanitizeRichHtml,
@@ -2946,6 +2948,33 @@ export default function EditResumePage() {
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
     onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
     onNotice: showCanvasNotice,
+    getDates: (entryPath) => {
+      const entry = getAtPath(resume?.content, entryPath) as Record<string, unknown> | undefined;
+      return {
+        startDate: typeof entry?.startDate === "string" ? entry.startDate : "",
+        endDate: typeof entry?.endDate === "string" ? entry.endDate : "",
+        current: entry?.current === true,
+      };
+    },
+    getTags: (sectionType) => parseTags((resume?.content as Record<string, unknown> | undefined)?.[sectionType]).tags,
+    onSetTags: (sectionType, tags) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      const { shape } = parseTags((current.content as unknown as Record<string, unknown>)[sectionType]);
+      updateContent({ [sectionType]: serialiseTags(tags, shape) } as Partial<Resume["content"]>);
+    },
+    onSetDates: (entryPath, dates) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      const entry = getAtPath(current.content, entryPath);
+      if (!entry || typeof entry !== "object") return;
+      let next = current.content as unknown as Record<string, unknown>;
+      next = setAtPath(next, `${entryPath}.startDate`, dates.startDate);
+      next = setAtPath(next, `${entryPath}.endDate`, dates.current ? "" : dates.endDate);
+      if (!entryPath.startsWith("education")) next = setAtPath(next, `${entryPath}.current`, dates.current);
+      const key = entryPath.split(".")[0] as keyof Resume["content"];
+      updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+    },
   };
 
   /** Add (or re-show) a section from the canvas, placed after `afterId`, seeded so it is visible on the page. */

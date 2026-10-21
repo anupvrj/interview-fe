@@ -422,14 +422,25 @@ export function ResumeRenderer({
 }: ResumeRendererProps) {
   const extendedTemplate = getExtendedTemplate(template);
 
-  // On-canvas editing (only inside the editor's CanvasEditProvider). The executive
-  // template keeps its data in a different shape, so it is edited from the side panel.
+  // On-canvas editing (only inside the editor's CanvasEditProvider). Legacy executive
+  // resumes keep their data in `content.sections`; those are edited from the side panel.
   const canvasApi = useCanvasEdit();
-  const canvas = resume.templateId === "executive" ? null : canvasApi;
+  const usesLegacySections =
+    resume.templateId === "executive" && Array.isArray((resume.content as { sections?: unknown }).sections);
+  const canvas = usesLegacySections ? null : canvasApi;
   const ed = (path: string, value: string | undefined | null, placeholder?: string) => (
     <EdText canvas={canvas} path={path} value={value} placeholder={placeholder} />
   );
   const rich = (path: string, placeholder?: string) => richEditProps(canvas, path, placeholder);
+  /** Dates open a From/To picker on the canvas; `entryPath` is e.g. "experience.2". */
+  const edDate = (entryPath: string, content: React.ReactNode) =>
+    canvas ? (
+      <span className="rx-date" data-rx-date={entryPath} data-placeholder="Date period" role="button" tabIndex={0}>
+        {content}
+      </span>
+    ) : (
+      content
+    );
   const edTitle = (sectionId: string | undefined, title: string, uppercase: boolean) =>
     sectionId ? (
       <EdText canvas={canvas} path={`@section:${sectionId}`} value={title} uppercase={uppercase} />
@@ -1376,7 +1387,7 @@ export function ResumeRenderer({
                 {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
               </a>
             ) : (
-              item.value
+              ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])
             )}
           </span>
         ));
@@ -1429,7 +1440,7 @@ export function ResumeRenderer({
                 {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
               </a>
             ) : (
-              item.value
+              ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])
             )}
             {index < contactItems.length - 1 && contactSeparator}
           </span>
@@ -1617,10 +1628,12 @@ export function ResumeRenderer({
               label: string;
               value?: string;
               href?: string;
+              field?: string;
             }[] = [
-              { label: "Address:", value: personalInfo.location },
-              { label: "Phone:", value: personalInfo.phone },
+              { label: "Address:", value: personalInfo.location, field: "location" },
+              { label: "Phone:", value: personalInfo.phone, field: "phone" },
               {
+                field: "email",
                 label: "Email:",
                 value: personalInfo.email,
                 href: personalInfo.email
@@ -1628,6 +1641,7 @@ export function ResumeRenderer({
                   : undefined,
               },
               {
+                field: personalInfo.website ? "website" : "linkedin",
                 label: "Website:",
                 value: websiteValue,
                 href: websiteValue
@@ -1653,11 +1667,11 @@ export function ResumeRenderer({
                         href={row.href}
                         className={`${template.id}-contact-value no-underline`}
                       >
-                        {row.value}
+                        {row.field ? ed(`personalInfo.${row.field}`, row.value) : row.value}
                       </a>
                     ) : (
                       <span className={`${template.id}-contact-value`}>
-                        {row.value}
+                        {row.field ? ed(`personalInfo.${row.field}`, row.value) : row.value}
                       </span>
                     )}
                   </div>
@@ -2341,7 +2355,7 @@ export function ResumeRenderer({
         if (!profileContent) {
           // Show placeholder instead of null to help with debugging
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -2424,7 +2438,7 @@ export function ResumeRenderer({
 
         if (experienceData.length === 0) {
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -2513,7 +2527,7 @@ export function ResumeRenderer({
                         }
                       >
                         <span className={`${template.id}-date`}>
-                          {formatExperienceDateRange(exp)}
+                          {edDate(`experience.${index}`, formatExperienceDateRange(exp))}
                         </span>
                         {exp.location && (
                           <div className={`${template.id}-location`}>
@@ -2609,7 +2623,7 @@ export function ResumeRenderer({
                         </div>
                         <div className={`${template.id}-job-details-container`}>
                           <div className={`${template.id}-job-date`}>
-                            {formatRoyalIndigoDateRange(exp)}
+                            {edDate(`experience.${index}`, formatRoyalIndigoDateRange(exp))}
                           </div>
                         </div>
                       </div>
@@ -2649,7 +2663,7 @@ export function ResumeRenderer({
                         </div>
                         <div className={`${template.id}-job-details-container`}>
                           <div className={`${template.id}-job-date`}>
-                            {formatExperienceDateRange(exp)}
+                            {edDate(`experience.${index}`, formatExperienceDateRange(exp))}
                           </div>
                           {exp.location && (
                             <div className={`${template.id}-job-location`}>
@@ -2686,11 +2700,12 @@ export function ResumeRenderer({
                           </>
                         )}
                       </div>
-                      {(formatExperienceDateRange(exp) || exp.location) && (
+                      {(formatExperienceDateRange(exp) || exp.location || canvas) && (
                         <div className={`${template.id}-job-meta-line`}>
-                          {[formatExperienceDateRange(exp), exp.location]
-                            .filter(Boolean)
-                            .join(" | ")}
+                          {edDate(
+                            `experience.${index}`,
+                            [formatExperienceDateRange(exp), exp.location].filter(Boolean).join(" | "),
+                          )}
                         </div>
                       )}
                       {(exp.description || canvas) && (
@@ -2731,7 +2746,7 @@ export function ResumeRenderer({
                         </div>
                         <div className={`${template.id}-job-details-container`}>
                           <div className={`${template.id}-job-date`}>
-                            {formatExperienceDateRange(exp)}
+                            {edDate(`experience.${index}`, formatExperienceDateRange(exp))}
                           </div>
                         </div>
                       </div>
@@ -2809,7 +2824,7 @@ export function ResumeRenderer({
                           }
                         >
                           <div className={`${template.id}-job-date`}>
-                            {formatExperienceDateRange(exp)}
+                            {edDate(`experience.${index}`, formatExperienceDateRange(exp))}
                           </div>
                           {exp.location && (
                             <div className={`${template.id}-location`}>
@@ -2925,9 +2940,10 @@ export function ResumeRenderer({
                         }
                       >
                         <span className={`${template.id}-education-date`}>
-                          {formatResumeDateForDisplay(String(edu.startDate ?? ""))}
-                          {edu.startDate || edu.endDate ? " - " : ""}
-                          {formatResumeDateForDisplay(String(edu.endDate ?? ""))}
+                          {edDate(
+                            `education.${index}`,
+                            `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`,
+                          )}
                         </span>
                         {edu.location && (
                           <div className={`${template.id}-education-location`}>
@@ -3013,9 +3029,9 @@ export function ResumeRenderer({
                           )}
                         </div>
                         <div className={`${template.id}-education-details-container`}>
-                          {formatRoyalIndigoDateRange(edu) && (
+                          {(formatRoyalIndigoDateRange(edu) || canvas) && (
                             <div className={`${template.id}-education-date`}>
-                              {formatRoyalIndigoDateRange(edu)}
+                              {edDate(`education.${index}`, formatRoyalIndigoDateRange(edu))}
                             </div>
                           )}
                         </div>
@@ -3058,11 +3074,12 @@ export function ResumeRenderer({
                           )}
                         </div>
                         <div className={`${template.id}-education-details-container`}>
-                          {(edu.startDate || edu.endDate) && (
+                          {(edu.startDate || edu.endDate || canvas) && (
                             <div className={`${template.id}-education-date`}>
-                              {formatResumeDateForDisplay(String(edu.startDate ?? ""))}
-                              {edu.startDate || edu.endDate ? " – " : ""}
-                              {formatResumeDateForDisplay(String(edu.endDate ?? ""))}
+                              {edDate(
+                                `education.${index}`,
+                                `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " – " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`,
+                              )}
                             </div>
                           )}
                           {edu.location && (
@@ -3097,9 +3114,10 @@ export function ResumeRenderer({
                       {(edu.startDate ||
                         edu.endDate ||
                         edu.location ||
+                        canvas ||
                         shouldAppendEducationField(edu.degree, edu.field)) && (
                         <div className={`${template.id}-education-meta-line`}>
-                          {[
+                          {edDate(`education.${index}`, [
                             edu.startDate || edu.endDate
                               ? `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`
                               : "",
@@ -3109,7 +3127,7 @@ export function ResumeRenderer({
                               : "",
                           ]
                             .filter(Boolean)
-                            .join(" | ")}
+                            .join(" | "))}
                         </div>
                       )}
                     </>
@@ -3194,7 +3212,7 @@ export function ResumeRenderer({
                           }
                         >
                           <div className={`${template.id}-education-date`}>
-                            {edu.startDate} - {edu.endDate}
+                            {edDate(`education.${index}`, `${edu.startDate ?? ""}${edu.startDate || edu.endDate ? " - " : ""}${edu.endDate ?? ""}`)}
                           </div>
                           {edu.location && (
                             <div
@@ -3578,7 +3596,7 @@ export function ResumeRenderer({
         }
 
         return (
-          <div
+          <div data-section={section.id}
             style={{
               marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
                 ? templateStyle.sectionSpacing * 2
@@ -3932,14 +3950,14 @@ export function ResumeRenderer({
                               {project.name && (
                                 <span className={`${template.id}-title-separator`}>, </span>
                               )}
-                              <span className={`${template.id}-project-subtitle`}>{tech}</span>
+                              <span className={`${template.id}-project-subtitle`}>{ed(`projects.${index}.technologies`, tech)}</span>
                             </>
                           )}
                         </div>
-                        {formatProjectDates(project) && (
+                        {(formatProjectDates(project) || canvas) && (
                           <div className={`${template.id}-job-details-container`}>
                             <div className={`${template.id}-job-date`}>
-                              {formatProjectDates(project)}
+                              {edDate(`projects.${index}`, formatProjectDates(project))}
                             </div>
                           </div>
                         )}
@@ -3992,10 +4010,10 @@ export function ResumeRenderer({
                             {ed(`projects.${index}.name`, project.name)}
                           </div>
                         </div>
-                        {dateText && (
+                        {(dateText || canvas) && (
                           <div className={`${template.id}-job-details-container`}>
                             <div className={`${template.id}-job-date`}>
-                              {dateText}
+                              {edDate(`projects.${index}`, dateText)}
                             </div>
                           </div>
                         )}
@@ -4089,7 +4107,7 @@ export function ResumeRenderer({
                       </a>
                     )}
                   </div>
-                  {(project.startDate || project.endDate) && (
+                  {(project.startDate || project.endDate || canvas) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
@@ -4097,9 +4115,10 @@ export function ResumeRenderer({
                         marginBottom: "4px",
                       }}
                     >
-                      {[project.startDate, project.endDate]
-                        .filter(Boolean)
-                        .join(" – ")}
+                      {edDate(
+                        `projects.${index}`,
+                        [project.startDate, project.endDate].filter(Boolean).join(" – "),
+                      )}
                     </div>
                   )}
                   {(project.description || canvas) && (
@@ -4145,7 +4164,7 @@ export function ResumeRenderer({
                             color: templateStyle.colors.secondary,
                           }}
                         >
-                          Technologies: {tech}
+                          Technologies: {ed(`projects.${index}.technologies`, tech)}
                         </div>
                       )
                     );
@@ -4193,7 +4212,7 @@ export function ResumeRenderer({
         ) {
           // For string format, create a simple display
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -4218,7 +4237,7 @@ export function ResumeRenderer({
         if (languagesData.length === 0) {
           // Show placeholder if section is visible but empty
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -4235,7 +4254,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No languages added. Add your language skills in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No languages added. Add your language skills in the editor."}
               </div>
             </div>
           );
@@ -4383,7 +4402,9 @@ export function ResumeRenderer({
                     >
                       {typeof lang === "string"
                         ? lang
-                        : lang.name || String(lang)}
+                        : Array.isArray(resume.content.languages)
+                          ? ed(`languages.${index}.name`, lang.name, "Language")
+                          : lang.name || String(lang)}
                     </span>
                     {typeof lang === "object" &&
                       (lang.proficiency || lang.level) &&
@@ -4499,7 +4520,7 @@ export function ResumeRenderer({
         }
 
         return (
-          <div
+          <div data-section={section.id}
             style={{
               marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
                 ? templateStyle.sectionSpacing * 2
@@ -4563,7 +4584,7 @@ export function ResumeRenderer({
                       }}
                     >
                       {ed(`awards.${index}.issuer`, award.issuer)}
-                      {award.date && `, ${award.date}`}
+                      {award.date ? <>, {ed(`awards.${index}.date`, award.date)}</> : null}
                     </div>
                   )}
                   {(award.description || canvas) && (
@@ -4610,7 +4631,7 @@ export function ResumeRenderer({
 
         if (certificatesData.length === 0) {
           return (
-            <div style={{ marginBottom: templateStyle.sectionSpacing }}>
+            <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
@@ -4622,7 +4643,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No certificates added. Add your certifications in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No certificates added. Add your certifications in the editor."}
               </div>
             </div>
           );
@@ -4672,7 +4693,7 @@ export function ResumeRenderer({
                     }}
                   >
                     {ed(`certificates.${index}.issuer`, cert.issuer)}
-                    {cert.issueDate && ` • ${cert.issueDate}`}
+                    {cert.issueDate ? <> • {ed(`certificates.${index}.issueDate`, cert.issueDate)}</> : null}
                     {cert.expiryDate && ` - ${cert.expiryDate}`}
                   </div>
                   {cert.certificateId && (
@@ -4717,9 +4738,9 @@ export function ResumeRenderer({
 
           if (isEmpty) {
             return (
-              <div style={{ marginBottom: templateStyle.sectionSpacing }}>
+              <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
                 {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-                <div
+                <div {...rich("achievements", "Your key achievements")}
                   style={{
                     fontSize: `${templateStyle.fontSize.body}px`,
                     color: isInSidebar
@@ -4729,14 +4750,14 @@ export function ResumeRenderer({
                     opacity: 0.7,
                   }}
                 >
-                  No achievements added. Add your achievements in the editor.
+                  {canvas ? null : "No achievements added. Add your achievements in the editor."}
                 </div>
               </div>
             );
           }
 
           return (
-            <div style={{ marginBottom: templateStyle.sectionSpacing }}>
+            <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
@@ -4747,7 +4768,8 @@ export function ResumeRenderer({
                   lineHeight: "1.4",
                 }}
                 className="resume-content"
-                dangerouslySetInnerHTML={{ __html: achievementsString }}
+                {...rich("achievements")}
+                dangerouslySetInnerHTML={stableHtml(achievementsString)}
               />
             </div>
           );
@@ -4756,7 +4778,7 @@ export function ResumeRenderer({
         // Handle array format
         if (Array.isArray(achievementsData) && achievementsData.length === 0) {
           return (
-            <div style={{ marginBottom: templateStyle.sectionSpacing }}>
+            <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
@@ -4768,7 +4790,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No achievements added. Add your achievements in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No achievements added. Add your achievements in the editor."}
               </div>
             </div>
           );
@@ -4790,9 +4812,11 @@ export function ResumeRenderer({
                     }}
                   >
                     •{" "}
-                    {achievement.title ||
-                      achievement.description ||
-                      achievement}
+                    {typeof achievement === "string"
+                      ? ed(`achievements.${index}`, achievement)
+                      : achievement.title
+                        ? ed(`achievements.${index}.title`, achievement.title)
+                        : ed(`achievements.${index}.description`, achievement.description, "Achievement")}
                   </div>
                 </div>
               ))}
@@ -4924,9 +4948,9 @@ export function ResumeRenderer({
 
         if (isEmpty) {
           return (
-            <div style={{ marginBottom: templateStyle.sectionSpacing }}>
+            <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-              <div
+              <div {...rich("interests", "Your interests, separated by commas")}
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
                   color: isInSidebar
@@ -4936,7 +4960,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No interests added. Add your interests in the editor.
+                {canvas ? null : "No interests added. Add your interests in the editor."}
               </div>
             </div>
           );
@@ -4955,7 +4979,8 @@ export function ResumeRenderer({
               {typeof interestsRaw === "string" ? (
                 <div
                   className="resume-content"
-                  dangerouslySetInnerHTML={{ __html: interestsRaw }}
+                  {...rich("interests", "Your interests, separated by commas")}
+                  dangerouslySetInnerHTML={stableHtml(interestsRaw)}
                 />
               ) : Array.isArray(interestsRaw) ? (
                 interestsRaw.join(", ")
@@ -4968,7 +4993,7 @@ export function ResumeRenderer({
         const coursesData = resume.content.courses || [];
         if (coursesData.length === 0) {
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -4985,7 +5010,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No courses added. Add your courses in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No courses added. Add your courses in the editor."}
               </div>
             </div>
           );
@@ -5021,7 +5046,7 @@ export function ResumeRenderer({
                         : templateStyle.colors.text,
                     }}
                   >
-                    {course.title || course.name}
+                    {ed(`courses.${index}.${course.title && !course.name ? "title" : "name"}`, course.name || course.title, "Course")}
                   </div>
                   {(course.institution || course.provider) && (
                     <div
@@ -5033,8 +5058,8 @@ export function ResumeRenderer({
                         marginTop: "2px",
                       }}
                     >
-                      {course.institution || course.provider}
-                      {course.date && ` • ${course.date}`}
+                      {ed(`courses.${index}.${course.institution || !course.provider ? "institution" : "provider"}`, course.institution || course.provider)}
+                      {course.date ? <> • {ed(`courses.${index}.date`, course.date)}</> : null}
                     </div>
                   )}
                   {(course.description || canvas) && (
@@ -5061,7 +5086,7 @@ export function ResumeRenderer({
         const publicationsData = resume.content.publications || [];
         if (publicationsData.length === 0) {
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -5078,7 +5103,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No publications added. Add your publications in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No publications added. Add your publications in the editor."}
               </div>
             </div>
           );
@@ -5126,7 +5151,7 @@ export function ResumeRenderer({
                     }}
                   >
                     {ed(`publications.${index}.publisher`, pub.publisher)}
-                    {pub.date && ` • ${pub.date}`}
+                    {pub.date ? <> • {ed(`publications.${index}.date`, pub.date)}</> : null}
                   </div>
                   {pub.link && (
                     <div
@@ -5136,7 +5161,7 @@ export function ResumeRenderer({
                         textDecoration: "none",
                       }}
                     >
-                      {pub.link}
+                      {ed(`publications.${index}.link`, pub.link)}
                     </div>
                   )}
                 </div>
@@ -5149,7 +5174,7 @@ export function ResumeRenderer({
         const referencesData = resume.content.references || [];
         if (referencesData.length === 0) {
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
@@ -5166,7 +5191,7 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No references added. Add your references in the editor.
+                {canvas ? "Empty — click here, then use + to add one." : "No references added. Add your references in the editor."}
               </div>
             </div>
           );
@@ -5213,7 +5238,7 @@ export function ResumeRenderer({
                     }}
                   >
                     {ed(`references.${index}.position`, ref.position)}
-                    {ref.company && ` at ${ref.company}`}
+                    {ref.company ? <> at {ed(`references.${index}.company`, ref.company)}</> : null}
                   </div>
                   {(ref.email || ref.phone) && (
                     <div
@@ -5303,18 +5328,72 @@ export function ResumeRenderer({
           </div>
         );
 
+      case "organisations": {
+        // Volunteering / organisations: role, organisation, dates, short description.
+        const orgs = (resume.content.organisations || []) as Array<{
+          name?: string;
+          role?: string;
+          startDate?: string;
+          endDate?: string;
+          description?: string;
+        }>;
+        if (orgs.length === 0 && !canvas) return null;
+        const textColor = isInSidebar ? templateStyle.colors.sidebarText : templateStyle.colors.text;
+        return (
+          <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing, ...sidebarStyle }}>
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+            {orgs.length === 0 ? (
+              <div style={{ fontSize: `${templateStyle.fontSize.body}px`, color: textColor, fontStyle: "italic", opacity: 0.7 }}>
+                Empty — click here, then use + to add one.
+              </div>
+            ) : null}
+            {orgs.map((org, index) => {
+              const dates = [org.startDate, org.endDate].filter(Boolean).join(" – ");
+              return (
+                <div key={index} data-item-index={index} style={{ marginBottom: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>
+                    <div style={{ fontSize: `${templateStyle.fontSize.body + 1}px`, fontWeight: "bold", color: textColor }}>
+                      {ed(`organisations.${index}.role`, org.role, "Role")}
+                      {org.role && org.name ? ", " : null}
+                      {org.name || canvas ? (
+                        <span style={{ fontWeight: "normal", color: templateStyle.colors.secondary }}>
+                          {ed(`organisations.${index}.name`, org.name, "Organisation")}
+                        </span>
+                      ) : null}
+                    </div>
+                    {dates || canvas ? (
+                      <div style={{ fontSize: `${templateStyle.fontSize.small}px`, color: templateStyle.colors.secondary, whiteSpace: "nowrap" }}>
+                        {edDate(`organisations.${index}`, dates)}
+                      </div>
+                    ) : null}
+                  </div>
+                  {org.description || canvas ? (
+                    <div
+                      className="resume-content"
+                      style={{ fontSize: `${templateStyle.fontSize.body}px`, lineHeight: templateStyle.lineHeight, color: textColor }}
+                      {...rich(`organisations.${index}.description`, "What you did there")}
+                      dangerouslySetInnerHTML={stableHtml(formatExperienceDescriptionHtml(org.description))}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
       case "declaration":
         const declarationText = resume.content.declaration;
         if (!declarationText || declarationText.trim() === "") {
           return (
-            <div
+            <div data-section={section.id}
               style={{
                 marginBottom: `${templateStyle.sectionSpacing}px`,
                 ...sidebarStyle,
               }}
             >
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-              <div
+              <div {...rich("declaration", "Your declaration")}
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
                   color: isInSidebar
@@ -5324,14 +5403,14 @@ export function ResumeRenderer({
                   opacity: 0.7,
                 }}
               >
-                No declaration added. Add your declaration in the editor.
+                {canvas ? null : "No declaration added. Add your declaration in the editor."}
               </div>
             </div>
           );
         }
 
         return (
-          <div
+          <div data-section={section.id}
             style={{
               marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
                 ? templateStyle.sectionSpacing * 2
@@ -5355,7 +5434,8 @@ export function ResumeRenderer({
                   : templateStyle.colors.text,
                 lineHeight: "1.4",
               }}
-              dangerouslySetInnerHTML={{ __html: declarationText }}
+              {...rich("declaration", "Your declaration")}
+              dangerouslySetInnerHTML={stableHtml(declarationText)}
             />
           </div>
         );

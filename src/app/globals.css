@@ -1929,3 +1929,16 @@
   display: inline-block;
   min-width: 2ch;
 }
+.resume-page .rx-date {
+  cursor: pointer;
+  border-radius: 2px;
+}
+.resume-page .rx-date:hover {
+  background-color: rgb(59 130 246 / 0.08);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.3);
+}
+.resume-page .rx-date:empty::before {
+  content: attr(data-placeholder);
+  color: rgb(148 163 184);
+  font-style: italic;
+}

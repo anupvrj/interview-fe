@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
+  CalendarDays,
   Copy,
   EyeOff,
   Italic,
@@ -18,6 +19,29 @@ import {
 import { cn } from "@/lib/utils";
 import { isEntrySection } from "./canvasOps";
 import { locateText } from "./textLocator";
+import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
+import { TagListPopover } from "./TagListPopover";
+
+/** Labels used by templates that merge several sections into one block. */
+const LABEL_TO_SECTION: Record<string, string> = {
+  languages: "languages",
+  language: "languages",
+  certifications: "certificates",
+  certificates: "certificates",
+  "awards/activities": "achievements",
+  awards: "awards",
+  achievements: "achievements",
+  interests: "interests",
+  skills: "skills",
+  courses: "courses",
+  publications: "publications",
+};
+
+/** Sections edited as a tag list (their items are derived text, not one field each). */
+const TAG_SECTIONS = new Set(["skills"]);
+
+/** Sections whose entries have a From/To date. */
+const DATED_SECTIONS = new Set(["experience", "education", "projects", "organisations"]);
 
 /** Text highlighted on the page: an issue (red/blue), a matched keyword (green) or an AI edit (orange). */
 export interface CanvasMark {
@@ -57,6 +81,11 @@ export interface CanvasInteractionHandlers {
   onOpenDetails: (sectionId: string) => void;
   onAddSectionAfter: (sectionId: string) => void;
   onNotice?: (message: string) => void;
+  /** Current dates of an entry ("experience.2"). */
+  getDates: (entryPath: string) => EntryDates;
+  onSetDates: (entryPath: string, dates: EntryDates) => void;
+  getTags: (sectionType: string) => string[];
+  onSetTags: (sectionType: string, tags: string[]) => void;
 }
 
 interface Box {
@@ -216,8 +245,12 @@ export function CanvasInteractionLayer({
   const [pages, setPages] = useState<Box[]>([]);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
+  const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   const measure = useCallback(() => {
     const root = rootRef.current;
@@ -303,6 +336,42 @@ export function CanvasInteractionLayer({
     const onLeave = () => setHover(null);
     const onClick = (e: MouseEvent) => {
       if (inOverlay(e)) return;
+      const dateEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-date]");
+      if (dateEl && dateEl.closest(".resume-page")) {
+        const origin = root.getBoundingClientRect();
+        const r = dateEl.getBoundingClientRect();
+        setDateEdit({ path: dateEl.getAttribute("data-rx-date") ?? "", top: r.bottom - origin.top + 6, left: r.left - origin.left });
+      } else {
+        setDateEdit(null);
+      }
+      // Skills: anywhere but the editable title opens the tag editor.
+      const target = e.target as HTMLElement | null;
+      const sectionEl = target?.closest<HTMLElement>(".resume-page [data-section]");
+      const section = sectionEl ? sectionsRef.current.find((s) => s.id === sectionEl.getAttribute("data-section")) : undefined;
+      if (section && TAG_SECTIONS.has(section.type) && !target?.closest("[data-rx-path], [data-section-header], h2")) {
+        const origin = root.getBoundingClientRect();
+        const r = sectionEl!.getBoundingClientRect();
+        setTagEdit({ sectionType: section.type, title: section.title, top: r.bottom - origin.top + 6, left: r.left - origin.left });
+      } else {
+        setTagEdit(null);
+        // Text with no inline editor (combined lines like "Spanish (Native)", labels):
+        // open that section's full editor so nothing on the page is a dead end.
+        const hasOwnText =
+          !!target && Array.from(target.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim().length > 1);
+        if (
+          section &&
+          hasOwnText &&
+          !target!.closest("[data-rx-path], [data-rx-date], [data-section-header], a") &&
+          section.type !== "personalInfo"
+        ) {
+          // Combined lines ("Languages: …", "Certifications: …") belong to another section.
+          const line = target!.closest("li, p, div");
+          const label = (line?.textContent ?? "").split(":")[0].trim().toLowerCase();
+          const labelType = LABEL_TO_SECTION[label];
+          const owner = labelType ? sectionsRef.current.find((s) => s.type === labelType) : undefined;
+          handlersRef.current.onOpenDetails((owner ?? section).id);
+        }
+      }
       // Links on the page (email, LinkedIn…) must not navigate away while editing.
       if ((e.target as HTMLElement | null)?.closest(".resume-page a")) e.preventDefault();
       const next = targetFromEvent(e, sectionsRef.current);
@@ -322,6 +391,11 @@ export function CanvasInteractionLayer({
   // Escape (outside a field) leaves focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && (dateEdit || tagEdit)) {
+        setDateEdit(null);
+        setTagEdit(null);
+        return;
+      }
       if (e.key !== "Escape" || !focus) return;
       const active = document.activeElement as HTMLElement | null;
       if (active?.isContentEditable) return;
@@ -330,7 +404,7 @@ export function CanvasInteractionLayer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus, onFocusChange]);
+  }, [focus, onFocusChange, dateEdit, tagEdit]);
 
   const focusSection = focus ? sections.find((s) => s.id === focus.sectionId) : undefined;
   const hoverSection = hover ? sections.find((s) => s.id === hover.sectionId) : undefined;
@@ -384,6 +458,20 @@ export function CanvasInteractionLayer({
           >
             <ArrowDown className="h-4 w-4" />
           </ToolButton>
+          {DATED_SECTIONS.has(focusSection.type) ? (
+            <ToolButton
+              label="Dates"
+              onClick={() => {
+                const b = focusBoxes[0];
+                if (!b) return;
+                setDateEdit((prev) =>
+                  prev ? null : { path: `${focusSection.type}.${focus.index}`, top: b.top + 30, left: b.left + Math.max(0, b.width - 270) },
+                );
+              }}
+            >
+              <CalendarDays className="h-4 w-4" />
+            </ToolButton>
+          ) : null}
         </>
       ) : (
         <>
@@ -569,6 +657,35 @@ export function CanvasInteractionLayer({
       ))}
       {divider}
       {toolbar}
+      {tagEdit ? (
+        <div
+          data-rx-overlay
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-16 flex justify-center" : "absolute")}
+          style={isMobile ? undefined : { top: tagEdit.top, left: Math.max(0, tagEdit.left) }}
+        >
+          <TagListPopover
+            title={tagEdit.title}
+            tags={handlers.getTags(tagEdit.sectionType)}
+            onChange={(tags) => handlers.onSetTags(tagEdit.sectionType, tags)}
+            onClose={() => setTagEdit(null)}
+          />
+        </div>
+      ) : null}
+      {dateEdit ? (
+        <div
+          data-rx-overlay
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-16 flex justify-center" : "absolute")}
+          style={isMobile ? undefined : { top: dateEdit.top, left: Math.max(0, dateEdit.left) }}
+        >
+          <DatePickerPopover
+            key={dateEdit.path}
+            dates={handlers.getDates(dateEdit.path)}
+            allowPresent={!dateEdit.path.startsWith("education")}
+            onChange={(dates) => handlers.onSetDates(dateEdit.path, dates)}
+            onClose={() => setDateEdit(null)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
