@@ -206,6 +206,14 @@
 .ixp-cd-inline-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ixp-amber); }
 .ixp-cd-inline-digits { display: inline-flex; gap: 8px; font-family: var(--ixp-display); font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; }
 .ixp-cd-inline-digits small { margin-left: 2px; font-family: var(--ixp-mono); font-size: 10px; color: var(--ixp-dim); }
+/* Home banner: one line on phones; fixed-width numbers so ticking doesn't shift or wrap. */
+.ixp-home-cd { flex-wrap: nowrap; white-space: nowrap; gap: 8px; }
+.ixp-home-cd .ixp-cd-inline-digits { gap: 6px; }
+.ixp-home-cd .ixp-cd-inline-digits > span { display: inline-block; min-width: 2.6em; }
+.ixp-home-cd .ixp-cd-inline-digits > span:last-child { min-width: 0; }
+@media (max-width: 360px) {
+  .ixp-home-cd .ixp-cd-inline-digits { font-size: 13.5px; }
+}
 
 /* ---------- buttons ---------- */
 .ixp-actions { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }

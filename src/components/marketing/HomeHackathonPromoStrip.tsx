@@ -24,7 +24,8 @@ function PromoStripInner() {
         ? event.startsAt
         : event.endsAt
       : null;
-  const countdownLabel = upcoming ? "Hackathon starts in" : "Submissions close in";
+  // Short so label + timer stay on one line on phones.
+  const countdownLabel = upcoming ? "Starts in" : "Ends in";
   const clockOffsetMs = event
     ? new Date(event.serverNow).getTime() - (pub.dataUpdatedAt || Date.now())
     : 0;
@@ -69,7 +70,7 @@ function PromoStripInner() {
                 <span className="ixp-prize-value ixp-home-pool-value">{c.prizeValue}</span>
               </p>
               {parts && !parts.done ? (
-                <div className="ixp-cd-inline" role="timer" aria-live="off">
+                <div className="ixp-cd-inline ixp-home-cd" role="timer" aria-live="off">
                   <span className="ixp-cd-inline-label">{countdownLabel}</span>
                   <span className="ixp-cd-inline-digits">
                     {(
