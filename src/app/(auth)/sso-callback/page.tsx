@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react";
+import { HackathonPageLoader } from "@/features/hackathon/components/HackathonPageLoader";
 import { peekPostSignInReturnUrl, resolvePostAuthRedirectPath } from "@/lib/post-sign-in-redirect";
 
 /**
@@ -16,8 +16,8 @@ export default function SsoCallbackPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#040b17] text-[#9eb2ca]">
-      <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Signing you in…
+    <div className="min-h-screen bg-[#040b17]">
+      <HackathonPageLoader message="Signing you in…" />
       {destination ? (
         <AuthenticateWithRedirectCallback
           signInForceRedirectUrl={destination}

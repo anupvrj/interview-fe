@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Flag, Loader2 } from "lucide-react";
+import { AlertCircle, Flag } from "lucide-react";
 import { toHackathonError } from "../api";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
 import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
@@ -23,6 +23,7 @@ import { HackathonOnboardingForm } from "../components/HackathonOnboardingForm";
 import { HackathonRegistrationModal } from "../components/HackathonRegistrationModal";
 import { useHackathonRegistrationGate } from "../useHackathonRegistrationGate";
 import { HackathonShell } from "../components/HackathonShell";
+import { HackathonPageLoader } from "../components/HackathonPageLoader";
 import { PhaseNotice } from "../components/PhaseNotice";
 
 function ProfileContent() {
@@ -128,13 +129,11 @@ function ProfileContent() {
     return (
       <>
         <HackathonRegistrationModal phase={modalPhase} onGoToChallenge={completeRegistrationFlow} />
-        {successModalOpen ? (
+        {/* The registering / registered modal is the loader then; the full-screen one would cover it. */}
+        {modalPhase !== null ? (
           <div className="min-h-[50vh]" aria-hidden />
         ) : (
-          <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
-            <Loader2 className="mr-2 size-5 animate-spin" aria-hidden />
-            {headingToDashboard ? "Opening your challenge…" : "Loading…"}
-          </div>
+          <HackathonPageLoader />
         )}
       </>
     );
