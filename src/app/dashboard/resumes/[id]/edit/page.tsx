@@ -3450,6 +3450,15 @@ export default function EditResumePage() {
                 >
                   <Redo2 className="h-4 w-4" />
                 </IconTooltipButton>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditorMode("canvas")}
+                  className="h-9 whitespace-nowrap border-primary/40 text-primary hover:bg-primary/5"
+                >
+                  Edit on page
+                </Button>
                 <IconTooltipButton
                   onClick={() => setImportResumeOpen(true)}
                   variant="outline"
@@ -3564,6 +3573,15 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={() => setEditorMode("canvas")}
+          className="border-b border-primary/20 bg-primary/5 px-4 py-2 text-left text-xs font-semibold text-primary"
+        >
+          New: edit your resume right on the page →
+        </button>
+      ) : null}
       {isMobile && resume ? (
         <ResumeEditorMobileChrome
           sectionPickerOpen={sectionPickerOpen}
