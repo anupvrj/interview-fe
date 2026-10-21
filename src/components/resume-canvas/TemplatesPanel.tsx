@@ -81,14 +81,14 @@ export function TemplatesPanel({
                   disabled={applying || current}
                   onClick={() => void onSelectTemplate(template.id)}
                   className={cn(
-                    "group relative overflow-hidden rounded-lg border-2 bg-card text-left transition",
+                    "group relative overflow-hidden rounded-lg border-2 bg-card p-1.5 text-left transition",
                     current ? "border-primary" : "border-transparent hover:border-primary/50",
                     applying && !current && "opacity-60",
                   )}
                   aria-pressed={current}
                 >
                   <div className="pointer-events-none">
-                    <TemplatePreview template={template} isSelected={current} />
+                    <TemplatePreview template={template} isSelected={current} variant="thumb" />
                   </div>
                   <div className="flex items-center justify-between gap-1 px-2 py-1.5">
                     <span className="truncate text-xs font-semibold text-foreground">{template.name}</span>
