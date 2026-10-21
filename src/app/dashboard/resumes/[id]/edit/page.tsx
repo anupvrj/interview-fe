@@ -2652,6 +2652,7 @@ export default function EditResumePage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [layoutExpanded, setLayoutExpanded] = useState(false);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const canvasPhotoInputRef = useRef<HTMLInputElement>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
@@ -2995,6 +2996,61 @@ export default function EditResumePage() {
 
   const sectionTypeOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.type ?? "";
 
+  /** Upload a cropped photo and put it on the resume (used by Details and the on-page pen). */
+  const uploadCroppedPhoto = async (croppedImageUrl: string) => {
+    if (!resume) return;
+    try {
+      const blob = await (await fetch(croppedImageUrl)).blob();
+      const formData = new FormData();
+      formData.append("file", blob, "profile-picture.jpg");
+      const uploadResponse = await apiClient.post<{
+        success: boolean;
+        message: string;
+        data: { profilePictureUrl: string };
+      }>(`/resumes/${resume.resumeId}/profile-picture`, formData);
+      const profilePictureUrl = uploadResponse.data.success ? uploadResponse.data.data?.profilePictureUrl : undefined;
+      if (!profilePictureUrl) return;
+      setResume((prevResume) =>
+        prevResume
+          ? {
+              ...prevResume,
+              content: {
+                ...prevResume.content,
+                personalInfo: { ...prevResume.content.personalInfo, profilePicture: profilePictureUrl },
+              },
+            }
+          : prevResume,
+      );
+      // Give S3 a moment, then re-render so the new image loads.
+      setTimeout(() => bumpPreviewKey("profilePicture:upload-delay500"), 500);
+      setHasChanges(true);
+    } catch (error) {
+      console.error("Error uploading cropped profile picture:", error);
+      alert("Failed to upload profile picture. Please try again.");
+    }
+  };
+
+  const openPhotoPicker = () => canvasPhotoInputRef.current?.click();
+
+  const onPhotoFilePicked = (file: File | undefined) => {
+    if (!file || !resume) return;
+    setProfilePictureFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImageToCrop(event.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    const current = resumeRef.current ?? resume;
+    if (!current) return;
+    updateContent({ personalInfo: { ...current.content.personalInfo, profilePicture: "" } });
+    setProfilePictureFileName("");
+    if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+  };
+
   const canvasHandlers: CanvasInteractionHandlers = {
     onAddEntry: (sectionId, afterIndex) => {
       const type = sectionTypeOf(sectionId);
@@ -3068,6 +3124,8 @@ export default function EditResumePage() {
         current: entry?.current === true,
       };
     },
+    onChangePhoto: openPhotoPicker,
+    onRemovePhoto: removePhoto,
     getTags: (sectionType) => parseTags((resume?.content as Record<string, unknown> | undefined)?.[sectionType]).tags,
     onSetTags: (sectionType, tags) => {
       const current = resumeRef.current ?? resume;
@@ -4314,104 +4372,6 @@ export default function EditResumePage() {
                                 )}
                               </div>
                             </div>
-
-                            {/* Profile Picture Cropper Dialog */}
-                            {imageToCrop && (
-                              <ProfilePictureCropper
-                                open={cropperOpen}
-                                onOpenChange={(open) => {
-                                  setCropperOpen(open);
-                                  if (!open) {
-                                    // Reset file input when dialog closes
-                                    if (profilePictureInputRef.current) {
-                                      profilePictureInputRef.current.value = "";
-                                    }
-                                    setImageToCrop(null);
-                                  }
-                                }}
-                                imageSrc={imageToCrop}
-                                onCropComplete={async (croppedImageUrl) => {
-                                  if (!resume) return;
-
-                                  try {
-                                    // Convert data URL to blob
-                                    const response =
-                                      await fetch(croppedImageUrl);
-                                    const blob = await response.blob();
-
-                                    // Create FormData and upload
-                                    const formData = new FormData();
-                                    formData.append(
-                                      "file",
-                                      blob,
-                                      "profile-picture.jpg",
-                                    );
-
-                                    const uploadResponse =
-                                      await apiClient.post<{
-                                        success: boolean;
-                                        message: string;
-                                        data: { profilePictureUrl: string };
-                                      }>(
-                                        `/resumes/${resume.resumeId}/profile-picture`,
-                                        formData,
-                                      );
-
-                                    if (
-                                      uploadResponse.data.success &&
-                                      uploadResponse.data.data
-                                        ?.profilePictureUrl
-                                    ) {
-                                      const profilePictureUrl =
-                                        uploadResponse.data.data
-                                          .profilePictureUrl;
-
-                                      // Update resume state with new profile picture URL
-                                      setResume((prevResume) => {
-                                        if (!prevResume) return prevResume;
-                                        return {
-                                          ...prevResume,
-                                          content: {
-                                            ...prevResume.content,
-                                            personalInfo: {
-                                              ...prevResume.content
-                                                .personalInfo,
-                                              profilePicture: profilePictureUrl,
-                                            },
-                                          },
-                                        };
-                                      });
-
-                                      // Wait a moment for S3 to propagate the file, then force re-render
-                                      // This ensures the image is available before we try to load it
-                                      setTimeout(() => {
-                                        // Force resume preview to re-render by updating key
-                                        // This ensures the image loads immediately after upload
-                                        bumpPreviewKey(
-                                          "profilePicture:upload-delay500",
-                                        );
-                                      }, 500);
-
-                                      // Trigger hasChanges to enable autosave
-                                      setHasChanges(true);
-
-                                      console.log(
-                                        "Profile picture updated in state:",
-                                        profilePictureUrl,
-                                      );
-                                    }
-                                  } catch (error) {
-                                    console.error(
-                                      "Error uploading cropped profile picture:",
-                                      error,
-                                    );
-                                    alert(
-                                      "Failed to upload profile picture. Please try again.",
-                                    );
-                                  }
-                                }}
-                              />
-                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                               <div>
@@ -7768,6 +7728,30 @@ export default function EditResumePage() {
       </div>
 
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
+      <input
+        ref={canvasPhotoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          onPhotoFilePicked(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      {imageToCrop ? (
+        <ProfilePictureCropper
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open);
+            if (!open) {
+              if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+              setImageToCrop(null);
+            }
+          }}
+          imageSrc={imageToCrop}
+          onCropComplete={uploadCroppedPhoto}
+        />
+      ) : null}
       {resume ? (
         <TemplateTryOn
           resume={resume}

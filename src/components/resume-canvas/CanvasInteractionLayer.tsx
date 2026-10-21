@@ -5,7 +5,9 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
+  Camera,
   GripVertical,
+  Pencil,
   CalendarDays,
   Copy,
   EyeOff,
@@ -93,6 +95,9 @@ export interface CanvasInteractionHandlers {
   onSetDates: (entryPath: string, dates: EntryDates) => void;
   getTags: (sectionType: string) => string[];
   onSetTags: (sectionType: string, tags: string[]) => void;
+  /** Profile photo on the page: pick a new one (opens upload + crop) or remove it. */
+  onChangePhoto?: () => void;
+  onRemovePhoto?: () => void;
 }
 
 interface Box {
@@ -204,6 +209,8 @@ export function CanvasInteractionLayer({
   const [pages, setPages] = useState<Box[]>([]);
   /** Skills sections with nothing in them yet: where to put the "Add skills" button. */
   const [emptyTagBoxes, setEmptyTagBoxes] = useState<Array<Box & { sectionId: string; type: string; title: string }>>([]);
+  const [photoBox, setPhotoBox] = useState<Box | null>(null);
+  const [photoMenu, setPhotoMenu] = useState(false);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"] }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   /** Rect of the current text selection inside a description (for the style bar). */
@@ -277,6 +284,8 @@ export function CanvasInteractionLayer({
           return last ? [{ ...last, sectionId: s.id, type: s.type, title: s.title }] : [];
         }),
     );
+    const photo = Array.from(root.querySelectorAll<HTMLElement>(".resume-page [data-rx-photo]")).find(isVisible);
+    setPhotoBox(photo ? boxesFor(root, [photo], 0)[0] ?? null : null);
     const origin = root.getBoundingClientRect();
     setMarkBoxes(
       marks.flatMap((mark) =>
@@ -394,6 +403,8 @@ export function CanvasInteractionLayer({
       if ((e.target as HTMLElement | null)?.closest(".resume-page a")) e.preventDefault();
       const next = targetFromEvent(e, sectionsRef.current);
       setMenuOpen(false);
+      // Clicking the photo opens its Change / Remove menu.
+      setPhotoMenu(!!(e.target as HTMLElement | null)?.closest?.("[data-rx-photo]"));
       onFocusChange(next);
     };
     root.addEventListener("pointermove", onMove);
@@ -732,6 +743,61 @@ export function CanvasInteractionLayer({
           <Plus className="h-3.5 w-3.5" /> Add skills
         </button>
       ))}
+      {photoBox && handlers.onChangePhoto ? (
+        <>
+          <button
+            type="button"
+            data-rx-overlay
+            aria-label="Edit photo"
+            title="Change or remove photo"
+            aria-expanded={photoMenu}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setMenuOpen(false);
+              setPhotoMenu((open) => !open);
+            }}
+            className="pointer-events-auto absolute z-30 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-md hover:border-primary/50 hover:text-primary"
+            style={{ top: photoBox.top - 8, left: photoBox.left + photoBox.width - 20 }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          {photoMenu ? (
+            <div
+              data-rx-overlay
+              role="menu"
+              className="pointer-events-auto absolute z-40 w-44 rounded-xl border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl"
+              style={{ top: photoBox.top + 24, left: Math.max(0, photoBox.left + photoBox.width - 176) }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setPhotoMenu(false);
+                  handlers.onChangePhoto?.();
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-muted"
+              >
+                <Camera className="h-4 w-4 opacity-70" /> Change photo
+              </button>
+              {handlers.onRemovePhoto ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setPhotoMenu(false);
+                    handlers.onRemovePhoto?.();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-rose-600 hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4 opacity-70" /> Remove photo
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : null}
       {handle}
       {menu}
       {mobileBar}

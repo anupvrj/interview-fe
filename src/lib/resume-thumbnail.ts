@@ -135,10 +135,8 @@ export async function captureResumeThumbnail(
       parent = parent.parentElement;
     }
 
-    // Scroll element into view and to top
-    element.scrollIntoView({ behavior: "instant", block: "start" });
-    const scrollPosition = window.scrollY;
-    window.scrollTo(0, 0);
+    // No scrolling: the capture renders a fixed, off-screen clone, and moving the
+    // page here would yank the editor away from where the user is working.
 
     // Force a reflow to ensure styles are applied
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -282,7 +280,6 @@ export async function captureResumeThumbnail(
       element.style.opacity = originalStyles.opacity;
       element.style.position = originalStyles.position;
       element.style.zIndex = originalStyles.zIndex;
-      globalThis.window.scrollTo(0, scrollPosition);
     }
 
     if (!canvas) {

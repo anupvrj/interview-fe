@@ -26,6 +26,61 @@ export function stableHtml(input: string | { __html: string }): { __html: string
   return entry;
 }
 
+/** Header fields that keep their hint even when nothing is selected (the page has no other way in). */
+const ALWAYS_HINT = new Set(["personalInfo.fullName", "personalInfo.portfolio"]);
+
+const FIELD_HINTS: Record<string, string> = {
+  company: "Company",
+  position: "Job title",
+  location: "Location",
+  institution: "School or university",
+  degree: "Degree",
+  field: "Field of study",
+  gpa: "GPA",
+  title: "Title",
+  issuer: "Issued by",
+  date: "Date",
+  issueDate: "Date",
+  technologies: "Tools & technologies",
+  link: "Link",
+  publisher: "Publisher",
+  role: "Role",
+  description: "Description",
+};
+const NAME_HINTS: Record<string, string> = {
+  projects: "Project name",
+  languages: "Language",
+  organisations: "Organisation",
+  references: "Reference name",
+  courses: "Course name",
+};
+
+/** What an empty field shows on the canvas, from its path ("experience.2.company" → "Company"). */
+export function fieldHint(path: string): string {
+  const parts = path.split(".");
+  const last = parts[parts.length - 1];
+  if (last === "name") return NAME_HINTS[parts[0]] ?? "Name";
+  if (/^\d+$/.test(last)) return parts[0] === "achievements" ? "Achievement" : "Add text";
+  return FIELD_HINTS[last] ?? "Add text";
+}
+
+/**
+ * Is this field inside what the user selected? Empty fields only show their hint
+ * (and empty optional slots only appear) there — elsewhere the page is exactly the export.
+ */
+export function pathRevealed(canvas: CanvasEditApi | null, path: string): boolean {
+  if (!canvas) return false;
+  if (ALWAYS_HINT.has(path)) return true;
+  const focus = canvas.focus;
+  if (!focus) return false;
+  const entry = /^([A-Za-z_]+)\.(\d+)(?:\.|$)/.exec(path);
+  if (entry) return focus.sectionType === entry[1] && (focus.index === null || focus.index === Number(entry[2]));
+  if (path.startsWith("personalInfo.")) return focus.sectionType === "personalInfo";
+  if (path.startsWith("@custom:")) return focus.sectionId === path.slice("@custom:".length);
+  if (path === "@profileSummary") return focus.sectionType === "profileSummary";
+  return true;
+}
+
 /** Text the field had when it gained focus, so Escape can revert and blur can skip no-op commits. */
 const ORIGINAL = "data-rx-original";
 
@@ -102,17 +157,18 @@ export function EdText({
   }, [multiline]);
 
   if (!canvas) return <>{uppercase ? text.toUpperCase() : text}</>;
+  const hint = placeholder ?? fieldHint(path);
   return (
     <span
       className="rx-ed"
       style={uppercase ? { textTransform: "uppercase" } : undefined}
       data-rx-path={path}
-      data-placeholder={placeholder}
+      data-placeholder={pathRevealed(canvas, path) ? hint : undefined}
       contentEditable
       suppressContentEditableWarning
       spellCheck
       role="textbox"
-      aria-label={placeholder ?? path}
+      aria-label={hint}
       onFocus={onFocus}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
@@ -136,7 +192,7 @@ export function richEditProps(
   return {
     "data-rx-path": path,
     "data-rx-rich": "",
-    "data-placeholder": placeholder ?? "Describe what you did and the impact it had",
+    "data-placeholder": pathRevealed(canvas, path) ? placeholder ?? "Describe what you did and the impact it had" : undefined,
     contentEditable: true,
     suppressContentEditableWarning: true,
     spellCheck: true,
