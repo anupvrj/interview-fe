@@ -130,10 +130,41 @@ apiClient.interceptors.request.use(
   },
 );
 
+/**
+ * Last revision this tab knowingly holds for each resume. Saves send it as
+ * `baseRevision`; the server refuses (409) when another tab/device saved since.
+ * Learned from this tab's own writes and from explicit `rememberResumeRevision`
+ * calls when the editor loads server data — never from background reads.
+ */
+const resumeRevisions = new Map<string, number>();
+export const RESUME_CONFLICT_EVENT = "resume:changed-elsewhere";
+export type ResumeConflictDetail = { resumeId: string; latest: Resume | null };
+
+export function rememberResumeRevision(resume: { resumeId?: string; revision?: number } | null | undefined) {
+  if (resume?.resumeId && typeof resume.revision === "number") resumeRevisions.set(resume.resumeId, resume.revision);
+}
+
+function rememberFromWrite(payload: unknown) {
+  const data = (payload as { data?: unknown } | undefined)?.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) rememberResumeRevision(data as Resume);
+}
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.method && response.config.method.toLowerCase() !== "get" && /\/resumes\//.test(response.config.url ?? "")) {
+      rememberFromWrite(response.data);
+    }
+    return response;
+  },
   (error: AxiosError) => {
+    const conflict = error.response?.data as { code?: string; data?: Resume } | undefined;
+    if (error.response?.status === 409 && conflict?.code === "RESUME_CHANGED_ELSEWHERE" && typeof window !== "undefined") {
+      const resumeId = conflict.data?.resumeId ?? /\/resumes\/([^/?]+)/.exec(error.config?.url ?? "")?.[1] ?? "";
+      window.dispatchEvent(
+        new CustomEvent<ResumeConflictDetail>(RESUME_CONFLICT_EVENT, { detail: { resumeId, latest: conflict.data ?? null } }),
+      );
+    }
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
@@ -1696,6 +1727,8 @@ export interface Resume {
   _id: string;
   resumeId: string;
   userId: string;
+  /** Server bumps this on every content edit; used to detect saves from another tab/device. */
+  revision?: number;
   title: string;
   templateId: string;
   content: {
@@ -2090,9 +2123,10 @@ export const resumeApi = {
       atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
+    const baseRevision = resumeRevisions.get(resumeId);
     const response = await apiClient.put<{ data: Resume }>(
       `/resumes/${resumeId}`,
-      data,
+      baseRevision === undefined ? data : { ...data, baseRevision },
       {
         headers: {
           "Content-Type": "application/json",

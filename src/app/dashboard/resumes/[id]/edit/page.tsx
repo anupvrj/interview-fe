@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertTriangle,
   ArrowLeft,
   Save,
   Download,
@@ -49,7 +50,15 @@ import {
   RefreshCw,
   Target,
 } from "lucide-react";
-import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import {
+  Resume,
+  ResumeTemplate,
+  resumeApi,
+  apiClient,
+  rememberResumeRevision,
+  RESUME_CONFLICT_EVENT,
+  type ResumeConflictDetail,
+} from "@/lib/api";
 import { flattenEducationList } from "@/lib/educationDisplay";
 import {
   normalizeExperienceList,
@@ -324,6 +333,10 @@ export default function EditResumePage() {
   const [refreshingATS, setRefreshingATS] = useState(false);
   const [displayAtsScore, setDisplayAtsScore] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Set when a save was refused because another tab/device saved this resume first.
+  const [saveConflict, setSaveConflict] = useState<ResumeConflictDetail | null>(null);
+  const saveConflictRef = useRef(false);
+  saveConflictRef.current = saveConflict !== null;
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
   // Bumped whenever content is applied wholesale (import / JD tailoring) so the
@@ -779,7 +792,7 @@ export default function EditResumePage() {
       const snapshot = resumeRef.current;
       const currentLayout = layoutRef.current;
       const currentSections = sectionsRef.current;
-      if (!hasChangesRef.current || !snapshot || !currentLayout || currentSections.length === 0) return;
+      if (!hasChangesRef.current || saveConflictRef.current || !snapshot || !currentLayout || currentSections.length === 0) return;
       hasChangesRef.current = false;
       // Save under the snapshot's own id: by the time this runs the route may show another resume.
       void resumeApi
@@ -813,6 +826,29 @@ export default function EditResumePage() {
       flush();
     };
   }, [resumeId]);
+
+  const resolveSaveConflict = async (choice: "mine" | "theirs") => {
+    const conflict = saveConflict;
+    if (!conflict) return;
+    if (choice === "theirs") {
+      hasChangesRef.current = false;
+      setHasChanges(false);
+      setSaveConflict(null);
+      await loadResume();
+      return;
+    }
+    // Overwrite: base the save on the revision we were refused against.
+    if (conflict.latest) rememberResumeRevision(conflict.latest);
+    setSaveConflict(null);
+    const current = resumeRef.current;
+    if (current) {
+      try {
+        await persistResumeToServer(current);
+      } catch (error) {
+        console.error("Saving over the newer version failed:", error);
+      }
+    }
+  };
 
   const ensureResumePersisted = useCallback(async () => {
     const current = resumeRef.current;
@@ -926,7 +962,7 @@ export default function EditResumePage() {
 
   // Autosave only when the user has unsaved edits — not on ATS/thumbnail resume syncs.
   useEffect(() => {
-    if (!hasChanges) {
+    if (!hasChanges || saveConflict) {
       return;
     }
 
@@ -963,7 +999,16 @@ export default function EditResumePage() {
     }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture]);
+
+  useEffect(() => {
+    const onConflict = (event: Event) => {
+      const detail = (event as CustomEvent<ResumeConflictDetail>).detail;
+      if (detail.resumeId === resumeId) setSaveConflict(detail);
+    };
+    window.addEventListener(RESUME_CONFLICT_EVENT, onConflict);
+    return () => window.removeEventListener(RESUME_CONFLICT_EVENT, onConflict);
+  }, [resumeId]);
 
   const loadResume = async () => {
     try {
@@ -1011,6 +1056,7 @@ export default function EditResumePage() {
       );
       resumeData.content.education = flattenedEducation.education;
 
+      rememberResumeRevision(resumeData);
       setResumeState(resumeData);
       if (flattenedEducation.changed) {
         setHasChanges(true);
@@ -2203,6 +2249,7 @@ export default function EditResumePage() {
           if (result.success) {
             const updatedResume = await resumeApi.get(resumeId);
             debugResumePagination("download:thumbnail:setResume", { resumeId });
+            rememberResumeRevision(updatedResume);
             setResumeState(updatedResume);
           }
         } catch (error) {
@@ -7637,6 +7684,24 @@ export default function EditResumePage() {
                 }
               />
                 </CanvasEditProvider>
+                {saveConflict ? (
+                  <div role="alert" className="absolute inset-x-0 top-3 z-40 flex justify-center px-3">
+                    <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-2xl border border-amber-300 bg-background/95 px-4 py-2.5 shadow-xl backdrop-blur dark:border-amber-800">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                      <span className="min-w-0 flex-1 text-sm text-foreground">
+                        This resume was changed in another tab or device. Saving is paused so neither copy is lost.
+                      </span>
+                      <div className="ml-auto flex gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => void resolveSaveConflict("theirs")}>
+                          Load latest
+                        </Button>
+                        <Button type="button" size="sm" onClick={() => void resolveSaveConflict("mine")}>
+                          Keep mine
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 {aiReview ? (
                   <div className="absolute inset-x-0 top-3 z-30 flex justify-center px-3">
                     <div className="w-full max-w-xl rounded-2xl border border-indigo-200 bg-background/95 shadow-xl backdrop-blur dark:border-indigo-900">
