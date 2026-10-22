@@ -87,6 +87,8 @@ export function ATSScoreSidebar({
         <ScoreGauge score={score} />
         <p className="text-sm text-muted-foreground mt-2">
           {issueCount} Issue{issueCount !== 1 ? "s" : ""}
+          {/* In the editor the list above changes as you edit; this is the last check's count. */}
+          {compact ? " at last check" : ""}
         </p>
       </div>
 

@@ -135,10 +135,8 @@ export async function captureResumeThumbnail(
       parent = parent.parentElement;
     }
 
-    // Scroll element into view and to top
-    element.scrollIntoView({ behavior: "instant", block: "start" });
-    const scrollPosition = window.scrollY;
-    window.scrollTo(0, 0);
+    // No scrolling: the capture renders a fixed, off-screen clone, and moving the
+    // page here would yank the editor away from where the user is working.
 
     // Force a reflow to ensure styles are applied
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -241,12 +239,19 @@ export async function captureResumeThumbnail(
       await (document as Document & { fonts: FontFaceSet }).fonts.ready;
     }
 
-    const captureRoot = element.cloneNode(true) as HTMLElement;
+    // The preview may have re-mounted while we waited (undo, re-pagination): clone the
+    // live node, not a detached one (which has no size and yields an empty canvas).
+    const source = document.getElementById(elementId) ?? element;
+    if (!source.isConnected || source.offsetWidth < 100) {
+      console.warn("Thumbnail skipped: preview is re-rendering");
+      return null;
+    }
+    const captureRoot = source.cloneNode(true) as HTMLElement;
     captureRoot.removeAttribute("id");
     captureRoot.style.position = "fixed";
     captureRoot.style.left = "-9999px";
     captureRoot.style.top = "0";
-    captureRoot.style.width = `${element.offsetWidth}px`;
+    captureRoot.style.width = `${source.offsetWidth}px`;
     captureRoot.style.visibility = "visible";
     captureRoot.style.transform = "none";
     captureRoot.style.opacity = "1";
@@ -269,6 +274,11 @@ export async function captureResumeThumbnail(
         onclone: (_clonedDoc: Document, cloned: HTMLElement) => {
           cloned.style.transform = "none";
           cloned.style.transition = "none";
+          // On-canvas editor: thumbnails show the page, not empty-field hints.
+          cloned.querySelectorAll<HTMLElement>("[data-placeholder]").forEach((el) => {
+            el.removeAttribute("data-placeholder");
+          });
+          cloned.querySelectorAll<HTMLElement>("[data-rx-empty-section]").forEach((el) => el.remove());
         },
       } as any);
     } finally {
@@ -278,7 +288,6 @@ export async function captureResumeThumbnail(
       element.style.opacity = originalStyles.opacity;
       element.style.position = originalStyles.position;
       element.style.zIndex = originalStyles.zIndex;
-      globalThis.window.scrollTo(0, scrollPosition);
     }
 
     if (!canvas) {
@@ -299,21 +308,21 @@ export async function captureResumeThumbnail(
     // Check if canvas has any non-white pixels (basic content check)
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      // Sample multiple areas of the canvas to check for content
-      const sampleSize = Math.min(200, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+      // Sample a grid over the whole page: centred designs (e.g. Classic) have an empty
+      // top-left corner, so a corner-only sample rejected real captures as blank.
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const step = Math.max(1, Math.floor(Math.sqrt((canvas.width * canvas.height) / 40000)));
       let nonWhitePixels = 0;
       let totalPixels = 0;
 
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const r = imageData.data[i];
-        const g = imageData.data[i + 1];
-        const b = imageData.data[i + 2];
-        totalPixels++;
-
-        // Check if pixel is not white (RGB all > 250)
-        if (r < 250 || g < 250 || b < 250) {
-          nonWhitePixels++;
+      for (let y = 0; y < canvas.height; y += step) {
+        for (let x = 0; x < canvas.width; x += step) {
+          const i = (y * canvas.width + x) * 4;
+          totalPixels++;
+          // Not white (any channel at or below 250)
+          if (imageData.data[i] < 250 || imageData.data[i + 1] < 250 || imageData.data[i + 2] < 250) {
+            nonWhitePixels++;
+          }
         }
       }
 
@@ -329,7 +338,7 @@ export async function captureResumeThumbnail(
       // Light/minimal resumes can be mostly white; avoid rejecting real captures.
       if (contentRatio < 0.002) {
         console.error(
-          "❌ Canvas appears to be blank (less than 1% non-white pixels)",
+          "❌ Canvas appears to be blank (less than 0.2% non-white pixels)",
         );
         return null;
       }

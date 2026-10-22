@@ -254,6 +254,11 @@
   content: none !important;
 }
 
+/* In the column grid each skill gets its own line — short ones must not pair up. */
+.ember-timeline-skills-container > div > .ember-timeline-skill-item {
+  display: block;
+}
+
 /* Two-column Key Achievements footer */
 .ember-timeline-award-item {
   display: inline-block;

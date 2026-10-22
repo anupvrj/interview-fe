@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertTriangle,
   ArrowLeft,
   Save,
   Download,
@@ -43,10 +44,21 @@ import {
   LayoutGrid,
   Undo2,
   Redo2,
+  History,
+  Link2,
+  Sparkles,
   RefreshCw,
   Target,
 } from "lucide-react";
-import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import {
+  Resume,
+  ResumeTemplate,
+  resumeApi,
+  apiClient,
+  rememberResumeRevision,
+  RESUME_CONFLICT_EVENT,
+  type ResumeConflictDetail,
+} from "@/lib/api";
 import { flattenEducationList } from "@/lib/educationDisplay";
 import {
   normalizeExperienceList,
@@ -112,6 +124,7 @@ import {
   downloadPdfFromUrl,
   fetchPdfBlobFromUrl,
   resumePdfFilenameFromResume,
+  sanitizePdfFilename,
   triggerBlobDownload,
 } from "@/lib/download-pdf";
 import {
@@ -131,6 +144,44 @@ import {
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { PlaceholderDataDialog } from "@/components/resume-editor/PlaceholderDataDialog";
+import { CanvasEditProvider, type CanvasEditApi } from "@/components/resume-canvas/CanvasEditContext";
+import {
+  CanvasInteractionLayer,
+  type CanvasFocus,
+  type CanvasInteractionHandlers,
+  type CanvasSectionRef,
+} from "@/components/resume-canvas/CanvasInteractionLayer";
+import { StudioSidebar, StudioTabBar, type CanvasPanel, type StudioProps } from "@/components/resume-canvas/CanvasChrome";
+import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
+import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
+import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
+import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
+import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
+import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
+import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
+import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
+import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryDialog";
+import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
+import { TemplateTryOn } from "@/components/resume-canvas/TemplateTryOn";
+import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
+import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
+import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
+import {
+  addEntry,
+  changedTextLines,
+  deleteEntry,
+  duplicateEntry,
+  escapeHtmlText,
+  getAtPath,
+  isEntrySection,
+  moveEntry,
+  sanitizeRichHtml,
+  setAtPath,
+} from "@/components/resume-canvas/canvasOps";
+
+/** "canvas" (edit on the page) or "classic" (form + preview). */
+const EDITOR_MODE_STORAGE_KEY = "resume-editor-mode";
 import {
   fetchResumePlaceholderIssues,
   type ResumePlaceholderIssue,
@@ -241,6 +292,14 @@ function descriptionToEditorHtml(description: unknown): string {
   return description == null ? "" : String(description);
 }
 
+/** Plain text of a stored rich-text field (for AI rewrites). */
+function htmlToPlainText(html: string): string {
+  return html.replace(/<\/(p|li|div)>|<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+}
+
+
+/** Phones: zoom for reading an ATS issue picked from the report (the fitted page is ~40%). */
+const MOBILE_ISSUE_ZOOM = 85;
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
@@ -284,6 +343,10 @@ export default function EditResumePage() {
   const [refreshingATS, setRefreshingATS] = useState(false);
   const [displayAtsScore, setDisplayAtsScore] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Set when a save was refused because another tab/device saved this resume first.
+  const [saveConflict, setSaveConflict] = useState<ResumeConflictDetail | null>(null);
+  const saveConflictRef = useRef(false);
+  saveConflictRef.current = saveConflict !== null;
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
   // Bumped whenever content is applied wholesale (import / JD tailoring) so the
@@ -349,6 +412,11 @@ export default function EditResumePage() {
         .split(",")[0]
         ?.replace(/^['"]|['"]$/g, "")
         .trim() || "Custom";
+    // The template's own stack ("'Zilla Slab', 'Roboto Slab', …") is the same font as the
+    // listed one: reuse that entry instead of listing it twice.
+    if (FONT_FAMILY_OPTIONS.some((opt) => opt.label === shortLabel)) {
+      return FONT_FAMILY_OPTIONS.map((opt) => (opt.label === shortLabel ? { ...opt, value: current } : opt));
+    }
     return [{ value: current, label: shortLabel }, ...FONT_FAMILY_OPTIONS];
   }, [effectiveTypography?.fontFamily]);
 
@@ -386,14 +454,57 @@ export default function EditResumePage() {
     returnToSectionPicker,
     closeMobileEditing,
   } = mobileEditor;
+  // On-canvas editing is the default; "Classic editor" brings back form + preview.
+  const [canvasOn, setCanvasOn] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(EDITOR_MODE_STORAGE_KEY) === "classic") setCanvasOn(false);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  /** The form shows one card at a time (mobile sheet, or a canvas side panel). */
+  const focusedForm = isMobile || canvasOn;
+  const [canvasPanel, setCanvasPanel] = useState<CanvasPanel | null>(null);
+  const [canvasFocus, setCanvasFocus] = useState<CanvasFocus | null>(null);
+  const [addSectionAfter, setAddSectionAfter] = useState<{ afterId: string | null } | null>(null);
+  /** True while the PDF is captured from the page, so it gets plain (non-editable) markup. */
+  const [pdfCapture, setPdfCapture] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  /** Template being previewed with this resume before applying it. */
+  const [tryOnTemplate, setTryOnTemplate] = useState<ResumeTemplate | null>(null);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  /** File name picked in the download dialog (used by the next PDF compile). */
+  const downloadFilenameRef = useRef<string | null>(null);
+  /** Score panel: issues fixed/ignored this session, and the one picked to show on the page. */
+  const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
+  const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
+  const [peekId, setPeekId] = useState<string | null>(null);
+  /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
+  const [aiReview, setAiReview] = useState<{
+    before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
+    lines: string[];
+  } | null>(null);
+  const [aiReviewListOpen, setAiReviewListOpen] = useState(false);
+  /** Job match: keywords the user marked as not relevant for this job. */
+  const [excludedKeywords, setExcludedKeywords] = useState<Set<string>>(() => new Set());
+  const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
+  const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
+  const canvasNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRootRef = useRef<HTMLDivElement>(null);
+  const canvasOnRef = useRef(canvasOn);
+  canvasOnRef.current = canvasOn;
   const showMobileEditPanel =
-    isMobile && (mobileEditOpen || viewMode === "ats");
+    isMobile && !canvasOn && (mobileEditOpen || viewMode === "ats");
 
   useEffect(() => {
-    if (isMobile && editingLayout) {
+    if (focusedForm && editingLayout) {
       setLayoutExpanded(true);
     }
-  }, [isMobile, editingLayout]);
+  }, [focusedForm, editingLayout]);
 
   // Delete section dialog state
   const [changeTemplateOpen, setChangeTemplateOpen] = useState(false);
@@ -441,6 +552,8 @@ export default function EditResumePage() {
   useEffect(() => {
     if (searchParams.get("view") === "ats") {
       setViewMode("ats");
+      // A ?view=ats link means "show me the ATS check": open its panel on the canvas too.
+      setCanvasPanel((current) => current ?? "fix");
     }
   }, [searchParams]);
 
@@ -578,11 +691,28 @@ export default function EditResumePage() {
   }, []);
 
   const bumpPreviewKey = useCallback((reason: string) => {
+    // A remount replaces the canvas scroller; bring the user back to where they were
+    // once the re-paginated pages are tall enough (undo/redo, photo upload…).
+    const top = document.querySelector<HTMLElement>(".rx-canvas-scroll")?.scrollTop ?? 0;
     setPreviewKey((prev) => {
       const next = prev + 1;
       debugResumePagination("previewKey:bump", { reason, next });
       return next;
     });
+    if (top > 0) {
+      let frames = 0;
+      let settled = 0;
+      const restore = () => {
+        const el = document.querySelector<HTMLElement>(".rx-canvas-scroll");
+        if (el && el.scrollHeight - el.clientHeight >= top - 1) {
+          if (Math.abs(el.scrollTop - top) > 2) el.scrollTop = top;
+          // Hold it a few frames: the new scroller can replace the old one late.
+          if (++settled >= 8) return;
+        }
+        if (++frames < 150) requestAnimationFrame(restore);
+      };
+      requestAnimationFrame(restore);
+    }
   }, []);
 
   const handleRearrangeDialogOpenChange = useCallback((open: boolean) => {
@@ -691,6 +821,73 @@ export default function EditResumePage() {
     [resumeId],
   );
 
+  // Never lose the last edits: save them when leaving the editor (or switching resume),
+  // when the tab/app goes to the background, and warn before a reload/close.
+  useEffect(() => {
+    const flush = () => {
+      const snapshot = resumeRef.current;
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+      if (!hasChangesRef.current || saveConflictRef.current || !snapshot || !currentLayout || currentSections.length === 0) return;
+      hasChangesRef.current = false;
+      // Save under the snapshot's own id: by the time this runs the route may show another resume.
+      void resumeApi
+        .update(snapshot.resumeId, {
+          title: snapshot.title,
+          templateId: snapshot.templateId,
+          content: snapshot.content,
+          profileSummary: snapshot.profileSummary,
+          sectionOrder: toSectionOrderPayload(currentSections),
+          layout: currentLayout,
+        })
+        .catch((error) => {
+          hasChangesRef.current = true;
+          if ((error as { response?: { status?: number } })?.response?.status !== 409) {
+            console.error("Saving on leave failed:", error);
+          }
+        });
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasChangesRef.current) return;
+      flush();
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flush();
+    };
+  }, [resumeId]);
+
+  const resolveSaveConflict = async (choice: "mine" | "theirs") => {
+    const conflict = saveConflict;
+    if (!conflict) return;
+    if (choice === "theirs") {
+      hasChangesRef.current = false;
+      setHasChanges(false);
+      setSaveConflict(null);
+      await loadResume();
+      return;
+    }
+    // Overwrite: base the save on the revision we were refused against.
+    if (conflict.latest) rememberResumeRevision(conflict.latest);
+    setSaveConflict(null);
+    const current = resumeRef.current;
+    if (current) {
+      try {
+        await persistResumeToServer(current);
+      } catch (error) {
+        console.error("Saving over the newer version failed:", error);
+      }
+    }
+  };
+
   const ensureResumePersisted = useCallback(async () => {
     const current = resumeRef.current;
     if (!current || !hasChangesRef.current) return;
@@ -764,7 +961,8 @@ export default function EditResumePage() {
             };
           });
         } else {
-          console.error("Auto thumbnail upload failed:", result.error);
+          // Non-critical: the next save captures it again.
+          console.warn("Auto thumbnail upload skipped:", result.error);
         }
       } catch (error) {
         console.error("Error during auto thumbnail capture:", error);
@@ -803,7 +1001,7 @@ export default function EditResumePage() {
 
   // Autosave only when the user has unsaved edits — not on ATS/thumbnail resume syncs.
   useEffect(() => {
-    if (!hasChanges) {
+    if (!hasChanges || saveConflict) {
       return;
     }
 
@@ -833,14 +1031,26 @@ export default function EditResumePage() {
         setLastSaved(new Date());
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
-        console.error("Autosave failed:", error);
+        // A save refused because another tab saved first is handled by the conflict banner.
+        if ((error as { response?: { status?: number } })?.response?.status !== 409) {
+          console.error("Autosave failed:", error);
+        }
       } finally {
         setAutoSaving(false);
       }
-    }, 5000);
+    }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture]);
+
+  useEffect(() => {
+    const onConflict = (event: Event) => {
+      const detail = (event as CustomEvent<ResumeConflictDetail>).detail;
+      if (detail.resumeId === resumeId) setSaveConflict(detail);
+    };
+    window.addEventListener(RESUME_CONFLICT_EVENT, onConflict);
+    return () => window.removeEventListener(RESUME_CONFLICT_EVENT, onConflict);
+  }, [resumeId]);
 
   const loadResume = async () => {
     try {
@@ -888,6 +1098,7 @@ export default function EditResumePage() {
       );
       resumeData.content.education = flattenedEducation.education;
 
+      rememberResumeRevision(resumeData);
       setResumeState(resumeData);
       if (flattenedEducation.changed) {
         setHasChanges(true);
@@ -1364,15 +1575,32 @@ export default function EditResumePage() {
         getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
       ),
     );
-    const filename = resumePdfFilenameFromResume(resume);
-    const compiled = await compileResumePdfFromPreviewContainer({
-      resumeId,
-      templateId,
-      previewContainerId: `resume-preview-container-${resumeId}`,
-      padding: pdfPadding,
-      filename,
-    });
-    return { ...compiled, filename };
+    const filename = downloadFilenameRef.current || resumePdfFilenameFromResume(resume);
+    // Capture plain markup: turn on-page editing off while the PDF is made.
+    const editingWasOn = canvasOnRef.current;
+    if (editingWasOn) {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setPdfCapture(true);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // Placeholders for empty fields are gone now; paginate the plain page again.
+      previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    try {
+      const compiled = await compileResumePdfFromPreviewContainer({
+        resumeId,
+        templateId,
+        previewContainerId: `resume-preview-container-${resumeId}`,
+        padding: pdfPadding,
+        filename,
+      });
+      return { ...compiled, filename };
+    } finally {
+      if (editingWasOn) {
+        setPdfCapture(false);
+        requestAnimationFrame(() => previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true }));
+      }
+    }
   };
 
   const syncCompiledPdfToExtension = async (
@@ -1799,6 +2027,11 @@ export default function EditResumePage() {
     // stale creation-time JD), even if the request below fails.
     setLastMatchedJd(jobDescription);
 
+    const before = {
+      content: resume.content,
+      profileSummary: resume.profileSummary,
+      sectionOrder: resume.sectionOrder,
+    };
     try {
       setMatchingJob(true);
       const matchInsights = isATSReportV3(resume.atsFeedback)
@@ -1843,6 +2076,14 @@ export default function EditResumePage() {
 
       handleResumeImported(updatedResume);
       setMatchJobOpen(false);
+      if (canvasOnRef.current) {
+        // Show what AI changed (orange) so the user can approve or undo it.
+        const lines = changedTextLines(
+          { ...before.content, profileSummary: before.profileSummary },
+          { ...result.content, profileSummary: result.profileSummary },
+        );
+        setAiReview(lines.length ? { before, lines } : null);
+      }
     } catch (error: any) {
       const serverMessage = error?.response?.data?.message;
       console.error("Error tailoring resume to job description:", {
@@ -1969,8 +2210,9 @@ export default function EditResumePage() {
       if (!current) return false;
       const next = applyAtsIssueFixToResume(current, original, improved);
       if (!next) return false;
-      resumeRef.current = next;
+      // Record the undo step BEFORE moving the ref: the history snapshot reads resumeRef.
       setResume(next);
+      resumeRef.current = next;
       setHasChanges(true);
       invalidateAtsScoreDisplay();
       return true;
@@ -2004,6 +2246,36 @@ export default function EditResumePage() {
     },
     [resumeId],
   );
+
+  // After each save, bring the ATS report up to date without the AI: fixed findings drop
+  // off and the score moves by the formula, so "Run check again" is only for a fresh AI read.
+  const hasAtsReport = !!resume?.atsFeedback && isATSReportV3(resume.atsFeedback);
+  useEffect(() => {
+    if (!lastSaved || !resumeId || !hasAtsReport || refreshingATS) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        let rescored = await resumeApi.rescoreATS(resumeId);
+        // Skipped because another write landed at the same moment: try once more.
+        if (!rescored && !cancelled) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          if (!cancelled) rescored = await resumeApi.rescoreATS(resumeId);
+        }
+        if (cancelled || !rescored) return;
+        setResumeState((prev) =>
+          prev ? { ...prev, atsScore: rescored.atsScore, atsFeedback: rescored.atsFeedback } : prev,
+        );
+        // Still typing: the score is for the last save, so keep showing it as out of date.
+        if (!hasChangesRef.current) setDisplayAtsScore(rescored.atsScore);
+      } catch {
+        // Not critical: the panel keeps the last report and "Run check again" still works.
+      }
+    }, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lastSaved, resumeId, hasAtsReport, refreshingATS]);
 
   const handleDownload = async () => {
     if (!canUse("resumeDownload") && !suppressHackathonTrial) {
@@ -2050,6 +2322,7 @@ export default function EditResumePage() {
           if (result.success) {
             const updatedResume = await resumeApi.get(resumeId);
             debugResumePagination("download:thumbnail:setResume", { resumeId });
+            rememberResumeRevision(updatedResume);
             setResumeState(updatedResume);
           }
         } catch (error) {
@@ -2452,6 +2725,7 @@ export default function EditResumePage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [layoutExpanded, setLayoutExpanded] = useState(false);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const canvasPhotoInputRef = useRef<HTMLInputElement>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
@@ -2557,7 +2831,7 @@ export default function EditResumePage() {
 
   useEffect(() => {
     if (
-      !isMobile ||
+      !focusedForm ||
       !mobileEditOpen ||
       viewMode !== "edit" ||
       !editingSectionId
@@ -2569,7 +2843,7 @@ export default function EditResumePage() {
       if (!target || target.expanded) return prev;
       return expandOnlySection(prev, editingSectionId);
     });
-  }, [isMobile, mobileEditOpen, viewMode, editingSectionId]);
+  }, [focusedForm, mobileEditOpen, viewMode, editingSectionId]);
 
   const mobileEditBarTitle = editingLayout
     ? "Layout & typography"
@@ -2578,6 +2852,539 @@ export default function EditResumePage() {
       : sections.find((s) => s.id === editingSectionId)?.title ?? "Edit section";
 
   const visibleSectionsForPicker = sections.filter((s) => s.visible);
+
+  // ── On-canvas editor ────────────────────────────────────────────────────
+  const canvasSectionRefs = useMemo<CanvasSectionRef[]>(
+    () => sections.filter((s) => s.visible).map((s) => ({ id: s.id, type: s.type, title: s.title })),
+    [sections],
+  );
+  const canvasEntryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of sections) {
+      const list = (resume?.content as Record<string, unknown> | undefined)?.[s.type];
+      if (Array.isArray(list)) counts[s.id] = list.length;
+    }
+    return counts;
+  }, [sections, resume?.content]);
+
+  const atsReportV3 = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+  // A fresh report replaces the session's fixed/ignored list.
+  useEffect(() => {
+    setFixResolved(new Set());
+    setActiveMarkId(null);
+  }, [atsReportV3]);
+  const resumeRawText = useMemo(
+    () => resumePlainText([resume?.content, resume?.profileSummary]),
+    [resume?.content, resume?.profileSummary],
+  );
+  const resumeText = useMemo(() => resumeRawText.toLowerCase(), [resumeRawText]);
+  // Suggestion types the user switched off in the ATS panel (remembered in this browser).
+  const [hiddenFixGroups, setHiddenFixGroups] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("rx-ats-hidden-groups") ?? "[]") as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const updateHiddenFixGroups = useCallback((next: Set<string>) => {
+    setHiddenFixGroups(next);
+    try {
+      window.localStorage.setItem("rx-ats-hidden-groups", JSON.stringify([...next]));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const allFixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  const fixGroups = useMemo(
+    () => allFixGroups.map((g) => (hiddenFixGroups.has(g.title) ? { ...g, items: [] } : g)),
+    [allFixGroups, hiddenFixGroups],
+  );
+  // Keywords on the page now: the report's matches plus any "missing" ones added since.
+  const matchedKeywords = useMemo(() => {
+    const feedback = resume?.jobMatchFeedback;
+    if (!feedback) return undefined;
+    const extra = [...feedback.missingSkills, ...partialJobKeywords(atsReportV3)].filter((k) => keywordOnResume(k, resumeText));
+    return [...new Set([...feedback.matchedSkills, ...extra])];
+  }, [resume?.jobMatchFeedback, atsReportV3, resumeText]);
+  const canvasMarks = useMemo<CanvasMark[]>(() => {
+    const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
+    if (aiMarks.length) return aiMarks;
+    if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
+    // Typos stay marked on the page even with the panel closed (like a spell checker).
+    if (!canvasPanel || canvasPanel === "outline" || canvasPanel === "design" || canvasPanel === "details") {
+      return fixMarks(
+        fixGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.check.id === "spellingGrammar" && i.wordFix) })),
+        fixResolved,
+      );
+    }
+    if (canvasPanel === "tailor") {
+      // Job keywords already on the resume, highlighted green while tailoring.
+      return (matchedKeywords ?? [])
+        .filter((k) => !excludedKeywords.has(k))
+        .map((k) => ({ id: `kw:${k}`, text: k, tone: "keyword" as const, wholeWord: true }));
+    }
+    return [];
+  }, [aiReview, canvasPanel, fixGroups, fixResolved, matchedKeywords, excludedKeywords]);
+
+  // Phones: the peek bar steps through the issues marked on the page.
+  const peekIndex = peekId ? canvasMarks.findIndex((m) => m.id === peekId) : -1;
+  const peekActive = isMobile && canvasOn && canvasPanel === "fix" && peekIndex >= 0;
+  const peekItem = useMemo(
+    () => (peekIndex >= 0 ? fixGroups.flatMap((g) => g.items).find((i) => i.id === canvasMarks[peekIndex].id) ?? null : null),
+    [fixGroups, canvasMarks, peekIndex],
+  );
+  // Panel closed or switched, or the issue was fixed / dismissed: back to normal.
+  useEffect(() => {
+    if (peekId && (canvasPanel !== "fix" || !isMobile || peekIndex < 0)) setPeekId(null);
+  }, [peekId, canvasPanel, isMobile, peekIndex]);
+  /** Select an issue again (re-runs the page scroll and the card scroll). */
+  const pickMark = useCallback((id: string) => {
+    setActiveMarkId(null);
+    requestAnimationFrame(() => setActiveMarkId(id));
+  }, []);
+
+  const rejectAiReview = () => {
+    const current = resumeRef.current;
+    if (!aiReview || !current) return;
+    const { before } = aiReview;
+    setAiReview(null);
+    handleResumeImported({
+      ...current,
+      content: JSON.parse(JSON.stringify(before.content)),
+      profileSummary: before.profileSummary,
+      sectionOrder: before.sectionOrder,
+    });
+    // Imported content counts as saved; this restore must be saved again.
+    setHasChanges(true);
+    showCanvasNotice("Undone — your resume is back to how it was before the rewrite.");
+  };
+
+  /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
+  const addSkillFromJob = (skill: string) => {
+    if (!resume) return;
+    const current = resume.content.skills as unknown;
+    let next: unknown;
+    if (Array.isArray(current)) {
+      if (current.some((s) => typeof s === "string" && s.toLowerCase() === skill.toLowerCase())) return;
+      next = [...current, skill];
+    } else if (typeof current === "string" && /<\/ul>/i.test(current)) {
+      next = current.replace(/<\/ul>(?![\s\S]*<\/ul>)/i, `<li>${escapeHtmlText(skill)}</li></ul>`);
+    } else if (typeof current === "string" && current.trim()) {
+      next = `${current.trim()}, ${skill}`;
+    } else {
+      next = [skill];
+    }
+    updateContent({ skills: next } as Partial<Resume["content"]>);
+    showCanvasNotice(`Added “${skill}” to Skills.`);
+  };
+  const resolveFix = (item: FixItem) =>
+    setFixResolved((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+
+  // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
+  useEffect(() => {
+    if (!canvasFocus) return;
+    const stillThere =
+      canvasSectionRefs.some((s) => s.id === canvasFocus.sectionId) &&
+      (canvasFocus.index === null || canvasFocus.index < (canvasEntryCounts[canvasFocus.sectionId] ?? 0));
+    if (!stillThere) setCanvasFocus(null);
+  }, [canvasFocus, canvasSectionRefs, canvasEntryCounts]);
+
+  const showCanvasNotice = useCallback((message: string) => {
+    setCanvasNotice(message);
+    if (canvasNoticeTimerRef.current) clearTimeout(canvasNoticeTimerRef.current);
+    canvasNoticeTimerRef.current = setTimeout(() => setCanvasNotice(null), 3200);
+  }, []);
+
+  const closeCanvasPanel = useCallback(() => {
+    setCanvasPanel(null);
+    finishMobileEdit();
+    setViewMode("edit");
+  }, [finishMobileEdit]);
+
+  const openCanvasPanel = useCallback(
+    (panel: CanvasPanel, sectionId?: string) => {
+      if (panel === canvasPanel && panel !== "details") {
+        closeCanvasPanel();
+        return;
+      }
+      setCanvasPanel(panel);
+      if (panel === "fix") {
+        finishMobileEdit();
+        setViewMode("ats");
+        if (!resume?.atsFeedback && !refreshingATS) void handleCheckATS();
+      } else if (panel === "details" && sectionId) {
+        setViewMode("edit");
+        startSectionEdit(sectionId);
+      } else if (panel === "design") {
+        setViewMode("edit");
+        startLayoutEdit();
+      } else {
+        finishMobileEdit();
+        setViewMode("edit");
+      }
+    },
+    // handleCheckATS is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canvasPanel, closeCanvasPanel, finishMobileEdit, startLayoutEdit, startSectionEdit, resume?.atsFeedback, refreshingATS],
+  );
+
+  const commitCanvasField = useCallback(
+    (path: string, value: string) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      if (path === "@profileSummary") {
+        setResume((prev) => (prev ? { ...prev, profileSummary: value } : prev));
+        setHasChanges(true);
+        invalidateAtsScoreDisplay();
+        return;
+      }
+      if (path.startsWith("@section:")) {
+        updateSectionTitle(path.slice("@section:".length), value);
+        return;
+      }
+      if (path.startsWith("@custom:")) {
+        const id = path.slice("@custom:".length);
+        const existing = current.content.customSections?.find((cs: { id: string }) => cs.id === id);
+        if (existing) updateContent({ customSections: [{ ...existing, content: value }] });
+        return;
+      }
+      const key = path.split(".")[0] as keyof Resume["content"];
+      const next = setAtPath(current.content as unknown as Record<string, unknown>, path, value);
+      updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+    },
+    // updateContent/updateSectionTitle close over the latest resume each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resume, setResume, invalidateAtsScoreDisplay],
+  );
+
+  // Track the bullet / summary the caret is in, for the AI assistant.
+  const handleCanvasFieldFocus = useCallback((path: string, element: HTMLElement) => {
+    if (!element.hasAttribute("data-rx-rich")) return;
+    const pickTarget = () => {
+      const selection = window.getSelection();
+      const node = selection?.anchorNode ?? null;
+      const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
+      // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
+      const line = (node instanceof Element ? node : node?.parentElement)?.closest("li, p");
+      const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
+      const text = (bullet ?? element).textContent?.replace(/\s+/g, " ").trim() ?? "";
+      if (!text) return;
+      const [section, index] = path.split(".");
+      const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
+      const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+      setAiTarget({
+        path,
+        kind,
+        text,
+        role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
+        company: typeof item?.company === "string" ? item.company : undefined,
+        apply: (replacement) => {
+          if (kind === "summary" || !bullet || !element.isConnected) {
+            commitCanvasFieldRef.current?.(path, kind === "summary" ? `<p>${escapeHtmlText(replacement)}</p>` : replacement);
+            return;
+          }
+          bullet.textContent = replacement;
+          commitCanvasFieldRef.current?.(path, sanitizeRichHtml(element.innerHTML));
+        },
+      });
+    };
+    pickTarget();
+    const onSelection = () => {
+      if (document.activeElement === element) pickTarget();
+    };
+    document.addEventListener("selectionchange", onSelection);
+    element.addEventListener("blur", () => document.removeEventListener("selectionchange", onSelection), { once: true });
+  }, []);
+  const commitCanvasFieldRef = useRef(commitCanvasField);
+  commitCanvasFieldRef.current = commitCanvasField;
+
+  const canvasEditApi = useMemo<CanvasEditApi | null>(
+    () =>
+      canvasOn && !pdfCapture
+        ? {
+            commitField: (path, value) => commitCanvasFieldRef.current(path, value),
+            commitSectionTitle: (id, title) => updateSectionTitle(id, title),
+            onFieldFocus: handleCanvasFieldFocus,
+            focus: canvasFocus
+              ? {
+                  sectionId: canvasFocus.sectionId,
+                  sectionType: sections.find((s) => s.id === canvasFocus.sectionId)?.type ?? "",
+                  index: canvasFocus.index,
+                }
+              : null,
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canvasOn, pdfCapture, handleCanvasFieldFocus, canvasFocus, sections],
+  );
+
+  const sectionTypeOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.type ?? "";
+
+  /** Upload a cropped photo and put it on the resume (used by Details and the on-page pen). */
+  const uploadCroppedPhoto = async (croppedImageUrl: string) => {
+    if (!resume) return;
+    try {
+      const blob = await (await fetch(croppedImageUrl)).blob();
+      const formData = new FormData();
+      formData.append("file", blob, "profile-picture.jpg");
+      const uploadResponse = await apiClient.post<{
+        success: boolean;
+        message: string;
+        data: { profilePictureUrl: string };
+      }>(`/resumes/${resume.resumeId}/profile-picture`, formData);
+      const profilePictureUrl = uploadResponse.data.success ? uploadResponse.data.data?.profilePictureUrl : undefined;
+      if (!profilePictureUrl) return;
+      setResume((prevResume) =>
+        prevResume
+          ? {
+              ...prevResume,
+              content: {
+                ...prevResume.content,
+                personalInfo: { ...prevResume.content.personalInfo, profilePicture: profilePictureUrl },
+              },
+            }
+          : prevResume,
+      );
+      // Give S3 a moment, then re-render so the new image loads.
+      setTimeout(() => bumpPreviewKey("profilePicture:upload-delay500"), 500);
+      setHasChanges(true);
+    } catch (error) {
+      console.error("Error uploading cropped profile picture:", error);
+      alert("Failed to upload profile picture. Please try again.");
+    }
+  };
+
+  const openPhotoPicker = () => canvasPhotoInputRef.current?.click();
+
+  const onPhotoFilePicked = (file: File | undefined) => {
+    if (!file || !resume) return;
+    setProfilePictureFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImageToCrop(event.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    const current = resumeRef.current ?? resume;
+    if (!current) return;
+    updateContent({ personalInfo: { ...current.content.personalInfo, profilePicture: "" } });
+    setProfilePictureFileName("");
+    if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+  };
+
+  const canvasHandlers: CanvasInteractionHandlers = {
+    onAddEntry: (sectionId, afterIndex) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const { content, index } = addEntry(
+        resume.content as unknown as Record<string, unknown>,
+        type,
+        afterIndex ?? undefined,
+      );
+      updateContent({ [type]: content[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index });
+    },
+    onMoveEntry: (sectionId, index, delta) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = moveEntry(resume.content as unknown as Record<string, unknown>, type, index, delta);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index: index + delta });
+    },
+    onDuplicateEntry: (sectionId, index) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = duplicateEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index: index + 1 });
+    },
+    onDeleteEntry: (sectionId, index) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = deleteEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus(null);
+      showCanvasNotice("Entry deleted — press Ctrl/⌘ Z to undo.");
+    },
+    onMoveSection: (sectionId, delta) => {
+      setSections((prev) => {
+        const visible = prev.filter((s) => s.visible);
+        const from = visible.findIndex((s) => s.id === sectionId);
+        const to = from + delta;
+        if (from < 0 || to < 0 || to >= visible.length) return prev;
+        const a = prev.findIndex((s) => s.id === visible[from].id);
+        const b = prev.findIndex((s) => s.id === visible[to].id);
+        const next = [...prev];
+        [next[a], next[b]] = [next[b], next[a]];
+        // In two columns a section keeps its column unless it swaps with one in the other column.
+        return next;
+      });
+      setHasChanges(true);
+    },
+    onHideSection: (sectionId) => {
+      setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, visible: false } : s)));
+      setHasChanges(true);
+      setCanvasFocus(null);
+      showCanvasNotice("Section hidden — add it back from + Section.");
+    },
+    onDeleteSection: (sectionId) => {
+      const section = sections.find((s) => s.id === sectionId);
+      if (!section) return;
+      setCanvasFocus(null);
+      setSectionToDelete({ id: section.id, type: section.type, title: section.title } as never);
+      setDeleteDialogOpen(true);
+    },
+    onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
+    onNotice: showCanvasNotice,
+    getDates: (entryPath) => {
+      const entry = getAtPath(resume?.content, entryPath) as Record<string, unknown> | undefined;
+      return {
+        startDate: typeof entry?.startDate === "string" ? entry.startDate : "",
+        endDate: typeof entry?.endDate === "string" ? entry.endDate : "",
+        current: entry?.current === true,
+      };
+    },
+    onChangePhoto: openPhotoPicker,
+    onRemovePhoto: removePhoto,
+    getTags: (sectionType) => parseTags((resume?.content as Record<string, unknown> | undefined)?.[sectionType]).tags,
+    onSetTags: (sectionType, tags) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      const { shape } = parseTags((current.content as unknown as Record<string, unknown>)[sectionType]);
+      updateContent({ [sectionType]: serialiseTags(tags, shape) } as Partial<Resume["content"]>);
+    },
+    onSetDates: (entryPath, dates) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      const entry = getAtPath(current.content, entryPath);
+      if (!entry || typeof entry !== "object") return;
+      let next = current.content as unknown as Record<string, unknown>;
+      next = setAtPath(next, `${entryPath}.startDate`, dates.startDate);
+      next = setAtPath(next, `${entryPath}.endDate`, dates.current ? "" : dates.endDate);
+      if (!entryPath.startsWith("education")) next = setAtPath(next, `${entryPath}.current`, dates.current);
+      const key = entryPath.split(".")[0] as keyof Resume["content"];
+      updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+    },
+  };
+
+  /** Add (or re-show) a section from the canvas, placed after `afterId`, seeded so it is visible on the page. */
+  const addCanvasSection = (type: string, afterId: string | null) => {
+    if (!resume) return;
+    beginHistoryTransaction();
+    try {
+      const existing = type === "custom" ? undefined : sections.find((s) => s.type === type);
+      const sectionId = existing?.id ?? `${type}_${Date.now()}`;
+      const titles: Record<string, string> = Object.fromEntries(ADDABLE_SECTIONS.map((s) => [s.type, s.label]));
+      const after = afterId ? sections.find((s) => s.id === afterId) : undefined;
+      setSectionsState((prev) => {
+        const without = prev.filter((s) => s.id !== sectionId);
+        const section: Section = {
+          ...(existing ?? { id: sectionId, type: type as Section["type"], title: titles[type] ?? "New Section", expanded: false }),
+          visible: true,
+          ...(after?.column ? { column: after.column } : {}),
+        } as Section;
+        const at = after ? without.findIndex((s) => s.id === after.id) + 1 : without.length;
+        return [...without.slice(0, at), section, ...without.slice(at)];
+      });
+      const content = resume.content as unknown as Record<string, unknown>;
+      if (type === "custom") {
+        updateContent({
+          customSections: [
+            ...(resume.content.customSections || []),
+            { id: sectionId, title: titles.custom, content: "<ul><li>Sample — add a point here.</li></ul>" },
+          ],
+        });
+      } else if (type === "profileSummary") {
+        if (!resume.profileSummary) setResume((prev) => (prev ? { ...prev, profileSummary: "" } : prev));
+      } else if (isEntrySection(type) && !(Array.isArray(content[type]) && (content[type] as unknown[]).length)) {
+        const { content: next } = addEntry(content, type);
+        updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      }
+      setHasChanges(true);
+      setCanvasFocus({ sectionId, index: isEntrySection(type) ? 0 : null });
+      // Bring the new section into view once pagination has placed it on a page.
+      let attempts = 0;
+      const reveal = () => {
+        const target = Array.from(
+          canvasRootRef.current?.querySelectorAll<HTMLElement>(`.resume-page [data-section="${CSS.escape(sectionId)}"]`) ?? [],
+        ).find((el) => el.getClientRects().length > 0);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+        else if (attempts++ < 12) setTimeout(reveal, 150);
+      };
+      setTimeout(reveal, 200);
+    } finally {
+      endHistoryTransaction();
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await ensureResumePersisted();
+      // A fresh PDF so the link shows what is on screen now.
+      await compileCurrentPdfFromPreview();
+      const { url } = await resumeApi.createShareLink(resumeId);
+      setShareUrl(url);
+    } catch (error) {
+      console.error("Share link failed:", error);
+      showCanvasNotice("Couldn't create a share link. Try downloading once, then share again.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const setEditorMode = (mode: "canvas" | "classic") => {
+    setCanvasOn(mode === "canvas");
+    setCanvasPanel(null);
+    setCanvasFocus(null);
+    finishMobileEdit();
+    setViewMode("edit");
+    try {
+      window.localStorage.setItem(EDITOR_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* private mode */
+    }
+  };
+
+  const canvasPanelTitle =
+    canvasPanel === "outline"
+      ? "Outline"
+      : canvasPanel === "fix"
+      ? "ATS score"
+      : canvasPanel === "tailor"
+        ? "Job match"
+      : canvasPanel === "templates"
+        ? "Designs"
+        : canvasPanel === "design"
+          ? "Style"
+          : canvasPanel === "ai"
+            ? "AI Coach"
+            : canvasPanel === "details"
+              ? sections.find((s) => s.id === editingSectionId)?.title ?? "Details"
+              : "";
+  const studioProps: StudioProps = {
+    activePanel: canvasPanel,
+    onPanel: (panel) => openCanvasPanel(panel),
+    onReorder: () => setRearrangeSectionsOpen(true),
+    reorderDisabled: !layout || sections.length === 0,
+    onAddSection: () => setAddSectionAfter({ afterId: null }),
+    atsScore: displayAtsScore ?? resume?.atsScore ?? null,
+    checkingAts: refreshingATS,
+    jobMatchScore: resume?.jobMatchScore ?? null,
+    tailoring: matchingJob,
+  };
+  const formPanelOpen = canvasOn && (canvasPanel === "fix" || canvasPanel === "details" || canvasPanel === "design");
+
+
 
   if (
     !mounted ||
@@ -2626,7 +3433,17 @@ export default function EditResumePage() {
         </div>
       ) : null}
       {extensionSyncState !== "idle" ? (
-        <div className="border-b border-border bg-primary/5 px-4 py-2 text-center text-sm text-foreground md:text-left">
+        <div className="relative border-b border-border bg-primary/5 px-4 py-2 pr-10 text-center text-sm text-foreground md:text-left">
+          {extensionSyncState !== "syncing" ? (
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setExtensionSyncState("idle")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
           {extensionSyncState === "syncing"
             ? "Syncing this resume with Chrome…"
             : null}
@@ -2645,6 +3462,113 @@ export default function EditResumePage() {
           Resume tailored. Click Sync Resume with Chrome when you want this PDF in the extension.
         </div>
       ) : null}
+      {canvasOn ? (
+        <>
+          <div className="flex items-center gap-1.5 border-b border-border bg-background px-2 py-1.5 md:gap-3 md:px-4 md:py-2">
+            <Link href="/dashboard/resumes" className="shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Back to resumes">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div className="min-w-0 flex-1 md:flex md:items-center md:gap-3">
+              <div className="min-w-0 md:max-w-[360px]">
+                <ResumeEditorTitle
+                  compact
+                  value={resume.title}
+                  onChange={(title) => {
+                    setResume({ ...resume, title });
+                    setHasChanges(true);
+                  }}
+                />
+              </div>
+              <p className="flex min-w-0 items-center truncate text-[11px] text-muted-foreground md:text-xs">
+                {autoSaving || saving ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin" />
+                    Saving…
+                  </>
+                ) : hasChanges ? (
+                  "Unsaved changes"
+                ) : lastSaved ? (
+                  <>
+                    <Check className="mr-1 h-3 w-3 text-emerald-600" />
+                    Saved
+                  </>
+                ) : (
+                  " "
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditorMode("classic")}
+              className="hidden shrink-0 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground lg:block"
+            >
+              Classic editor
+            </button>
+            <IconTooltipButton
+              onClick={() => setImportResumeOpen(true)}
+              variant="ghost"
+              label="Import resume data"
+              disabled={refreshingATS || autoSaving || saving || changingTemplate}
+              className="hidden md:inline-flex"
+            >
+              <Upload className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={() => void handleSyncResumeWithChrome()}
+              variant="ghost"
+              label={extensionSyncState === "syncing" ? "Syncing with Chrome…" : "Sync Resume with Chrome"}
+              disabled={extensionSyncState === "syncing" || autoSaving || saving || changingTemplate}
+              className="hidden md:inline-flex"
+            >
+              {extensionSyncState === "syncing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChromeIcon className="h-4 w-4" />}
+            </IconTooltipButton>
+            <span className="mx-0.5 hidden h-5 w-px bg-border md:block" aria-hidden />
+            <IconTooltipButton onClick={handleUndo} variant="ghost" label="Undo (Ctrl/⌘ Z)" disabled={!editorHistory.canUndo}>
+              <Undo2 className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={handleRedo}
+              variant="ghost"
+              label="Redo (Ctrl/⌘ Shift Z)"
+              disabled={!editorHistory.canRedo}
+              className="hidden sm:inline-flex"
+            >
+              <Redo2 className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={() => {
+                // Save pending edits first so they become part of the timeline.
+                void ensureResumePersisted()
+                  .catch((error) => console.error("Save before versions failed:", error))
+                  .finally(() => setHistoryOpen(true));
+              }}
+              variant="ghost"
+              label="Versions"
+            >
+              <History className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton onClick={() => previewRef.current?.openPdfPreview()} variant="ghost" label="Preview">
+              <Eye className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton onClick={() => void handleShareLink()} variant="ghost" label="Share link" disabled={sharing}>
+              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+            </IconTooltipButton>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setDownloadDialogOpen(true)}
+              disabled={downloading}
+              className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin md:mr-1.5" /> : <Download className="h-4 w-4 md:mr-1.5" />}
+              <span className="hidden md:inline">{downloading ? "Preparing…" : "Export"}</span>
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
       {/* Top Header Bar */}
       <div className={resumeEditorToolbar}>
         <div className={cn(resumeEditorToolbarInner, "md:py-3", resumeEditorToolbarMobile)}>
@@ -2840,6 +3764,15 @@ export default function EditResumePage() {
                 >
                   <Redo2 className="h-4 w-4" />
                 </IconTooltipButton>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditorMode("canvas")}
+                  className="h-9 whitespace-nowrap border-primary/40 text-primary hover:bg-primary/5"
+                >
+                  Edit on page
+                </Button>
                 <IconTooltipButton
                   onClick={() => setImportResumeOpen(true)}
                   variant="outline"
@@ -2954,6 +3887,15 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      {isMobile ? (
+        <button
+          type="button"
+          onClick={() => setEditorMode("canvas")}
+          className="border-b border-primary/20 bg-primary/5 px-4 py-2 text-left text-xs font-semibold text-primary"
+        >
+          New: edit your resume right on the page →
+        </button>
+      ) : null}
       {isMobile && resume ? (
         <ResumeEditorMobileChrome
           sectionPickerOpen={sectionPickerOpen}
@@ -3005,27 +3947,49 @@ export default function EditResumePage() {
         />
       ) : null}
 
+        </>
+      )}
       {/* Main Content: mobile = live preview canvas; md+ = side-by-side */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        {canvasOn && !isMobile ? <StudioSidebar {...studioProps} /> : null}
         {isMobile && showMobileEditPanel ? (
           <div className={resumeEditorMobileOverlay} aria-hidden />
         ) : null}
-        {/* Edit panel — centered popup on mobile when editing */}
+        {isMobile && canvasOn && canvasPanel && !tryOnTemplate && !peekActive ? (
+          <button type="button" aria-label="Close panel" className="fixed inset-0 z-[59] bg-black/30" onClick={closeCanvasPanel} />
+        ) : null}
+        {/* Edit panel — centered popup on mobile when editing; a docked side panel on the canvas */}
         <div
           className={cn(
-            resumeEditorPanel,
-            isMobile && showMobileEditPanel && resumeEditorPanelMobileSheet,
-            isMobile && showMobileEditPanel && "overflow-hidden",
-            isMobile && !showMobileEditPanel && "hidden",
+            canvasOn
+              ? formPanelOpen && !peekActive
+                ? isMobile
+                  ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl"
+                  : "resume-editor-fields flex min-h-0 w-[380px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
+                : "hidden"
+              : cn(
+                  resumeEditorPanel,
+                  isMobile && showMobileEditPanel && resumeEditorPanelMobileSheet,
+                  isMobile && showMobileEditPanel && "overflow-hidden",
+                  isMobile && !showMobileEditPanel && "hidden",
+                ),
           )}
         >
-          {isMobile && mobileEditOpen && viewMode === "edit" ? (
+          {canvasOn ? (
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <h3 className="truncate text-sm font-semibold text-foreground">{canvasPanelTitle}</h3>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={closeCanvasPanel} aria-label="Close panel">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
+          {!canvasOn && isMobile && mobileEditOpen && viewMode === "edit" ? (
             <ResumeEditorMobileEditBar
               title={mobileEditBarTitle}
               onDone={handleMobileDone}
             />
           ) : null}
-          {isMobile && viewMode === "ats" ? (
+          {!canvasOn && isMobile && viewMode === "ats" ? (
             <ResumeEditorMobileEditBar
               title="ATS Report"
               onDone={handleMobileDone}
@@ -3033,13 +3997,12 @@ export default function EditResumePage() {
           ) : null}
           <div
             className={cn(
-              isMobile &&
-                showMobileEditPanel &&
+              ((isMobile && showMobileEditPanel) || canvasOn) &&
                 "min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y",
             )}
           >
           {/* Toggle between Edit Resume and ATS Report */}
-          <div className={cn(resumeEditorTabsRow, isMobile && "hidden")}>
+          <div className={cn(resumeEditorTabsRow, (isMobile || canvasOn) && "hidden")}>
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
@@ -3066,7 +4029,66 @@ export default function EditResumePage() {
             </div>
           </div>
 
-          {viewMode === "ats" ? (
+          {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
+            <FixMistakesPanel
+              liveText={resumeRawText}
+              onDone={resolveFix}
+              onAddSkill={addSkillFromJob}
+              hiddenGroups={hiddenFixGroups}
+              onHiddenGroupsChange={updateHiddenFixGroups}
+              report={atsReportV3}
+              score={displayAtsScore ?? resume.atsScore ?? null}
+              checking={refreshingATS}
+              edited={displayAtsScore === null}
+              resolved={fixResolved}
+              activeId={activeMarkId}
+              onLocate={(id) => {
+                // Re-picking the same issue should scroll to it again.
+                pickMark(id);
+                // Phones: the sheet covers the page, so step aside to show the marked text,
+                // zoomed in enough to read it (the page is fitted to the screen, ~40%).
+                if (isMobile) {
+                  setPeekId(id);
+                  previewRef.current?.zoomAtLeast(MOBILE_ISSUE_ZOOM);
+                }
+              }}
+              onApply={(item, improved) => {
+                // `quote` is the exact text to replace (a typo's single word, not its whole phrase).
+                const ok = handleApplyAtsIssueFix(item.quote || item.issue.excerpt || "", improved);
+                if (ok) resolveFix(item);
+                else showCanvasNotice("Couldn't find that text on your resume — it may have changed already.");
+                return ok;
+              }}
+              onIgnore={(item) => {
+                resolveFix(item);
+                handleIgnoreATSIssue(item.check, item.issue).catch(() => {
+                  // Not saved: bring the card back so the list matches the score.
+                  setFixResolved((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
+                  showCanvasNotice("Couldn't dismiss that — check your connection and try again.");
+                });
+              }}
+              onRecheck={handleCheckATS}
+              onTailor={() => setMatchJobOpen(true)}
+              targetRole={resume.content.personalInfo?.portfolio}
+            >
+              <ATSReportView
+                feedback={resume.atsFeedback}
+                jobMatchScore={resume.jobMatchScore}
+                resumeId={resume.resumeId}
+                embedded
+                enableIssueMagic
+                onApplyIssueFix={handleApplyAtsIssueFix}
+                onIgnoreIssue={handleIgnoreATSIssue}
+                onRunJobMatch={handleRunJobMatch}
+                jobMatchRunning={refreshingATS}
+                initialJobDescription={resume.atsScoringContext?.lastJobDescription}
+              />
+            </FixMistakesPanel>
+          ) : viewMode === "ats" ? (
             resume.atsFeedback ? (
               <div className="min-w-0 bg-card p-3 sm:p-4">
                 {showImprovedBanner && (
@@ -3099,10 +4121,26 @@ export default function EditResumePage() {
               </div>
             ) : (
               <div className="p-6 text-center text-muted-foreground">
-                <p>
-                  No ATS feedback yet. Click <strong>Check ATS Score</strong> in
-                  the header to run a score and report.
-                </p>
+                {canvasOn ? (
+                  refreshingATS ? (
+                    <p className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking your resume…
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p>Get a grade and a list of fixes for this resume.</p>
+                      <Button type="button" size="sm" onClick={handleCheckATS} disabled={autoSaving || saving}>
+                        Check my resume
+                      </Button>
+                    </div>
+                  )
+                ) : (
+                  <p>
+                    No ATS feedback yet. Click <strong>Check ATS Score</strong> in
+                    the header to run a score and report.
+                  </p>
+                )}
               </div>
             )
           ) : (
@@ -3113,7 +4151,7 @@ export default function EditResumePage() {
               )}
             >
               {/* Layout & typography — above all sections */}
-              {(!isMobile || editingLayout) && layout && (
+              {(!focusedForm || editingLayout) && layout && (
               <Card className={resumeSectionCardClass(false, false)}>
                 <div className={resumeSectionHeader}>
                   <p className="text-sm font-semibold text-foreground">
@@ -3328,7 +4366,7 @@ export default function EditResumePage() {
               {sections
                 .filter((s) => s.visible)
                 .filter((s) => {
-                  if (!isMobile || !mobileEditOpen || viewMode !== "edit") {
+                  if (!focusedForm || !mobileEditOpen || viewMode !== "edit") {
                     return true;
                   }
                   if (editingLayout || editingAddSections) return false;
@@ -3491,104 +4529,6 @@ export default function EditResumePage() {
                                 )}
                               </div>
                             </div>
-
-                            {/* Profile Picture Cropper Dialog */}
-                            {imageToCrop && (
-                              <ProfilePictureCropper
-                                open={cropperOpen}
-                                onOpenChange={(open) => {
-                                  setCropperOpen(open);
-                                  if (!open) {
-                                    // Reset file input when dialog closes
-                                    if (profilePictureInputRef.current) {
-                                      profilePictureInputRef.current.value = "";
-                                    }
-                                    setImageToCrop(null);
-                                  }
-                                }}
-                                imageSrc={imageToCrop}
-                                onCropComplete={async (croppedImageUrl) => {
-                                  if (!resume) return;
-
-                                  try {
-                                    // Convert data URL to blob
-                                    const response =
-                                      await fetch(croppedImageUrl);
-                                    const blob = await response.blob();
-
-                                    // Create FormData and upload
-                                    const formData = new FormData();
-                                    formData.append(
-                                      "file",
-                                      blob,
-                                      "profile-picture.jpg",
-                                    );
-
-                                    const uploadResponse =
-                                      await apiClient.post<{
-                                        success: boolean;
-                                        message: string;
-                                        data: { profilePictureUrl: string };
-                                      }>(
-                                        `/resumes/${resume.resumeId}/profile-picture`,
-                                        formData,
-                                      );
-
-                                    if (
-                                      uploadResponse.data.success &&
-                                      uploadResponse.data.data
-                                        ?.profilePictureUrl
-                                    ) {
-                                      const profilePictureUrl =
-                                        uploadResponse.data.data
-                                          .profilePictureUrl;
-
-                                      // Update resume state with new profile picture URL
-                                      setResume((prevResume) => {
-                                        if (!prevResume) return prevResume;
-                                        return {
-                                          ...prevResume,
-                                          content: {
-                                            ...prevResume.content,
-                                            personalInfo: {
-                                              ...prevResume.content
-                                                .personalInfo,
-                                              profilePicture: profilePictureUrl,
-                                            },
-                                          },
-                                        };
-                                      });
-
-                                      // Wait a moment for S3 to propagate the file, then force re-render
-                                      // This ensures the image is available before we try to load it
-                                      setTimeout(() => {
-                                        // Force resume preview to re-render by updating key
-                                        // This ensures the image loads immediately after upload
-                                        bumpPreviewKey(
-                                          "profilePicture:upload-delay500",
-                                        );
-                                      }, 500);
-
-                                      // Trigger hasChanges to enable autosave
-                                      setHasChanges(true);
-
-                                      console.log(
-                                        "Profile picture updated in state:",
-                                        profilePictureUrl,
-                                      );
-                                    }
-                                  } catch (error) {
-                                    console.error(
-                                      "Error uploading cropped profile picture:",
-                                      error,
-                                    );
-                                    alert(
-                                      "Failed to upload profile picture. Please try again.",
-                                    );
-                                  }
-                                }}
-                              />
-                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                               <div>
@@ -6603,7 +7543,7 @@ export default function EditResumePage() {
                 })}
 
               {/* Add more sections — separate from layout */}
-              {(!isMobile || editingAddSections) && (
+              {(!focusedForm || editingAddSections) && (
               <Card className={resumeAddSectionsCard}>
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -6715,25 +7655,134 @@ export default function EditResumePage() {
           </div>
         </div>
 
+        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai" || canvasPanel === "tailor" || canvasPanel === "outline") ? (
+          <div
+            className={
+              isMobile
+                ? cn(
+                    "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl",
+                    // A full-screen template preview is open on top: step out of its way.
+                    tryOnTemplate && "hidden",
+                  )
+                : "flex min-h-0 w-[340px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
+            }
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
+              <h3 className="text-sm font-semibold text-foreground">{canvasPanelTitle}</h3>
+              <div className="flex items-center gap-1">
+                {canvasPanel === "templates" ? (
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={closeCanvasPanel}>
+                    Done
+                  </Button>
+                ) : null}
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={closeCanvasPanel} aria-label="Close panel">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {canvasPanel === "outline" ? (
+              <OutlinePanel
+                sections={sections.map((s) => ({ id: s.id, type: s.type, title: s.title, visible: s.visible, count: canvasEntryCounts[s.id] }))}
+                activeId={canvasFocus?.sectionId ?? null}
+                onJump={(id) => {
+                  setCanvasFocus({ sectionId: id, index: null });
+                  const target = Array.from(
+                    canvasRootRef.current?.querySelectorAll<HTMLElement>(`.resume-page [data-section="${CSS.escape(id)}"]`) ?? [],
+                  ).find((el) => el.getClientRects().length > 0);
+                  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                onToggle={(id) => {
+                  setSections((prev) => prev.map((s) => (s.id === id ? { ...s, visible: !s.visible } : s)));
+                  setHasChanges(true);
+                }}
+                onMove={(id, delta) => canvasHandlers.onMoveSection(id, delta)}
+                onInsert={() => setAddSectionAfter({ afterId: null })}
+              />
+            ) : canvasPanel === "tailor" ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <TailorPanel
+                  resumeText={resumeText}
+                  report={atsReportV3}
+                  onShowCheck={(checkId) => {
+                    // Jump into the ATS panel on that check's first open finding.
+                    const target = fixGroups
+                      .flatMap((g) => g.items)
+                      .find((item) => item.check.id === checkId && !item.incomplete && !fixResolved.has(item.id));
+                    openCanvasPanel("fix");
+                    setActiveMarkId(null);
+                    if (target) requestAnimationFrame(() => setActiveMarkId(target.id));
+                  }}
+                  summaryText={htmlToPlainText(resume.profileSummary ?? "")}
+                  onApplySummary={(text) => commitCanvasFieldRef.current?.("@profileSummary", `<p>${escapeHtmlText(text)}</p>`)}
+                  targetRole={resume.content.personalInfo?.portfolio}
+                  jobDescription={lastMatchedJd ?? resume.atsScoringContext?.lastJobDescription ?? ""}
+                  match={resume.jobMatchFeedback ?? null}
+                  score={resume.jobMatchScore ?? null}
+                  running={refreshingATS}
+                  tailoring={matchingJob}
+                  excluded={excludedKeywords}
+                  onToggleExclude={(keyword) =>
+                    setExcludedKeywords((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(keyword)) next.delete(keyword);
+                      else next.add(keyword);
+                      return next;
+                    })
+                  }
+                  onCheck={(jd) => {
+                    setLastMatchedJd(jd);
+                    setExcludedKeywords(new Set());
+                    void handleRunJobMatch(jd).catch(() =>
+                      showCanvasNotice("Couldn't check the match right now. Try again in a moment."),
+                    );
+                  }}
+                  onTailor={(jd) => handleRequestMatchJobDescription(jd)}
+                  onAddSkill={addSkillFromJob}
+                />
+              </div>
+            ) : canvasPanel === "templates" ? (
+              <TemplatesPanel
+                currentTemplateId={resume.templateId}
+                onSelectTemplate={handleChangeTemplate}
+                applying={changingTemplate}
+                onPreview={setTryOnTemplate}
+              />
+            ) : (
+              <AiAssistPanel
+                liveText={resumeText}
+                target={aiTarget}
+                targetRole={resume.content.personalInfo?.portfolio}
+                onTailor={() => setMatchJobOpen(true)}
+                onFixMistakes={() => openCanvasPanel("fix")}
+              />
+            )}
+          </div>
+        ) : null}
+
         {/* Preview — full canvas on mobile */}
         <div
-          className={cn(
-            resumePreviewPanel,
-            isMobile && resumePreviewPanelMobile,
-            isMobile && "flex min-h-0 flex-1 flex-col",
-          )}
+          className={
+            canvasOn
+              ? "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+              : cn(
+                  resumePreviewPanel,
+                  isMobile && resumePreviewPanelMobile,
+                  isMobile && "flex min-h-0 flex-1 flex-col",
+                )
+          }
         >
-          <div className={resumePreviewHeader}>
+          <div className={cn(resumePreviewHeader, canvasOn && "md:hidden")}>
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Eye className="h-4 w-4 text-primary" />
               Preview
             </h3>
             <div className="text-xs text-muted-foreground">Live Preview</div>
           </div>
-          <div className={cn("p-4", isMobile && "min-h-0 flex-1 p-0")}>
+          <div className={cn("p-4", (isMobile || canvasOn) && "min-h-0 flex-1 p-0")}>
             {template && previewResume ? (
               <>
                 <TemplateStyleLoader templateId={template.id} />
+                <CanvasEditProvider value={canvasEditApi}>
                 <ResumePreview
                 ref={previewRef}
                 key={`resume-preview-${previewKey}`}
@@ -6747,7 +7796,98 @@ export default function EditResumePage() {
                 onPageDelete={handlePreviewPageDelete}
                 onPaginationSnapshot={handlePaginationSnapshot}
                 onRefresh={handlePreviewRefresh}
+                canvasMode={canvasOn}
+                overlayRootRef={canvasRootRef}
+                overlay={
+                  canvasEditApi ? (
+                    <CanvasInteractionLayer
+                      rootRef={canvasRootRef}
+                      sections={canvasSectionRefs}
+                      entryCounts={canvasEntryCounts}
+                      focus={canvasFocus}
+                      onFocusChange={setCanvasFocus}
+                      handlers={canvasHandlers}
+                      isMobile={isMobile}
+                      revision={previewResume}
+                      marks={canvasMarks}
+                      activeMarkId={activeMarkId}
+                    />
+                  ) : null
+                }
               />
+                </CanvasEditProvider>
+                {saveConflict ? (
+                  <div role="alert" className="absolute inset-x-0 top-3 z-40 flex justify-center px-3">
+                    <div className="flex w-full max-w-xl flex-wrap items-center gap-2 rounded-2xl border border-amber-300 bg-background/95 px-4 py-2.5 shadow-xl backdrop-blur dark:border-amber-800">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                      <span className="min-w-0 flex-1 text-sm text-foreground">
+                        This resume was changed in another tab or device. Saving is paused so neither copy is lost.
+                      </span>
+                      <div className="ml-auto flex gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => void resolveSaveConflict("theirs")}>
+                          Load latest
+                        </Button>
+                        <Button type="button" size="sm" onClick={() => void resolveSaveConflict("mine")}>
+                          Keep mine
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                {aiReview ? (
+                  <div className="absolute inset-x-0 top-3 z-30 flex justify-center px-3">
+                    <div className="w-full max-w-xl rounded-2xl border border-indigo-200 bg-background/95 shadow-xl backdrop-blur dark:border-indigo-900">
+                      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                        <Sparkles className="h-4 w-4 shrink-0 text-indigo-500" />
+                        <span className="text-sm text-foreground">
+                          AI rewrote <strong>{aiReview.lines.length}</strong> {aiReview.lines.length === 1 ? "line" : "lines"} for this job
+                          <span className="text-muted-foreground"> · dashed underline</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAiReviewListOpen((v) => !v)}
+                          className="text-xs font-semibold text-indigo-600 hover:underline"
+                        >
+                          {aiReviewListOpen ? "Hide changes" : "See changes"}
+                        </button>
+                        <div className="ml-auto flex gap-2">
+                          <Button type="button" size="sm" variant="ghost" onClick={rejectAiReview}>
+                            Undo all
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => setAiReview(null)}>
+                            Keep all
+                          </Button>
+                        </div>
+                      </div>
+                      {aiReviewListOpen ? (
+                        <ol className="max-h-56 space-y-1 overflow-y-auto border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                          {aiReview.lines.map((line, i) => (
+                            <li key={i}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveMarkId(null);
+                                  requestAnimationFrame(() => setActiveMarkId(`ai:${i}`));
+                                }}
+                                className="w-full truncate text-left hover:text-foreground"
+                              >
+                                {i + 1}. {line}
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+                {canvasNotice ? (
+                  <div
+                    role="status"
+                    className="pointer-events-none fixed bottom-20 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-lg"
+                  >
+                    {canvasNotice}
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -6759,6 +7899,129 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      {peekActive && peekItem ? (
+        <AtsIssuePeekBar
+          title={peekItem.issue.title || "ATS issue"}
+          tone={peekItem.tone}
+          index={peekIndex}
+          total={canvasMarks.length}
+          onPrev={() => {
+            const id = canvasMarks[peekIndex - 1]?.id;
+            if (!id) return;
+            setPeekId(id);
+            pickMark(id);
+          }}
+          onNext={() => {
+            const id = canvasMarks[peekIndex + 1]?.id;
+            if (!id) return;
+            setPeekId(id);
+            pickMark(id);
+          }}
+          onShowList={() => {
+            const id = peekId;
+            setPeekId(null);
+            // Re-select so the list scrolls its card into view once it's shown again.
+            if (id) pickMark(id);
+          }}
+        />
+      ) : null}
+      {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
+      <input
+        ref={canvasPhotoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          onPhotoFilePicked(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      {imageToCrop ? (
+        <ProfilePictureCropper
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open);
+            if (!open) {
+              if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+              setImageToCrop(null);
+            }
+          }}
+          imageSrc={imageToCrop}
+          onCropComplete={uploadCroppedPhoto}
+        />
+      ) : null}
+      {resume ? (
+        <TemplateTryOn
+          resume={resume}
+          template={tryOnTemplate}
+          currentTemplateId={resume.templateId}
+          compact={isMobile}
+          applying={changingTemplate}
+          onApply={(id) => void handleChangeTemplate(id)}
+          onClose={() => setTryOnTemplate(null)}
+        />
+      ) : null}
+      <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
+      <DownloadDialog
+        open={downloadDialogOpen}
+        onOpenChange={setDownloadDialogOpen}
+        defaultName={resumePdfFilenameFromResume(resume).replace(/\.pdf$/i, "")}
+        downloadingPdf={downloading}
+        onPdf={(name) => {
+          downloadFilenameRef.current = `${sanitizePdfFilename(name)}.pdf`;
+          setDownloadDialogOpen(false);
+          void handleDownload();
+        }}
+        onTxt={async (name) => {
+          // Plain text of the finished page (editing off, so no empty-field hints).
+          setPdfCapture(true);
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          try {
+            const pages = Array.from(
+              document.querySelectorAll<HTMLElement>(`#resume-preview-container-${resumeId} .resume-page`),
+            );
+            const text = atsPlainText(pages);
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            triggerBlobDownload(blob, `${sanitizePdfFilename(name)}.txt`);
+            setDownloadDialogOpen(false);
+          } finally {
+            setPdfCapture(false);
+          }
+        }}
+      />
+      {resume && template ? (
+        <VersionHistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          resume={resume}
+          template={template}
+          onRestored={(restored, asCopy) => {
+            if (asCopy) {
+              router.push(`/dashboard/resumes/${restored.resumeId}/edit`);
+              return;
+            }
+            void (async () => {
+              // A version saved on another design brings that design back too.
+              if (restored.templateId && restored.templateId !== template.id) {
+                const { TemplateLoader } = await import("@/lib/templateLoader");
+                await TemplateLoader.loadTemplate(restored.templateId);
+                const next = (await resumeApi.getTemplates()).find((t) => t.id === restored.templateId);
+                if (next) setTemplate(next);
+              }
+              handleResumeImported(restored);
+              showCanvasNotice("Version restored. The version before it is in History too.");
+            })();
+          }}
+        />
+      ) : null}
+      <AddSectionDialog
+        open={addSectionAfter !== null}
+        onOpenChange={(open) => {
+          if (!open) setAddSectionAfter(null);
+        }}
+        usedTypes={new Set(sections.filter((s) => s.visible).map((s) => s.type))}
+        onAdd={(type) => addCanvasSection(type, addSectionAfter?.afterId ?? null)}
+      />
       {/* Delete Section Confirmation Dialog */}
       <ChangeTemplateDialog
         open={changeTemplateOpen}

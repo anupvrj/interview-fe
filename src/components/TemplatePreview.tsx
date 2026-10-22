@@ -10,12 +10,34 @@ import Image from "next/image";
 interface TemplatePreviewProps {
   template: ResumeTemplate;
   isSelected: boolean;
+  /** "thumb": whole A4 page in a narrow card (editor Designs panel). */
+  variant?: "card" | "thumb";
 }
 
 export function TemplatePreview({
   template,
   isSelected,
+  variant = "card",
 }: TemplatePreviewProps) {
+  if (variant === "thumb" && template.preview?.startsWith("/resume-template-images/")) {
+    return (
+      <div className="relative aspect-[210/297] w-full overflow-hidden rounded-md bg-white ring-1 ring-black/5">
+        <Image
+          src={template.preview}
+          alt={template.name}
+          fill
+          sizes="160px"
+          className="object-contain object-top"
+          unoptimized={process.env.NODE_ENV === "development"}
+        />
+        {template.atsOptimized ? (
+          <span className="absolute bottom-1 left-1 z-10 rounded bg-emerald-600/90 px-1 py-px text-[9px] font-semibold text-white">
+            ATS
+          </span>
+        ) : null}
+      </div>
+    );
+  }
   // If template has a preview image (actual screenshot), show it
   if (
     template.preview &&

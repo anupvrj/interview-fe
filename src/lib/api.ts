@@ -130,10 +130,41 @@ apiClient.interceptors.request.use(
   },
 );
 
+/**
+ * Last revision this tab knowingly holds for each resume. Saves send it as
+ * `baseRevision`; the server refuses (409) when another tab/device saved since.
+ * Learned from this tab's own writes and from explicit `rememberResumeRevision`
+ * calls when the editor loads server data — never from background reads.
+ */
+const resumeRevisions = new Map<string, number>();
+export const RESUME_CONFLICT_EVENT = "resume:changed-elsewhere";
+export type ResumeConflictDetail = { resumeId: string; latest: Resume | null };
+
+export function rememberResumeRevision(resume: { resumeId?: string; revision?: number } | null | undefined) {
+  if (resume?.resumeId && typeof resume.revision === "number") resumeRevisions.set(resume.resumeId, resume.revision);
+}
+
+function rememberFromWrite(payload: unknown) {
+  const data = (payload as { data?: unknown } | undefined)?.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) rememberResumeRevision(data as Resume);
+}
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.method && response.config.method.toLowerCase() !== "get" && /\/resumes\//.test(response.config.url ?? "")) {
+      rememberFromWrite(response.data);
+    }
+    return response;
+  },
   (error: AxiosError) => {
+    const conflict = error.response?.data as { code?: string; data?: Resume } | undefined;
+    if (error.response?.status === 409 && conflict?.code === "RESUME_CHANGED_ELSEWHERE" && typeof window !== "undefined") {
+      const resumeId = conflict.data?.resumeId ?? /\/resumes\/([^/?]+)/.exec(error.config?.url ?? "")?.[1] ?? "";
+      window.dispatchEvent(
+        new CustomEvent<ResumeConflictDetail>(RESUME_CONFLICT_EVENT, { detail: { resumeId, latest: conflict.data ?? null } }),
+      );
+    }
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
@@ -1696,6 +1727,8 @@ export interface Resume {
   _id: string;
   resumeId: string;
   userId: string;
+  /** Server bumps this on every content edit; used to detect saves from another tab/device. */
+  revision?: number;
   title: string;
   templateId: string;
   content: {
@@ -1980,6 +2013,56 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /** Seven-day link to the resume's latest compiled PDF (409 PDF_NOT_READY if none). */
+  createShareLink: async (resumeId: string): Promise<{ url: string; expiresAt: string }> => {
+    const response = await apiClient.post<{ data: { url: string; expiresAt: string } }>(
+      `/resumes/${resumeId}/share-link`,
+    );
+    return response.data.data;
+  },
+
+  listVersions: async (resumeId: string): Promise<Array<{ versionId: string; title: string; templateId: string; createdAt: string }>> => {
+    const response = await apiClient.get<{ data: Array<{ versionId: string; title: string; templateId: string; createdAt: string }> }>(
+      `/resumes/${resumeId}/versions`,
+    );
+    return response.data.data ?? [];
+  },
+
+  getVersion: async (
+    resumeId: string,
+    versionId: string,
+  ): Promise<Pick<Resume, "title" | "templateId" | "content" | "profileSummary" | "sectionOrder" | "layout"> & { versionId: string; createdAt: string }> => {
+    const response = await apiClient.get<{ data: never }>(`/resumes/${resumeId}/versions/${versionId}`);
+    return response.data.data;
+  },
+
+  restoreVersion: async (resumeId: string, versionId: string, asCopy = false): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(`/resumes/${resumeId}/versions/${versionId}/restore`, { asCopy });
+    return response.data.data;
+  },
+
+  /** Up to three AI rewordings of one bullet or the summary (never adds numbers). */
+  aiRewrite: async (body: {
+    text: string;
+    kind: "bullet" | "summary";
+    role?: string;
+    company?: string;
+    targetRole?: string;
+    /** Tailor toward this job (summary rewrites from the job panel). */
+    jobDescription?: string;
+    /** The finding the rewrite should fix, e.g. "Bullet too short: only 8 words". */
+    goal?: string;
+    /** Options shorter than this are dropped. */
+    minWords?: number;
+    /** Job keywords the resume doesn't have; options that claim them are dropped. */
+    avoidTerms?: string[];
+  }): Promise<string[]> => {
+    const response = await apiClient.post<{ data: { suggestions: string[] } }>("/resumes/ai-rewrite", body, {
+      timeout: 60000,
+    });
+    return response.data.data.suggestions ?? [];
+  },
+
   /**
    * Sample/placeholder data in the resume's key fields ("Your Name", "Sample Job 1", …).
    * The server owns the rules (same check gates hackathon submission). Posts the
@@ -2048,9 +2131,10 @@ export const resumeApi = {
       atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
+    const baseRevision = resumeRevisions.get(resumeId);
     const response = await apiClient.put<{ data: Resume }>(
       `/resumes/${resumeId}`,
-      data,
+      baseRevision === undefined ? data : { ...data, baseRevision },
       {
         headers: {
           "Content-Type": "application/json",
@@ -2197,6 +2281,20 @@ export const resumeApi = {
     }>(`/resumes/${resumeId}/ats-improve-issue`, body, {
       timeout: 60000,
     });
+    return response.data.data;
+  },
+
+  /**
+   * Update the ATS report after an edit without the AI: rule checks re-run, fixed
+   * findings drop, score recomputed by the formula. null = no report yet, or a newer
+   * edit/check got there first.
+   */
+  rescoreATS: async (
+    resumeId: string,
+  ): Promise<{ atsScore: number; atsFeedback: NonNullable<Resume["atsFeedback"]> } | null> => {
+    const response = await apiClient.post<{ data: { atsScore: number; atsFeedback: NonNullable<Resume["atsFeedback"]> } | null }>(
+      `/resumes/${resumeId}/ats-rescore`,
+    );
     return response.data.data;
   },
 

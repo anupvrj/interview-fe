@@ -105,7 +105,7 @@ export function ResumeEditorTitle({
               }}
               placeholder={placeholder}
               aria-label="Resume name"
-              className="h-11"
+              className="h-11 w-full"
             />
           </div>
 

@@ -33,7 +33,9 @@ function normalizeStoredCheck(check: ATSCheckResult): ATSCheckResult {
         check.issues.length > 0 &&
         check.issues.every((i) => i.kind === "positive")));
 
-  let issueCount = actionable;
+  // The scoring engine's count is the source of truth (it knows which findings are
+  // actionable per check); re-deriving it here made the report disagree with the score.
+  let issueCount = typeof check.issueCount === "number" ? check.issueCount : actionable;
   let score = check.score;
   let status = check.status;
 
@@ -41,9 +43,6 @@ function normalizeStoredCheck(check: ATSCheckResult): ATSCheckResult {
     issueCount = 0;
     score = Math.max(score, 100);
     status = "pass";
-  } else if (actionable !== check.issueCount) {
-    issueCount = actionable;
-    if (actionable === 0 && status === "fail") status = "pass";
   }
 
   const meta =
@@ -117,7 +116,8 @@ export function normalizeATSReportV3(report: ATSReportV3): ATSReportV3 {
     const checks = expectedIds
       .map((id) => byId.get(id) ?? missingStoredCheck(id))
       .map(normalizeStoredCheck);
-    const activeChecks = checks.filter((c) => c.status !== "skipped");
+    // Optional tips (advisory) never count as issues — same rule as the score.
+    const activeChecks = checks.filter((c) => c.status !== "skipped" && !c.advisory);
     const categoryIssueCount = activeChecks.reduce((s, c) => s + c.issueCount, 0);
     totalIssueCount += categoryIssueCount;
 

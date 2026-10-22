@@ -11,6 +11,7 @@ import { PaginatedPreview } from "./PaginatedPreview";
 import type { ResumePaginationSnapshot } from "./PaginatedPreview";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { ResumePdfPreviewDialog } from "./ResumePdfPreviewDialog";
+import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
 import { cn } from "@/lib/utils";
 import {
   resumePreviewZoomHeader,
@@ -78,14 +79,24 @@ interface ResumePreviewProps {
   onRefresh?: () => void;
   /** Mobile: auto fit page width to viewport and use tighter chrome */
   compact?: boolean;
+  /** Canvas editor: no header bar (zoom floats on the canvas) and an overlay above the pages. */
+  canvasMode?: boolean;
+  /** Rendered above the pages, inside the element passed as overlayRootRef. */
+  overlay?: React.ReactNode;
+  overlayRootRef?: React.Ref<HTMLDivElement>;
 }
 
 export type ResumePreviewHandle = {
+  openPdfPreview: () => void;
   resetPreview: (options?: {
     resetZoom?: boolean;
     /** `local` remounts PaginatedPreview only; `full` remounts via parent onRefresh. */
     remount?: "local" | "full";
+    /** Keep the scroll position (e.g. re-paginating for a PDF). */
+    keepScroll?: boolean;
   }) => void;
+  /** Zoom in to at least this level, as if the user did it (fit-to-screen stops re-fitting). */
+  zoomAtLeast: (zoom: number) => void;
 };
 
 export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>(
@@ -101,6 +112,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   onPaginationSnapshot,
   onRefresh,
   compact = false,
+  canvasMode = false,
+  overlay,
+  overlayRootRef,
 }: ResumePreviewProps,
   ref,
 ) {
@@ -127,8 +141,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   const containerRef = useRef<HTMLDivElement>(null);
   const pageMeasureRef = useRef<HTMLDivElement>(null);
   const scaledPageRef = useRef<HTMLDivElement>(null);
+  const zoomContentRef = useRef<HTMLDivElement>(null);
   const [pageWidthPx, setPageWidthPx] = useState(0);
-  const [scaledLayout, setScaledLayout] = useState({ width: 0, height: 0 });
+  const [unscaledLayout, setUnscaledLayout] = useState({ width: 0, height: 0 });
   const minZoom = compact ? 30 : 50;
   const zoomScale = zoomLevel / 100;
 
@@ -141,16 +156,20 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   const measureScaledLayout = useCallback(() => {
     const scaledPage = scaledPageRef.current;
     if (!scaledPage) return;
-    const rect = scaledPage.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      setScaledLayout({ width: rect.width, height: rect.height });
+    // Unscaled layout size (ignores transforms — the zoom's and a pinch in progress);
+    // multiplied by the zoom at render, so the box is right in the same frame the zoom changes.
+    const width = scaledPage.offsetWidth;
+    const height = scaledPage.offsetHeight;
+    if (width > 0 && height > 0) {
+      setUnscaledLayout((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
     }
   }, []);
 
   const { markUserAdjusted, resetFitZoom } = useResumePreviewFitZoom({
-    enabled: compact,
+    // The canvas editor also fits the page to the space left by side panels and the icon rail.
+    enabled: compact || canvasMode,
     pageWidthGutterPx: pageDeleteGutterPx,
-    horizontalPadding: compact ? 12 : 80,
+    horizontalPadding: compact ? 12 : canvasMode ? 176 : 80,
     containerRef,
     pageMeasureRef,
     onZoom: setZoomLevel,
@@ -160,6 +179,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   useResumePreviewPinchZoom({
     enabled: true,
     containerRef,
+    contentRef: zoomContentRef,
     zoomLevel,
     onZoom: setZoomLevel,
     onUserAdjusted: markUserAdjusted,
@@ -217,6 +237,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     (options?: {
       resetZoom?: boolean;
       remount?: "local" | "full";
+      keepScroll?: boolean;
     }) => {
       if (options?.resetZoom !== false) {
         if (compact) {
@@ -225,7 +246,25 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           setZoomLevel(100);
         }
       }
-      containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      if (!options?.keepScroll) {
+        containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      } else {
+        // Re-paginating empties the pages for a moment and the browser clamps the scroll
+        // to 0; put it back once the pages are tall enough again.
+        const el = containerRef.current;
+        const top = el?.scrollTop ?? 0;
+        let frames = 0;
+        const restore = () => {
+          if (!el || top <= 0) return;
+          if (el.scrollHeight - el.clientHeight >= top - 1 || frames > 90) {
+            el.scrollTop = top;
+            return;
+          }
+          frames += 1;
+          requestAnimationFrame(restore);
+        };
+        requestAnimationFrame(restore);
+      }
       const remount = options?.remount ?? "full";
       if (remount === "full" && onRefresh) {
         onRefresh();
@@ -236,7 +275,19 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     [onRefresh, setZoomLevel, compact, resetFitZoom],
   );
 
-  useImperativeHandle(ref, () => ({ resetPreview }), [resetPreview]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      resetPreview,
+      openPdfPreview: () => setPdfPreviewOpen(true),
+      zoomAtLeast: (zoom: number) => {
+        if (zoomLevelRef.current >= zoom) return;
+        markUserAdjusted();
+        setZoomLevel(Math.min(zoom, 200));
+      },
+    }),
+    [resetPreview, markUserAdjusted, setZoomLevel],
+  );
 
   const handleRefreshPreview = useCallback(() => {
     resetPreview({ resetZoom: false, remount: "full" });
@@ -266,19 +317,19 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   };
 
   const scaledWidthPx =
-    compact && scaledLayout.width > 0
-      ? scaledLayout.width
+    compact && unscaledLayout.width > 0
+      ? unscaledLayout.width * zoomScale
       : pageWidthPx > 0
         ? pageWidthPx * zoomScale + (pageDeleteGutterPx * zoomLevel) / 100
         : null;
   const scaledHeightPx =
-    compact && scaledLayout.height > 0 ? scaledLayout.height : null;
+    compact && unscaledLayout.height > 0 ? unscaledLayout.height * zoomScale : null;
 
   return (
-    <div className="flex h-full flex-col bg-muted/25">
-      {/* Zoom Controls */}
+    <div className={cn("relative flex h-full flex-col", canvasMode ? "bg-transparent" : "bg-muted/25")}>
+      {/* Zoom Controls (canvas editor: a small pill floating at the bottom-left) */}
       <div
-        className={cn(
+        className={canvasMode && compact ? "hidden" : canvasMode ? "absolute bottom-3 left-3 z-20 flex items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-md backdrop-blur [&_button]:rounded-full [&>div]:gap-1" : cn(
           resumePreviewZoomHeader,
           compact
             ? resumePreviewZoomHeaderMobile
@@ -322,6 +373,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
+        {canvasMode ? null : (
         <Button
           variant="outline"
           size="sm"
@@ -334,14 +386,16 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           <FileText className="hidden h-4 w-4 md:mr-1 md:block" />
           <span className="hidden md:inline">PDF Preview</span>
         </Button>
+        )}
       </div>
 
       {/* Scrollable Preview Container */}
       <div
         ref={containerRef}
         className={cn(
-          "flex-1 touch-pan-x touch-pan-y overflow-auto bg-muted/40",
-          compact && "pl-12",
+          "flex-1 touch-pan-x touch-pan-y overflow-auto",
+          canvasMode ? "rx-canvas-scroll" : "bg-muted/40",
+          compact && !canvasMode && "pl-12",
         )}
       >
         <div
@@ -349,18 +403,19 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           ref={pageMeasureRef}
           className="pointer-events-none fixed left-[-9999px] top-0 h-0 w-[210mm] overflow-hidden opacity-0"
         />
-        {/* Zoom Container - handles centering and sizing */}
+        {/* Zoom Container - handles centering and sizing. Always as wide as the zoomed page
+            (w-max): a centred flex child wider than a full-width box overflows to the left,
+            where it can't be scrolled to. */}
         <div
-          className={cn(
-            "flex min-h-full items-start justify-center",
-            compact ? "w-full" : "w-max min-w-full",
-          )}
+          ref={zoomContentRef}
+          className="flex min-h-full w-max min-w-full items-start justify-center"
           style={{
             padding: compact ? "8px 6px 16px" : "40px",
           }}
         >
           {/* Resume Container Wrapper for Scale */}
           <div
+            ref={overlayRootRef}
             className={compact ? "mx-auto" : undefined}
             style={{
               width: compact
@@ -402,10 +457,13 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
                 onPaginationSnapshot={onPaginationSnapshot}
               />
             </div>
+            {overlay}
           </div>
         </div>
       </div>
 
+      {/* Preview shows the finished page: never editable. */}
+      <CanvasEditProvider value={null}>
       <ResumePdfPreviewDialog
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
@@ -415,6 +473,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         layout={layout}
         compact={compact}
       />
+      </CanvasEditProvider>
     </div>
   );
 });

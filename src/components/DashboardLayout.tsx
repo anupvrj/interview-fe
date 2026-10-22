@@ -49,6 +49,11 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+/** Pages that take over the whole screen (no app sidebar / top bar). */
+function isImmersiveToolPath(pathname: string | null): boolean {
+  return /^\/dashboard\/resumes\/[^/]+\/edit\/?$/.test(pathname ?? "");
+}
+
 function isPublicPeerInterviewerProfilePath(pathname: string): boolean {
   const hub = "/dashboard/peer-interviews/interviewer";
   if (!pathname.startsWith(`${hub}/`)) return false;
@@ -200,6 +205,7 @@ function resolveNavActive(
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const immersive = isImmersiveToolPath(pathname);
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const roleCtx = useActiveRole();
@@ -578,6 +584,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </Link>
     );
   };
+
+  if (immersive) {
+    // Full-screen tools (resume editor): no app sidebar or top bar, the page brings its own.
+    return (
+      <div className="h-dvh overflow-hidden bg-background text-foreground">
+        <SubscriptionPendingBanner />
+        <SubscriptionExpiredBanner />
+        <FeatureRouteGuard>{children}</FeatureRouteGuard>
+        <TrialUpsellDialog
+          open={trialPromoOpen}
+          onOpenChange={setTrialPromoOpen}
+          variant={trialPromoVariant}
+          onDismiss={dismissTrialPromo}
+          onTrialStarted={() => {
+            void refreshEntitlements();
+            void refreshUpsell();
+          }}
+          hasPurchasedTrial={upsellData ? !upsellData.canPurchaseTrial : false}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
