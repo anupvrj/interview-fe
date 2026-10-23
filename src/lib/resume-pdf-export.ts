@@ -1,3 +1,4 @@
+import { RESUME_SHARED_CSS } from "@/lib/resume-fonts";
 /**
  * Server-side resume PDF (Puppeteer on interview-core) — same HTML/CSS as preview,
  * rendered with headless Chrome instead of html2canvas bitmaps.
@@ -67,7 +68,8 @@ export async function fetchTemplateCssForPdf(templateId: string): Promise<string
     }
   }
 
-  return `${css}\n${RICH_TEXT_PROSE_CSS}`;
+  // Font twins + no text boosting, same as on screen (the PDF server lacks Calibri, Georgia…).
+  return `${RESUME_SHARED_CSS}\n${css}\n${RICH_TEXT_PROSE_CSS}`;
 }
 
 /**

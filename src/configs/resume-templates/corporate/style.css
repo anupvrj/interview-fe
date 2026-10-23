@@ -38,7 +38,8 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
+  /* The " • " separators space the items; a column gap on top made it uneven. */
+  gap: 4px 0;
   font-size: var(--resume-small-font-size, 11px);
   color: #34495e;
   margin-top: 12px;
@@ -63,11 +64,12 @@
   min-height: 2.5em;
 }
 .corporate-section-header {
-  margin: 0;
-  padding: 0;
+  /* Room between the title and its rules, and before the content (it sat on both). */
+  margin: 0 0 10px;
+  padding: 6px 0;
   font-size: var(--resume-section-header-font-size, 12px);
   font-weight: bold;
-  line-height: 1;
+  line-height: 1.2;
   text-transform: uppercase;
   text-align: center;
   border: none;

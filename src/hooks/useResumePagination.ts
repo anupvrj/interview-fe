@@ -24,6 +24,10 @@ interface PaginationOptions {
   resume: Resume | null;
   sections: any[];
   pageHeightLimit: number; // A4 content height per page (px)
+  /** Room kept free at the top of pages after the first (their top margin), px. */
+  laterPageTopReservePx?: number;
+  /** Extra room on page 1 (a header band that runs into the top padding), px. */
+  firstPageExtraPx?: number;
   measureKey: string;
 }
 
@@ -60,14 +64,16 @@ function isTwoColumnLayout(units: MeasuredUnit[]): boolean {
 }
 
 /** Pack a single column's units; returns per-page unit-id lists. */
-function packColumn(units: MeasuredUnit[], pageHeightPx: number) {
-  return packUnitsIntoPages(units, pageHeightPx);
+function packColumn(units: MeasuredUnit[], pageHeightPx: number, laterReservePx = 0, firstExtraPx = 0) {
+  return packUnitsIntoPages(units, pageHeightPx + firstExtraPx, Math.max(pageHeightPx * 0.5, pageHeightPx - laterReservePx));
 }
 
 export function useResumePagination({
   resume,
   sections,
   pageHeightLimit,
+  laterPageTopReservePx = 0,
+  firstPageExtraPx = 0,
   measureKey,
 }: PaginationOptions) {
   const measuringRef = useRef<HTMLDivElement>(null);
@@ -87,6 +93,10 @@ export function useResumePagination({
   sectionsRef.current = sections;
   const pageHeightLimitRef = useRef(pageHeightLimit);
   pageHeightLimitRef.current = pageHeightLimit;
+  const laterReserveRef = useRef(laterPageTopReservePx);
+  laterReserveRef.current = laterPageTopReservePx;
+  const firstExtraRef = useRef(firstPageExtraPx);
+  firstExtraRef.current = firstPageExtraPx;
   const measureKeyRef = useRef(measureKey);
   measureKeyRef.current = measureKey;
 
@@ -151,8 +161,8 @@ export function useResumePagination({
       // above both columns on page 1 only. They are not part of left/right packing; if
       // we omitted them they would have no page assignment and vanish from every page.
       const single = units.filter((u) => u.column === "single");
-      const leftPages = packColumn(left, columnBudgets.left);
-      const rightPages = packColumn(right, columnBudgets.right);
+      const leftPages = packColumn(left, columnBudgets.left, laterReserveRef.current, firstExtraRef.current);
+      const rightPages = packColumn(right, columnBudgets.right, laterReserveRef.current, firstExtraRef.current);
       const pageCount = Math.max(leftPages.length, rightPages.length, 1);
       const singleIds = single.map((u) => u.id);
       pageUnits = [];
@@ -174,7 +184,7 @@ export function useResumePagination({
         });
       }
     } else {
-      const packed = packColumn(units, columnBudgets.single);
+      const packed = packColumn(units, columnBudgets.single, laterReserveRef.current, firstExtraRef.current);
       pageUnits = packed.map((p) => p.unitIds);
       pages = packed;
     }

@@ -30,6 +30,8 @@ export interface PackedPage {
 export function packUnitsIntoPages(
   units: MeasuredUnit[],
   pageHeightPx: number,
+  /** Pages after the first: less room when they get a top margin of their own. */
+  laterPageHeightPx: number = pageHeightPx,
 ): PackedPage[] {
   if (units.length === 0) {
     return [{ pageNumber: 1, unitIds: [], offsetY: 0, height: 0 }];
@@ -39,12 +41,13 @@ export function packUnitsIntoPages(
   let pageNum = 1;
   while (i < units.length) {
     const firstTop = units[i].top;
+    const budget = pageNum === 1 ? pageHeightPx : laterPageHeightPx;
     const pageIds: string[] = [];
     while (i < units.length) {
       let chainEnd = i;
       while (chainEnd < units.length - 1 && units[chainEnd].keepWithNext) chainEnd++;
       const spanOnPage = units[chainEnd].bottom - firstTop;
-      if (pageIds.length > 0 && spanOnPage > pageHeightPx) break;
+      if (pageIds.length > 0 && spanOnPage > budget) break;
       for (let k = i; k <= chainEnd; k++) pageIds.push(units[k].id);
       i = chainEnd + 1;
     }
