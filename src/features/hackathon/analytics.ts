@@ -131,8 +131,18 @@ export function classifyError(err: unknown): HackathonErrorType {
 /**
  * `hackathon_registration_success` must count each account once, even across
  * reloads/tabs. Key is local only (never sent to GA).
+ *
+ * The server also sends both conversions when its flags are on: Meta dedupes the
+ * pixel call by `eventId`, and GA4 (which cannot dedupe) is skipped here when the
+ * API reports `serverGa4`.
  */
-export function trackRegistrationSuccessOnce(opts: { userKey: string | null | undefined; source: string; userType?: string | null }) {
+export function trackRegistrationSuccessOnce(opts: {
+  userKey: string | null | undefined;
+  source: string;
+  userType?: string | null;
+  eventId?: string;
+  serverGa4?: boolean;
+}) {
   const key = `ix.hk.ga.registered.${opts.userKey ?? "anon"}`;
   try {
     if (localStorage.getItem(key)) return;
@@ -141,13 +151,18 @@ export function trackRegistrationSuccessOnce(opts: { userKey: string | null | un
     /* storage blocked — still send once per page via the Set below */
   }
   if (firedThisPage.has(key)) return;
-  const funnel = readHackathonFunnel();
-  trackHackathonOnce(key, HK_EVENTS.registrationSuccess, {
-    source: opts.source,
-    user_type: opts.userType ?? undefined,
-    cta_location: funnel?.ctaLocation,
-  });
-  trackMetaEvent("CompleteRegistration", { content_name: META_CONTENT_NAME, status: true });
+  firedThisPage.add(key);
+  if (!opts.serverGa4) {
+    const funnel = readHackathonFunnel();
+    trackHackathon(HK_EVENTS.registrationSuccess, {
+      source: opts.source,
+      user_type: opts.userType ?? undefined,
+      cta_location: funnel?.ctaLocation,
+      event_id: opts.eventId,
+      event_source: "browser",
+    });
+  }
+  trackMetaEvent("CompleteRegistration", { content_name: META_CONTENT_NAME, status: true }, opts.eventId);
 }
 
 /**

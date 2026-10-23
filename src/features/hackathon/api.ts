@@ -1,3 +1,4 @@
+import type { ConversionAttribution } from "@/lib/analytics/attribution";
 import { apiClient } from "@/lib/api";
 import { HACKATHON_TARGETS } from "./config";
 
@@ -137,6 +138,12 @@ export interface HackathonMe {
     experience: number | null;
   };
   progress: HackathonProgress;
+  /**
+   * Register response only. `eventId` is shared with the server-side Meta event so
+   * the pixel call dedupes; `serverGa4` means the server already sent the GA4
+   * `hackathon_registration_success`.
+   */
+  conversion?: { eventId: string; serverGa4: boolean };
   resume: {
     resumeId: string;
     title: string;
@@ -231,10 +238,15 @@ export const hackathonApi = {
     return res.data.data;
   },
 
-  register: async (slug: string, getToken: TokenGetter, source?: string): Promise<HackathonMe> => {
+  register: async (
+    slug: string,
+    getToken: TokenGetter,
+    source?: string,
+    attribution?: ConversionAttribution,
+  ): Promise<HackathonMe> => {
     const res = await apiClient.post<{ data: HackathonMe }>(
       `${hackathonBase(slug)}/register`,
-      { source },
+      { source, attribution },
       { headers: await authHeaders(getToken) },
     );
     return res.data.data;

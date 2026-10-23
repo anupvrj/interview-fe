@@ -52,6 +52,27 @@ describe("hackathon analytics", () => {
     expect(sentMeta()).toHaveLength(0);
   });
 
+  it("shares the server event id with the pixel and skips GA4 when the server sent it", async () => {
+    const a = await loadFresh();
+    a.trackRegistrationSuccessOnce({ userKey: "user_s", source: "profile", eventId: "hkreg_hkp_1", serverGa4: true });
+    expect(fbq.mock.calls).toEqual([
+      ["track", "CompleteRegistration", { content_name: "hiring_games_2026", status: true }, { eventID: "hkreg_hkp_1" }],
+    ]);
+    expect(sent().filter((e) => e.name === "hackathon_registration_success")).toHaveLength(0);
+  });
+
+  it("keeps the browser GA4 event, tagged with the event id, when the server did not send it", async () => {
+    const a = await loadFresh();
+    a.trackRegistrationSuccessOnce({ userKey: "user_b", source: "profile", eventId: "hkreg_hkp_2", serverGa4: false });
+    expect(sent()).toEqual([
+      {
+        name: "hackathon_registration_success",
+        params: { hackathon_id: "hiring_games_2026", source: "profile", event_id: "hkreg_hkp_2", event_source: "browser" },
+      },
+    ]);
+    expect(fbq.mock.calls[0][3]).toEqual({ eventID: "hkreg_hkp_2" });
+  });
+
   it("sends Meta Lead once, only when the ATS score reaches the target", async () => {
     const a = await loadFresh();
     a.trackAtsQualifiedOnce({ userKey: "u", atsScore: 74, target: 75 });
