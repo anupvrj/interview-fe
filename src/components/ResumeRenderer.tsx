@@ -5,6 +5,7 @@
 
 "use client";
 
+import { organizeSectionColumns } from "@/lib/sectionLayout";
 import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
@@ -711,129 +712,13 @@ export function ResumeRenderer({
   // Organize sections into columns based on template configuration
   // Memoize the result to ensure it recalculates when visibleSections changes
   const { headerSection, leftColumn, rightColumn } = useMemo(() => {
-    const organizeIntoColumns = () => {
-      if (effectiveResumeLayout.type === "single") {
-        // Check if template uses profile picture header layout
-        if (
-          templateStyle.headerLayout?.type === "with-profile-picture" ||
-          template.id === "mercury"
-        ) {
-          const headerSection = visibleSections.find(
-            (s) => s.type === "personalInfo",
-          );
-          const bodySections = visibleSections.filter(
-            (s) => s.type !== "personalInfo",
-          );
-
-          return {
-            headerSection,
-            leftColumn: bodySections,
-            rightColumn: [],
-          };
-        }
-
-        return {
-          headerSection: null,
-          leftColumn: visibleSections,
-          rightColumn: [],
-        };
-      }
-
-      // For two-column layouts, organize based on template style
-      const headerSection =
-        templateStyle.headerStyle === "two-column"
-          ? null
-          : visibleSections.find((s) => s.type === "personalInfo");
-
-      const bodySections =
-        templateStyle.headerStyle === "two-column"
-          ? visibleSections
-          : visibleSections.filter((s) => s.type !== "personalInfo");
-
-      const leftColumn: Section[] = [];
-      const rightColumn: Section[] = [];
-
-      const extendedTemplate = getExtendedTemplate(template);
-      const columnAssignment = extendedTemplate?.rendering?.layout?.columnAssignment;
-
-      // Track position for alternating distribution (for Atlantic Blue)
-      let nonPersonalInfoIndex = 0;
-
-      bodySections.forEach((section, index) => {
-        // Saffron Line: always follow template column assignment (education on left, etc.)
-        if (
-          isSaffronLine &&
-          columnAssignment &&
-          (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)
-        ) {
-          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
-            leftColumn.push(section);
-            return;
-          }
-          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
-            rightColumn.push(section);
-            return;
-          }
-          leftColumn.push(section);
-          return;
-        }
-
-        // Saved column from editor reordering takes precedence
-        if (section.column === "left" || section.column === "right") {
-          if (section.column === "left") {
-            leftColumn.push(section);
-          } else {
-            rightColumn.push(section);
-          }
-          return;
-        }
-
-        // Template defaults by section id/type
-        if (columnAssignment && (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)) {
-          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
-            leftColumn.push(section);
-            return;
-          }
-          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
-            rightColumn.push(section);
-            return;
-          }
-          // Default unassigned sections to the left column (main body)
-          leftColumn.push(section);
-          return;
-        }
-
-        // Dynamic flowing distribution when no explicit assignment exists
-        if (templateStyle.headerStyle === "two-column") {
-          // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
-          if (section.type === "personalInfo") {
-            // PersonalInfo always goes to left column (sidebar)
-            leftColumn.push(section);
-          } else {
-            // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
-            // Start with right column (index 0 → right, index 1 → left, etc.)
-            if (nonPersonalInfoIndex % 2 === 0) {
-              rightColumn.push(section);
-            } else {
-              leftColumn.push(section);
-            }
-            nonPersonalInfoIndex++;
-          }
-        } else {
-          // Standard templates: True alternating distribution
-          // 1→left, 2→right, 3→left, 4→right, etc.
-          if (index % 2 === 0) {
-            leftColumn.push(section);
-          } else {
-            rightColumn.push(section);
-          }
-        }
-      });
-
-      return { headerSection, leftColumn, rightColumn };
+    // Shared with the section-order dialog and the ↑/↓ buttons (see sectionLayout.ts).
+    const columns = organizeSectionColumns(visibleSections, effectiveResumeLayout.type, template);
+    return {
+      headerSection: columns.header ?? undefined,
+      leftColumn: columns.isDouble ? columns.left : columns.single,
+      rightColumn: columns.isDouble ? columns.right : [],
     };
-
-    return organizeIntoColumns();
   }, [
     // Use visibleSections array directly - React will detect reference changes
     // The key is that visibleSections is recalculated when displaySections order changes

@@ -197,6 +197,7 @@ import {
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
+import { moveSectionWithinColumn, organizeSectionColumns, sectionMoveBounds } from "@/lib/sectionLayout";
 import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
   assignSectionColumnOnReorder,
@@ -3442,20 +3443,16 @@ export default function EditResumePage() {
       showCanvasNotice("Entry deleted — press Ctrl/⌘ Z to undo.");
     },
     onMoveSection: (sectionId, delta) => {
-      setSections((prev) => {
-        const visible = prev.filter((s) => s.visible);
-        const from = visible.findIndex((s) => s.id === sectionId);
-        const to = from + delta;
-        if (from < 0 || to < 0 || to >= visible.length) return prev;
-        const a = prev.findIndex((s) => s.id === visible[from].id);
-        const b = prev.findIndex((s) => s.id === visible[to].id);
-        const next = [...prev];
-        [next[a], next[b]] = [next[b], next[a]];
-        // In two columns a section keeps its column unless it swaps with one in the other column.
-        return next;
-      });
+      // Within its column: in two-column designs the next section in the list may be in the
+      // other column, and swapping with it either did nothing visible or jumped columns.
+      if (!template) return;
+      const next = moveSectionWithinColumn(sections, sectionId, delta, layout?.type, template);
+      if (!next) return;
+      setSections(next as Section[]);
       setHasChanges(true);
     },
+    canMoveSection: (sectionId) =>
+      template ? sectionMoveBounds(sections, sectionId, layout?.type, template) : { up: false, down: false },
     onHideSection: (sectionId) => {
       setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, visible: false } : s)));
       setHasChanges(true);
@@ -7963,6 +7960,13 @@ export default function EditResumePage() {
                   setHasChanges(true);
                 }}
                 onMove={(id, delta) => canvasHandlers.onMoveSection(id, delta)}
+                canMove={(id) => canvasHandlers.canMoveSection?.(id) ?? { up: false, down: false }}
+                columnOf={(id) => {
+                  if (!template) return null;
+                  const cols = organizeSectionColumns(sections, layout?.type, template);
+                  if (!cols.isDouble) return null;
+                  return cols.left.some((x) => x.id === id) ? "left" : cols.right.some((x) => x.id === id) ? "right" : null;
+                }}
                 onInsert={() => setAddSectionAfter({ afterId: null })}
               />
             ) : canvasPanel === "tailor" ? (

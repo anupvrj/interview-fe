@@ -121,6 +121,8 @@ export interface CanvasInteractionHandlers {
   onDuplicateEntry: (sectionId: string, index: number) => void;
   onDeleteEntry: (sectionId: string, index: number) => void;
   onMoveSection: (sectionId: string, delta: -1 | 1) => void;
+  /** Whether ↑ / ↓ can move a section within its column (two-column designs move per column). */
+  canMoveSection?: (sectionId: string) => { up: boolean; down: boolean };
   onHideSection: (sectionId: string) => void;
   onDeleteSection: (sectionId: string) => void;
   onOpenDetails: (sectionId: string) => void;
@@ -622,6 +624,9 @@ export function CanvasInteractionLayer({
   const handleIsEntry = Boolean(handleSection && handleTarget?.index !== null && isEntrySection(handleSection.type));
   const handleIndex = handleTarget?.index ?? null;
   const handleSectionIndex = handleSection ? sections.findIndex((s) => s.id === handleSection.id) : -1;
+  const handleMoves = handleSection
+    ? handlers.canMoveSection?.(handleSection.id) ?? { up: handleSectionIndex > 0, down: handleSectionIndex < sections.length - 1 }
+    : { up: false, down: false };
   const handleCount = handleSection ? entryCounts[handleSection.id] ?? 0 : 0;
 
   const addBelow = () => {
@@ -674,12 +679,12 @@ export function CanvasInteractionLayer({
         { label: "All fields…", icon: SlidersHorizontal, run: () => handlers.onOpenDetails(handleSection.id) },
         ...(handleSection.type !== "personalInfo"
           ? [
-              { label: "Move section up", icon: ArrowUp, run: () => handlers.onMoveSection(handleSection.id, -1), off: handleSectionIndex <= 0 },
+              { label: "Move section up", icon: ArrowUp, run: () => handlers.onMoveSection(handleSection.id, -1), off: !handleMoves.up },
               {
                 label: "Move section down",
                 icon: ArrowDown,
                 run: () => handlers.onMoveSection(handleSection.id, 1),
-                off: handleSectionIndex >= sections.length - 1,
+                off: !handleMoves.down,
               },
               { label: "Insert section below", icon: Plus, run: () => handlers.onAddSectionAfter(handleSection.id) },
               { label: "Hide section", icon: EyeOff, run: () => handlers.onHideSection(handleSection.id) },
