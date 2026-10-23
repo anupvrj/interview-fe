@@ -31,6 +31,7 @@ export function AtsIssuePeekBar({
     <div
       role="region"
       aria-label="ATS issue"
+      data-editor-bottom-bar
       className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-3 py-2 shadow-[0_-6px_18px_rgba(15,23,42,0.08)]"
     >
       <button type="button" className={step} onClick={onPrev} disabled={index <= 0} aria-label="Previous issue">

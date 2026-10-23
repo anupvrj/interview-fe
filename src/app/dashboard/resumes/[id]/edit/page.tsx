@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  CircleHelp,
   Save,
   Download,
   Loader2,
@@ -159,6 +160,7 @@ import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
+import { EditorGuide, type EditorGuideHandle } from "@/components/resume-canvas/guide/EditorGuide";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
@@ -299,6 +301,22 @@ function htmlToPlainText(html: string): string {
 }
 
 
+
+const SAMPLE_NAMES = /^(your name|john doe|jane doe|full name)$/i;
+/** Setup checklist: a real name plus a way to reach them. */
+function guideHasContact(content: Resume["content"] | undefined): boolean {
+  const info = (content?.personalInfo ?? {}) as Record<string, unknown>;
+  const name = typeof info.fullName === "string" ? info.fullName.trim() : "";
+  const reach = [info.email, info.phone].some((v) => typeof v === "string" && v.trim().length > 0);
+  return Boolean(name) && !SAMPLE_NAMES.test(name) && reach;
+}
+/** Setup checklist: at least one job or project with a heading. */
+function guideHasContent(content: Resume["content"] | undefined): boolean {
+  const filled = (list: unknown, keys: string[]) =>
+    Array.isArray(list) &&
+    list.some((e) => e && typeof e === "object" && keys.some((k) => typeof (e as Record<string, unknown>)[k] === "string" && ((e as Record<string, unknown>)[k] as string).trim()));
+  return filled(content?.experience, ["company", "position", "title"]) || filled(content?.projects, ["name", "title"]);
+}
 /** Phones: zoom for reading an ATS issue picked from the report (the fitted page is ~40%). */
 const MOBILE_ISSUE_ZOOM = 85;
 export default function EditResumePage() {
@@ -494,6 +512,8 @@ export default function EditResumePage() {
   /** Score panel: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** First-run editor guide (tour, setup checklist, beacons). */
+  const guideRef = useRef<EditorGuideHandle>(null);
   /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
   const [peekId, setPeekId] = useState<string | null>(null);
   /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
@@ -1883,6 +1903,7 @@ export default function EditResumePage() {
         setSaveReturnPhase("submit");
         try {
           await hackathonApi.submitResume(slug, () => getToken(), resumeId);
+          guideRef.current?.milestone("exported");
           await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
           // Back on the board, show the new score with "Complete Challenge".
           returnUrl = `${resumeReturnTo}${resumeReturnTo.includes("?") ? "&" : "?"}resumeScore=1`;
@@ -2362,6 +2383,7 @@ export default function EditResumePage() {
       } else if (compiled.downloadUrl) {
         await downloadPdfFromUrl(compiled.downloadUrl, compiled.filename);
       }
+      guideRef.current?.milestone("exported");
 
       const currentResumeId = resumeId;
       setTimeout(async () => {
@@ -3032,12 +3054,14 @@ export default function EditResumePage() {
     updateContent({ skills: next } as Partial<Resume["content"]>);
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
-  const resolveFix = (item: FixItem) =>
-    setFixResolved((prev) => {
+  const resolveFix = (item: FixItem) => {
+    guideRef.current?.milestone("fixed");
+    return setFixResolved((prev) => {
       const next = new Set(prev);
       next.add(item.id);
       return next;
     });
+  };
 
   // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
   useEffect(() => {
@@ -3585,6 +3609,10 @@ export default function EditResumePage() {
               {extensionSyncState === "syncing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChromeIcon className="h-4 w-4" />}
             </IconTooltipButton>
             <span className="mx-0.5 hidden h-5 w-px bg-border md:block" aria-hidden />
+            {/* Phones: header is full; "Replay the tour" lives in the setup checklist. */}
+            <IconTooltipButton onClick={() => guideRef.current?.startTour()} variant="ghost" label="Take the tour" className="hidden md:inline-flex">
+              <CircleHelp className="h-4 w-4" />
+            </IconTooltipButton>
             <IconTooltipButton onClick={handleUndo} variant="ghost" label="Undo (Ctrl/⌘ Z)" disabled={!editorHistory.canUndo}>
               <Undo2 className="h-4 w-4" />
             </IconTooltipButton>
@@ -7986,7 +8014,7 @@ export default function EditResumePage() {
         />
       ) : null}
       {canvasOn && isMobile && returnsToHackathon && !peekActive ? (
-        <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-3 py-2">
+        <div data-editor-bottom-bar className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-3 py-2">
           <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
             <span className="block font-semibold text-foreground">Hackathon resume</span>
             Submit when ready — you can update it later.
@@ -8013,6 +8041,22 @@ export default function EditResumePage() {
         </div>
       ) : null}
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
+      <EditorGuide
+        ref={guideRef}
+        userId={user?.id ?? null}
+        firstName={user?.firstName ?? null}
+        isMobile={isMobile}
+        active={canvasOn && Boolean(resume && template) && !tryOnTemplate && !saveConflict}
+        resumeIsNew={Boolean(resume?.createdAt) && Date.now() - new Date(resume!.createdAt).getTime() < 24 * 60 * 60 * 1000}
+        hackathon={returnsToHackathon}
+        hasContact={guideHasContact(resume?.content)}
+        hasContent={guideHasContent(resume?.content)}
+        atsChecked={resume?.atsScore != null}
+        openPanel={canvasPanel}
+        onOpenPanel={(panel) => {
+          if (canvasPanel !== panel) openCanvasPanel(panel); // open only — never toggle it shut
+        }}
+      />
       <input
         ref={canvasPhotoInputRef}
         type="file"
