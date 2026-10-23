@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, Loader2, Plus, RefreshCw, Sparkles, Target } from "lucide-react";
 import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
+import type { SuggestionAt } from "@/lib/suggestionApply";
+import { SuggestionPicker } from "./SuggestionPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ScoreRing, scoreBand } from "./CanvasChrome";
@@ -215,6 +217,8 @@ export function buildFixItems(
   liveText?: string,
   /** Findings from the live placeholder check (see placeholderFindingsToIssues). */
   serverPlaceholders: ATSIssue[] = [],
+  /** Quotes (squashed) of cards a suggestion was just applied to: keep showing them. */
+  keepQuotes?: Set<string>,
 ): Array<{ title: string; items: FixItem[] }> {
   if (!report && !liveText) return [];
   const checks = report ? checksById(report) : new Map<ATSCheckId, ATSCheckResult>();
@@ -254,7 +258,11 @@ export function buildFixItems(
           // Sample text is listed once under "Fill in", not as a short bullet or vague claim too.
           (id === PLACEHOLDER_CHECK || !quoteOf(id, issue) || !isSampleText(quoteOf(id, issue))) &&
           // Quoted text the user has since changed: the card no longer applies.
-          (!live || isWordFix(issue) || !quoteOf(id, issue) || live.includes(squash(quoteOf(id, issue)))),
+          (!live ||
+            isWordFix(issue) ||
+            !quoteOf(id, issue) ||
+            live.includes(squash(quoteOf(id, issue))) ||
+            !!keepQuotes?.has(squash(quoteOf(id, issue)))),
       );
       return current.map((issue, i) => {
         const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
@@ -504,6 +512,8 @@ function IssueCard({
   active,
   onLocate,
   onApply,
+  onApplyRewrite,
+  onUndo,
   onIgnore,
   onDone,
   targetRole,
@@ -512,6 +522,12 @@ function IssueCard({
   active: boolean;
   onLocate: () => void;
   onApply: (improved: string) => boolean;
+  /**
+   * Put a reworded sentence in (edited or not). `previous`: what this card last put in and
+   * where, so applying another option replaces it. Returns where it went, or null.
+   */
+  onApplyRewrite?: (text: string, previous: { at: SuggestionAt; text: string } | null) => SuggestionAt | null;
+  onUndo?: () => void;
   onIgnore: () => void;
   /** "I've handled it": hides the card until the next check (doesn't change the score). */
   onDone?: () => void;
@@ -519,6 +535,10 @@ function IssueCard({
 }) {
   const { issue, check } = item;
   const [ai, setAi] = useState<{ loading: boolean; options: string[]; error?: string }>({ loading: false, options: [] });
+  /** What this card last put in the resume, and where (applying again replaces it). */
+  /** What went in from this card, oldest first (Undo steps back one). */
+  const [appliedStack, setAppliedStack] = useState<Array<{ at: SuggestionAt; text: string }>>([]);
+  const applied = appliedStack.length ? appliedStack[appliedStack.length - 1] : null;
   const excerpt = item.quote;
   const jobQuote = !excerpt ? (issue.excerpt?.trim() ?? "") : "";
   const isWord = item.wordFix;
@@ -577,8 +597,19 @@ function IssueCard({
       </p>
       <p className="mt-1.5 text-sm font-medium text-foreground">{heading}</p>
       {excerpt && !isBlank ? (
-        <p className={cn("mt-1 text-xs", isWord ? "font-mono text-rose-700 dark:text-rose-300" : "line-clamp-3 text-muted-foreground")}>
+        <p
+          className={cn(
+            "mt-1 text-xs",
+            isWord ? "font-mono text-rose-700 dark:text-rose-300" : "line-clamp-3 text-muted-foreground",
+            applied && "line-through opacity-70",
+          )}
+        >
           {isWord ? excerpt : `“${excerpt}”`}
+        </p>
+      ) : null}
+      {applied ? (
+        <p className="mt-1 rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <span className="font-semibold">Now in your resume: </span>“{applied.text}”
         </p>
       ) : null}
       {jobQuote ? (
@@ -609,7 +640,7 @@ function IssueCard({
             {chip}
           </button>
         ))}
-        {canTapRewrite ? (
+        {canTapRewrite && !onApplyRewrite ? (
           <button
             type="button"
             onClick={() => onApply(issue.rewriteSuggestion!)}
@@ -631,7 +662,30 @@ function IssueCard({
           </button>
         ) : null}
       </div>
-      {ai.options.length ? (
+      {onApplyRewrite && (canTapRewrite || ai.options.length) ? (
+        <>
+          {canTapRewrite && !ai.options.length ? (
+            <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Suggested wording — tap to edit and use</p>
+          ) : null}
+          <SuggestionPicker
+            options={[...(canTapRewrite ? [issue.rewriteSuggestion!] : []), ...ai.options].filter((o, i, all) => all.indexOf(o) === i)}
+            onUndo={
+              onUndo
+                ? () => {
+                    onUndo();
+                    setAppliedStack((stack) => stack.slice(0, -1));
+                  }
+                : undefined
+            }
+            onApply={(text) => {
+              const at = onApplyRewrite(text, applied);
+              if (at) setAppliedStack((stack) => [...stack, { at, text }]);
+              return !!at;
+            }}
+          />
+        </>
+      ) : null}
+      {!onApplyRewrite && ai.options.length ? (
         <ul className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
           {ai.options.map((option) => (
             <li key={option}>
@@ -680,10 +734,15 @@ export function FixMistakesPanel({
   hiddenGroups,
   onHiddenGroupsChange,
   livePlaceholders,
+  onApplyRewrite,
+  onUndo,
   children,
 }: {
   /** Live placeholder findings (sample text the report may not know about yet). */
   livePlaceholders?: ATSIssue[];
+  /** Put a (possibly edited) reworded sentence in; returns where it went, or null. */
+  onApplyRewrite?: (item: FixItem, text: string, previous: { at: SuggestionAt; text: string } | null) => SuggestionAt | null;
+  onUndo?: () => void;
   /** Suggestion types the user switched off (their cards and page marks are hidden). */
   hiddenGroups?: Set<string>;
   onHiddenGroupsChange?: (next: Set<string>) => void;
@@ -708,7 +767,37 @@ export function FixMistakesPanel({
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
 }) {
-  const groups = useMemo(() => buildFixItems(report, liveText, livePlaceholders), [report, liveText, livePlaceholders]);
+  // Cards a suggestion was applied to stay (showing what went in) so another option can replace it.
+  const [keepQuotes, setKeepQuotes] = useState<Set<string>>(() => new Set());
+  // …and survive the re-score after each save, which drops findings that are now fixed.
+  const [pinned, setPinned] = useState<Map<string, FixItem>>(() => new Map());
+  const groups = useMemo(() => {
+    const built = buildFixItems(report, liveText, livePlaceholders, keepQuotes);
+    if (!pinned.size) return built;
+    // A fresh report can reuse a pinned card's id for another finding (the 2nd copy of a
+    // repeated bullet becomes "#1" once the 1st is fixed): give that one its own id.
+    const renamed = built.map((group) => ({
+      ...group,
+      items: group.items.map((i) => (pinned.has(i.id) && pinned.get(i.id)!.issue !== i.issue ? { ...i, id: `${i.id}~next` } : i)),
+    }));
+    const shown = new Set(renamed.flatMap((g) => g.items.map((i) => i.id)));
+    return renamed.map((group) => {
+      const checks = GROUPS.find((g) => g.title === group.title)?.checks ?? [];
+      const missing = [...pinned.values()].filter((i) => !shown.has(i.id) && (checks as readonly string[]).includes(i.check.id));
+      return missing.length ? { ...group, items: [...group.items, ...missing] } : group;
+    });
+  }, [report, liveText, livePlaceholders, keepQuotes, pinned]);
+  const rewriteFor = (item: FixItem) =>
+    onApplyRewrite
+      ? (text: string, previous: { at: SuggestionAt; text: string } | null) => {
+          const at = onApplyRewrite(item, text, previous);
+          if (at) {
+            if (item.quote) setKeepQuotes((prev) => new Set(prev).add(squash(item.quote)));
+            setPinned((prev) => (prev.has(item.id) ? prev : new Map(prev).set(item.id, item)));
+          }
+          return at;
+        }
+      : undefined;
   const sampleLeft = groups.reduce(
     (n, g) => n + g.items.filter((i) => i.check.id === PLACEHOLDER_CHECK && !resolved.has(i.id)).length,
     0,
@@ -790,8 +879,10 @@ export function FixMistakesPanel({
                       key={item.id}
                       item={item}
                       active={activeId === item.id}
-                      onLocate={() => onLocate(item.id)}
+                      onLocate={() => onLocate(item.id.replace(/~next$/, ""))}
                       onApply={(improved) => onApply(item, improved)}
+                      onApplyRewrite={rewriteFor(item)}
+                      onUndo={onUndo}
                       onIgnore={() => onIgnore(item)}
                       onDone={onDone ? () => onDone(item) : undefined}
                       targetRole={targetRole}
@@ -827,8 +918,10 @@ export function FixMistakesPanel({
                           key={item.id}
                           item={item}
                           active={activeId === item.id}
-                          onLocate={() => onLocate(item.id)}
+                          onLocate={() => onLocate(item.id.replace(/~next$/, ""))}
                           onApply={(improved) => onApply(item, improved)}
+                          onApplyRewrite={rewriteFor(item)}
+                          onUndo={onUndo}
                           onIgnore={() => onIgnore(item)}
                           onDone={onDone ? () => onDone(item) : undefined}
                           targetRole={targetRole}

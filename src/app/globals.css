@@ -1965,3 +1965,26 @@
   color: rgb(148 163 184);
   font-style: italic;
 }
+
+/* A suggestion was just put in the resume: a thin green border and glow for a few seconds. */
+.resume-page .rx-applied-flash {
+  border-radius: 4px;
+  animation: rx-applied-flash 3.2s ease-out forwards;
+}
+@keyframes rx-applied-flash {
+  0%, 70% {
+    outline: 1.5px solid rgb(16 185 129);
+    outline-offset: 2px;
+    background-color: rgb(16 185 129 / 0.1);
+    box-shadow: 0 0 0 4px rgb(16 185 129 / 0.18), 0 0 18px rgb(16 185 129 / 0.45);
+  }
+  100% {
+    outline: 1.5px solid transparent;
+    outline-offset: 2px;
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resume-page .rx-applied-flash { animation-duration: 0.01ms; outline: 1.5px solid rgb(16 185 129); }
+}

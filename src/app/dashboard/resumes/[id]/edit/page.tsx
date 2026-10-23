@@ -181,7 +181,6 @@ import {
   getAtPath,
   isEntrySection,
   moveEntry,
-  sanitizeRichHtml,
   setAtPath,
 } from "@/components/resume-canvas/canvasOps";
 
@@ -197,6 +196,8 @@ import {
 } from "@/lib/resume-review-reminder";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
+import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
+import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
   assignSectionColumnOnReorder,
   toSectionOrderPayload,
@@ -821,6 +822,20 @@ export default function EditResumePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleRedo, handleUndo]);
 
+  /** Bumped when edits landed during a save, so autosave runs again for them. */
+  const [saveNudge, setSaveNudge] = useState(0);
+  /**
+   * A save finished. Only mark everything saved if nothing changed while it was in flight
+   * (an undo or more typing): otherwise those newer edits would show "Saved" and never go up.
+   */
+  const finishSave = useCallback((sent: { resume: Resume; sections: unknown; layout: unknown }) => {
+    const unchanged =
+      resumeRef.current === sent.resume && sectionsRef.current === sent.sections && layoutRef.current === sent.layout;
+    if (unchanged) setHasChanges(false);
+    else setSaveNudge((n) => n + 1);
+    setLastSaved(new Date());
+  }, []);
+
   const persistResumeToServer = useCallback(
     async (resumeSnapshot: Resume) => {
       const currentLayout = layoutRef.current;
@@ -840,10 +855,9 @@ export default function EditResumePage() {
         layout: currentLayout,
       });
 
-      setHasChanges(false);
-      setLastSaved(new Date());
+      finishSave({ resume: resumeSnapshot, sections: currentSections, layout: currentLayout });
     },
-    [resumeId],
+    [resumeId, finishSave],
   );
 
   // Never lose the last edits: save them when leaving the editor (or switching resume),
@@ -1052,8 +1066,7 @@ export default function EditResumePage() {
           layout: currentLayout,
         });
 
-        setHasChanges(false);
-        setLastSaved(new Date());
+        finishSave({ resume: currentResume, sections: currentSections, layout: currentLayout });
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         // A save refused because another tab saved first is handled by the conflict banner.
@@ -1066,7 +1079,7 @@ export default function EditResumePage() {
     }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture, saveNudge, finishSave]);
 
   useEffect(() => {
     const onConflict = (event: Event) => {
@@ -2366,6 +2379,46 @@ export default function EditResumePage() {
     [],
   );
 
+  /**
+   * Put an AI / ATS suggestion into one bullet: found by location when known, matched
+   * loosely otherwise, never replacing a whole field. One undo step; the change is then
+   * scrolled to and flashed green. Returns where it went (null: nothing changed).
+   */
+  const applySuggestionInEditor = useCallback(
+    ({
+      original,
+      improved,
+      at,
+      occurrence,
+    }: {
+      original: string;
+      improved: string;
+      at?: SuggestionAt | null;
+      occurrence?: number;
+    }): SuggestionAt | null => {
+      const current = resumeRef.current;
+      if (!current) return null;
+      const result = applySuggestion(current, { original, improved, at, occurrence });
+      if (!result) return null;
+      // Its own undo step: end any typing burst, snapshot now, then change without re-recording.
+      if (contentEditHistoryTimerRef.current) clearTimeout(contentEditHistoryTimerRef.current);
+      contentEditHistoryTimerRef.current = null;
+      contentEditHistoryPendingRef.current = false;
+      recordImmediateHistory();
+      suppressHistoryRef.current = true;
+      setResumeState(result.resume);
+      resumeRef.current = result.resume;
+      suppressHistoryRef.current = false;
+      setHasChanges(true);
+      invalidateAtsScoreDisplay();
+      flashAppliedChange(result.at, improved);
+      return result.at;
+    },
+    // invalidateAtsScoreDisplay / recordImmediateHistory are stable for this editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const handleIgnoreATSIssue = useCallback(
     async (
       check: import("@/types/atsReport").ATSCheckResult,
@@ -3254,20 +3307,17 @@ export default function EditResumePage() {
       const [section, index] = path.split(".");
       const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
       const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+      // Which bullet of the field (by position in the saved data, not the DOM node: the page
+      // re-renders after every change, and a stale node once made "put in" overwrite the field).
+      const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
+      const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
       setAiTarget({
         path,
         kind,
         text,
         role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
         company: typeof item?.company === "string" ? item.company : undefined,
-        apply: (replacement) => {
-          if (kind === "summary" || !bullet || !element.isConnected) {
-            commitCanvasFieldRef.current?.(path, kind === "summary" ? `<p>${escapeHtmlText(replacement)}</p>` : replacement);
-            return;
-          }
-          bullet.textContent = replacement;
-          commitCanvasFieldRef.current?.(path, sanitizeRichHtml(element.innerHTML));
-        },
+        at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
       });
     };
     pickTarget();
@@ -4237,6 +4287,18 @@ export default function EditResumePage() {
             <FixMistakesPanel
               liveText={resumeRawText}
               livePlaceholders={livePlaceholderIssues}
+              onUndo={handleUndo}
+              onApplyRewrite={(item, text, previous) => {
+                const at = applySuggestionInEditor({
+                  original: previous?.text ?? (item.quote || item.issue.excerpt || ""),
+                  improved: text,
+                  at: previous?.at ?? null,
+                  // The 2nd card for a sentence that repeats (same bullet in two jobs) is about the 2nd copy.
+                  occurrence: Number(/#(\d+)(?:~next)?$/.exec(item.id)?.[1] ?? 1),
+                });
+                if (!at) showCanvasNotice("Couldn't find that line on your resume — it may have changed. Edit it on the page instead.");
+                return at;
+              }}
               onDone={resolveFix}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
@@ -7954,6 +8016,13 @@ export default function EditResumePage() {
               />
             ) : (
               <AiAssistPanel
+                onApply={(text, at, original) => {
+                  const where = applySuggestionInEditor({ original, improved: text, at });
+                  if (!where) showCanvasNotice("Couldn't put that in — the line may have changed. Click the bullet again and retry.");
+                  return where;
+                }}
+                onUndo={handleUndo}
+                textAt={(at) => textAtLocation(resume, at)}
                 liveText={resumeText}
                 target={aiTarget}
                 targetRole={resume.content.personalInfo?.portfolio}
