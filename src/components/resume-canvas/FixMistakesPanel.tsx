@@ -103,7 +103,7 @@ const POSITIVE_KINDS = new Set(["positive", "credibility_positive", "skill_prese
 
 /** Short card labels in our own words (not the backend's check names). */
 const CARD_LABEL: Partial<Record<ATSCheckId, string>> = {
-  [PLACEHOLDER_CHECK]: "Blank to fill",
+  [PLACEHOLDER_CHECK]: "Sample text",
   spellingGrammar: "Typo",
   quantifyingImpact: "Add a result",
   repetition: "Repeated word",
@@ -196,9 +196,25 @@ export function typoWord(issue: ATSIssue): { word: string; fix: string } | null 
  * about text that is no longer there are dropped and blanks like "{XX%}" are listed
  * even before the next check.
  */
+/**
+ * The live placeholder check (same one the hackathon submit and downloads use) as panel
+ * findings — it also catches template values like "Tech Company Inc." or "Your Name".
+ */
+export function placeholderFindingsToIssues(found: Array<{ field: string; message: string }>): ATSIssue[] {
+  return found.map((f) => ({
+    title: "Replace the placeholder",
+    description: f.message,
+    // The quoted value is what's on the page ("Skills still contain placeholders (“Skill 1”, …)").
+    excerpt: f.message.match(/“([^”]+)”/)?.[1] ?? f.message,
+    severity: "fail",
+  }) as ATSIssue);
+}
+
 export function buildFixItems(
   report: ATSReportV3 | null,
   liveText?: string,
+  /** Findings from the live placeholder check (see placeholderFindingsToIssues). */
+  serverPlaceholders: ATSIssue[] = [],
 ): Array<{ title: string; items: FixItem[] }> {
   if (!report && !liveText) return [];
   const checks = report ? checksById(report) : new Map<ATSCheckId, ATSCheckResult>();
@@ -207,7 +223,7 @@ export function buildFixItems(
     // placeholder headings and contact details — so the list matches the score.
     const fromReport = checks.get(PLACEHOLDER_CHECK)?.issues ?? [];
     const seenExcerpts = new Set<string>();
-    const issues = [...placeholderIssues(liveText), ...fromReport].filter((issue) => {
+    const issues = [...placeholderIssues(liveText), ...serverPlaceholders, ...fromReport].filter((issue) => {
       const key = (issue.excerpt ?? issue.title).trim().toLowerCase();
       if (seenExcerpts.has(key)) return false;
       seenExcerpts.add(key);
@@ -663,8 +679,11 @@ export function FixMistakesPanel({
   onAddSkill,
   hiddenGroups,
   onHiddenGroupsChange,
+  livePlaceholders,
   children,
 }: {
+  /** Live placeholder findings (sample text the report may not know about yet). */
+  livePlaceholders?: ATSIssue[];
   /** Suggestion types the user switched off (their cards and page marks are hidden). */
   hiddenGroups?: Set<string>;
   onHiddenGroupsChange?: (next: Set<string>) => void;
@@ -689,7 +708,11 @@ export function FixMistakesPanel({
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
 }) {
-  const groups = useMemo(() => buildFixItems(report, liveText), [report, liveText]);
+  const groups = useMemo(() => buildFixItems(report, liveText, livePlaceholders), [report, liveText, livePlaceholders]);
+  const sampleLeft = groups.reduce(
+    (n, g) => n + g.items.filter((i) => i.check.id === PLACEHOLDER_CHECK && !resolved.has(i.id)).length,
+    0,
+  );
   const open = groups.reduce(
     (n, g) => (hiddenGroups?.has(g.title) ? n : n + g.items.filter((i) => !i.incomplete && !resolved.has(i.id)).length),
     0,
@@ -713,6 +736,11 @@ export function FixMistakesPanel({
           <p className="mt-0.5 text-xs text-muted-foreground">
             {edited ? "You've edited since the last check — re-run to update." : "Score out of 100 from our ATS check."}
           </p>
+          {sampleLeft > 0 ? (
+            <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400">
+              Held below 60 while sample text remains — replace it first.
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="flex gap-2">

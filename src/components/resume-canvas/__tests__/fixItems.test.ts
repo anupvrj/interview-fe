@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFixItems, placeholderIssues, typoWord } from "../FixMistakesPanel";
+import { buildFixItems, placeholderFindingsToIssues, placeholderIssues, typoWord } from "../FixMistakesPanel";
 import type { ATSReportV3 } from "@/types/atsReport";
 
 describe("placeholderIssues", () => {
@@ -116,5 +116,31 @@ describe("Fill in matches what the score counts", () => {
     expect(fill.items.map((i) => i.issue.excerpt)).toEqual(["Sample Project", "anup@example.com"]);
     // Fixed on the page: gone right away, before any re-score.
     expect(buildFixItems(report, "anup@gmail.com\nLedger app").find((g) => g.title === "Fill in")!.items).toEqual([]);
+  });
+});
+
+describe("sample text the report doesn't know about yet", () => {
+  it("live placeholder findings (e.g. a template company) are listed under Fill in", () => {
+    const live = placeholderFindingsToIssues([
+      { field: "awards.0.issuer", message: "Award 1: issuer is a placeholder “Tech Company Inc.”" },
+      { field: "skills", message: "Skills still contain placeholders (“Skill 1”, “Skill 2”)" },
+    ]);
+    expect(live.map((i) => i.excerpt)).toEqual(["Tech Company Inc.", "Skill 1"]);
+    const groups = buildFixItems(null, "Priya Raghavan\nTech Company Inc.\nSkill 1", live);
+    const fillIn = groups.find((g) => g.title === "Fill in")!;
+    expect(fillIn.items.map((i) => i.quote)).toEqual(["Tech Company Inc.", "Skill 1"]);
+  });
+
+  it("the same value from the report and the live check is listed once", () => {
+    const live = placeholderFindingsToIssues([{ field: "awards.0.issuer", message: "Award 1: issuer is a placeholder “Tech Company Inc.”" }]);
+    const report = {
+      categories: {
+        content: {
+          checks: [{ id: "placeholderValues", status: "fail", issues: [{ title: "Replace the placeholder", excerpt: "Tech Company Inc.", severity: "fail" }] }],
+        },
+      },
+    } as unknown as ATSReportV3;
+    const fillIn = buildFixItems(report, "Tech Company Inc.", live).find((g) => g.title === "Fill in")!;
+    expect(fillIn.items).toHaveLength(1);
   });
 });

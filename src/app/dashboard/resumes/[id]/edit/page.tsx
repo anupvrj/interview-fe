@@ -158,8 +158,9 @@ import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/A
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
-import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import { FixMistakesPanel, buildFixItems, fixMarks, placeholderFindingsToIssues, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
+import { SampleTextNotice } from "@/components/resume-canvas/SampleTextNotice";
 import { EditorGuide, type EditorGuideHandle } from "@/components/resume-canvas/guide/EditorGuide";
 import { guideHasContact, guideHasContent } from "@/components/resume-canvas/guide/guideChecklist";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
@@ -500,8 +501,10 @@ export default function EditResumePage() {
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   /** First-run editor guide (tour, setup checklist, beacons). */
   const guideRef = useRef<EditorGuideHandle>(null);
-  /** Hackathon guide: sample text still on the resume, and the event's ATS goal. */
-  const [guideHasSample, setGuideHasSample] = useState(false);
+  /** Sample text still on the resume (live check — the same one downloads and submits use). */
+  const [livePlaceholders, setLivePlaceholders] = useState<ResumePlaceholderIssue[]>([]);
+  const guideHasSample = livePlaceholders.length > 0;
+  /** Hackathon guide: the event's ATS goal. */
   const [guideAtsTarget, setGuideAtsTarget] = useState<number | null>(null);
   /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
   const [peekId, setPeekId] = useState<string | null>(null);
@@ -1853,6 +1856,43 @@ export default function EditResumePage() {
     }
   };
 
+  /** Notice → Remove samples: same cleanup as at submit, applied right away (undoable). */
+  const [removingSamples, setRemovingSamples] = useState(false);
+  const removeSamplesNow = async () => {
+    const current = resumeRef.current;
+    if (!current || removingSamples) return;
+    setRemovingSamples(true);
+    try {
+      const cleanup = await resumeApi.cleanupPlaceholders(current.content);
+      if (cleanup.removed.length) {
+        handleResumeImported({ ...current, content: cleanup.content });
+        setHasChanges(true);
+      }
+      const left = cleanup.remaining.length;
+      showCanvasNotice(
+        cleanup.removed.length
+          ? `Removed ${cleanup.removed.length} sample ${cleanup.removed.length === 1 ? "item" : "items"} — Undo brings ${cleanup.removed.length === 1 ? "it" : "them"} back.${left ? " Now type your own name / email." : ""}`
+          : "Nothing to remove automatically — type your own details where it's marked.",
+      );
+      if (left) showSampleText();
+    } catch {
+      showCanvasNotice("Couldn't remove the samples right now — try again.");
+    } finally {
+      setRemovingSamples(false);
+    }
+  };
+  /** Notice → Show me: the ATS list on the first sample item (phones: on the page). */
+  const showSampleText = () => {
+    const first = fixGroups.flatMap((g) => g.items).find((i) => i.check.id === "placeholderValues" && !fixResolved.has(i.id));
+    if (canvasPanel !== "fix") openCanvasPanel("fix");
+    if (!first) return;
+    pickMark(first.id);
+    if (isMobile) {
+      setPeekId(first.id);
+      previewRef.current?.zoomAtLeast(MOBILE_ISSUE_ZOOM);
+    }
+  };
+
   const handleSaveAndReturn = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
     // The hackathon rejects sample data server-side; say so before compiling the PDF.
@@ -1880,15 +1920,21 @@ export default function EditResumePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [continueAfterCleanup, resume]);
 
-  // Hackathon resumes: keep the guide's "Replace the sample text" in step with the content.
+  // Keep the sample-text check live as they edit (panel list, page marks, notice, guide).
   useEffect(() => {
-    if (!returnsToHackathon || !resume?.content) return;
+    if (!resume?.content) return;
     const content = resume.content;
+    let cancelled = false;
     const t = window.setTimeout(() => {
-      void fetchResumePlaceholderIssues(content).then((issues) => setGuideHasSample(issues.length > 0));
-    }, 1500);
-    return () => window.clearTimeout(t);
-  }, [returnsToHackathon, resume?.content]);
+      void fetchResumePlaceholderIssues(content).then((issues) => {
+        if (!cancelled) setLivePlaceholders(issues);
+      });
+    }, 1200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [resume?.content]);
 
   useEffect(() => {
     const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
@@ -2376,6 +2422,28 @@ export default function EditResumePage() {
       clearTimeout(timer);
     };
   }, [lastSaved, resumeId, hasAtsReport, refreshingATS]);
+
+  // A report from before the sample-text check doesn't know about sample text the live
+  // check finds: re-score once (no AI) so the score and the list reflect it.
+  const staleSampleRescored = useRef(false);
+  const savedReport = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+  const reportPlaceholderCount =
+    Object.values(savedReport?.categories ?? {})
+      .flatMap((c) => c?.checks ?? [])
+      .find((c) => c.id === "placeholderValues")?.issues.length ?? 0;
+  useEffect(() => {
+    if (staleSampleRescored.current || !resumeId || !hasAtsReport || refreshingATS) return;
+    if (livePlaceholders.length === 0 || reportPlaceholderCount > 0) return;
+    staleSampleRescored.current = true;
+    void resumeApi
+      .rescoreATS(resumeId)
+      .then((rescored) => {
+        if (!rescored) return;
+        setResumeState((prev) => (prev ? { ...prev, atsScore: rescored.atsScore, atsFeedback: rescored.atsFeedback } : prev));
+        if (!hasChangesRef.current) setDisplayAtsScore(rescored.atsScore);
+      })
+      .catch(() => undefined);
+  }, [resumeId, hasAtsReport, refreshingATS, livePlaceholders.length, reportPlaceholderCount]);
 
   const handleDownload = async () => {
     if (!canUse("resumeDownload") && !suppressHackathonTrial) {
@@ -2995,7 +3063,11 @@ export default function EditResumePage() {
       /* private mode */
     }
   }, []);
-  const allFixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  const livePlaceholderIssues = useMemo(() => placeholderFindingsToIssues(livePlaceholders), [livePlaceholders]);
+  const allFixGroups = useMemo(
+    () => buildFixItems(atsReportV3, resumeRawText, livePlaceholderIssues),
+    [atsReportV3, resumeRawText, livePlaceholderIssues],
+  );
   const fixGroups = useMemo(
     () => allFixGroups.map((g) => (hiddenFixGroups.has(g.title) ? { ...g, items: [] } : g)),
     [allFixGroups, hiddenFixGroups],
@@ -3011,10 +3083,13 @@ export default function EditResumePage() {
     const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
     if (aiMarks.length) return aiMarks;
     if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
-    // Typos stay marked on the page even with the panel closed (like a spell checker).
+    // Typos and sample text stay marked on the page even with the panel closed.
     if (!canvasPanel || canvasPanel === "outline" || canvasPanel === "design" || canvasPanel === "details") {
       return fixMarks(
-        fixGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.check.id === "spellingGrammar" && i.wordFix) })),
+        fixGroups.map((g) => ({
+          ...g,
+          items: g.items.filter((i) => (i.check.id === "spellingGrammar" && i.wordFix) || i.check.id === "placeholderValues"),
+        })),
         fixResolved,
       );
     }
@@ -3539,6 +3614,16 @@ export default function EditResumePage() {
             )}
           </Button>
         </div>
+      ) : null}
+      {canvasOn && livePlaceholders.length > 0 && !(isMobile && canvasPanel) ? (
+        <SampleTextNotice
+          count={livePlaceholderIssues.length}
+          examples={livePlaceholderIssues.map((i) => i.excerpt ?? "").filter(Boolean)}
+          removing={removingSamples}
+          compact={isMobile}
+          onShow={showSampleText}
+          onRemove={() => void removeSamplesNow()}
+        />
       ) : null}
       {extensionSyncState !== "idle" ? (
         <div className="relative border-b border-border bg-primary/5 px-4 py-2 pr-10 text-center text-sm text-foreground md:text-left">
@@ -4151,6 +4236,7 @@ export default function EditResumePage() {
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
               liveText={resumeRawText}
+              livePlaceholders={livePlaceholderIssues}
               onDone={resolveFix}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
