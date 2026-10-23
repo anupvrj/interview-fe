@@ -13,9 +13,11 @@ export type GuideState = {
   explored: string[];
   /** One-off milestones that can't be read from the resume ("fixed", "exported"). */
   milestones: string[];
+  /** "Later" on the welcome card: show it again next visit (up to a few times). */
+  laterCount: number;
 };
 
-const EMPTY: GuideState = { tour: null, prompted: false, checklistClosed: false, explored: [], milestones: [] };
+const EMPTY: GuideState = { tour: null, prompted: false, checklistClosed: false, explored: [], milestones: [], laterCount: 0 };
 const key = (userId: string) => `ix:editorGuide:v1:${userId}`;
 
 export function readGuide(userId: string): GuideState {
@@ -29,6 +31,7 @@ export function readGuide(userId: string): GuideState {
       checklistClosed: parsed.checklistClosed === true,
       explored: Array.isArray(parsed.explored) ? parsed.explored.filter((x) => typeof x === "string") : [],
       milestones: Array.isArray(parsed.milestones) ? parsed.milestones.filter((x) => typeof x === "string") : [],
+      laterCount: typeof parsed.laterCount === "number" && parsed.laterCount > 0 ? Math.floor(parsed.laterCount) : 0,
     };
   } catch {
     return { ...EMPTY };

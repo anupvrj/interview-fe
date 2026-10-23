@@ -59,6 +59,33 @@ describe("EditorGuide", () => {
     expect(text()).toContain("Let’s make your resume shine");
   });
 
+  it("Later: the welcome comes back next visit, three times at most; Skip stops it for good", () => {
+    mountEditorFixture();
+    for (let visit = 1; visit <= 3; visit++) {
+      const { tick } = guide();
+      tick();
+      expect(text()).toContain("Let’s make your resume shine");
+      click(button("Later"));
+      expect(saved()).toMatchObject({ laterCount: visit, tour: visit < 3 ? null : "skipped" });
+      cleanup();
+      restore = fakeLayout();
+      mountEditorFixture();
+    }
+    const { tick } = guide();
+    tick(2000);
+    expect(text()).not.toContain("Let’s make your resume shine"); // asked three times — stops
+
+    cleanup();
+    restore = fakeLayout();
+    localStorage.clear();
+    mountEditorFixture();
+    const g = guide();
+    g.tick();
+    click(button("Start the tour"));
+    click(button("Skip"));
+    expect(saved()).toMatchObject({ tour: "skipped", laterCount: 0 });
+  });
+
   it("existing resume: one-time prompt; No thanks is remembered", () => {
     mountEditorFixture();
     const { tick } = guide({ resumeIsNew: false });

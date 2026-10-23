@@ -26,6 +26,9 @@ const BEACONS: Array<{ panel: CanvasPanel; label: string }> = [
   { panel: "ai", label: "AI Coach" },
 ];
 
+/** After this many "Later"s the welcome stops asking (Replay is still there). */
+export const MAX_LATER = 3;
+
 const dialogOpen = () => Boolean(document.querySelector('[role="dialog"]:not([aria-label="Editor tour"]), [role="alertdialog"]'));
 
 /**
@@ -151,6 +154,15 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
       if (studio && typeof studio.scrollTo === "function") studio.scrollTo({ left: 0, behavior: "smooth" });
       else if (studio) studio.scrollLeft = 0; // older browsers without element.scrollTo
       if (wasMini) return;
+      if (how === "later") {
+        // Ask again next visit — but not forever.
+        update((s) => {
+          const laterCount = s.laterCount + 1;
+          return { ...s, laterCount, tour: laterCount >= MAX_LATER ? "skipped" : s.tour };
+        });
+        trackEvent("editor_guide_tour_later", { device: isMobile ? "phone" : "desktop" });
+        return;
+      }
       update((s) => ({ ...s, tour: s.tour === "done" ? "done" : how }));
       trackEvent(how === "done" ? "editor_guide_tour_complete" : "editor_guide_tour_skip", { device: isMobile ? "phone" : "desktop" });
     },

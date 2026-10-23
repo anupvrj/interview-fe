@@ -69,7 +69,8 @@ function confetti() {
   requestAnimationFrame(frame);
 }
 
-export type TourEnd = "done" | "skipped";
+/** "later": the welcome's Later — ask again next visit. Skip / ✕ / Esc end it for good. */
+export type TourEnd = "done" | "skipped" | "later";
 
 /**
  * The spotlight tour. `welcome` shows the "Hi …" card first (first visit); a replay starts
@@ -206,7 +207,7 @@ export function EditorTour({
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">{welcomeBody}</p>
               <div className="mt-5 flex justify-center gap-2">
-                <button type="button" className="eg-ghost" onClick={skip}>Later</button>
+                <button type="button" className="eg-ghost" onClick={() => onEnd("later")}>Later</button>
                 <button type="button" className="eg-primary" onClick={next} autoFocus>Start the tour →</button>
               </div>
             </div>

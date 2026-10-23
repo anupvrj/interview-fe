@@ -78,6 +78,13 @@ describe("EditorTour", () => {
     expect(b.onEnd).toHaveBeenCalledWith("skipped");
   });
 
+  it("Later on the welcome is 'ask me next time', not a skip", () => {
+    mountEditorFixture();
+    const { onEnd } = tour();
+    click(button("Later"));
+    expect(onEnd).toHaveBeenCalledWith("later");
+  });
+
   it("the last step celebrates, then ends as done", async () => {
     mountEditorFixture();
     vi.useFakeTimers();
