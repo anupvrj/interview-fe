@@ -50,6 +50,8 @@ import {
   type ResumeChatSubMode,
 } from "@/components/resume-builder/ResumeBuilderChatModeModal";
 import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/ResumeBuilderJobDescriptionStep";
+import { HackathonResumeStartChoices } from "@/components/resume-builder/HackathonResumeStartChoices";
+import { pickHackathonTemplate } from "@/lib/hackathon-resume-template";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
@@ -99,6 +101,11 @@ export default function NewResumePage() {
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
   const searchParams = useSearchParams();
+  /**
+   * From the hackathon's "Build my resume": template preselected (skipTemplate), a short
+   * start-from-real-details chooser, and no job-description step.
+   */
+  const quickHackathon = searchParams.get("hk") === "1";
   const forwardReturnTo = (params: URLSearchParams) => {
     const returnTo = safeAppRedirectPath(searchParams.get("returnTo"));
     if (!returnTo) return;
@@ -127,6 +134,7 @@ export default function NewResumePage() {
     if (searchParams.get("extensionSync") === "1") {
       params.set("extensionSync", "1");
     }
+    if (quickHackathon) params.set("hk", "1");
     const query = params.toString();
     return query ? `/dashboard/resumes/new?${query}` : "/dashboard/resumes/new";
   };
@@ -249,15 +257,15 @@ export default function NewResumePage() {
       // Onboarding completed - load templates and check for template param
       loadTemplates();
 
-      // Check URL params to skip template selection
-      const templateParam = searchParams.get("template");
-      const skipTemplate = searchParams.get("skipTemplate") === "true";
-
       // A template Super Admin turned off can't be preselected from a link.
       const { fetchDisabledResumeTemplateIds } = await import(
         "@/lib/resume-template-availability"
       );
       const disabledTemplates = await fetchDisabledResumeTemplateIds();
+
+      // Check URL params to skip template selection
+      const templateParam = (quickHackathon && pickHackathonTemplate(disabledTemplates)) || searchParams.get("template");
+      const skipTemplate = quickHackathon || searchParams.get("skipTemplate") === "true";
       if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
         setStep("import");
@@ -445,6 +453,13 @@ export default function NewResumePage() {
     setJdSummary(null);
     void handleBuildResume(undefined, undefined);
   };
+
+  // Hackathon: no job-description step — build as soon as the import is ready.
+  useEffect(() => {
+    if (!quickHackathon || step !== "jobDescription" || !pendingImport || creating || createError) return;
+    handleSkipJobDescription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickHackathon, step, pendingImport, creating, createError]);
 
   const handleBuildResume = async (
     jdOverride?: string,
@@ -747,7 +762,9 @@ export default function NewResumePage() {
           : importSource === "linkedin"
             ? "We’ll fetch your public LinkedIn data and enhance it with AI for recruiters and ATS."
             : importSource === "pdf"
-              ? "Upload a PDF to auto-fill sections, then optionally tailor to a target job."
+              ? quickHackathon
+                ? "Any old resume PDF works — we’ll pull your details into a fresh design."
+                : "Upload a PDF to auto-fill sections, then optionally tailor to a target job."
               : "Chat with AI, import from LinkedIn, or upload an existing PDF.",
     },
     jobDescription: {
@@ -787,6 +804,7 @@ export default function NewResumePage() {
   };
 
   const currentMeta = stepMeta[step];
+  const quickHackathonChooser = quickHackathon && step === "import" && !importSource;
 
   // Filter templates based on active filter
   const filteredTemplates =
@@ -808,7 +826,7 @@ export default function NewResumePage() {
   return (
     <div className={resumeBuilderPage}>
       <div className="flex items-start gap-3">
-        <Link href="/dashboard/resumes">
+        <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"}>
           <Button
             variant="ghost"
             size="icon"
@@ -817,16 +835,18 @@ export default function NewResumePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div className="min-w-0 flex-1">
-          <PageHeader
-            badge={currentMeta.badge}
-            title={currentMeta.title}
-            description={currentMeta.description}
-          />
-        </div>
+        {quickHackathonChooser ? null : (
+          <div className="min-w-0 flex-1">
+            <PageHeader
+              badge={currentMeta.badge}
+              title={currentMeta.title}
+              description={currentMeta.description}
+            />
+          </div>
+        )}
       </div>
 
-      <ResumeCreationStepper currentStep={step} />
+      {quickHackathon ? null : <ResumeCreationStepper currentStep={step} />}
 
       {step === "template" && (
         <>
@@ -993,7 +1013,20 @@ export default function NewResumePage() {
 
       {step === "import" && (
         <div className="space-y-5">
-          {selectedTemplateName ? (
+          {quickHackathonChooser ? (
+            <HackathonResumeStartChoices
+              templateName={selectedTemplateName}
+              uploadedCvName={uploadedCv ? uploadedCv.filename || "resume.pdf" : null}
+              loadingUploadedCv={loadingUploadedCv || extracting}
+              busy={creating}
+              onUseUploadedCv={() => void importUploadedCv()}
+              onUploadPdf={() => setImportSource("pdf")}
+              onTalkToAi={() => setShowChatModeModal(true)}
+              onLinkedIn={() => setImportSource("linkedin")}
+              onUseSample={handleSkip}
+            />
+          ) : null}
+          {selectedTemplateName && !quickHackathon ? (
             <div className={resumeBuilderSelectedBanner}>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
@@ -1011,7 +1044,7 @@ export default function NewResumePage() {
             </div>
           ) : null}
 
-          {!importSource ? (
+          {!importSource && quickHackathon ? null : !importSource ? (
             <>
               {uploadedCv ? (
                 <div className="mb-4 flex flex-col gap-3 rounded-xl border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1130,15 +1163,18 @@ export default function NewResumePage() {
                     Back
                   </Button>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      variant="outline"
-                      className={resumeBuilderOutlineButton}
-                      onClick={handleSkip}
-                      disabled={creating}
-                    >
-                      <SkipForward className="mr-2 h-4 w-4" />
-                      Skip & use defaults
-                    </Button>
+                    {/* Hackathon: sample data blocks the submit — the chooser keeps a small link instead. */}
+                    {quickHackathon ? null : (
+                      <Button
+                        variant="outline"
+                        className={resumeBuilderOutlineButton}
+                        onClick={handleSkip}
+                        disabled={creating}
+                      >
+                        <SkipForward className="mr-2 h-4 w-4" />
+                        Skip & use defaults
+                      </Button>
+                    )}
                     <Button
                       className={resumeBuilderPrimaryButton}
                       onClick={handlePdfContinue}

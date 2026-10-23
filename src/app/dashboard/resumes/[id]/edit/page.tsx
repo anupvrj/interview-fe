@@ -28,6 +28,8 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
+  CircleHelp,
   Save,
   Download,
   Loader2,
@@ -108,8 +110,8 @@ import { cn } from "@/lib/utils";
 import { appPrimaryButton } from "@/lib/app-theme";
 import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import { isHackathonTrialContextFromUrl } from "@/lib/hackathon-trial-suppress";
-import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
-import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
+import { hackathonSlugFromDashboardPath, resumeHackathonReturnTo } from "@/lib/interview-return-to";
+import { eventTargets, hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { hackathonKeys } from "@/features/hackathon/hooks";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
@@ -158,6 +160,8 @@ import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
+import { EditorGuide, type EditorGuideHandle } from "@/components/resume-canvas/guide/EditorGuide";
+import { guideHasContact, guideHasContent } from "@/components/resume-canvas/guide/guideChecklist";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
@@ -298,6 +302,7 @@ function htmlToPlainText(html: string): string {
 }
 
 
+
 /** Phones: zoom for reading an ATS issue picked from the report (the fitted page is ~40%). */
 const MOBILE_ISSUE_ZOOM = 85;
 export default function EditResumePage() {
@@ -312,8 +317,16 @@ export default function EditResumePage() {
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
   const wantsExtensionSync = searchParams.get("extensionSync") === "1";
-  const resumeReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
-  const resumeReturnLabel = searchParams.get("returnLabel")?.slice(0, 40) || "previous page";
+  const queryReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
+  // Opened from the hackathon before (this browser): keep offering "Submit to Hackathon".
+  const [rememberedReturnTo, setRememberedReturnTo] = useState<string | null>(null);
+  useEffect(() => {
+    setRememberedReturnTo(resumeHackathonReturnTo(resumeId, queryReturnTo));
+  }, [resumeId, queryReturnTo]);
+  const resumeReturnTo = queryReturnTo ?? rememberedReturnTo;
+  const returnsToHackathon = Boolean(hackathonSlugFromDashboardPath(resumeReturnTo));
+  const resumeReturnLabel =
+    searchParams.get("returnLabel")?.slice(0, 40) || (returnsToHackathon ? "Hackathon" : "previous page");
   const [savingAndReturning, setSavingAndReturning] = useState(false);
   /** Which part of "Save and return" is running, so the button doesn't say "Creating PDF" throughout. */
   const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit">("pdf");
@@ -331,7 +344,11 @@ export default function EditResumePage() {
   const [preflight, setPreflight] = useState<{
     issues: ResumePlaceholderIssue[];
     action: "download" | "hackathon";
+    /** "Remove sample entries" preview: undefined while loading, null when unavailable. */
+    cleanup?: Awaited<ReturnType<typeof resumeApi.cleanupPlaceholders>> | null;
   } | null>(null);
+  /** After "Remove samples & submit/download": carry on once the cleaned resume has rendered. */
+  const [continueAfterCleanup, setContinueAfterCleanup] = useState<"download" | "hackathon" | null>(null);
   const [extensionSyncState, setExtensionSyncState] = useState<
     "idle" | "syncing" | "synced" | "error" | "missing-extension"
   >("idle");
@@ -481,6 +498,11 @@ export default function EditResumePage() {
   /** Score panel: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** First-run editor guide (tour, setup checklist, beacons). */
+  const guideRef = useRef<EditorGuideHandle>(null);
+  /** Hackathon guide: sample text still on the resume, and the event's ATS goal. */
+  const [guideHasSample, setGuideHasSample] = useState(false);
+  const [guideAtsTarget, setGuideAtsTarget] = useState<number | null>(null);
   /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
   const [peekId, setPeekId] = useState<string | null>(null);
   /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
@@ -1793,18 +1815,95 @@ export default function EditResumePage() {
     }
   };
 
+  /** ← goes back to the hackathon for hackathon resumes (saving first), else to My resumes. */
+  const backHref = returnsToHackathon && resumeReturnTo ? resumeReturnTo : "/dashboard/resumes";
+  const onBackClick = (event: React.MouseEvent) => {
+    if (!returnsToHackathon || !resumeReturnTo) return;
+    event.preventDefault();
+    void ensureResumePersisted()
+      .catch((error) => console.error("Save before leaving failed:", error))
+      .finally(() => router.push(resumeReturnTo));
+  };
+
+  /** Sample-data check dialog; also works out what "Remove sample entries" could clean up. */
+  const openPreflight = (issues: ResumePlaceholderIssue[], action: "download" | "hackathon") => {
+    setPreflight({ issues, action, cleanup: issues.length > 0 ? undefined : null });
+    const content = resumeRef.current?.content;
+    if (!issues.length || !content) return;
+    resumeApi
+      .cleanupPlaceholders(content)
+      .then((cleanup) => setPreflight((prev) => (prev && prev.action === action ? { ...prev, cleanup } : prev)))
+      .catch(() => setPreflight((prev) => (prev && prev.action === action ? { ...prev, cleanup: null } : prev)));
+  };
+
+  const removeSampleEntries = () => {
+    const current = resumeRef.current;
+    const cleanup = preflight?.cleanup;
+    const action = preflight?.action;
+    if (!current || !cleanup || !action) return;
+    // Same path as other whole-resume changes: one undo step brings the samples back.
+    handleResumeImported({ ...current, content: cleanup.content });
+    setHasChanges(true);
+    if (cleanup.remaining.length === 0) {
+      setPreflight(null);
+      setContinueAfterCleanup(action);
+    } else {
+      // Only the user's own details are left: show just those.
+      setPreflight({ issues: cleanup.remaining, action, cleanup: null });
+    }
+  };
+
   const handleSaveAndReturn = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
     // The hackathon rejects sample data server-side; say so before compiling the PDF.
     if (hackathonSlugFromDashboardPath(resumeReturnTo)) {
       const issues = await fetchResumePlaceholderIssues(resume.content);
       if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
-        setPreflight({ issues, action: "hackathon" });
+        openPreflight(issues, "hackathon");
         return;
       }
     }
     await saveAndReturnNow();
   };
+
+  useEffect(() => {
+    if (!continueAfterCleanup || !resume) return;
+    const action = continueAfterCleanup;
+    setContinueAfterCleanup(null);
+    // Let the preview render the cleaned resume (the PDF is made from it) before continuing.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (action === "hackathon") void saveAndReturnNow();
+        else void downloadPdf();
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [continueAfterCleanup, resume]);
+
+  // Hackathon resumes: keep the guide's "Replace the sample text" in step with the content.
+  useEffect(() => {
+    if (!returnsToHackathon || !resume?.content) return;
+    const content = resume.content;
+    const t = window.setTimeout(() => {
+      void fetchResumePlaceholderIssues(content).then((issues) => setGuideHasSample(issues.length > 0));
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [returnsToHackathon, resume?.content]);
+
+  useEffect(() => {
+    const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
+    if (!slug) return;
+    let cancelled = false;
+    hackathonApi
+      .getPublic(slug)
+      .then((pub) => {
+        if (!cancelled) setGuideAtsTarget(eventTargets(pub).atsScore);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeReturnTo]);
 
   const saveAndReturnNow = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
@@ -1828,6 +1927,7 @@ export default function EditResumePage() {
         setSaveReturnPhase("submit");
         try {
           await hackathonApi.submitResume(slug, () => getToken(), resumeId);
+          guideRef.current?.milestone("exported");
           await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
           // Back on the board, show the new score with "Complete Challenge".
           returnUrl = `${resumeReturnTo}${resumeReturnTo.includes("?") ? "&" : "?"}resumeScore=1`;
@@ -2289,7 +2389,7 @@ export default function EditResumePage() {
     const issues = await fetchResumePlaceholderIssues(resume?.content);
     if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
       setDownloading(false);
-      setPreflight({ issues, action: "download" });
+      openPreflight(issues, "download");
       return;
     }
     await downloadPdf();
@@ -2307,6 +2407,7 @@ export default function EditResumePage() {
       } else if (compiled.downloadUrl) {
         await downloadPdfFromUrl(compiled.downloadUrl, compiled.filename);
       }
+      guideRef.current?.milestone("exported");
 
       const currentResumeId = resumeId;
       setTimeout(async () => {
@@ -2977,12 +3078,14 @@ export default function EditResumePage() {
     updateContent({ skills: next } as Partial<Resume["content"]>);
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
-  const resolveFix = (item: FixItem) =>
-    setFixResolved((prev) => {
+  const resolveFix = (item: FixItem) => {
+    guideRef.current?.milestone("fixed");
+    return setFixResolved((prev) => {
       const next = new Set(prev);
       next.add(item.id);
       return next;
     });
+  };
 
   // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
   useEffect(() => {
@@ -3409,10 +3512,13 @@ export default function EditResumePage() {
 
   return (
     <div className={resumeEditorPage} suppressHydrationWarning>
-      {resumeReturnTo ? (
+      {/* Phones on the canvas get a pinned "Submit to Hackathon" bar at the bottom instead. */}
+      {resumeReturnTo && !(isMobile && canvasOn && returnsToHackathon) ? (
         <div className="flex flex-col gap-2 border-b border-border bg-primary/5 px-4 py-2.5 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
-            When your resume is ready, save it and go back to the {resumeReturnLabel}.
+            {returnsToHackathon
+              ? "Done? Submit this resume to the Hackathon — you can update it later."
+              : `When your resume is ready, save it and go back to the ${resumeReturnLabel}.`}
           </span>
           <Button
             type="button"
@@ -3426,6 +3532,8 @@ export default function EditResumePage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {saveReturnPhase === "submit" ? "Submitting & scoring…" : "Creating PDF…"}
               </>
+            ) : returnsToHackathon ? (
+              "Submit to Hackathon"
             ) : (
               `Save and return to ${resumeReturnLabel}`
             )}
@@ -3465,8 +3573,8 @@ export default function EditResumePage() {
       {canvasOn ? (
         <>
           <div className="flex items-center gap-1.5 border-b border-border bg-background px-2 py-1.5 md:gap-3 md:px-4 md:py-2">
-            <Link href="/dashboard/resumes" className="shrink-0">
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Back to resumes">
+            <Link href={backHref} onClick={onBackClick} className="shrink-0" data-editor-back>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -3525,6 +3633,10 @@ export default function EditResumePage() {
               {extensionSyncState === "syncing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChromeIcon className="h-4 w-4" />}
             </IconTooltipButton>
             <span className="mx-0.5 hidden h-5 w-px bg-border md:block" aria-hidden />
+            {/* Phones: header is full; "Replay the tour" lives in the setup checklist. */}
+            <IconTooltipButton onClick={() => guideRef.current?.startTour()} variant="ghost" label="Take the tour" className="hidden md:inline-flex">
+              <CircleHelp className="h-4 w-4" />
+            </IconTooltipButton>
             <IconTooltipButton onClick={handleUndo} variant="ghost" label="Undo (Ctrl/⌘ Z)" disabled={!editorHistory.canUndo}>
               <Undo2 className="h-4 w-4" />
             </IconTooltipButton>
@@ -3577,8 +3689,10 @@ export default function EditResumePage() {
             {isMobile ? (
               <div className="flex min-w-0 flex-1 items-start gap-1.5">
                 <Link
-                  href="/dashboard/resumes"
+                  href={backHref}
+                  onClick={onBackClick}
                   className="shrink-0 pt-0.5"
+                  aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}
                 >
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <ArrowLeft className="h-4 w-4" />
@@ -3664,7 +3778,12 @@ export default function EditResumePage() {
               </div>
             ) : (
             <div className="flex min-w-0 flex-1 items-start gap-4">
-              <Link href="/dashboard/resumes" className="shrink-0 pt-0.5">
+              <Link
+                href={backHref}
+                onClick={onBackClick}
+                className="shrink-0 pt-0.5"
+                aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}
+              >
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -7925,7 +8044,52 @@ export default function EditResumePage() {
           }}
         />
       ) : null}
+      {canvasOn && isMobile && returnsToHackathon && !peekActive ? (
+        <div data-editor-bottom-bar className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-3 py-2">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
+            <span className="block font-semibold text-foreground">Hackathon resume</span>
+            Submit when ready — you can update it later.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSaveAndReturn()}
+            disabled={savingAndReturning || saving || autoSaving}
+            className={cn(appPrimaryButton, "h-10 shrink-0 rounded-full px-4")}
+          >
+            {savingAndReturning ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                {saveReturnPhase === "submit" ? "Submitting…" : "Saving…"}
+              </>
+            ) : (
+              <>
+                Submit to Hackathon
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+      ) : null}
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
+      <EditorGuide
+        ref={guideRef}
+        userId={user?.id ?? null}
+        firstName={user?.firstName ?? null}
+        isMobile={isMobile}
+        active={canvasOn && Boolean(resume && template) && !tryOnTemplate && !saveConflict}
+        resumeIsNew={Boolean(resume?.createdAt) && Date.now() - new Date(resume!.createdAt).getTime() < 24 * 60 * 60 * 1000}
+        hackathon={returnsToHackathon}
+        hasContact={guideHasContact(resume?.content)}
+        hasContent={guideHasContent(resume?.content)}
+        atsChecked={resume?.atsScore != null}
+        hasSample={guideHasSample}
+        atsTarget={guideAtsTarget}
+        openPanel={canvasPanel}
+        onOpenPanel={(panel) => {
+          if (canvasPanel !== panel) openCanvasPanel(panel); // open only — never toggle it shut
+        }}
+      />
       <input
         ref={canvasPhotoInputRef}
         type="file"
@@ -8148,6 +8312,9 @@ export default function EditResumePage() {
           preflight?.action === "hackathon" ? "Submit to hackathon" : undefined
         }
         onDontRemindAgain={() => dismissReviewReminder(resumeId)}
+        cleanup={preflight?.cleanup}
+        onRemoveSamples={preflight && preflight.issues.length > 0 ? removeSampleEntries : undefined}
+        removeAndContinueLabel={preflight?.action === "hackathon" ? "Remove samples & submit" : "Remove samples & download"}
         onGoToHackathon={
           // Sample data blocks the hackathon submit — offer a way back without submitting.
           preflight?.action === "hackathon" && preflight.issues.length > 0 && resumeReturnTo

@@ -148,6 +148,7 @@ export function StudioTabBar(props: StudioProps) {
   return (
     <nav
       aria-label="Resume studio"
+      data-editor-bottom-bar
       className="flex shrink-0 gap-1 overflow-x-auto border-t border-border bg-background px-2 pb-[max(env(safe-area-inset-bottom),0.4rem)] pt-1.5 [&::-webkit-scrollbar]:hidden"
     >
       {items.map((item) => {

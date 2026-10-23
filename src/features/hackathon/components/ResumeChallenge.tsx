@@ -48,7 +48,8 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
   const slug = useHackathonSlug();
   const dashboardPath = hackathonDashboardPath(slug);
   const returnQs = `returnTo=${encodeURIComponent(dashboardPath)}&returnLabel=${encodeURIComponent("Hackathon")}`;
-  const newResumeHref = `/dashboard/resumes/new?${returnQs}`;
+  // Quick start: template picked for them, start from real details, no job-description step.
+  const newResumeHref = `/dashboard/resumes/new?${returnQs}&hk=1`;
   const editResumeHref = (resumeId: string) => `/dashboard/resumes/${resumeId}/edit?${returnQs}`;
   const targets = eventTargets(me.hackathon);
   const resumeProgress = me.progress.challenges?.find((c) => c.kind === "resume");
@@ -299,12 +300,12 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
         <div className="space-y-4">
           <div className="hk-slot flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[#cfdbe8]">
-              Design your resume in the InterviewTrix builder, then come back here and submit it
+              Upload any old resume, or talk to AI for 2 minutes — we&apos;ll design it for you. Submit it right from the editor
               {displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}
             </p>
             <Link href={newResumeHref} className={cn("hk-btn min-h-11 w-full shrink-0 px-5 text-sm sm:w-auto")}>
               <FilePlus2 className="size-4" aria-hidden />
-              Design a resume
+              Build my resume
             </Link>
           </div>
 
@@ -314,9 +315,8 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
             </p>
           ) : options.length === 0 ? (
             <p className="text-sm text-[#9eb2ca]">
-              You don&apos;t have any builder resumes yet. Click <strong className="text-white">Design a resume</strong>,
-              pick a template, then choose <strong className="text-white">Use the CV you already uploaded</strong> to start
-              from your profile CV.
+              You don&apos;t have any builder resumes yet. Tap <strong className="text-white">Build my resume</strong> — upload
+              any old resume, or talk to AI if you don&apos;t have one handy.
             </p>
           ) : (
             <div className="space-y-3">

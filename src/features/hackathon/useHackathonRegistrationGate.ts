@@ -35,6 +35,9 @@ export function useHackathonRegistrationGate({
     if (!autoRegister) return;
     if (!me || me.registered || registerAttempted.current) return;
     if (me.hackathon.phase === "ended" || me.hackathon.isFull) return;
+    // Register once the signup form is done, so "registered" means a real, finished signup
+    // (signing in alone used to count, which inflated the numbers with empty profiles).
+    if (!me.profile.complete) return;
 
     registerAttempted.current = true;
     const showModal = me.profile.complete;
