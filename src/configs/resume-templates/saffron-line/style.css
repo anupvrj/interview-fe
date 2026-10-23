@@ -245,9 +245,12 @@
 }
 
 .saffron-line-education-header {
+  /* Date under the degree, not beside it: in the narrow sidebar the degree wrapped around the
+     date and ATS parsers read "Bachelor of 08/2015 - 05/2019 Technology …". */
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: flex-start;
+  gap: 2px;
   margin-bottom: 4px;
 }
 

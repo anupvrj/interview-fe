@@ -3388,7 +3388,11 @@ export function ResumeRenderer({
               technicalSkills = parseAmberEdgeSkillList(grouped.technical);
             }
 
-            if (professionalSkills.length === 0 && technicalSkills.length === 0) {
+            // A plain list is one "Skills" section in two columns. It used to be split in half
+            // under made-up "Professional" / "Technical" headings, which ATS parsers read as one
+            // garbled heading line (and which mislabelled half the skills).
+            const isGrouped = professionalSkills.length > 0 || technicalSkills.length > 0;
+            if (!isGrouped) {
               const allSkills = parseAmberEdgeSkillList(skillsData);
               if (allSkills.length === 0) return null;
               const midpoint = Math.ceil(allSkills.length / 2);
@@ -3424,20 +3428,21 @@ export function ResumeRenderer({
                   ...sidebarStyle,
                 }}
               >
+                {isGrouped ? null : renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
                 <div className={`${template.id}-skills-dual`}>
                   {professionalSkills.length > 0 && (
                     <div className={`${template.id}-skills-dual-column`}>
-                      <div className={`${template.id}-skills-dual-header`}>
-                        Professional Skills
-                      </div>
+                      {isGrouped ? (
+                        <div className={`${template.id}-skills-dual-header`}>Professional Skills</div>
+                      ) : null}
                       {renderSkillColumn(professionalSkills, 0)}
                     </div>
                   )}
                   {technicalSkills.length > 0 && (
                     <div className={`${template.id}-skills-dual-column`}>
-                      <div className={`${template.id}-skills-dual-header`}>
-                        Technical Skills
-                      </div>
+                      {isGrouped ? (
+                        <div className={`${template.id}-skills-dual-header`}>Technical Skills</div>
+                      ) : null}
                       {renderSkillColumn(
                         technicalSkills,
                         professionalSkills.length,

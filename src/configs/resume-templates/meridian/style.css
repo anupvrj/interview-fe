@@ -42,7 +42,7 @@
   font-size: var(--resume-subheading-font-size, 15px) !important;
   font-weight: 700 !important;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0.8px; /* wider tracking came out of PDFs as "A S S O C I A T E" */
   color: #1a1a1a !important;
   text-align: center !important;
   margin: 0 !important;

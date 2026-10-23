@@ -43,7 +43,9 @@ export const atlanticblueTemplate: ResumeTemplate = {
       body: 11,
     },
   },
-  atsOptimized: true,
+  // Two columns: reads well in most current ATS, but older ones read across the page and
+  // mix the columns (measured on our PDFs). So not tagged ATS-optimized.
+  atsOptimized: false,
 };
 
 /** Main column types (professional body). Sidebar = everything else. */

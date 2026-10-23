@@ -117,9 +117,17 @@ export const RESUME_METRIC_FONTS_CSS = `@font-face{font-family:"Arial";font-styl
  * "font boosting" — Android Chrome enlarges small text in wide fixed-width layouts like an
  * A4 page, but not the icons or rules around it, so text spilled onto lines and icons sat
  * high.
+ *
+ * Also for ATS parsers, which read the PDF's text layer:
+ * - no ligatures: "efficiency" came out as "ef fi ciency" (the "fi" glyph is one character);
+ * - every section positioned: the browser paints (and writes PDF text for) positioned blocks
+ *   after normal ones, so a page could read "Education, Skills, Projects" before the rest of
+ *   "Experience" — parsers then filed those jobs under Projects. Same look, pixel for pixel.
  */
 export const RESUME_SHARED_CSS = `${RESUME_METRIC_FONTS_CSS}
 .resume-page, .resume-content { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.resume-page, .resume-content { font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
+.resume-content [data-section] { position: relative; }
 `;
 
 /** Put the shared resume CSS on the page once (no-op on the server and when already there). */

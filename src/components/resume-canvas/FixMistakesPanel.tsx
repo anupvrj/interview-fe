@@ -6,6 +6,8 @@ import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
+import { AtsParseCard } from "./AtsParseCard";
+import type { AtsParseResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ScoreRing, scoreBand } from "./CanvasChrome";
@@ -727,6 +729,7 @@ export function FixMistakesPanel({
   onIgnore,
   onRecheck,
   onTailor,
+  onCheckAtsParse,
   targetRole,
   liveText,
   onDone,
@@ -763,6 +766,8 @@ export function FixMistakesPanel({
   onIgnore: (item: FixItem) => void;
   onRecheck: () => void;
   onTailor: () => void;
+  /** How ATS read the resume (builds the real PDF; run on demand). */
+  onCheckAtsParse?: () => Promise<AtsParseResult>;
   targetRole?: string;
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
@@ -842,6 +847,8 @@ export function FixMistakesPanel({
           Match a job
         </Button>
       </div>
+
+      {onCheckAtsParse ? <AtsParseCard onCheck={onCheckAtsParse} /> : null}
 
       {unfinished.length ? (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">

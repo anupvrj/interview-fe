@@ -198,6 +198,9 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
 import { moveSectionWithinColumn, organizeSectionColumns, sectionMoveBounds } from "@/lib/sectionLayout";
+import { fetchTemplateCssForPdf, serializeResumePagesHtml } from "@/lib/resume-pdf-export";
+import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
+import type { AtsParseResult } from "@/lib/api";
 import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
   assignSectionColumnOnReorder,
@@ -1594,6 +1597,40 @@ export default function EditResumePage() {
       suppressHistoryRef.current = false;
       editorHistory.clear();
       setLoading(false);
+    }
+  };
+
+  /**
+   * How ATS read the resume as it is now: save, then send the same plain page HTML + template
+   * CSS as Export; the server builds that PDF in memory and reads it like ATS parsers do.
+   */
+  const checkAtsParse = async (): Promise<AtsParseResult> => {
+    if (!resumeId) throw new Error("No resume");
+    await ensureResumePersisted();
+    const templateId = template?.id ?? resumeRef.current?.templateId ?? resume?.templateId ?? "classic";
+    const containerId = `resume-preview-container-${resumeId}`;
+    const editingWasOn = canvasOnRef.current;
+    if (editingWasOn) {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setPdfCapture(true);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    try {
+      await waitForResumePaginationSettled(containerId);
+      const container = document.getElementById(containerId);
+      const pages = Array.from(
+        container?.querySelector(".flex.flex-col.items-center")?.querySelectorAll<HTMLElement>(".resume-page") ?? [],
+      );
+      if (!pages.length) throw new Error("Preview not ready");
+      const [htmlContent, templateCSS] = [serializeResumePagesHtml(pages), await fetchTemplateCssForPdf(templateId)];
+      return await resumeApi.atsParsePreview(resumeId, htmlContent, templateCSS);
+    } finally {
+      if (editingWasOn) {
+        setPdfCapture(false);
+        requestAnimationFrame(() => previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true }));
+      }
     }
   };
 
@@ -4297,6 +4334,7 @@ export default function EditResumePage() {
                 return at;
               }}
               onDone={resolveFix}
+              onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
               onHiddenGroupsChange={updateHiddenFixGroups}
