@@ -111,7 +111,7 @@ import { appPrimaryButton } from "@/lib/app-theme";
 import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import { isHackathonTrialContextFromUrl } from "@/lib/hackathon-trial-suppress";
 import { hackathonSlugFromDashboardPath, resumeHackathonReturnTo } from "@/lib/interview-return-to";
-import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
+import { eventTargets, hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { hackathonKeys } from "@/features/hackathon/hooks";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
@@ -161,6 +161,7 @@ import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopo
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
 import { EditorGuide, type EditorGuideHandle } from "@/components/resume-canvas/guide/EditorGuide";
+import { guideHasContact, guideHasContent } from "@/components/resume-canvas/guide/guideChecklist";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import { keywordOnResume, partialJobKeywords, resumePlainText } from "@/components/resume-canvas/jobKeywords";
 import { OutlinePanel } from "@/components/resume-canvas/OutlinePanel";
@@ -302,21 +303,6 @@ function htmlToPlainText(html: string): string {
 
 
 
-const SAMPLE_NAMES = /^(your name|john doe|jane doe|full name)$/i;
-/** Setup checklist: a real name plus a way to reach them. */
-function guideHasContact(content: Resume["content"] | undefined): boolean {
-  const info = (content?.personalInfo ?? {}) as Record<string, unknown>;
-  const name = typeof info.fullName === "string" ? info.fullName.trim() : "";
-  const reach = [info.email, info.phone].some((v) => typeof v === "string" && v.trim().length > 0);
-  return Boolean(name) && !SAMPLE_NAMES.test(name) && reach;
-}
-/** Setup checklist: at least one job or project with a heading. */
-function guideHasContent(content: Resume["content"] | undefined): boolean {
-  const filled = (list: unknown, keys: string[]) =>
-    Array.isArray(list) &&
-    list.some((e) => e && typeof e === "object" && keys.some((k) => typeof (e as Record<string, unknown>)[k] === "string" && ((e as Record<string, unknown>)[k] as string).trim()));
-  return filled(content?.experience, ["company", "position", "title"]) || filled(content?.projects, ["name", "title"]);
-}
 /** Phones: zoom for reading an ATS issue picked from the report (the fitted page is ~40%). */
 const MOBILE_ISSUE_ZOOM = 85;
 export default function EditResumePage() {
@@ -514,6 +500,9 @@ export default function EditResumePage() {
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   /** First-run editor guide (tour, setup checklist, beacons). */
   const guideRef = useRef<EditorGuideHandle>(null);
+  /** Hackathon guide: sample text still on the resume, and the event's ATS goal. */
+  const [guideHasSample, setGuideHasSample] = useState(false);
+  const [guideAtsTarget, setGuideAtsTarget] = useState<number | null>(null);
   /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
   const [peekId, setPeekId] = useState<string | null>(null);
   /** AI tailoring under review: what the resume looked like before, and the lines it changed. */
@@ -1826,6 +1815,16 @@ export default function EditResumePage() {
     }
   };
 
+  /** ← goes back to the hackathon for hackathon resumes (saving first), else to My resumes. */
+  const backHref = returnsToHackathon && resumeReturnTo ? resumeReturnTo : "/dashboard/resumes";
+  const onBackClick = (event: React.MouseEvent) => {
+    if (!returnsToHackathon || !resumeReturnTo) return;
+    event.preventDefault();
+    void ensureResumePersisted()
+      .catch((error) => console.error("Save before leaving failed:", error))
+      .finally(() => router.push(resumeReturnTo));
+  };
+
   /** Sample-data check dialog; also works out what "Remove sample entries" could clean up. */
   const openPreflight = (issues: ResumePlaceholderIssue[], action: "download" | "hackathon") => {
     setPreflight({ issues, action, cleanup: issues.length > 0 ? undefined : null });
@@ -1880,6 +1879,31 @@ export default function EditResumePage() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [continueAfterCleanup, resume]);
+
+  // Hackathon resumes: keep the guide's "Replace the sample text" in step with the content.
+  useEffect(() => {
+    if (!returnsToHackathon || !resume?.content) return;
+    const content = resume.content;
+    const t = window.setTimeout(() => {
+      void fetchResumePlaceholderIssues(content).then((issues) => setGuideHasSample(issues.length > 0));
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [returnsToHackathon, resume?.content]);
+
+  useEffect(() => {
+    const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
+    if (!slug) return;
+    let cancelled = false;
+    hackathonApi
+      .getPublic(slug)
+      .then((pub) => {
+        if (!cancelled) setGuideAtsTarget(eventTargets(pub).atsScore);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeReturnTo]);
 
   const saveAndReturnNow = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
@@ -3549,8 +3573,8 @@ export default function EditResumePage() {
       {canvasOn ? (
         <>
           <div className="flex items-center gap-1.5 border-b border-border bg-background px-2 py-1.5 md:gap-3 md:px-4 md:py-2">
-            <Link href="/dashboard/resumes" className="shrink-0">
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Back to resumes">
+            <Link href={backHref} onClick={onBackClick} className="shrink-0" data-editor-back>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -3665,8 +3689,10 @@ export default function EditResumePage() {
             {isMobile ? (
               <div className="flex min-w-0 flex-1 items-start gap-1.5">
                 <Link
-                  href="/dashboard/resumes"
+                  href={backHref}
+                  onClick={onBackClick}
                   className="shrink-0 pt-0.5"
+                  aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}
                 >
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <ArrowLeft className="h-4 w-4" />
@@ -3752,7 +3778,12 @@ export default function EditResumePage() {
               </div>
             ) : (
             <div className="flex min-w-0 flex-1 items-start gap-4">
-              <Link href="/dashboard/resumes" className="shrink-0 pt-0.5">
+              <Link
+                href={backHref}
+                onClick={onBackClick}
+                className="shrink-0 pt-0.5"
+                aria-label={returnsToHackathon ? "Back to Hackathon" : "Back to resumes"}
+              >
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -8052,6 +8083,8 @@ export default function EditResumePage() {
         hasContact={guideHasContact(resume?.content)}
         hasContent={guideHasContent(resume?.content)}
         atsChecked={resume?.atsScore != null}
+        hasSample={guideHasSample}
+        atsTarget={guideAtsTarget}
         openPanel={canvasPanel}
         onOpenPanel={(panel) => {
           if (canvasPanel !== panel) openCanvasPanel(panel); // open only — never toggle it shut

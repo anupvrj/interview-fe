@@ -33,6 +33,11 @@ export function exportButton(): HTMLElement | null {
   );
 }
 
+/** The editor's ← back link (it goes to the hackathon for hackathon resumes). */
+export function editorBackLink(): HTMLElement | null {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-editor-back]")).find(visible) ?? null;
+}
+
 export function hackathonSubmitButton(): HTMLElement | null {
   return (
     Array.from(document.querySelectorAll<HTMLElement>("button")).find(
@@ -61,7 +66,45 @@ export type GuideStep = {
   reveal?: boolean;
 };
 
-export function tourSteps(isMobile: boolean, hackathon: boolean): GuideStep[] {
+export type TourOptions = {
+  /** The event's ATS goal (e.g. 75), when known. */
+  atsTarget?: number | null;
+  /** The resume still has template sample text (it blocks the hackathon submit). */
+  hasSample?: boolean;
+};
+
+/**
+ * Hackathon resumes: the short path to a submission — edit, how to get back, score, submit.
+ * (The dashboard then asks them to "Complete Challenge" to unlock the next one.)
+ */
+function hackathonSteps(isMobile: boolean, { atsTarget, hasSample }: TourOptions): GuideStep[] {
+  const tap = isMobile ? "Tap" : "Click";
+  const aim = atsTarget ? `Aim for an ATS score of ${atsTarget}+` : "Check your ATS score";
+  return [
+    { id: "page", emoji: "✍️", title: "This is your hackathon resume", body: `${tap} any text to edit it — it saves as you go.`, find: resumePage },
+    { id: "back", emoji: "↩️", title: "Not ready yet?", body: `${tap} ← to go back to the hackathon anytime. Your work is saved.`, find: editorBackLink },
+    {
+      id: "fix",
+      emoji: "📊",
+      title: aim,
+      body: hasSample
+        ? `First replace the sample text — ${tap.toLowerCase()} ATS score and each “Replace the sample text” issue shows you where.`
+        : `${tap} an issue to see it on the page and fix it.`,
+      find: () => studioButton("ATS score"),
+      reveal: true,
+    },
+    {
+      id: "submit",
+      emoji: "🏁",
+      title: "Submit when ready",
+      body: `${tap} Submit to Hackathon, then Complete Challenge on the dashboard to unlock the next one.`,
+      find: () => hackathonSubmitButton() ?? exportButton(),
+    },
+  ];
+}
+
+export function tourSteps(isMobile: boolean, hackathon: boolean, options: TourOptions = {}): GuideStep[] {
+  if (hackathon) return hackathonSteps(isMobile, options);
   const tap = isMobile ? "Tap" : "Click";
   const steps: GuideStep[] = [
     { id: "page", emoji: "✍️", title: "This is your resume", body: isMobile ? "Tap any text to edit it. Pinch to zoom in." : "Click any text to edit it right on the page.", find: resumePage },
@@ -70,10 +113,6 @@ export function tourSteps(isMobile: boolean, hackathon: boolean): GuideStep[] {
     { id: "ai", emoji: "✨", title: "Stuck on a line?", body: "AI Coach rewrites weak bullets and answers questions.", find: () => studioButton("AI Coach"), reveal: true },
     { id: "templates", emoji: "🎨", title: "Change the look any time", body: isMobile ? "Swap designs any time — your content stays." : "Swap templates in Designs, colours and fonts in Style — your content stays.", find: () => studioButton("Designs"), reveal: true },
   ];
-  steps.push(
-    hackathon
-      ? { id: "submit", emoji: "🏁", title: "Submit when ready", body: `${tap} Submit to Hackathon — you can update it later.`, find: () => hackathonSubmitButton() ?? exportButton() }
-      : { id: "export", emoji: "📄", title: "Download when ready", body: "Get a recruiter-ready PDF any time.", find: exportButton },
-  );
+  steps.push({ id: "export", emoji: "📄", title: "Download when ready", body: "Get a recruiter-ready PDF any time.", find: exportButton });
   return steps;
 }

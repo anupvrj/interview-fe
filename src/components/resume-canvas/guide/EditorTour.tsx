@@ -4,31 +4,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { Volume2, VolumeX, X } from "lucide-react";
 import { boxOf, type GuideStep } from "./guideTargets";
+import { cardPosition } from "./guideLayout";
 import { playClick, setSoundMuted, soundMuted, unlockSound } from "./guideSound";
 
 type Box = { left: number; top: number; width: number; height: number };
 const PAD = 6;
-const CARD_W = 320;
-
-/** Where the step card goes: beside the target on desktop, above/below it on phones. */
-function cardPosition(box: Box, isMobile: boolean, cardH: number): React.CSSProperties {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (isMobile) {
-    const width = vw - 24;
-    const centre = box.top + box.height / 2;
-    if (centre > vh * 0.55) return { left: 12, width, bottom: Math.max(12, vh - box.top + 16) };
-    return { left: 12, width, top: Math.min(box.top + box.height + 16, vh - cardH - 12) };
-  }
-  if (box.width > 400) {
-    // The page itself: sit inside its top-right corner.
-    return { left: Math.min(box.left + box.width - CARD_W - 24, vw - CARD_W - 16), top: box.top + 32, width: CARD_W };
-  }
-  if (box.left < vw / 2) {
-    return { left: box.left + box.width + 18, top: Math.min(Math.max(16, box.top - 8), vh - cardH - 16), width: CARD_W };
-  }
-  return { left: Math.max(16, box.left + box.width - CARD_W), top: box.top + box.height + 14, width: CARD_W };
-}
 
 function useBox(find: (() => HTMLElement | null) | null, reveal: boolean | undefined) {
   const [box, setBox] = useState<Box | null>(null);
@@ -100,6 +80,8 @@ export function EditorTour({
   isMobile,
   firstName,
   welcome,
+  welcomeTitle,
+  welcomeBody = "A quick 30-second tour of the tools that matter.",
   mini = false,
   flyTo,
   onStep,
@@ -109,6 +91,9 @@ export function EditorTour({
   isMobile: boolean;
   firstName: string | null;
   welcome: boolean;
+  /** Welcome card text (defaults: "Hi <name>! Let's make your resume shine"). */
+  welcomeTitle?: string;
+  welcomeBody?: string;
   /** One "Show me" pointer from the checklist: "Got it" ends it, no celebration. */
   mini?: boolean;
   flyTo: () => { x: number; y: number } | null;
@@ -216,9 +201,10 @@ export function EditorTour({
               <span className="eg-sparkle" style={{ right: 32, top: 38, animationDelay: "0.5s" }} aria-hidden>⭐</span>
               <div className="eg-wave" aria-hidden>👋</div>
               <h3 className="mt-2 text-xl font-bold text-foreground">
-                {firstName ? `Hi ${firstName}! ` : "Hi! "}Let&apos;s make your resume shine
+                {firstName ? `Hi ${firstName}! ` : "Hi! "}
+                {welcomeTitle ?? "Let\u2019s make your resume shine"}
               </h3>
-              <p className="mt-1 text-sm text-muted-foreground">A quick 30-second tour of the tools that matter.</p>
+              <p className="mt-1 text-sm text-muted-foreground">{welcomeBody}</p>
               <div className="mt-5 flex justify-center gap-2">
                 <button type="button" className="eg-ghost" onClick={skip}>Later</button>
                 <button type="button" className="eg-primary" onClick={next} autoFocus>Start the tour →</button>

@@ -6,7 +6,8 @@ import { createPortal } from "react-dom";
 import { trackEvent } from "@/lib/analytics/gtag";
 import type { CanvasPanel } from "../CanvasChrome";
 import { EditorTour, type TourEnd } from "./EditorTour";
-import { SetupChecklist, type ChecklistItem } from "./SetupChecklist";
+import { SetupChecklist } from "./SetupChecklist";
+import { buildChecklist } from "./guideChecklist";
 import { readGuide, writeGuide, type GuideState } from "./guideStorage";
 import { unlockSound } from "./guideSound";
 import { exportButton, hackathonSubmitButton, resumePage, studioButton, tourSteps, type GuideStep } from "./guideTargets";
@@ -44,6 +45,10 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
   hasContact: boolean;
   hasContent: boolean;
   atsChecked: boolean;
+  /** Hackathon: the resume still has template sample text (blocks the submit). */
+  hasSample?: boolean;
+  /** Hackathon: the event's ATS goal, when known. */
+  atsTarget?: number | null;
   openPanel: CanvasPanel | null;
   onOpenPanel: (panel: CanvasPanel) => void;
 }>(function EditorGuide(props, ref) {
@@ -54,6 +59,9 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
   const [keyboard, setKeyboard] = useState(false);
   const [beacons, setBeacons] = useState<Array<{ panel: CanvasPanel; x: number; y: number }>>([]);
   const started = useRef(false);
+  // Keep the "Replace the sample text" item once it has appeared, so fixing it shows a tick.
+  const hadSample = useRef(false);
+  if (props.hasSample) hadSample.current = true;
   /** The first-visit decision (tour / prompt / nothing) is made; until then the pill waits. */
   const [settled, setSettled] = useState(false);
 
@@ -77,10 +85,15 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     (welcome: boolean) => {
       unlockSound(); // started from a click ("?", Show me, Replay) — sound may play from here
       setPrompt(false);
-      setTour({ steps: tourSteps(isMobile, hackathon), welcome, mini: false, key: Date.now() });
+      setTour({
+        steps: tourSteps(isMobile, hackathon, { atsTarget: props.atsTarget, hasSample: props.hasSample }),
+        welcome,
+        mini: false,
+        key: Date.now(),
+      });
       trackEvent("editor_guide_tour_start", { welcome, device: isMobile ? "phone" : "desktop" });
     },
-    [isMobile, hackathon],
+    [isMobile, hackathon, props.atsTarget, props.hasSample],
   );
 
   // First visit: start on its own (new resume) or offer it once (existing users).
@@ -134,7 +147,9 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
       const wasMini = tour?.mini;
       setTour(null);
       // The tour scrolled the phone tab bar sideways; put it back.
-      document.querySelector<HTMLElement>('nav[aria-label="Resume studio"]')?.scrollTo({ left: 0, behavior: "smooth" });
+      const studio = document.querySelector<HTMLElement>('nav[aria-label="Resume studio"]');
+      if (studio && typeof studio.scrollTo === "function") studio.scrollTo({ left: 0, behavior: "smooth" });
+      else if (studio) studio.scrollLeft = 0; // older browsers without element.scrollTo
       if (wasMini) return;
       update((s) => ({ ...s, tour: s.tour === "done" ? "done" : how }));
       trackEvent(how === "done" ? "editor_guide_tour_complete" : "editor_guide_tour_skip", { device: isMobile ? "phone" : "desktop" });
@@ -151,17 +166,21 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     [startTour, update],
   );
 
-  const items = useMemo<ChecklistItem[]>(() => {
-    const explored = state?.explored ?? [];
-    const milestones = state?.milestones ?? [];
-    return [
-      { id: "contact", label: "Add your name & contact", done: props.hasContact },
-      { id: "content", label: "Add experience or a project", done: props.hasContent },
-      { id: "ats", label: "Check your ATS score", done: props.atsChecked || explored.includes("fix") },
-      { id: "fix", label: "Fix one issue", done: milestones.includes("fixed") },
-      { id: "export", label: hackathon ? "Submit to Hackathon" : "Download your resume", done: milestones.includes("exported") },
-    ];
-  }, [state, props.hasContact, props.hasContent, props.atsChecked, hackathon]);
+  const items = useMemo(
+    () =>
+      buildChecklist({
+        hackathon,
+        hasContact: props.hasContact,
+        hasContent: props.hasContent,
+        atsChecked: props.atsChecked,
+        hasSample: Boolean(props.hasSample),
+        hadSample: hadSample.current,
+        atsTarget: props.atsTarget ?? null,
+        explored: state?.explored ?? [],
+        milestones: state?.milestones ?? [],
+      }),
+    [state, props.hasContact, props.hasContent, props.atsChecked, props.hasSample, props.atsTarget, hackathon],
+  );
 
   const lastDone = useRef<string>("");
   useEffect(() => {
@@ -174,7 +193,7 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     (id: string) => {
       unlockSound();
       trackEvent("editor_guide_show_me", { item: id });
-      if (id === "ats" || id === "fix") return onOpenPanel("fix");
+      if (id === "ats" || id === "fix" || id === "sample") return onOpenPanel("fix");
       const tap = isMobile ? "Tap" : "Click";
       const one: GuideStep | null =
         id === "contact"
@@ -230,6 +249,8 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
           isMobile={isMobile}
           firstName={props.firstName}
           welcome={tour.welcome}
+          welcomeTitle={hackathon ? "Let\u2019s get your Hiring Games resume submitted" : undefined}
+          welcomeBody={hackathon ? "About 2 minutes: check it, fix any issues, submit." : undefined}
           mini={tour.mini}
           flyTo={() => {
             const pill = document.getElementById("eg-pill")?.getBoundingClientRect();

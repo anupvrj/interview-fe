@@ -51,6 +51,7 @@ import {
 } from "@/components/resume-builder/ResumeBuilderChatModeModal";
 import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/ResumeBuilderJobDescriptionStep";
 import { HackathonResumeStartChoices } from "@/components/resume-builder/HackathonResumeStartChoices";
+import { pickHackathonTemplate } from "@/lib/hackathon-resume-template";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
@@ -93,9 +94,6 @@ const categoryLabels = {
 };
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
-
-/** Hackathon quick start: one of these, picked at random (changeable in the editor). */
-const HACKATHON_TEMPLATES = ["true-blue", "cobalt-stream", "condensed-rule"];
 type Step = "template" | "import" | "jobDescription" | "processing";
 
 export default function NewResumePage() {
@@ -266,10 +264,7 @@ export default function NewResumePage() {
       const disabledTemplates = await fetchDisabledResumeTemplateIds();
 
       // Check URL params to skip template selection
-      const hackathonChoices = HACKATHON_TEMPLATES.filter((id) => !disabledTemplates.includes(id));
-      const templateParam = quickHackathon && hackathonChoices.length
-        ? hackathonChoices[Math.floor(Math.random() * hackathonChoices.length)]
-        : searchParams.get("template");
+      const templateParam = (quickHackathon && pickHackathonTemplate(disabledTemplates)) || searchParams.get("template");
       const skipTemplate = quickHackathon || searchParams.get("skipTemplate") === "true";
       if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
