@@ -8,6 +8,7 @@ import type { CanvasPanel } from "../CanvasChrome";
 import { EditorTour, type TourEnd } from "./EditorTour";
 import { SetupChecklist, type ChecklistItem } from "./SetupChecklist";
 import { readGuide, writeGuide, type GuideState } from "./guideStorage";
+import { unlockSound } from "./guideSound";
 import { exportButton, hackathonSubmitButton, resumePage, studioButton, tourSteps, type GuideStep } from "./guideTargets";
 
 export type EditorGuideHandle = {
@@ -74,6 +75,7 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
 
   const startTour = useCallback(
     (welcome: boolean) => {
+      unlockSound(); // started from a click ("?", Show me, Replay) — sound may play from here
       setPrompt(false);
       setTour({ steps: tourSteps(isMobile, hackathon), welcome, mini: false, key: Date.now() });
       trackEvent("editor_guide_tour_start", { welcome, device: isMobile ? "phone" : "desktop" });
@@ -90,8 +92,10 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     }
     let tries = 0;
     const timer = window.setInterval(() => {
+      if (document.hidden) return; // background tab: the page isn't laid out yet — wait, don't count
       tries += 1;
-      if (tries > 20) {
+      // Slow phones can take a while to lay the page out; wait up to a minute, then let it be.
+      if (tries > 100) {
         setSettled(true);
         return window.clearInterval(timer);
       }
@@ -168,6 +172,7 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
 
   const showMe = useCallback(
     (id: string) => {
+      unlockSound();
       trackEvent("editor_guide_show_me", { item: id });
       if (id === "ats" || id === "fix") return onOpenPanel("fix");
       const tap = isMobile ? "Tap" : "Click";

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Volume2, VolumeX, X } from "lucide-react";
 import { boxOf, type GuideStep } from "./guideTargets";
+import { playClick, setSoundMuted, soundMuted, unlockSound } from "./guideSound";
 
 type Box = { left: number; top: number; width: number; height: number };
 const PAD = 6;
@@ -121,6 +122,7 @@ export function EditorTour({
   const [fly, setFly] = useState<{ left: number; top: number; width: number; scale: number; opacity: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardH, setCardH] = useState(180);
+  const [muted, setMuted] = useState(() => soundMuted());
 
   // Skip steps whose button isn't on screen (e.g. a narrow tablet hides one).
   const [list] = useState(() => {
@@ -135,6 +137,13 @@ export function EditorTour({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, index]);
 
+  // One "tick" per step, in time with the cursor's first press.
+  useEffect(() => {
+    if (phase !== "steps") return;
+    const t = window.setTimeout(playClick, 1510);
+    return () => window.clearTimeout(t);
+  }, [phase, index]);
+
   // Re-run the entry animation for each card.
   useEffect(() => {
     setEntered(false);
@@ -147,12 +156,16 @@ export function EditorTour({
   }, [phase, index, entered]);
 
   const next = useCallback(() => {
+    unlockSound();
     if (phase === "welcome") return setPhase("steps");
     if (index < list.length - 1) return setIndex((i) => i + 1);
     if (mini) return onEnd("done");
     setPhase("finish");
   }, [phase, index, list.length, mini, onEnd]);
-  const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const back = useCallback(() => {
+    unlockSound();
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
   const skip = useCallback(() => onEnd("skipped"), [onEnd]);
 
   useEffect(() => {
@@ -228,18 +241,28 @@ export function EditorTour({
           ) : (
             <div className="eg-scrim eg-on" />
           )}
-          {isMobile && box ? (
-            <div
-              key={`hand-${index}`}
-              className="eg-hand eg-on"
-              aria-hidden
-              style={{
-                left: box.left + Math.min(box.width / 2, 120) - 12,
-                top: box.top + Math.min(box.height / 2, 180) - 8,
-              }}
-            >
-              👆
-            </div>
+          {box ? (
+            <>
+              {/* Cursor glides to the target and "clicks": press + zooming circles from its tip. */}
+              <div
+                className="eg-click eg-on"
+                key={`click-${index}`}
+                aria-hidden
+                style={{ left: box.left + Math.min(box.width / 2, 120), top: box.top + Math.min(box.height / 2, 160) }}
+              >
+                <i />
+                <i />
+              </div>
+              <div
+                className="eg-cursor eg-on"
+                aria-hidden
+                style={{ left: box.left + Math.min(box.width / 2, 120) - 3, top: box.top + Math.min(box.height / 2, 160) - 3 }}
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 2.5l15.5 9.2-6.7 1.6 3.9 7.3-2.9 1.5-3.9-7.3-4.9 4.6z" fill="#fff" stroke="#0f172a" strokeWidth="1.6" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </>
           ) : null}
           <div
             ref={cardRef}
@@ -253,9 +276,28 @@ export function EditorTour({
                 <span className="eg-emoji" aria-hidden>{step.emoji}</span>
                 {step.title}
               </p>
-              <button type="button" aria-label="Close tour" className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground hover:text-foreground" onClick={skip}>
-                <X className="h-4 w-4" />
-              </button>
+              <div className="-mr-1 -mt-1 flex items-center">
+                <button
+                  type="button"
+                  aria-label={muted ? "Turn click sound on" : "Turn click sound off"}
+                  title={muted ? "Sound off" : "Sound on"}
+                  className="rounded-full p-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    const next = !muted;
+                    setMuted(next);
+                    setSoundMuted(next);
+                    if (!next) {
+                      unlockSound();
+                      playClick();
+                    }
+                  }}
+                >
+                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+                <button type="button" aria-label="Close tour" className="rounded-full p-1 text-muted-foreground hover:text-foreground" onClick={skip}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
             <div className="mt-3.5 flex items-center justify-between">
