@@ -2068,6 +2068,19 @@ export const resumeApi = {
    * The server owns the rules (same check gates hackathon submission). Posts the
    * content so unsaved editor edits are checked.
    */
+  /**
+   * The content without the template's sample entries (nothing is saved). `remaining` is sample
+   * data only the user can fix (their name, job title, email).
+   */
+  cleanupPlaceholders: async (
+    content: Resume["content"],
+  ): Promise<{ content: Resume["content"]; removed: string[]; remaining: ResumePlaceholderIssue[] }> => {
+    const response = await apiClient.post<{
+      data: { content: Resume["content"]; removed: string[]; remaining: ResumePlaceholderIssue[] };
+    }>("/resumes/placeholder-cleanup", { content });
+    return response.data.data;
+  },
+
   checkPlaceholders: async (
     content: Resume["content"] | undefined,
   ): Promise<ResumePlaceholderIssue[]> => {

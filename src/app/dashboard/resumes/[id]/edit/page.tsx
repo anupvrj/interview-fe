@@ -28,6 +28,7 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Save,
   Download,
   Loader2,
@@ -108,7 +109,7 @@ import { cn } from "@/lib/utils";
 import { appPrimaryButton } from "@/lib/app-theme";
 import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import { isHackathonTrialContextFromUrl } from "@/lib/hackathon-trial-suppress";
-import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
+import { hackathonSlugFromDashboardPath, resumeHackathonReturnTo } from "@/lib/interview-return-to";
 import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { hackathonKeys } from "@/features/hackathon/hooks";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -312,8 +313,16 @@ export default function EditResumePage() {
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
   const wantsExtensionSync = searchParams.get("extensionSync") === "1";
-  const resumeReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
-  const resumeReturnLabel = searchParams.get("returnLabel")?.slice(0, 40) || "previous page";
+  const queryReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
+  // Opened from the hackathon before (this browser): keep offering "Submit to Hackathon".
+  const [rememberedReturnTo, setRememberedReturnTo] = useState<string | null>(null);
+  useEffect(() => {
+    setRememberedReturnTo(resumeHackathonReturnTo(resumeId, queryReturnTo));
+  }, [resumeId, queryReturnTo]);
+  const resumeReturnTo = queryReturnTo ?? rememberedReturnTo;
+  const returnsToHackathon = Boolean(hackathonSlugFromDashboardPath(resumeReturnTo));
+  const resumeReturnLabel =
+    searchParams.get("returnLabel")?.slice(0, 40) || (returnsToHackathon ? "Hackathon" : "previous page");
   const [savingAndReturning, setSavingAndReturning] = useState(false);
   /** Which part of "Save and return" is running, so the button doesn't say "Creating PDF" throughout. */
   const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit">("pdf");
@@ -331,7 +340,11 @@ export default function EditResumePage() {
   const [preflight, setPreflight] = useState<{
     issues: ResumePlaceholderIssue[];
     action: "download" | "hackathon";
+    /** "Remove sample entries" preview: undefined while loading, null when unavailable. */
+    cleanup?: Awaited<ReturnType<typeof resumeApi.cleanupPlaceholders>> | null;
   } | null>(null);
+  /** After "Remove samples & submit/download": carry on once the cleaned resume has rendered. */
+  const [continueAfterCleanup, setContinueAfterCleanup] = useState<"download" | "hackathon" | null>(null);
   const [extensionSyncState, setExtensionSyncState] = useState<
     "idle" | "syncing" | "synced" | "error" | "missing-extension"
   >("idle");
@@ -1793,18 +1806,60 @@ export default function EditResumePage() {
     }
   };
 
+  /** Sample-data check dialog; also works out what "Remove sample entries" could clean up. */
+  const openPreflight = (issues: ResumePlaceholderIssue[], action: "download" | "hackathon") => {
+    setPreflight({ issues, action, cleanup: issues.length > 0 ? undefined : null });
+    const content = resumeRef.current?.content;
+    if (!issues.length || !content) return;
+    resumeApi
+      .cleanupPlaceholders(content)
+      .then((cleanup) => setPreflight((prev) => (prev && prev.action === action ? { ...prev, cleanup } : prev)))
+      .catch(() => setPreflight((prev) => (prev && prev.action === action ? { ...prev, cleanup: null } : prev)));
+  };
+
+  const removeSampleEntries = () => {
+    const current = resumeRef.current;
+    const cleanup = preflight?.cleanup;
+    const action = preflight?.action;
+    if (!current || !cleanup || !action) return;
+    // Same path as other whole-resume changes: one undo step brings the samples back.
+    handleResumeImported({ ...current, content: cleanup.content });
+    setHasChanges(true);
+    if (cleanup.remaining.length === 0) {
+      setPreflight(null);
+      setContinueAfterCleanup(action);
+    } else {
+      // Only the user's own details are left: show just those.
+      setPreflight({ issues: cleanup.remaining, action, cleanup: null });
+    }
+  };
+
   const handleSaveAndReturn = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
     // The hackathon rejects sample data server-side; say so before compiling the PDF.
     if (hackathonSlugFromDashboardPath(resumeReturnTo)) {
       const issues = await fetchResumePlaceholderIssues(resume.content);
       if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
-        setPreflight({ issues, action: "hackathon" });
+        openPreflight(issues, "hackathon");
         return;
       }
     }
     await saveAndReturnNow();
   };
+
+  useEffect(() => {
+    if (!continueAfterCleanup || !resume) return;
+    const action = continueAfterCleanup;
+    setContinueAfterCleanup(null);
+    // Let the preview render the cleaned resume (the PDF is made from it) before continuing.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (action === "hackathon") void saveAndReturnNow();
+        else void downloadPdf();
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [continueAfterCleanup, resume]);
 
   const saveAndReturnNow = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
@@ -2289,7 +2344,7 @@ export default function EditResumePage() {
     const issues = await fetchResumePlaceholderIssues(resume?.content);
     if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
       setDownloading(false);
-      setPreflight({ issues, action: "download" });
+      openPreflight(issues, "download");
       return;
     }
     await downloadPdf();
@@ -3409,10 +3464,13 @@ export default function EditResumePage() {
 
   return (
     <div className={resumeEditorPage} suppressHydrationWarning>
-      {resumeReturnTo ? (
+      {/* Phones on the canvas get a pinned "Submit to Hackathon" bar at the bottom instead. */}
+      {resumeReturnTo && !(isMobile && canvasOn && returnsToHackathon) ? (
         <div className="flex flex-col gap-2 border-b border-border bg-primary/5 px-4 py-2.5 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
-            When your resume is ready, save it and go back to the {resumeReturnLabel}.
+            {returnsToHackathon
+              ? "Done? Submit this resume to the Hackathon — you can update it later."
+              : `When your resume is ready, save it and go back to the ${resumeReturnLabel}.`}
           </span>
           <Button
             type="button"
@@ -3426,6 +3484,8 @@ export default function EditResumePage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {saveReturnPhase === "submit" ? "Submitting & scoring…" : "Creating PDF…"}
               </>
+            ) : returnsToHackathon ? (
+              "Submit to Hackathon"
             ) : (
               `Save and return to ${resumeReturnLabel}`
             )}
@@ -7925,6 +7985,33 @@ export default function EditResumePage() {
           }}
         />
       ) : null}
+      {canvasOn && isMobile && returnsToHackathon && !peekActive ? (
+        <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-3 py-2">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
+            <span className="block font-semibold text-foreground">Hackathon resume</span>
+            Submit when ready — you can update it later.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSaveAndReturn()}
+            disabled={savingAndReturning || saving || autoSaving}
+            className={cn(appPrimaryButton, "h-10 shrink-0 rounded-full px-4")}
+          >
+            {savingAndReturning ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                {saveReturnPhase === "submit" ? "Submitting…" : "Saving…"}
+              </>
+            ) : (
+              <>
+                Submit to Hackathon
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+      ) : null}
       {canvasOn && isMobile ? <StudioTabBar {...studioProps} /> : null}
       <input
         ref={canvasPhotoInputRef}
@@ -8148,6 +8235,9 @@ export default function EditResumePage() {
           preflight?.action === "hackathon" ? "Submit to hackathon" : undefined
         }
         onDontRemindAgain={() => dismissReviewReminder(resumeId)}
+        cleanup={preflight?.cleanup}
+        onRemoveSamples={preflight && preflight.issues.length > 0 ? removeSampleEntries : undefined}
+        removeAndContinueLabel={preflight?.action === "hackathon" ? "Remove samples & submit" : "Remove samples & download"}
         onGoToHackathon={
           // Sample data blocks the hackathon submit — offer a way back without submitting.
           preflight?.action === "hackathon" && preflight.issues.length > 0 && resumeReturnTo

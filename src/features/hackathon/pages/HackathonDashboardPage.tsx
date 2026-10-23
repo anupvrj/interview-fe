@@ -185,11 +185,13 @@ function DashboardContent() {
     }
   }, [me, userId]);
 
+  // Signup not finished (registration happens when the form is done): back to the form.
   const needsProfile =
-    me?.registered &&
+    me &&
     !me.profile.complete &&
     me.hackathon.phase !== "ended" &&
-    !me.progress.completed;
+    !me.progress.completed &&
+    (me.registered || !me.hackathon.isFull);
   useEffect(() => {
     if (needsProfile) router.replace(profilePath);
   }, [needsProfile, profilePath, router]);
@@ -239,9 +241,9 @@ function DashboardContent() {
         icon={CalendarClock}
         tone="blue"
         title="You're not registered"
-        message="Register from the event page to join this hackathon. If you left recently, you can sign up again anytime."
+        message="Join this hackathon in one step. If you left recently, you can sign up again anytime."
       >
-        <Link href={landingPath} className={hkSecondaryButton}>
+        <Link href={profilePath} className={hkSecondaryButton}>
           Register for hackathon
         </Link>
       </PhaseNotice>

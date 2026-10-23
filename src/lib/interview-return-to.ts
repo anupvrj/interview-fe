@@ -162,3 +162,30 @@ export function hackathonResultPath(dashboard: string | null | undefined, interv
   return `${base}?${HACKATHON_RESULT_PARAM}=${encodeURIComponent(interviewId)}`;
 }
 
+
+const RESUME_HACKATHON_KEY = "ix:resumeHackathon:";
+const RESUME_HACKATHON_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * A resume opened from the hackathon remembers it, so reopening it later (from the resume list,
+ * another tab) still offers "Submit to Hackathon". Hackathon dashboards only.
+ */
+export function resumeHackathonReturnTo(resumeId: string, fromQuery: string | null): string | null {
+  if (typeof window === "undefined") return fromQuery;
+  const key = `${RESUME_HACKATHON_KEY}${resumeId}`;
+  try {
+    if (fromQuery) {
+      if (hackathonSlugFromDashboardPath(fromQuery)) {
+        localStorage.setItem(key, JSON.stringify({ path: fromQuery.split("?")[0], at: Date.now() }));
+      }
+      return fromQuery;
+    }
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { path, at } = JSON.parse(raw) as { path?: string; at?: number };
+    if (!path || !at || Date.now() - at > RESUME_HACKATHON_TTL_MS || !hackathonSlugFromDashboardPath(path)) return null;
+    return safeAppRedirectPath(path);
+  } catch {
+    return fromQuery;
+  }
+}

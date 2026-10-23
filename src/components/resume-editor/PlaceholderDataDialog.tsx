@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +14,12 @@ import {
 import type { ResumePlaceholderIssue } from "@/lib/resume-placeholder-check";
 
 const MAX_LISTED = 8;
+const FIELD_LABELS: Record<string, string> = {
+  "personalInfo.fullName": "name",
+  "personalInfo.portfolio": "job title",
+  "personalInfo.email": "email",
+};
+const fieldLabel = (issue: ResumePlaceholderIssue) => FIELD_LABELS[issue.field] ?? issue.message.split(/[:—]/)[0].trim().toLowerCase();
 
 /**
  * Shown before a download / hackathon submit.
@@ -29,6 +35,9 @@ export function PlaceholderDataDialog({
   downloadLabel,
   onDontRemindAgain,
   onGoToHackathon,
+  cleanup,
+  onRemoveSamples,
+  removeAndContinueLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +50,14 @@ export function PlaceholderDataDialog({
   onDontRemindAgain?: () => void;
   /** Hackathon only: leave without submitting and go back to the hackathon dashboard. */
   onGoToHackathon?: () => void;
+  /**
+   * What "Remove sample entries" would do: `undefined` while it's being worked out, `null` when
+   * unavailable. `remaining` is sample data only the user can fix (their name, email…).
+   */
+  cleanup?: { removed: string[]; remaining: ResumePlaceholderIssue[] } | null;
+  onRemoveSamples?: () => void;
+  /** Button text when removing leaves nothing to fix ("Remove samples & submit"). */
+  removeAndContinueLabel?: string;
 }) {
   const review = issues.length === 0;
   const listed = issues.slice(0, MAX_LISTED);
@@ -85,6 +102,28 @@ export function PlaceholderDataDialog({
             I&apos;ve reviewed it — don&apos;t remind me again for this resume
           </label>
         ) : (
+          <>
+          {onRemoveSamples && cleanup === undefined ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Checking what we can clean up for you…
+            </p>
+          ) : null}
+          {onRemoveSamples && cleanup && cleanup.removed.length > 0 ? (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
+              <p className="flex items-center gap-1.5 font-semibold">
+                <Wand2 className="size-4 text-primary" aria-hidden /> Quick fix
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                We can remove the sample entries you haven&apos;t edited: {cleanup.removed.slice(0, 6).join(", ")}
+                {cleanup.removed.length > 6 ? ` and ${cleanup.removed.length - 6} more` : ""}. You can undo this.
+              </p>
+              {cleanup.remaining.length > 0 ? (
+                <p className="mt-2 text-muted-foreground">
+                  You&apos;ll still need to type your own {[...new Set(cleanup.remaining.map(fieldLabel))].join(", ")}.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
             {listed.map((issue) => (
               <li key={`${issue.field}-${issue.message}`} className="flex gap-2">
@@ -98,6 +137,7 @@ export function PlaceholderDataDialog({
               </li>
             ) : null}
           </ul>
+          </>
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -129,7 +169,17 @@ export function PlaceholderDataDialog({
                   {downloadLabel ?? "Download anyway"}
                 </Button>
               ) : null}
-              <Button onClick={onEdit}>Fix my resume</Button>
+              {onRemoveSamples && cleanup && cleanup.removed.length > 0 ? (
+                <>
+                  <Button variant="outline" onClick={onEdit}>Fix it myself</Button>
+                  <Button onClick={onRemoveSamples}>
+                    <Wand2 className="mr-1.5 size-4" aria-hidden />
+                    {cleanup.remaining.length === 0 ? (removeAndContinueLabel ?? "Remove samples") : "Remove sample entries"}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={onEdit}>Fix my resume</Button>
+              )}
             </>
           )}
         </DialogFooter>
