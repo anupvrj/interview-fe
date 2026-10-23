@@ -101,64 +101,11 @@ export async function captureResumeThumbnail(
       }),
     );
 
-    // Store original styles to restore later
-    const originalStyles = {
-      display: element.style.display,
-      visibility: element.style.visibility,
-      opacity: element.style.opacity,
-      position: element.style.position,
-      zIndex: element.style.zIndex,
-    };
-
-    // Ensure element is visible and in viewport
-    element.style.display = element.style.display || "block";
-    element.style.visibility = "visible";
-    element.style.opacity = "1";
-    element.style.position = "relative";
-    element.style.zIndex = "9999";
-
-    // Check if element or its parents are hidden
-    let parent = element.parentElement;
-    while (parent && parent !== document.body) {
-      const parentStyle = globalThis.getComputedStyle(parent);
-      if (
-        parentStyle.display === "none" ||
-        parentStyle.visibility === "hidden" ||
-        parentStyle.opacity === "0"
-      ) {
-        console.warn("⚠️ Parent element is hidden, making it visible:", parent);
-        const parentEl = parent as HTMLElement;
-        parentEl.style.display = "block";
-        parentEl.style.visibility = "visible";
-        parentEl.style.opacity = "1";
-      }
-      parent = parent.parentElement;
-    }
-
-    // No scrolling: the capture renders a fixed, off-screen clone, and moving the
-    // page here would yank the editor away from where the user is working.
-
-    // Force a reflow to ensure styles are applied
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    element.offsetHeight;
-
-    // Wait for rendering to settle and ensure content is visible
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Double-check element is still visible and has content after all style changes
-    const computedStyle = globalThis.getComputedStyle(element);
-    if (
-      computedStyle.display === "none" ||
-      computedStyle.visibility === "hidden" ||
-      computedStyle.opacity === "0"
-    ) {
-      console.error("❌ Element is still hidden after making it visible");
-      // Restore styles before returning
-      element.style.display = originalStyles.display;
-      element.style.visibility = originalStyles.visibility;
-      element.style.opacity = originalStyles.opacity;
-      element.style.position = originalStyles.position;
-      element.style.zIndex = originalStyles.zIndex;
+    // The live preview is never restyled: the capture renders an off-screen clone (below).
+    // Lifting the live page (z-index 9999, position/display changes) put it on top of open
+    // dialogs — e.g. the section-order dialog after a drop's autosave — and shifted its layout.
+    if (element.offsetWidth < 100) {
+      console.warn("Thumbnail skipped: preview is not laid out");
       return null;
     }
 
@@ -283,11 +230,6 @@ export async function captureResumeThumbnail(
       } as any);
     } finally {
       captureRoot.remove();
-      element.style.display = originalStyles.display;
-      element.style.visibility = originalStyles.visibility;
-      element.style.opacity = originalStyles.opacity;
-      element.style.position = originalStyles.position;
-      element.style.zIndex = originalStyles.zIndex;
     }
 
     if (!canvas) {
