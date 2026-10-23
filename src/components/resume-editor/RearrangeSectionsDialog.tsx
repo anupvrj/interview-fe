@@ -46,6 +46,37 @@ export function findDropTarget(clientX: number, clientY: number): DropTarget | n
   };
 }
 
+/**
+ * The browser's own drag picture is taken from the screen. The dialog is centred with a CSS
+ * transform and the boxes are see-through, so Chrome's picture picked up the resume behind
+ * the dialog and it looked like the preview was overlapping. Use a solid copy instead.
+ */
+function setSolidDragImage(event: React.DragEvent<HTMLElement>): void {
+  const source = event.currentTarget;
+  if (typeof event.dataTransfer.setDragImage !== "function") return;
+  const rect = source.getBoundingClientRect();
+  const ghost = source.cloneNode(true) as HTMLElement;
+  const page = getComputedStyle(document.body).backgroundColor;
+  Object.assign(ghost.style, {
+    position: "fixed",
+    top: "-1000px",
+    left: "-1000px",
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    margin: "0",
+    opacity: "1",
+    transform: "none",
+    pointerEvents: "none",
+    // An opaque card: the page colour under the box's light tint.
+    background: `linear-gradient(rgba(115, 103, 240, 0.14), rgba(115, 103, 240, 0.14)), ${page && page !== "rgba(0, 0, 0, 0)" ? page : "#fff"}`,
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.18)",
+  });
+  document.body.appendChild(ghost);
+  event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
+  // The browser copies the picture during dragstart; the element can go right after.
+  window.setTimeout(() => ghost.remove(), 0);
+}
+
 function IconButton({
   label,
   disabled,
@@ -121,6 +152,7 @@ function SectionBox({
         }
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", section.id);
+        setSolidDragImage(event);
         onNativeDragStart(section.id);
       }}
       onDragEnd={onNativeDragEnd}
