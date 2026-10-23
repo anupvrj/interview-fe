@@ -93,6 +93,9 @@ const categoryLabels = {
 };
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
+
+/** Hackathon quick start: one of these, picked at random (changeable in the editor). */
+const HACKATHON_TEMPLATES = ["true-blue", "cobalt-stream", "condensed-rule"];
 type Step = "template" | "import" | "jobDescription" | "processing";
 
 export default function NewResumePage() {
@@ -133,6 +136,7 @@ export default function NewResumePage() {
     if (searchParams.get("extensionSync") === "1") {
       params.set("extensionSync", "1");
     }
+    if (quickHackathon) params.set("hk", "1");
     const query = params.toString();
     return query ? `/dashboard/resumes/new?${query}` : "/dashboard/resumes/new";
   };
@@ -255,15 +259,18 @@ export default function NewResumePage() {
       // Onboarding completed - load templates and check for template param
       loadTemplates();
 
-      // Check URL params to skip template selection
-      const templateParam = searchParams.get("template");
-      const skipTemplate = searchParams.get("skipTemplate") === "true";
-
       // A template Super Admin turned off can't be preselected from a link.
       const { fetchDisabledResumeTemplateIds } = await import(
         "@/lib/resume-template-availability"
       );
       const disabledTemplates = await fetchDisabledResumeTemplateIds();
+
+      // Check URL params to skip template selection
+      const hackathonChoices = HACKATHON_TEMPLATES.filter((id) => !disabledTemplates.includes(id));
+      const templateParam = quickHackathon && hackathonChoices.length
+        ? hackathonChoices[Math.floor(Math.random() * hackathonChoices.length)]
+        : searchParams.get("template");
+      const skipTemplate = quickHackathon || searchParams.get("skipTemplate") === "true";
       if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
         setStep("import");
@@ -1013,6 +1020,7 @@ export default function NewResumePage() {
         <div className="space-y-5">
           {quickHackathonChooser ? (
             <HackathonResumeStartChoices
+              templateName={selectedTemplateName}
               uploadedCvName={uploadedCv ? uploadedCv.filename || "resume.pdf" : null}
               loadingUploadedCv={loadingUploadedCv || extracting}
               busy={creating}

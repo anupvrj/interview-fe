@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
  * the full template + import wizard (template is preselected, job description is skipped).
  */
 export function HackathonResumeStartChoices({
+  templateName,
   uploadedCvName,
   loadingUploadedCv,
   busy,
@@ -17,6 +18,8 @@ export function HackathonResumeStartChoices({
   onLinkedIn,
   onUseSample,
 }: Readonly<{
+  /** The design picked for them (changeable in the editor). */
+  templateName?: string | null;
   /** File name of the CV on their profile, when there is one. */
   uploadedCvName: string | null;
   loadingUploadedCv: boolean;
@@ -36,7 +39,14 @@ export function HackathonResumeStartChoices({
       <div>
         <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Let&apos;s build your hackathon resume</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Start from your real details — it takes about 2 minutes. You can change the design later.
+          Start from your real details — it takes about 2 minutes.{" "}
+          {templateName ? (
+            <>
+              Design: <span className="font-medium text-foreground">{templateName}</span> — you can change it later.
+            </>
+          ) : (
+            "You can change the design later."
+          )}
         </p>
       </div>
 

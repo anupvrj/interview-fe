@@ -48,8 +48,8 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
   const slug = useHackathonSlug();
   const dashboardPath = hackathonDashboardPath(slug);
   const returnQs = `returnTo=${encodeURIComponent(dashboardPath)}&returnLabel=${encodeURIComponent("Hackathon")}`;
-  // Quick start: template preselected, start from real details, no job-description step.
-  const newResumeHref = `/dashboard/resumes/new?${returnQs}&template=clean-slate&skipTemplate=true&hk=1`;
+  // Quick start: template picked for them, start from real details, no job-description step.
+  const newResumeHref = `/dashboard/resumes/new?${returnQs}&hk=1`;
   const editResumeHref = (resumeId: string) => `/dashboard/resumes/${resumeId}/edit?${returnQs}`;
   const targets = eventTargets(me.hackathon);
   const resumeProgress = me.progress.challenges?.find((c) => c.kind === "resume");
