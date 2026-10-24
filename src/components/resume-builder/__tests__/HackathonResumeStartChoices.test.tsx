@@ -38,4 +38,37 @@ describe("HackathonResumeStartChoices", () => {
     expect((button("Upload your resume") as HTMLButtonElement).disabled).toBe(true);
     expect((button("Start from a sample instead") as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it("already submitted: shows it as submitted with edit & resubmit, other resumes in a list, new options below", () => {
+    const onOpenResume = vi.fn();
+    choices({
+      onOpenResume,
+      submitted: { resumeId: "r1", title: "My Resume", atsScore: 85, submittedAt: new Date().toISOString() },
+      resumes: [
+        { resumeId: "r1", title: "My Resume", atsScore: 85 },
+        { resumeId: "r2", title: "Backend CV", atsScore: 72 },
+      ],
+    });
+    expect(text()).toContain("Your hackathon resume");
+    expect(text()).toContain("Submitted");
+    expect(text()).toContain("ATS 85");
+    click(button("Edit & resubmit"));
+    expect(onOpenResume).toHaveBeenCalledWith("r1");
+    // the submitted one is listed once: only the other resume is in the picker
+    const options = Array.from(document.querySelectorAll("#hk-resume-pick option")).map((o) => o.textContent);
+    expect(options).toEqual(["Backend CV · ATS 72"]);
+    click(button("Open"));
+    expect(onOpenResume).toHaveBeenLastCalledWith("r2");
+    expect(text()).toContain("Or start a new one");
+    expect(button("Upload your resume")).toBeTruthy();
+  });
+
+  it("resumes but nothing submitted yet: pick one to continue", () => {
+    const onOpenResume = vi.fn();
+    choices({ onOpenResume, resumes: [{ resumeId: "r9", title: "Draft", atsScore: null }] });
+    expect(text()).not.toContain("Submitted");
+    expect(text()).toContain("Continue with a resume");
+    click(button("Open"));
+    expect(onOpenResume).toHaveBeenCalledWith("r9");
+  });
 });

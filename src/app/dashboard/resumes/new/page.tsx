@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
@@ -52,6 +53,8 @@ import {
 import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/ResumeBuilderJobDescriptionStep";
 import { HackathonResumeStartChoices } from "@/components/resume-builder/HackathonResumeStartChoices";
 import { pickHackathonTemplate } from "@/lib/hackathon-resume-template";
+import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
+import { hackathonApi } from "@/features/hackathon/api";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
@@ -122,6 +125,24 @@ export default function NewResumePage() {
       ? `/dashboard/resumes/${resumeId}/edit?${query}`
       : `/dashboard/resumes/${resumeId}/edit`;
   };
+  // Hackathon: their submitted resume and other resumes, so they can continue instead of
+  // starting over.
+  const { getToken } = useAuth();
+  const hackathonSlug = quickHackathon ? hackathonSlugFromDashboardPath(safeAppRedirectPath(searchParams.get("returnTo"))) : null;
+  const hackathonMe = useQuery({
+    queryKey: ["hackathon", hackathonSlug, "me", "resume-start"],
+    queryFn: () => hackathonApi.me(hackathonSlug!, () => getToken()),
+    enabled: Boolean(hackathonSlug),
+    staleTime: 30_000,
+  });
+  const hackathonResumes = useQuery({
+    queryKey: ["hackathon", hackathonSlug, "resumes", "resume-start"],
+    queryFn: () => hackathonApi.listResumes(hackathonSlug!, () => getToken()),
+    enabled: Boolean(hackathonSlug),
+    staleTime: 30_000,
+  });
+  const submittedHackathonResume =
+    hackathonMe.data?.resume?.submittedAt ? { ...hackathonMe.data.resume, updatedAt: undefined } : null;
   const newResumeReturnUrl = () => {
     const params = new URLSearchParams();
     forwardReturnTo(params);
@@ -1036,6 +1057,10 @@ export default function NewResumePage() {
               onTalkToAi={() => setShowChatModeModal(true)}
               onLinkedIn={() => setImportSource("linkedin")}
               onUseSample={handleSkip}
+              submitted={submittedHackathonResume}
+              resumes={hackathonResumes.data ?? []}
+              loadingResumes={Boolean(hackathonSlug) && (hackathonMe.isLoading || hackathonResumes.isLoading)}
+              onOpenResume={(resumeId) => router.push(resumeEditorPath(resumeId))}
             />
           ) : null}
           {selectedTemplateName && !quickHackathon ? (
