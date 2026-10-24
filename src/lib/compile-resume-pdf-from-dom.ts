@@ -80,7 +80,21 @@ export async function compileResumePdfFromPreviewContainer(options: {
         pageElements: allPageElements,
         padding,
       });
-      const serverBlob = await fetchPdfBlobFromUrl(result.downloadUrl);
+      // The server made and saved a text PDF. Reading it back can still fail (S3 not
+      // answering yet, CORS — the "404" pair seen on Save and return); that must not
+      // replace it with the screenshot PDF below. Retry once, else return just the link.
+      let serverBlob: Blob;
+      try {
+        serverBlob = await fetchPdfBlobFromUrl(result.downloadUrl);
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        try {
+          serverBlob = await fetchPdfBlobFromUrl(result.downloadUrl);
+        } catch (readBackErr) {
+          console.warn("Server PDF saved; reading it back failed, continuing with its link:", readBackErr);
+          return { blob: null, downloadUrl: result.downloadUrl };
+        }
+      }
       // Always keep the server PDF: it has real, selectable text that applicant tracking
       // systems can read. The server already shrinks oversized images, so it is rarely over
       // 2 MB; a screenshot PDF would be smaller but unreadable to an ATS.
