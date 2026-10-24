@@ -5545,16 +5545,16 @@ export function ResumeRenderer({
             padding-left: 0 !important;
             margin: 2px 0 0 0 !important;
           }
-          .confident-grid-template .resume-content.confident-grid-description li,
-          .confident-grid-template .resume-content.confident-grid-project-description li {
+          .confident-grid-template .resume-content.confident-grid-description ul > li,
+          .confident-grid-template .resume-content.confident-grid-project-description ul > li {
             display: flex !important;
             align-items: flex-start !important;
             gap: 0.35em !important;
             list-style: none !important;
             padding-left: 0 !important;
           }
-          .confident-grid-template .resume-content.confident-grid-description li::before,
-          .confident-grid-template .resume-content.confident-grid-project-description li::before {
+          .confident-grid-template .resume-content.confident-grid-description ul > li::before,
+          .confident-grid-template .resume-content.confident-grid-project-description ul > li::before {
             content: "-" !important;
             flex-shrink: 0 !important;
           }
@@ -5610,14 +5610,14 @@ export function ResumeRenderer({
             padding-left: 0 !important;
             margin: 2px 0 0 0 !important;
           }
-          .condensed-rule-template .resume-content.condensed-rule-description li {
+          .condensed-rule-template .resume-content.condensed-rule-description ul > li {
             display: flex !important;
             align-items: flex-start !important;
             gap: 0.35em !important;
             list-style: none !important;
             padding-left: 0 !important;
           }
-          .condensed-rule-template .resume-content.condensed-rule-description li::before {
+          .condensed-rule-template .resume-content.condensed-rule-description ul > li::before {
             content: "-" !important;
             flex-shrink: 0 !important;
           }

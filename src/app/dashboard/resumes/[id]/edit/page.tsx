@@ -2605,21 +2605,24 @@ export default function EditResumePage() {
   };
 
   const updateContent = (updates: Partial<Resume["content"]>) => {
-    if (!resume) return;
+    // The latest resume, not this render's copy: two updates in one tick (a field committing on
+    // blur, then "add item") used to overwrite each other — the typed text was lost.
+    const base = resumeRef.current ?? resume;
+    if (!base) return;
 
     recordDebouncedHistory();
 
     debugResumePagination("updateContent", {
-      resumeId: resume.resumeId,
+      resumeId: base.resumeId,
       keys: Object.keys(updates),
       customSectionsInUpdate: updates.customSections?.length ?? null,
     });
 
     // Deep merge customSections if it's being updated
-    let mergedContent = { ...resume.content, ...updates };
+    let mergedContent = { ...base.content, ...updates };
     if (updates.customSections) {
       // Ensure we're preserving existing customSections and merging properly
-      const existingCustomSections = resume.content.customSections || [];
+      const existingCustomSections = base.content.customSections || [];
       const updatedCustomSections = updates.customSections;
 
       // Merge: keep existing sections that aren't being updated, add/update new ones
@@ -2638,10 +2641,9 @@ export default function EditResumePage() {
       mergedContent.customSections = mergedCustomSections;
     }
 
-    setResumeState({
-      ...resume,
-      content: mergedContent,
-    });
+    const next = { ...base, content: mergedContent };
+    resumeRef.current = next;
+    setResumeState(next);
     setHasChanges(true);
     invalidateAtsScoreDisplay();
   };
@@ -3445,36 +3447,57 @@ export default function EditResumePage() {
     if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
   };
 
+  /** Commit what's being typed on the page (its blur saves it) before acting on the list around it. */
+  const flushCanvasEdit = () => {
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.isContentEditable && active.closest(".resume-page")) active.blur();
+  };
+  const latestContent = () => (resumeRef.current ?? resume)?.content as unknown as Record<string, unknown> | undefined;
+
   const canvasHandlers: CanvasInteractionHandlers = {
     onAddEntry: (sectionId, afterIndex) => {
       const type = sectionTypeOf(sectionId);
-      if (!resume || !isEntrySection(type)) return;
-      const { content, index } = addEntry(
-        resume.content as unknown as Record<string, unknown>,
-        type,
-        afterIndex ?? undefined,
-      );
+      flushCanvasEdit();
+      const current = latestContent();
+      if (!current || !isEntrySection(type)) return;
+      const { content, index } = addEntry(current, type, afterIndex ?? undefined);
       updateContent({ [type]: content[type] } as Partial<Resume["content"]>);
       setCanvasFocus({ sectionId, index });
+      // Type straight into the new entry (its sample text gets selected on focus).
+      let tries = 0;
+      const focusNew = () => {
+        const field = Array.from(
+          document.querySelectorAll<HTMLElement>(`.resume-page [data-rx-path^="${type}.${index}."][contenteditable]`),
+        ).find((el) => el.getClientRects().length > 0);
+        if (field) field.focus();
+        else if (tries++ < 20) requestAnimationFrame(focusNew);
+      };
+      requestAnimationFrame(focusNew);
     },
     onMoveEntry: (sectionId, index, delta) => {
       const type = sectionTypeOf(sectionId);
-      if (!resume || !isEntrySection(type)) return;
-      const next = moveEntry(resume.content as unknown as Record<string, unknown>, type, index, delta);
+      flushCanvasEdit();
+      const current = latestContent();
+      if (!current || !isEntrySection(type)) return;
+      const next = moveEntry(current, type, index, delta);
       updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
       setCanvasFocus({ sectionId, index: index + delta });
     },
     onDuplicateEntry: (sectionId, index) => {
       const type = sectionTypeOf(sectionId);
-      if (!resume || !isEntrySection(type)) return;
-      const next = duplicateEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      flushCanvasEdit();
+      const current = latestContent();
+      if (!current || !isEntrySection(type)) return;
+      const next = duplicateEntry(current, type, index);
       updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
       setCanvasFocus({ sectionId, index: index + 1 });
     },
     onDeleteEntry: (sectionId, index) => {
       const type = sectionTypeOf(sectionId);
-      if (!resume || !isEntrySection(type)) return;
-      const next = deleteEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      flushCanvasEdit();
+      const current = latestContent();
+      if (!current || !isEntrySection(type)) return;
+      const next = deleteEntry(current, type, index);
       updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
       setCanvasFocus(null);
       showCanvasNotice("Entry deleted — press Ctrl/⌘ Z to undo.");

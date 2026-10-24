@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, X } from "lucide-react";
  * Skills are stored as an array, a comma list, lines, or an HTML list depending on
  * where they came from. Edit them as tags and write back in the same shape.
  */
-export type TagShape = "array" | "comma" | "lines" | "html";
+export type TagShape = "array" | "comma" | "lines" | "html" | "html-inline";
 
 export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
   if (Array.isArray(value)) {
@@ -18,6 +18,10 @@ export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
     const tags = Array.from(text.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi))
       .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
       .filter(Boolean);
+    // One bullet holding a comma list ("Chess, Running, Travel"): edit the items, keep the look.
+    if (tags.length === 1 && tags[0].includes(",")) {
+      return { tags: tags[0].split(",").map((t) => t.trim()).filter(Boolean), shape: "html-inline" };
+    }
     return { tags, shape: "html" };
   }
   const plain = text.replace(/<[^>]+>/g, "\n").replace(/&amp;/g, "&");
@@ -31,10 +35,11 @@ export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
 export function serialiseTags(tags: string[], shape: TagShape): string | string[] {
   const clean = tags.map((t) => t.trim()).filter(Boolean);
   if (shape === "array") return clean;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   if (shape === "html") {
-    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return clean.length ? `<ul>${clean.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
   }
+  if (shape === "html-inline") return clean.length ? `<ul><li>${esc(clean.join(", "))}</li></ul>` : "";
   if (shape === "lines") return clean.join("\n");
   return clean.join(", ");
 }

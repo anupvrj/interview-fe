@@ -4,26 +4,23 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import {
   ArrowDown,
   ArrowUp,
-  Bold,
   Camera,
   GripVertical,
   Pencil,
   CalendarDays,
   Copy,
   EyeOff,
-  Italic,
-  List,
   MoreHorizontal,
   Plus,
   SlidersHorizontal,
   Trash2,
-  Underline,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isEntrySection } from "./canvasOps";
 import { locateText, type TextHit } from "./textLocator";
 import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
 import { TagListPopover } from "./TagListPopover";
+import { RichTextToolbar, RICH_ACTIONS, type RichCommand } from "./RichTextToolbar";
 
 /** Labels used by templates that merge several sections into one block. */
 const LABEL_TO_SECTION: Record<string, string> = {
@@ -41,7 +38,13 @@ const LABEL_TO_SECTION: Record<string, string> = {
 };
 
 /** Sections edited as a tag list (their items are derived text, not one field each). */
-const TAG_SECTIONS = new Set(["skills"]);
+/** Sections that are a plain list of short items, edited as tags (add / remove / reorder). */
+const TAG_SECTIONS = new Set(["skills", "interests"]);
+const TAG_WORDS: Record<string, { add: string; edit: string; placeholder: string }> = {
+  skills: { add: "Add skills", edit: "Edit skills", placeholder: "Add a skill and press Enter" },
+  interests: { add: "Add interests", edit: "Add or edit interests", placeholder: "Add an interest and press Enter" },
+};
+const tagWords = (type: string) => TAG_WORDS[type] ?? TAG_WORDS.skills;
 
 /** Sections whose entries have a From/To date. */
 const DATED_SECTIONS = new Set(["experience", "education", "projects", "organisations"]);
@@ -281,14 +284,12 @@ export function CanvasInteractionLayer({
   const [hoverBoxes, setHoverBoxes] = useState<Box[]>([]);
   const [hoverSectionBoxes, setHoverSectionBoxes] = useState<Box[]>([]);
   const [pages, setPages] = useState<Box[]>([]);
-  /** Skills sections with nothing in them yet: where to put the "Add skills" button. */
+  /** Skills / interests sections with nothing in them yet: where to put the "Add …" button. */
   const [emptyTagBoxes, setEmptyTagBoxes] = useState<Array<Box & { sectionId: string; type: string; title: string }>>([]);
   const [photoBox, setPhotoBox] = useState<Box | null>(null);
   const [photoMenu, setPhotoMenu] = useState(false);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"]; typo: boolean }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
-  /** Rect of the current text selection inside a description (for the style bar). */
-  const [selBox, setSelBox] = useState<Box | null>(null);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
@@ -481,7 +482,7 @@ export function CanvasInteractionLayer({
       } else {
         setDateEdit(null);
       }
-      // Skills: anywhere but the editable title opens the tag editor.
+      // Skills / interests: anywhere but the editable text opens the tag editor.
       const target = e.target as HTMLElement | null;
       const sectionEl = target?.closest<HTMLElement>(".resume-page [data-section]");
       const section = sectionEl ? sectionsRef.current.find((s) => s.id === sectionEl.getAttribute("data-section")) : undefined;
@@ -540,28 +541,6 @@ export function CanvasInteractionLayer({
     };
   }, [rootRef, onFocusChange]);
 
-  // Track text selections in rich fields so the style bar can follow them.
-  useEffect(() => {
-    const onSelection = () => {
-      const root = rootRef.current;
-      const sel = window.getSelection();
-      if (!root || !sel || sel.isCollapsed || sel.rangeCount === 0) {
-        setSelBox(null);
-        return;
-      }
-      const node = sel.anchorNode;
-      const el = (node instanceof Element ? node : node?.parentElement)?.closest("[data-rx-rich]");
-      if (!el || !root.contains(el)) {
-        setSelBox(null);
-        return;
-      }
-      const r = sel.getRangeAt(0).getBoundingClientRect();
-      const o = root.getBoundingClientRect();
-      setSelBox({ top: r.top - o.top, left: r.left - o.left, width: r.width, height: r.height });
-    };
-    document.addEventListener("selectionchange", onSelection);
-    return () => document.removeEventListener("selectionchange", onSelection);
-  }, [rootRef]);
 
   // Shortcuts for the selected item: Alt+↑/↓ move it, Ctrl/⌘+Enter adds one below.
   useEffect(() => {
@@ -608,7 +587,7 @@ export function CanvasInteractionLayer({
   const entryFocused = Boolean(focusSection && focus?.index !== null && isEntrySection(focusSection.type));
   const canAddEntry = Boolean(focusSection && isEntrySection(focusSection.type));
 
-  const format = (command: "bold" | "italic" | "underline" | "insertUnorderedList") => {
+  const format = (command: RichCommand) => {
     const active = document.activeElement as HTMLElement | null;
     if (!active?.hasAttribute("data-rx-rich")) {
       handlers.onNotice?.("Text styling works in descriptions and bullet points.");
@@ -632,8 +611,21 @@ export function CanvasInteractionLayer({
   const addBelow = () => {
     if (!handleSection) return;
     if (isEntrySection(handleSection.type)) handlers.onAddEntry(handleSection.id, handleIndex);
-    else handlers.onAddSectionAfter(handleSection.id);
+    else if (TAG_SECTIONS.has(handleSection.type) && handleBox) {
+      // Skills / interests: "+" adds to the list (it used to open "insert a section").
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setMenuOpen(false);
+      setDateEdit(null);
+      setTagEdit({ sectionType: handleSection.type, title: handleSection.title, top: handleBox.top + handleBox.height + 6, left: handleBox.left });
+    } else handlers.onAddSectionAfter(handleSection.id);
   };
+  const addBelowLabel = !handleSection
+    ? ""
+    : isEntrySection(handleSection.type)
+      ? "Add item below"
+      : TAG_SECTIONS.has(handleSection.type)
+        ? tagWords(handleSection.type).add
+        : "Insert section below";
   const openDates = () => {
     if (!handleSection || handleIndex === null || !handleBox) return;
     setMenuOpen(false);
@@ -664,7 +656,7 @@ export function CanvasInteractionLayer({
         ...(TAG_SECTIONS.has(handleSection.type) && handleBox
           ? [
               {
-                label: "Edit skills",
+                label: tagWords(handleSection.type).edit,
                 icon: Plus,
                 run: () =>
                   setTagEdit({
@@ -743,8 +735,8 @@ export function CanvasInteractionLayer({
       >
         <button
           type="button"
-          title={isEntrySection(handleSection.type) ? "Add item below" : "Insert section below"}
-          aria-label={isEntrySection(handleSection.type) ? "Add item below" : "Insert section below"}
+          title={addBelowLabel}
+          aria-label={addBelowLabel}
           onMouseDown={(e) => e.preventDefault()}
           onClick={addBelow}
           className="flex h-6 w-6 items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary"
@@ -787,48 +779,26 @@ export function CanvasInteractionLayer({
             <CalendarDays className="h-4 w-4" />
           </button>
         ) : null}
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => format("bold")} className="shrink-0 rounded-xl px-3 py-2" aria-label="Bold">
-          <Bold className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => format("insertUnorderedList")} className="shrink-0 rounded-xl px-3 py-2" aria-label="Bullet list">
-          <List className="h-4 w-4" />
-        </button>
+        {RICH_ACTIONS.map((a) => (
+          <button
+            key={a.cmd}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => format(a.cmd)}
+            className="shrink-0 rounded-xl px-3 py-2"
+            aria-label={a.label}
+          >
+            <a.icon className="h-4 w-4" />
+          </button>
+        ))}
         <button type="button" onClick={() => setMenuOpen((v) => !v)} className="ml-auto flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs" aria-label="More actions">
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>
     ) : null;
 
-  // Formatting appears only while text is selected inside a description (Medium-style).
-  const selectionBar =
-    !isMobile && selBox ? (
-      <div
-        data-rx-overlay
-        role="toolbar"
-        aria-label="Text style"
-        className="pointer-events-auto absolute z-40 flex items-center gap-0.5 rounded-lg bg-slate-900 p-0.5 text-white shadow-xl"
-        style={{ top: Math.max(0, selBox.top - 38), left: Math.max(0, selBox.left + selBox.width / 2 - 70) }}
-      >
-        {[
-          { label: "Bold", icon: Bold, cmd: "bold" as const },
-          { label: "Italic", icon: Italic, cmd: "italic" as const },
-          { label: "Underline", icon: Underline, cmd: "underline" as const },
-          { label: "Bullet list", icon: List, cmd: "insertUnorderedList" as const },
-        ].map((b) => (
-          <button
-            key={b.cmd}
-            type="button"
-            title={b.label}
-            aria-label={b.label}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => format(b.cmd)}
-            className="flex h-7 w-8 items-center justify-center rounded-md hover:bg-white/15"
-          >
-            <b.icon className="h-3.5 w-3.5" />
-          </button>
-        ))}
-      </div>
-    ) : null;
+  // Text styling while a description / bullet / summary is being edited.
+  const selectionBar = !isMobile ? <RichTextToolbar rootRef={rootRef} /> : null;
 
   return (
     <div data-rx-overlay className="pointer-events-none absolute inset-0 z-10" aria-hidden={false}>
@@ -869,7 +839,7 @@ export function CanvasInteractionLayer({
           className="pointer-events-auto absolute z-20 inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-background px-3 py-1 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
           style={{ top: b.top + Math.max(0, b.height / 2 - 13), left: Math.max(b.left, b.left + b.width - 118) }}
         >
-          <Plus className="h-3.5 w-3.5" /> Add skills
+          <Plus className="h-3.5 w-3.5" /> {tagWords(b.type).add}
         </button>
       ))}
       {photoBox && handlers.onChangePhoto ? (
@@ -942,6 +912,7 @@ export function CanvasInteractionLayer({
             tags={handlers.getTags(tagEdit.sectionType)}
             onChange={(tags) => handlers.onSetTags(tagEdit.sectionType, tags)}
             onClose={() => setTagEdit(null)}
+            placeholder={tagWords(tagEdit.sectionType).placeholder}
           />
         </KeepInView>
       ) : null}

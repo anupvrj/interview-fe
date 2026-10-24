@@ -235,8 +235,9 @@
   list-style-type: none !important;
 }
 
-.confident-grid-description li,
-.confident-grid-template .resume-content.confident-grid-description li {
+/* Dashes are for bulleted lists; a numbered list keeps its numbers. */
+.confident-grid-description ul > li,
+.confident-grid-template .resume-content.confident-grid-description ul > li {
   display: flex;
   align-items: flex-start;
   gap: 0.35em;
@@ -247,11 +248,11 @@
   color: #000000;
 }
 
-.confident-grid-description li::marker {
+.confident-grid-description ul > li::marker {
   content: none;
 }
 
-.confident-grid-description li::before {
+.confident-grid-description ul > li::before {
   content: "-";
   flex-shrink: 0;
   line-height: inherit;
