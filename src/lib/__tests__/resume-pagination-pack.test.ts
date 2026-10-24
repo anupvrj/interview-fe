@@ -64,6 +64,18 @@ describe("packUnitsIntoPages", () => {
     expect(ids(packUnitsIntoPages(units, 1000))).toEqual([["i1", "i2"]]);
   });
 
+  it("pages after the first get their own (smaller) budget for a top margin", () => {
+    const units: MeasuredUnit[] = [
+      unit({ id: "a", kind: "item", top: 0, bottom: 900, height: 900 }),
+      unit({ id: "b", kind: "item", top: 900, bottom: 1300, height: 400 }),
+      unit({ id: "c", kind: "item", top: 1300, bottom: 1800, height: 500 }),
+    ];
+    // Same budget everywhere: b + c (900) fit on page 2.
+    expect(ids(packUnitsIntoPages(units, 1000))).toEqual([["a"], ["b", "c"]]);
+    // Page 2 keeps 150px for its top margin: c moves on, nothing would be cut off.
+    expect(ids(packUnitsIntoPages(units, 1000, 850))).toEqual([["a"], ["b"], ["c"]]);
+  });
+
   it("returns one blank page when there are no units", () => {
     expect(packUnitsIntoPages([], 1000)).toEqual([
       { pageNumber: 1, unitIds: [], offsetY: 0, height: 0 },

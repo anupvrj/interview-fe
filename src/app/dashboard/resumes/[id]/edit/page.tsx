@@ -158,8 +158,9 @@ import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/A
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { parseTags, serialiseTags } from "@/components/resume-canvas/TagListPopover";
-import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import { FixMistakesPanel, buildFixItems, fixMarks, placeholderFindingsToIssues, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
 import { AtsIssuePeekBar } from "@/components/resume-canvas/AtsIssuePeekBar";
+import { SampleTextNotice } from "@/components/resume-canvas/SampleTextNotice";
 import { EditorGuide, type EditorGuideHandle } from "@/components/resume-canvas/guide/EditorGuide";
 import { guideHasContact, guideHasContent } from "@/components/resume-canvas/guide/guideChecklist";
 import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
@@ -180,7 +181,6 @@ import {
   getAtPath,
   isEntrySection,
   moveEntry,
-  sanitizeRichHtml,
   setAtPath,
 } from "@/components/resume-canvas/canvasOps";
 
@@ -196,6 +196,12 @@ import {
 } from "@/lib/resume-review-reminder";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
+import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
+import { moveSectionWithinColumn, organizeSectionColumns, sectionMoveBounds } from "@/lib/sectionLayout";
+import { fetchTemplateCssForPdf, serializeResumePagesHtml } from "@/lib/resume-pdf-export";
+import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
+import type { AtsParseResult } from "@/lib/api";
+import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
   assignSectionColumnOnReorder,
   toSectionOrderPayload,
@@ -500,8 +506,10 @@ export default function EditResumePage() {
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
   /** First-run editor guide (tour, setup checklist, beacons). */
   const guideRef = useRef<EditorGuideHandle>(null);
-  /** Hackathon guide: sample text still on the resume, and the event's ATS goal. */
-  const [guideHasSample, setGuideHasSample] = useState(false);
+  /** Sample text still on the resume (live check — the same one downloads and submits use). */
+  const [livePlaceholders, setLivePlaceholders] = useState<ResumePlaceholderIssue[]>([]);
+  const guideHasSample = livePlaceholders.length > 0;
+  /** Hackathon guide: the event's ATS goal. */
   const [guideAtsTarget, setGuideAtsTarget] = useState<number | null>(null);
   /** Phones: the ATS issue being shown on the page while the sheet steps aside. */
   const [peekId, setPeekId] = useState<string | null>(null);
@@ -818,6 +826,20 @@ export default function EditResumePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleRedo, handleUndo]);
 
+  /** Bumped when edits landed during a save, so autosave runs again for them. */
+  const [saveNudge, setSaveNudge] = useState(0);
+  /**
+   * A save finished. Only mark everything saved if nothing changed while it was in flight
+   * (an undo or more typing): otherwise those newer edits would show "Saved" and never go up.
+   */
+  const finishSave = useCallback((sent: { resume: Resume; sections: unknown; layout: unknown }) => {
+    const unchanged =
+      resumeRef.current === sent.resume && sectionsRef.current === sent.sections && layoutRef.current === sent.layout;
+    if (unchanged) setHasChanges(false);
+    else setSaveNudge((n) => n + 1);
+    setLastSaved(new Date());
+  }, []);
+
   const persistResumeToServer = useCallback(
     async (resumeSnapshot: Resume) => {
       const currentLayout = layoutRef.current;
@@ -837,10 +859,9 @@ export default function EditResumePage() {
         layout: currentLayout,
       });
 
-      setHasChanges(false);
-      setLastSaved(new Date());
+      finishSave({ resume: resumeSnapshot, sections: currentSections, layout: currentLayout });
     },
-    [resumeId],
+    [resumeId, finishSave],
   );
 
   // Never lose the last edits: save them when leaving the editor (or switching resume),
@@ -1049,8 +1070,7 @@ export default function EditResumePage() {
           layout: currentLayout,
         });
 
-        setHasChanges(false);
-        setLastSaved(new Date());
+        finishSave({ resume: currentResume, sections: currentSections, layout: currentLayout });
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         // A save refused because another tab saved first is handled by the conflict banner.
@@ -1063,7 +1083,7 @@ export default function EditResumePage() {
     }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture, saveNudge, finishSave]);
 
   useEffect(() => {
     const onConflict = (event: Event) => {
@@ -1580,6 +1600,40 @@ export default function EditResumePage() {
     }
   };
 
+  /**
+   * How ATS read the resume as it is now: save, then send the same plain page HTML + template
+   * CSS as Export; the server builds that PDF in memory and reads it like ATS parsers do.
+   */
+  const checkAtsParse = async (): Promise<AtsParseResult> => {
+    if (!resumeId) throw new Error("No resume");
+    await ensureResumePersisted();
+    const templateId = template?.id ?? resumeRef.current?.templateId ?? resume?.templateId ?? "classic";
+    const containerId = `resume-preview-container-${resumeId}`;
+    const editingWasOn = canvasOnRef.current;
+    if (editingWasOn) {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setPdfCapture(true);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    try {
+      await waitForResumePaginationSettled(containerId);
+      const container = document.getElementById(containerId);
+      const pages = Array.from(
+        container?.querySelector(".flex.flex-col.items-center")?.querySelectorAll<HTMLElement>(".resume-page") ?? [],
+      );
+      if (!pages.length) throw new Error("Preview not ready");
+      const [htmlContent, templateCSS] = [serializeResumePagesHtml(pages), await fetchTemplateCssForPdf(templateId)];
+      return await resumeApi.atsParsePreview(resumeId, htmlContent, templateCSS);
+    } finally {
+      if (editingWasOn) {
+        setPdfCapture(false);
+        requestAnimationFrame(() => previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true }));
+      }
+    }
+  };
+
   const compileCurrentPdfFromPreview = async () => {
     const templateId =
       template?.id ??
@@ -1853,6 +1907,43 @@ export default function EditResumePage() {
     }
   };
 
+  /** Notice → Remove samples: same cleanup as at submit, applied right away (undoable). */
+  const [removingSamples, setRemovingSamples] = useState(false);
+  const removeSamplesNow = async () => {
+    const current = resumeRef.current;
+    if (!current || removingSamples) return;
+    setRemovingSamples(true);
+    try {
+      const cleanup = await resumeApi.cleanupPlaceholders(current.content);
+      if (cleanup.removed.length) {
+        handleResumeImported({ ...current, content: cleanup.content });
+        setHasChanges(true);
+      }
+      const left = cleanup.remaining.length;
+      showCanvasNotice(
+        cleanup.removed.length
+          ? `Removed ${cleanup.removed.length} sample ${cleanup.removed.length === 1 ? "item" : "items"} — Undo brings ${cleanup.removed.length === 1 ? "it" : "them"} back.${left ? " Now type your own name / email." : ""}`
+          : "Nothing to remove automatically — type your own details where it's marked.",
+      );
+      if (left) showSampleText();
+    } catch {
+      showCanvasNotice("Couldn't remove the samples right now — try again.");
+    } finally {
+      setRemovingSamples(false);
+    }
+  };
+  /** Notice → Show me: the ATS list on the first sample item (phones: on the page). */
+  const showSampleText = () => {
+    const first = fixGroups.flatMap((g) => g.items).find((i) => i.check.id === "placeholderValues" && !fixResolved.has(i.id));
+    if (canvasPanel !== "fix") openCanvasPanel("fix");
+    if (!first) return;
+    pickMark(first.id);
+    if (isMobile) {
+      setPeekId(first.id);
+      previewRef.current?.zoomAtLeast(MOBILE_ISSUE_ZOOM);
+    }
+  };
+
   const handleSaveAndReturn = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
     // The hackathon rejects sample data server-side; say so before compiling the PDF.
@@ -1880,15 +1971,21 @@ export default function EditResumePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [continueAfterCleanup, resume]);
 
-  // Hackathon resumes: keep the guide's "Replace the sample text" in step with the content.
+  // Keep the sample-text check live as they edit (panel list, page marks, notice, guide).
   useEffect(() => {
-    if (!returnsToHackathon || !resume?.content) return;
+    if (!resume?.content) return;
     const content = resume.content;
+    let cancelled = false;
     const t = window.setTimeout(() => {
-      void fetchResumePlaceholderIssues(content).then((issues) => setGuideHasSample(issues.length > 0));
-    }, 1500);
-    return () => window.clearTimeout(t);
-  }, [returnsToHackathon, resume?.content]);
+      void fetchResumePlaceholderIssues(content).then((issues) => {
+        if (!cancelled) setLivePlaceholders(issues);
+      });
+    }, 1200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [resume?.content]);
 
   useEffect(() => {
     const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
@@ -2320,6 +2417,46 @@ export default function EditResumePage() {
     [],
   );
 
+  /**
+   * Put an AI / ATS suggestion into one bullet: found by location when known, matched
+   * loosely otherwise, never replacing a whole field. One undo step; the change is then
+   * scrolled to and flashed green. Returns where it went (null: nothing changed).
+   */
+  const applySuggestionInEditor = useCallback(
+    ({
+      original,
+      improved,
+      at,
+      occurrence,
+    }: {
+      original: string;
+      improved: string;
+      at?: SuggestionAt | null;
+      occurrence?: number;
+    }): SuggestionAt | null => {
+      const current = resumeRef.current;
+      if (!current) return null;
+      const result = applySuggestion(current, { original, improved, at, occurrence });
+      if (!result) return null;
+      // Its own undo step: end any typing burst, snapshot now, then change without re-recording.
+      if (contentEditHistoryTimerRef.current) clearTimeout(contentEditHistoryTimerRef.current);
+      contentEditHistoryTimerRef.current = null;
+      contentEditHistoryPendingRef.current = false;
+      recordImmediateHistory();
+      suppressHistoryRef.current = true;
+      setResumeState(result.resume);
+      resumeRef.current = result.resume;
+      suppressHistoryRef.current = false;
+      setHasChanges(true);
+      invalidateAtsScoreDisplay();
+      flashAppliedChange(result.at, improved);
+      return result.at;
+    },
+    // invalidateAtsScoreDisplay / recordImmediateHistory are stable for this editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const handleIgnoreATSIssue = useCallback(
     async (
       check: import("@/types/atsReport").ATSCheckResult,
@@ -2376,6 +2513,28 @@ export default function EditResumePage() {
       clearTimeout(timer);
     };
   }, [lastSaved, resumeId, hasAtsReport, refreshingATS]);
+
+  // A report from before the sample-text check doesn't know about sample text the live
+  // check finds: re-score once (no AI) so the score and the list reflect it.
+  const staleSampleRescored = useRef(false);
+  const savedReport = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+  const reportPlaceholderCount =
+    Object.values(savedReport?.categories ?? {})
+      .flatMap((c) => c?.checks ?? [])
+      .find((c) => c.id === "placeholderValues")?.issues.length ?? 0;
+  useEffect(() => {
+    if (staleSampleRescored.current || !resumeId || !hasAtsReport || refreshingATS) return;
+    if (livePlaceholders.length === 0 || reportPlaceholderCount > 0) return;
+    staleSampleRescored.current = true;
+    void resumeApi
+      .rescoreATS(resumeId)
+      .then((rescored) => {
+        if (!rescored) return;
+        setResumeState((prev) => (prev ? { ...prev, atsScore: rescored.atsScore, atsFeedback: rescored.atsFeedback } : prev));
+        if (!hasChangesRef.current) setDisplayAtsScore(rescored.atsScore);
+      })
+      .catch(() => undefined);
+  }, [resumeId, hasAtsReport, refreshingATS, livePlaceholders.length, reportPlaceholderCount]);
 
   const handleDownload = async () => {
     if (!canUse("resumeDownload") && !suppressHackathonTrial) {
@@ -2995,7 +3154,11 @@ export default function EditResumePage() {
       /* private mode */
     }
   }, []);
-  const allFixGroups = useMemo(() => buildFixItems(atsReportV3, resumeRawText), [atsReportV3, resumeRawText]);
+  const livePlaceholderIssues = useMemo(() => placeholderFindingsToIssues(livePlaceholders), [livePlaceholders]);
+  const allFixGroups = useMemo(
+    () => buildFixItems(atsReportV3, resumeRawText, livePlaceholderIssues),
+    [atsReportV3, resumeRawText, livePlaceholderIssues],
+  );
   const fixGroups = useMemo(
     () => allFixGroups.map((g) => (hiddenFixGroups.has(g.title) ? { ...g, items: [] } : g)),
     [allFixGroups, hiddenFixGroups],
@@ -3011,10 +3174,13 @@ export default function EditResumePage() {
     const aiMarks: CanvasMark[] = (aiReview?.lines ?? []).map((line, i) => ({ id: `ai:${i}`, text: line, tone: "ai" }));
     if (aiMarks.length) return aiMarks;
     if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
-    // Typos stay marked on the page even with the panel closed (like a spell checker).
+    // Typos and sample text stay marked on the page even with the panel closed.
     if (!canvasPanel || canvasPanel === "outline" || canvasPanel === "design" || canvasPanel === "details") {
       return fixMarks(
-        fixGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.check.id === "spellingGrammar" && i.wordFix) })),
+        fixGroups.map((g) => ({
+          ...g,
+          items: g.items.filter((i) => (i.check.id === "spellingGrammar" && i.wordFix) || i.check.id === "placeholderValues"),
+        })),
         fixResolved,
       );
     }
@@ -3179,20 +3345,17 @@ export default function EditResumePage() {
       const [section, index] = path.split(".");
       const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
       const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+      // Which bullet of the field (by position in the saved data, not the DOM node: the page
+      // re-renders after every change, and a stale node once made "put in" overwrite the field).
+      const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
+      const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
       setAiTarget({
         path,
         kind,
         text,
         role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
         company: typeof item?.company === "string" ? item.company : undefined,
-        apply: (replacement) => {
-          if (kind === "summary" || !bullet || !element.isConnected) {
-            commitCanvasFieldRef.current?.(path, kind === "summary" ? `<p>${escapeHtmlText(replacement)}</p>` : replacement);
-            return;
-          }
-          bullet.textContent = replacement;
-          commitCanvasFieldRef.current?.(path, sanitizeRichHtml(element.innerHTML));
-        },
+        at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
       });
     };
     pickTarget();
@@ -3317,20 +3480,16 @@ export default function EditResumePage() {
       showCanvasNotice("Entry deleted — press Ctrl/⌘ Z to undo.");
     },
     onMoveSection: (sectionId, delta) => {
-      setSections((prev) => {
-        const visible = prev.filter((s) => s.visible);
-        const from = visible.findIndex((s) => s.id === sectionId);
-        const to = from + delta;
-        if (from < 0 || to < 0 || to >= visible.length) return prev;
-        const a = prev.findIndex((s) => s.id === visible[from].id);
-        const b = prev.findIndex((s) => s.id === visible[to].id);
-        const next = [...prev];
-        [next[a], next[b]] = [next[b], next[a]];
-        // In two columns a section keeps its column unless it swaps with one in the other column.
-        return next;
-      });
+      // Within its column: in two-column designs the next section in the list may be in the
+      // other column, and swapping with it either did nothing visible or jumped columns.
+      if (!template) return;
+      const next = moveSectionWithinColumn(sections, sectionId, delta, layout?.type, template);
+      if (!next) return;
+      setSections(next as Section[]);
       setHasChanges(true);
     },
+    canMoveSection: (sectionId) =>
+      template ? sectionMoveBounds(sections, sectionId, layout?.type, template) : { up: false, down: false },
     onHideSection: (sectionId) => {
       setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, visible: false } : s)));
       setHasChanges(true);
@@ -3539,6 +3698,16 @@ export default function EditResumePage() {
             )}
           </Button>
         </div>
+      ) : null}
+      {canvasOn && livePlaceholders.length > 0 && !(isMobile && canvasPanel) ? (
+        <SampleTextNotice
+          count={livePlaceholderIssues.length}
+          examples={livePlaceholderIssues.map((i) => i.excerpt ?? "").filter(Boolean)}
+          removing={removingSamples}
+          compact={isMobile}
+          onShow={showSampleText}
+          onRemove={() => void removeSamplesNow()}
+        />
       ) : null}
       {extensionSyncState !== "idle" ? (
         <div className="relative border-b border-border bg-primary/5 px-4 py-2 pr-10 text-center text-sm text-foreground md:text-left">
@@ -4151,7 +4320,21 @@ export default function EditResumePage() {
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
               liveText={resumeRawText}
+              livePlaceholders={livePlaceholderIssues}
+              onUndo={handleUndo}
+              onApplyRewrite={(item, text, previous) => {
+                const at = applySuggestionInEditor({
+                  original: previous?.text ?? (item.quote || item.issue.excerpt || ""),
+                  improved: text,
+                  at: previous?.at ?? null,
+                  // The 2nd card for a sentence that repeats (same bullet in two jobs) is about the 2nd copy.
+                  occurrence: Number(/#(\d+)(?:~next)?$/.exec(item.id)?.[1] ?? 1),
+                });
+                if (!at) showCanvasNotice("Couldn't find that line on your resume — it may have changed. Edit it on the page instead.");
+                return at;
+              }}
               onDone={resolveFix}
+              onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
               onHiddenGroupsChange={updateHiddenFixGroups}
@@ -7815,6 +7998,13 @@ export default function EditResumePage() {
                   setHasChanges(true);
                 }}
                 onMove={(id, delta) => canvasHandlers.onMoveSection(id, delta)}
+                canMove={(id) => canvasHandlers.canMoveSection?.(id) ?? { up: false, down: false }}
+                columnOf={(id) => {
+                  if (!template) return null;
+                  const cols = organizeSectionColumns(sections, layout?.type, template);
+                  if (!cols.isDouble) return null;
+                  return cols.left.some((x) => x.id === id) ? "left" : cols.right.some((x) => x.id === id) ? "right" : null;
+                }}
                 onInsert={() => setAddSectionAfter({ afterId: null })}
               />
             ) : canvasPanel === "tailor" ? (
@@ -7868,6 +8058,13 @@ export default function EditResumePage() {
               />
             ) : (
               <AiAssistPanel
+                onApply={(text, at, original) => {
+                  const where = applySuggestionInEditor({ original, improved: text, at });
+                  if (!where) showCanvasNotice("Couldn't put that in — the line may have changed. Click the bullet again and retry.");
+                  return where;
+                }}
+                onUndo={handleUndo}
+                textAt={(at) => textAtLocation(resume, at)}
                 liveText={resumeText}
                 target={aiTarget}
                 targetRole={resume.content.personalInfo?.portfolio}

@@ -35,10 +35,10 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       "Two-column layout with sidebar",
       "Blue color scheme",
       "Icon-based contact info",
-      "ATS-optimized",
+      "Reads well in most current ATS",
     ],
     tags: ["modern", "two-column", "colorful", "sidebar"],
-    atsOptimized: true,
+    atsOptimized: false,
     popular: true,
     new: false,
     colors: {
@@ -49,7 +49,7 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
     seo: {
       title: "Atlantic Blue Resume Template - Modern Two-Column Design",
       description:
-        "Professional two-column resume template with blue sidebar. ATS-friendly and perfect for creative professionals.",
+        "Professional two-column resume template with blue sidebar. Best where design matters; reads well in most current ATS.",
       keywords: ["modern resume", "two-column resume", "blue resume template"],
     },
     marketing: {
@@ -80,13 +80,13 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       main: "/resume-template-images/clean-slate-preview.webp",
     },
     features: [
-      "Single-column layout",
+      "Two-column layout",
       "Classic section headers",
       "Professional styling",
-      "ATS-optimized",
+      "Reads well in most current ATS",
     ],
-    tags: ["simple", "professional", "classic", "ats-friendly"],
-    atsOptimized: true,
+    tags: ["simple", "professional", "classic", "two-column"],
+    atsOptimized: false,
     popular: true,
     new: false,
     colors: {
@@ -95,16 +95,16 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       accent: "#555555",
     },
     seo: {
-      title: "Clean Slate Resume Template - Professional & ATS-Friendly",
+      title: "Clean Slate Resume Template - Professional Two-Column Design",
       description:
-        "Simple, professional resume template optimized for ATS systems. Perfect for traditional industries.",
-      keywords: ["professional resume", "ats resume", "simple resume template"],
+        "Simple, professional two-column resume template. Reads well in most current ATS; perfect for traditional industries.",
+      keywords: ["professional resume", "two-column resume", "simple resume template"],
     },
     marketing: {
       headline: "Classic Professionalism",
       benefits: [
         "Clean, distraction-free design",
-        "Excellent ATS compatibility",
+        "Reads well in most current ATS",
         "Suitable for all industries",
       ],
       bestFor: [
@@ -419,17 +419,17 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       "Two-column layout",
       "Tinted sidebar",
       "Dotted language ratings",
-      "ATS-optimized",
+      "Reads well in most current ATS",
     ],
     tags: ["modern", "two-column", "sidebar", "professional"],
-    atsOptimized: true,
+    atsOptimized: false,
     popular: false,
     new: true,
     colors: { primary: "#1f2d3d", secondary: "#41566b", accent: "#2f5fa6" },
     seo: {
       title: "Confident Grid Resume Template - Modern Two-Column Design",
       description:
-        "Two-column resume template with a tinted sidebar and clean main column. ATS-friendly and great for managers and consultants.",
+        "Two-column resume template with a tinted sidebar and clean main column. Great for managers and consultants; reads well in most current ATS.",
       keywords: ["two-column resume", "modern resume", "sidebar resume template"],
     },
     marketing: {
@@ -459,17 +459,17 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       "Serif typography",
       "Saffron section rules",
       "Two-column layout",
-      "ATS-optimized",
+      "Reads well in most current ATS",
     ],
     tags: ["modern", "two-column", "serif", "elegant"],
-    atsOptimized: true,
+    atsOptimized: false,
     popular: false,
     new: true,
     colors: { primary: "#2b2b2b", secondary: "#6a6a6a", accent: "#c0871f" },
     seo: {
       title: "Saffron Line Resume Template - Elegant Serif Two-Column",
       description:
-        "Editorial two-column resume template with serif headings and saffron rules. ATS-friendly and refined.",
+        "Editorial two-column resume template with serif headings and saffron rules. Refined; reads well in most current ATS.",
       keywords: ["serif resume", "elegant resume", "two-column resume template"],
     },
     marketing: {

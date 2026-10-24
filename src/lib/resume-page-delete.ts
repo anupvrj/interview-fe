@@ -1,6 +1,4 @@
 import type { PackedPage } from "@/lib/resume-pagination/packUnitsIntoPages";
-import type { RearrangePageLayout } from "@/lib/rearrange-sections";
-import { canDeleteSection } from "@/lib/rearrange-sections";
 
 export interface PageDeleteTargets {
   sectionIds: string[];
@@ -66,14 +64,6 @@ export function applyDismissedEmptyTrailingPages<
     ...page,
     pageNumber: index + 1,
   }));
-}
-
-export function getDeletableSectionIdsForRearrangePage(
-  page: RearrangePageLayout,
-): string[] {
-  return [...page.leftColumn, ...page.rightColumn, ...page.singleColumn]
-    .filter((section) => canDeleteSection(section))
-    .map((section) => section.id);
 }
 
 /** Find sections / items whose block starts within a paginated preview band. */

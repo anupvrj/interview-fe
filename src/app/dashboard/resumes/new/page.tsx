@@ -744,7 +744,7 @@ export default function NewResumePage() {
       badge: "Resume builder",
       title: "Choose a template",
       description:
-        "Pick an ATS-friendly layout. You can change templates anytime in the editor.",
+        "Pick a layout — designs marked ATS optimized read cleanly in every ATS we tested. You can change templates anytime in the editor.",
     },
     import: {
       badge: "Import data",
@@ -957,10 +957,20 @@ export default function NewResumePage() {
                             {categoryLabels[template.category]}
                           </span>
                           {template.atsOptimized ? (
-                            <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700">
+                            <span
+                              className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700"
+                              title="Every ATS reader we tested picked up all of this design's details, in the right sections."
+                            >
                               ATS optimized
                             </span>
-                          ) : null}
+                          ) : (
+                            <span
+                              className="rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-300"
+                              title="Two columns: reads well in most current ATS, but older ones read straight across the page and can mix the columns."
+                            >
+                              Two-column
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div
@@ -999,11 +1009,13 @@ export default function NewResumePage() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">
-                  ATS-friendly by design
+                  Tested against ATS parsers
                 </h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  Templates are built to pass applicant tracking systems. Edit
-                  content freely and export to PDF whenever you&apos;re ready.
+                  Designs marked &ldquo;ATS optimized&rdquo; were fully read by every ATS reader we tested.
+                  Two-column designs read well in most current ATS, but older systems can mix the columns — for
+                  big-company portals (Workday, Taleo, iCIMS) pick a one-column design. In the editor, the ATS
+                  score shows exactly what an ATS reads from your resume.
                 </p>
               </div>
             </div>

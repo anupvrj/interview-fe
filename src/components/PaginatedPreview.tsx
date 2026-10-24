@@ -119,6 +119,16 @@ function applyPageVisibility(root: HTMLElement, all: Set<string>, visible: Set<s
   }
 }
 
+/**
+ * Pages after the first start at least this far from the top edge. Templates with no top
+ * padding of their own (a full-bleed header band on page 1, e.g. Confident Grid) otherwise
+ * started page 2 flush against the edge.
+ */
+const CONTINUATION_TOP_MM = 12;
+const PX_PER_MM = 1122.5 / A4_HEIGHT_MM;
+/** Templates whose columns already carry their own top spacing on every page. */
+const OWN_CONTINUATION_SPACING = new Set(["atlantic-blue"]);
+
 export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   resume,
   template,
@@ -145,6 +155,11 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
 
   const { contentHeightMm: CONTENT_HEIGHT_MM } = pageVerticalGuttersMm(paddingMm);
   const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
+  // Most a later page's top margin can add (its own top padding already counts towards it).
+  const continuationTargetPx = OWN_CONTINUATION_SPACING.has(template.id) ? 0 : CONTINUATION_TOP_MM * PX_PER_MM;
+  const laterPageTopReservePx = Math.max(0, continuationTargetPx - paddingMm.top * PX_PER_MM);
+  // Mercury's header band runs up into the top padding on page 1, so page 1 has that much more room.
+  const firstPageExtraPx = template.id === "mercury" ? paddingMm.top * PX_PER_MM : 0;
 
   const typographyKey = useMemo(() => {
     const fs = currentLayout.fontSize as
@@ -160,14 +175,16 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   );
   const rendererKey = useMemo(() => {
     const padKey = `${paddingMm.top}-${paddingMm.bottom}-${paddingMm.left}-${paddingMm.right}`;
-    return `${sectionOrderKey}-${template.id}-${currentLayout.type}-${padKey}-${typographyKey}-${contentMeasureKey}`;
-  }, [sectionOrderKey, template.id, currentLayout.type, paddingMm, typographyKey, contentMeasureKey]);
+    return `${sectionOrderKey}-${template.id}-${currentLayout.type}-${padKey}-${typographyKey}-${contentMeasureKey}-r${Math.round(laterPageTopReservePx)}-f${Math.round(firstPageExtraPx)}`;
+  }, [sectionOrderKey, template.id, currentLayout.type, paddingMm, typographyKey, contentMeasureKey, laterPageTopReservePx, firstPageExtraPx]);
 
   const { pages, pageUnits, pagesKey, isPaginating, measuringRef, allUnitIds } =
     useResumePagination({
       resume,
       sections: sections || [],
       pageHeightLimit,
+      laterPageTopReservePx,
+      firstPageExtraPx,
       measureKey: rendererKey,
     });
 
@@ -194,8 +211,26 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       const root = pageRefs.current[i];
       if (!root) return;
       applyPageVisibility(root, allUnitSet, new Set(unitIds));
+      // Later pages: top margin up to the target, measured from where the content now
+      // starts (the template's padding and column chrome already count). The packer kept
+      // that much room free, so nothing is pushed off the bottom.
+      root.style.paddingTop = "0px";
+      if (i === 0 || laterPageTopReservePx <= 0) return;
+      const page = root.parentElement;
+      if (!page) return;
+      const scale = page.getBoundingClientRect().height / (page.offsetHeight || 1) || 1;
+      const pageTop = page.getBoundingClientRect().top;
+      let firstTop = Infinity;
+      for (const node of Array.from(root.querySelectorAll<HTMLElement>(ALL_UNIT_SELECTOR))) {
+        if (!node.getClientRects().length) continue;
+        const r = node.getBoundingClientRect();
+        if (r.height > 0) firstTop = Math.min(firstTop, (r.top - pageTop) / scale);
+      }
+      if (!Number.isFinite(firstTop)) return;
+      const extra = Math.min(laterPageTopReservePx, Math.max(0, continuationTargetPx - firstTop));
+      if (extra > 0.5) root.style.paddingTop = `${Math.round(extra)}px`;
     });
-  }, [visiblePageUnits, allUnitSet, frame.key]);
+  }, [visiblePageUnits, allUnitSet, frame.key, laterPageTopReservePx, continuationTargetPx]);
 
   const totalPreviewPages = visiblePages.length;
 

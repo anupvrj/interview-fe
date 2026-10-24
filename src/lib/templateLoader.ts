@@ -12,6 +12,7 @@
  */
 
 "use client";
+import { ensureResumeSharedStyles } from "@/lib/resume-fonts";
 
 import React from "react";
 import { ResumeTemplate, ExtendedResumeTemplate, TemplateStyleConfig } from "../configs/resume-templates/template-types";
@@ -65,6 +66,7 @@ class CSSRegistry {
     if (typeof window === "undefined") {
       return false;
     }
+    ensureResumeSharedStyles();
 
     if (this.activeTemplateId === templateId && this.loadedStyles.has(templateId)) {
       return false;

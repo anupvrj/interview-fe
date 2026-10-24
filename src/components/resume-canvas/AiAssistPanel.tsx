@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, Target, Wand2 } from "lucide-react";
 import { resumeApi } from "@/lib/api";
+import type { SuggestionAt } from "@/lib/suggestionApply";
+import { SuggestionPicker } from "./SuggestionPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +15,8 @@ export interface AiTarget {
   text: string;
   role?: string;
   company?: string;
-  /** Replace the text on the page and save it. */
-  apply: (text: string) => void;
+  /** Where it is: the field, and which bullet in it (null: the whole field, e.g. the summary). */
+  at: SuggestionAt;
 }
 
 /** Placeholder text has nothing true to reword; rewriting it would only invent claims. */
@@ -28,7 +30,15 @@ export function AiAssistPanel({
   onTailor,
   onFixMistakes,
   liveText,
+  textAt,
+  onApply,
+  onUndo,
 }: {
+  /** What's at that spot in the resume now (follows undo/redo and typing on the page). */
+  textAt?: (at: SuggestionAt) => string | null;
+  /** Put `text` in place of `original` at `at`; returns where it went (null: couldn't). */
+  onApply: (text: string, at: SuggestionAt, original: string) => SuggestionAt | null;
+  onUndo?: () => void;
   /** Lower-cased resume text now, so "In your resume" clears after an undo. */
   liveText?: string;
   target: AiTarget | null;
@@ -39,25 +49,32 @@ export function AiAssistPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [appliedIndex, setAppliedIndex] = useState<number | null>(null);
-  const onResume = (text: string) =>
-    !liveText || liveText.replace(/\s+/g, " ").includes(text.replace(/\s+/g, " ").trim().toLowerCase());
+  /** What's in that bullet now (it changes as options are put in). */
+  const [current, setCurrent] = useState<{ text: string; at: SuggestionAt } | null>(target ? { text: target.text, at: target.at } : null);
+  void liveText;
 
-  // New target → old suggestions no longer apply.
+  // Another bullet → start over. Same bullet edited on the page → follow its text.
+  const targetKey = target ? `${target.at.path}#${target.at.index ?? ""}` : "";
   useEffect(() => {
     setSuggestions([]);
     setError(null);
-    setAppliedIndex(null);
-  }, [target?.path, target?.text]);
+    setCurrent(target ? { text: target.text, at: target.at } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetKey]);
+  useEffect(() => {
+    if (target) setCurrent((prev) => (prev && prev.text !== target.text ? { ...prev, text: target.text } : prev));
+  }, [target?.text]);
+
+  // The bullet as it is now on the page (after undo/redo or typing), else what we last knew.
+  const currentText = (current && textAt?.(current.at)) || current?.text || target?.text || "";
 
   const run = async () => {
-    if (!target) return;
+    if (!target || !current) return;
     setLoading(true);
     setError(null);
-    setAppliedIndex(null);
     try {
       const out = await resumeApi.aiRewrite({
-        text: target.text,
+        text: currentText,
         kind: target.kind,
         role: target.role,
         company: target.company,
@@ -84,7 +101,7 @@ export function AiAssistPanel({
             <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {target.kind === "summary" ? "Your summary" : "Selected bullet"}
             </p>
-            <p className="mt-1 line-clamp-4 rounded-lg bg-muted/60 px-2.5 py-2 text-xs leading-relaxed text-foreground">{target.text}</p>
+            <p className="mt-1 line-clamp-4 rounded-lg bg-muted/60 px-2.5 py-2 text-xs leading-relaxed text-foreground">{currentText}</p>
             {isSampleText(target.text) ? (
               <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 This is still sample text. Write what you actually did in a few words first — AI will then make it sound sharper,
@@ -102,27 +119,16 @@ export function AiAssistPanel({
               {suggestions.length ? "More options" : "Show me 3 options"}
             </Button>
             {error ? <p className="mt-2 text-xs text-muted-foreground">{error}</p> : null}
-            {suggestions.length ? (
-              <ul className="mt-3 space-y-2">
-                {suggestions.map((s, i) => (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        target.apply(s);
-                        setAppliedIndex(i);
-                      }}
-                      className={cn(
-                        "w-full rounded-lg border px-2.5 py-2 text-left text-xs leading-relaxed transition-colors",
-                        appliedIndex === i && onResume(s) ? "border-primary bg-primary/5" : "border-border hover:border-primary/60 hover:bg-muted/40",
-                      )}
-                    >
-                      {s}
-                      <span className="mt-1 block text-[11px] font-semibold text-primary">{appliedIndex === i && onResume(s) ? "In your resume ✓" : "Put this in"}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {suggestions.length && current ? (
+              <SuggestionPicker
+                options={suggestions}
+                onUndo={onUndo}
+                onApply={(text) => {
+                  const at = onApply(text, current.at, currentText);
+                  if (at) setCurrent({ text, at });
+                  return !!at;
+                }}
+              />
             ) : null}
             <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               AI only rewords what you wrote. Where a number would help, it leaves a {"{X}"} for you to fill in.

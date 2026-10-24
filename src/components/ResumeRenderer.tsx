@@ -5,6 +5,8 @@
 
 "use client";
 
+import { organizeSectionColumns } from "@/lib/sectionLayout";
+import { ensureResumeSharedStyles } from "@/lib/resume-fonts";
 import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
@@ -177,6 +179,32 @@ function formatCondensedRuleLanguageLevel(level?: number): string {
   return "Intermediate";
 }
 
+/**
+ * A contact icon in a box exactly one text line tall, so it lines up with the first line
+ * whatever the font (a wrapped "City, State, / Country" used to put it between the lines,
+ * and fonts with tall line boxes made it sit high). A div, not a span: templates style
+ * "contact-item span" text colours/fonts, which would recolour the icon.
+ */
+function ContactIcon({ icon: Icon, size, fontSize }: { icon: React.ComponentType<any>; size: number; fontSize?: string }) {
+  return (
+    <div
+      className="rx-contact-icon"
+      style={{ display: "inline-flex", alignItems: "center", height: "1.4em", flexShrink: 0, fontSize }}
+    >
+      <Icon size={size} style={{ flexShrink: 0, display: "block" }} />
+    </div>
+  );
+}
+
+/** A link for what people type: a full URL, "linkedin.com/in/x", or just the handle "x". */
+function profileHref(kind: "linkedin" | "website", raw?: string): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (kind === "linkedin" && !/linkedin\.com/i.test(value)) return `https://www.linkedin.com/in/${value.replace(/^@/, "")}`;
+  return `https://${value.replace(/^\/\//, "")}`;
+}
+
 function renderCondensedRuleLabeledInlineList(
   items: { label: string; value: string }[],
   className: string,
@@ -191,8 +219,12 @@ function renderCondensedRuleLabeledInlineList(
           {index > 0 && (
             <span className="condensed-rule-inline-separator"> | </span>
           )}
-          <span className="condensed-rule-inline-label">{item.label}:</span>{" "}
-          {item.value}
+          {/* No level: just the name ("English", not "English:"). */}
+          <span className="condensed-rule-inline-label">
+            {item.label}
+            {item.value?.trim() ? ":" : ""}
+          </span>
+          {item.value?.trim() ? <> {item.value}</> : null}
         </span>
       ))}
     </div>
@@ -698,6 +730,11 @@ export function ResumeRenderer({
     [sections, sectionsOrderKey],
   );
 
+  // Font twins + no phone text boosting (see resume-fonts.ts), wherever a resume renders.
+  React.useEffect(() => {
+    ensureResumeSharedStyles();
+  }, []);
+
   const visibleSections = useMemo(() => {
     return displaySections.filter((s) => s.visible);
   }, [displaySections, sectionsOrderKey]);
@@ -711,129 +748,13 @@ export function ResumeRenderer({
   // Organize sections into columns based on template configuration
   // Memoize the result to ensure it recalculates when visibleSections changes
   const { headerSection, leftColumn, rightColumn } = useMemo(() => {
-    const organizeIntoColumns = () => {
-      if (effectiveResumeLayout.type === "single") {
-        // Check if template uses profile picture header layout
-        if (
-          templateStyle.headerLayout?.type === "with-profile-picture" ||
-          template.id === "mercury"
-        ) {
-          const headerSection = visibleSections.find(
-            (s) => s.type === "personalInfo",
-          );
-          const bodySections = visibleSections.filter(
-            (s) => s.type !== "personalInfo",
-          );
-
-          return {
-            headerSection,
-            leftColumn: bodySections,
-            rightColumn: [],
-          };
-        }
-
-        return {
-          headerSection: null,
-          leftColumn: visibleSections,
-          rightColumn: [],
-        };
-      }
-
-      // For two-column layouts, organize based on template style
-      const headerSection =
-        templateStyle.headerStyle === "two-column"
-          ? null
-          : visibleSections.find((s) => s.type === "personalInfo");
-
-      const bodySections =
-        templateStyle.headerStyle === "two-column"
-          ? visibleSections
-          : visibleSections.filter((s) => s.type !== "personalInfo");
-
-      const leftColumn: Section[] = [];
-      const rightColumn: Section[] = [];
-
-      const extendedTemplate = getExtendedTemplate(template);
-      const columnAssignment = extendedTemplate?.rendering?.layout?.columnAssignment;
-
-      // Track position for alternating distribution (for Atlantic Blue)
-      let nonPersonalInfoIndex = 0;
-
-      bodySections.forEach((section, index) => {
-        // Saffron Line: always follow template column assignment (education on left, etc.)
-        if (
-          isSaffronLine &&
-          columnAssignment &&
-          (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)
-        ) {
-          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
-            leftColumn.push(section);
-            return;
-          }
-          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
-            rightColumn.push(section);
-            return;
-          }
-          leftColumn.push(section);
-          return;
-        }
-
-        // Saved column from editor reordering takes precedence
-        if (section.column === "left" || section.column === "right") {
-          if (section.column === "left") {
-            leftColumn.push(section);
-          } else {
-            rightColumn.push(section);
-          }
-          return;
-        }
-
-        // Template defaults by section id/type
-        if (columnAssignment && (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)) {
-          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
-            leftColumn.push(section);
-            return;
-          }
-          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
-            rightColumn.push(section);
-            return;
-          }
-          // Default unassigned sections to the left column (main body)
-          leftColumn.push(section);
-          return;
-        }
-
-        // Dynamic flowing distribution when no explicit assignment exists
-        if (templateStyle.headerStyle === "two-column") {
-          // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
-          if (section.type === "personalInfo") {
-            // PersonalInfo always goes to left column (sidebar)
-            leftColumn.push(section);
-          } else {
-            // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
-            // Start with right column (index 0 → right, index 1 → left, etc.)
-            if (nonPersonalInfoIndex % 2 === 0) {
-              rightColumn.push(section);
-            } else {
-              leftColumn.push(section);
-            }
-            nonPersonalInfoIndex++;
-          }
-        } else {
-          // Standard templates: True alternating distribution
-          // 1→left, 2→right, 3→left, 4→right, etc.
-          if (index % 2 === 0) {
-            leftColumn.push(section);
-          } else {
-            rightColumn.push(section);
-          }
-        }
-      });
-
-      return { headerSection, leftColumn, rightColumn };
+    // Shared with the section-order dialog and the ↑/↓ buttons (see sectionLayout.ts).
+    const columns = organizeSectionColumns(visibleSections, effectiveResumeLayout.type, template);
+    return {
+      headerSection: columns.header ?? undefined,
+      leftColumn: columns.isDouble ? columns.left : columns.single,
+      rightColumn: columns.isDouble ? columns.right : [],
     };
-
-    return organizeIntoColumns();
   }, [
     // Use visibleSections array directly - React will detect reference changes
     // The key is that visibleSections is recalculated when displaySections order changes
@@ -1261,9 +1182,7 @@ export function ResumeRenderer({
         type: "linkedin",
         value: personalInfo.linkedin,
         icon: Linkedin,
-        href: personalInfo.linkedin?.startsWith("http")
-          ? personalInfo.linkedin
-          : `https://linkedin.com/in/${personalInfo.linkedin}`,
+        href: profileHref("linkedin", personalInfo.linkedin),
       },
       {
         type: "github",
@@ -1279,9 +1198,7 @@ export function ResumeRenderer({
         type: "website",
         value: personalInfo.website,
         icon: ExternalLink,
-        href: personalInfo.website?.startsWith("http")
-          ? personalInfo.website
-          : `https://${personalInfo.website}`,
+        href: profileHref("website", personalInfo.website),
       },
     ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
 
@@ -1314,9 +1231,10 @@ export function ResumeRenderer({
                 <div
                   key={index}
                   className={`${template.id}-contact-item`}
+                  style={{ alignItems: "flex-start" }}
                 >
-                  <IconComponent size={13} style={{ flexShrink: 0 }} />
-                  <span>{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</span>
+                  <ContactIcon icon={IconComponent} size={13} />
+                  <span style={{ lineHeight: 1.4 }}>{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</span>
                 </div>
               );
 
@@ -1362,15 +1280,16 @@ export function ResumeRenderer({
                 className={`${template.id}-contact-item`}
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   gap: "6px",
                   color: textColor,
                 }}
               >
-                <IconComponent size={16} style={{ flexShrink: 0 }} />
+                <ContactIcon icon={IconComponent} size={16} fontSize={`${templateStyle.fontSize.small}px`} />
                 <span
                   style={{
                     fontSize: `${templateStyle.fontSize.small}px`,
+                    lineHeight: 1.4,
                     fontFamily: templateStyle.fontFamily,
                     color: textColor,
                   }}
@@ -1478,7 +1397,13 @@ export function ResumeRenderer({
             ) : (
               ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])
             )}
-            {index < contactItems.length - 1 && contactSeparator}
+            {/* Its own element with even space both sides: a trailing " • " lost its space
+                in flex rows ("India •   linkedin"). */}
+            {index < contactItems.length - 1 && (
+              <span className={`${template.id}-contact-separator`} style={{ margin: "0 0.45em" }}>
+                {contactSeparator.trim()}
+              </span>
+            )}
           </span>
         ))}
       </div>
@@ -1675,8 +1600,6 @@ export function ResumeRenderer({
 
           /* Navy Frame: labeled contact rows (Address / Phone / Email / Website) */
           if (template.id === "navy-frame") {
-            const websiteValue =
-              personalInfo.website || personalInfo.linkedin || "";
             const labeledRows: {
               label: string;
               value?: string;
@@ -1693,15 +1616,18 @@ export function ResumeRenderer({
                   ? `mailto:${personalInfo.email}`
                   : undefined,
               },
+              // Each under its own label (a LinkedIn handle used to show as "Website:").
               {
-                field: personalInfo.website ? "website" : "linkedin",
+                field: "website",
                 label: "Website:",
-                value: websiteValue,
-                href: websiteValue
-                  ? websiteValue.startsWith("http")
-                    ? websiteValue
-                    : `https://${websiteValue.replace(/^\/\//, "")}`
-                  : undefined,
+                value: personalInfo.website,
+                href: profileHref("website", personalInfo.website),
+              },
+              {
+                field: "linkedin",
+                label: "LinkedIn:",
+                value: personalInfo.linkedin,
+                href: profileHref("linkedin", personalInfo.linkedin),
               },
             ].filter((row) => row.value?.trim() || (revealContacts && row.field));
 
@@ -1790,14 +1716,15 @@ export function ResumeRenderer({
                         key={itemIndex}
                         style={{
                           display: "flex",
-                          alignItems: "center",
+                          alignItems: "flex-start",
                           gap: "4px",
                         }}
                       >
-                        <IconComponent size={12} />
+                        <ContactIcon icon={IconComponent} size={12} fontSize={`${templateStyle.fontSize.small}px`} />
                         <span
                           style={{
                             fontSize: `${templateStyle.fontSize.small}px`,
+                            lineHeight: 1.4,
                             fontFamily: templateStyle.fontFamily,
                           }}
                         >
@@ -2126,7 +2053,12 @@ export function ResumeRenderer({
             <div
               className={`${template.id}-header-section`}
               style={{
-                margin: 0,
+                // Mercury's grey band runs to the top edge (the page's top padding left a
+                // white strip above it); later pages have no header and keep their margin.
+                margin:
+                  template.id === "mercury" && templateStyle.padding.top > 0
+                    ? `-${templateStyle.padding.top}mm 0 0`
+                    : 0,
                 backgroundColor: headerBackground,
                 ...(usesCssHeaderBand ? {} : { padding: "40px 55px" }),
                 display: "flex",
@@ -3292,12 +3224,15 @@ export function ResumeRenderer({
         let skillsData: any = null;
         let skillItems: any[] = [];
 
-        // Executive template: Get from sections array
-        if (resume.templateId === "executive") {
-          const skillsSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "skills",
-          );
-          skillItems = skillsSection?.items || [];
+        // Executive: rated skills from the older sections array, when a resume has them.
+        // Everyone else (and Executive without them) uses the skills field — before, Executive
+        // printed an empty "Skills" heading for every current resume.
+        const executiveRatedSkills =
+          template.id === "executive"
+            ? ((resume.content as any).sections?.find((s: any) => s.type === "skills")?.items ?? [])
+            : [];
+        if (executiveRatedSkills.length > 0) {
+          skillItems = executiveRatedSkills;
         } else {
           // Other templates: Get from direct skills field (new structure: single field)
           skillsData = resume.content.skills;
@@ -3360,9 +3295,10 @@ export function ResumeRenderer({
               issuer?: string;
               description?: string;
             }) => {
-              const value =
-                award.description?.trim() ||
-                [award.title, award.issuer].filter(Boolean).join(", ");
+              // The award itself first, then what it was for (the title used to be dropped).
+              const name = [award.title?.trim(), award.issuer?.trim()].filter(Boolean).join(", ");
+              const about = award.description?.trim();
+              const value = name && about ? `${name}: ${about}` : name || about || "";
               if (value) {
                 additionalItems.push({ label: "Awards/Activities", value });
               }
@@ -3452,7 +3388,11 @@ export function ResumeRenderer({
               technicalSkills = parseAmberEdgeSkillList(grouped.technical);
             }
 
-            if (professionalSkills.length === 0 && technicalSkills.length === 0) {
+            // A plain list is one "Skills" section in two columns. It used to be split in half
+            // under made-up "Professional" / "Technical" headings, which ATS parsers read as one
+            // garbled heading line (and which mislabelled half the skills).
+            const isGrouped = professionalSkills.length > 0 || technicalSkills.length > 0;
+            if (!isGrouped) {
               const allSkills = parseAmberEdgeSkillList(skillsData);
               if (allSkills.length === 0) return null;
               const midpoint = Math.ceil(allSkills.length / 2);
@@ -3488,20 +3428,21 @@ export function ResumeRenderer({
                   ...sidebarStyle,
                 }}
               >
+                {isGrouped ? null : renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
                 <div className={`${template.id}-skills-dual`}>
                   {professionalSkills.length > 0 && (
                     <div className={`${template.id}-skills-dual-column`}>
-                      <div className={`${template.id}-skills-dual-header`}>
-                        Professional Skills
-                      </div>
+                      {isGrouped ? (
+                        <div className={`${template.id}-skills-dual-header`}>Professional Skills</div>
+                      ) : null}
                       {renderSkillColumn(professionalSkills, 0)}
                     </div>
                   )}
                   {technicalSkills.length > 0 && (
                     <div className={`${template.id}-skills-dual-column`}>
-                      <div className={`${template.id}-skills-dual-header`}>
-                        Technical Skills
-                      </div>
+                      {isGrouped ? (
+                        <div className={`${template.id}-skills-dual-header`}>Technical Skills</div>
+                      ) : null}
                       {renderSkillColumn(
                         technicalSkills,
                         professionalSkills.length,
@@ -3679,7 +3620,7 @@ export function ResumeRenderer({
                     }
               }
             >
-              {resume.templateId === "executive" ? (
+              {skillItems.length > 0 ? (
                 // Executive template: Render skill items with ratings
                 <div
                   style={{
@@ -4397,11 +4338,15 @@ export function ResumeRenderer({
                     className={`${template.id}-language-item`}
                   >
                     <span className={`${template.id}-skill-category-name`}>
-                      {item.label}:
-                    </span>{" "}
-                    <span className={`${template.id}-skill-category-value`}>
-                      {item.value}
+                      {item.label}
+                      {item.value?.trim() ? ":" : ""}
                     </span>
+                    {item.value?.trim() ? (
+                      <>
+                        {" "}
+                        <span className={`${template.id}-skill-category-value`}>{item.value}</span>
+                      </>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -4466,8 +4411,25 @@ export function ResumeRenderer({
                           ? ed(`languages.${index}.name`, lang.name, "Language")
                           : lang.name || String(lang)}
                     </span>
+                    {/* A written level ("Fluent") reads as text; dots only for a 1–5 number
+                        (a word used to give five empty dots). */}
                     {typeof lang === "object" &&
-                      (lang.proficiency || lang.level) &&
+                      langConfig.showRatings &&
+                      !(Number(lang.level || lang.proficiency) >= 1) &&
+                      typeof (lang.proficiency || lang.level) === "string" &&
+                      String(lang.proficiency || lang.level).trim() ? (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                            fontSize: `${templateStyle.fontSize.small}px`,
+                            color: isInSidebar ? templateStyle.colors.sidebarText : templateStyle.colors.secondary || templateStyle.colors.text,
+                          }}
+                        >
+                          {String(lang.proficiency || lang.level).trim()}
+                        </span>
+                      ) : null}
+                    {typeof lang === "object" &&
+                      Number(lang.level || lang.proficiency) >= 1 &&
                       langConfig.showRatings && (
                         <div
                           className={langConfig.ratingClass || ""}
@@ -4519,21 +4481,32 @@ export function ResumeRenderer({
         );
 
       case "awards":
-        if (isRoyalIndigo || isCondensedRule) return null;
+        // Royal Indigo lists awards under "Additional Information" (its skills section) —
+        // but only while that section is on the page; otherwise they'd vanish.
+        if (isRoyalIndigo && visibleSections.some((s) => s.type === "skills")) return null;
 
-        // Handle both executive (sections array) and other templates (direct awards array)
+        // Executive: the older sections array when it has awards, else the awards field.
         let awardsData: any[] = [];
-
-        if (resume.templateId === "executive") {
-          const awardsSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "awards",
-          );
-          awardsData = awardsSection?.items || resume.content.awards || [];
-        } else {
-          awardsData = resume.content.awards || [];
-        }
+        const executiveAwards =
+          template.id === "executive"
+            ? ((resume.content as any).sections?.find((s: any) => s.type === "awards")?.items ?? [])
+            : [];
+        awardsData = executiveAwards.length > 0 ? executiveAwards : resume.content.awards || [];
 
         if (awardsData.length === 0) return null;
+
+        if (isCondensedRule) {
+          // Same one-line style as its certificates (awards used to be left out entirely).
+          const awardNames = awardsData.map((award: { title?: string; issuer?: string; date?: string }) =>
+            [award.title, [award.issuer, award.date].filter(Boolean).join(", ")].filter(Boolean).join(" — "),
+          );
+          return (
+            <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              {renderCondensedRuleInlineList(awardNames, `${template.id}-inline-list`)}
+            </div>
+          );
+        }
 
         if (isMeridian) {
           return (
@@ -4902,31 +4875,37 @@ export function ResumeRenderer({
 
         if (isAmberEdge || isMeridian) {
           const additionalItems: { label: string; value: string }[] = [];
+          // Languages / certificates are listed here only when they have no section of their
+          // own on the page (they used to print twice), and interests are always interests
+          // (with no certificates they were printed as "Certifications").
+          const shownTypes = new Set(visibleSections.map((s) => s.type));
 
           const languagesData = Array.isArray(resume.content.languages)
             ? resume.content.languages
             : [];
-          const languageText = languagesData
-            .map((lang) => {
-              const name =
-                typeof lang === "string" ? lang : lang.name || String(lang);
-              const level =
-                typeof lang === "object" && lang !== null
-                  ? Number((lang as { level?: number }).level)
-                  : undefined;
-              if (level !== undefined && Number.isFinite(level) && level > 0) {
-                return `${name} (${level}/5)`;
-              }
-              return name;
-            })
-            .filter(Boolean)
-            .join(", ");
+          const languageText = shownTypes.has("languages")
+            ? ""
+            : languagesData
+                .map((lang) => {
+                  const name =
+                    typeof lang === "string" ? lang : lang.name || String(lang);
+                  const level =
+                    typeof lang === "object" && lang !== null
+                      ? Number((lang as { level?: number }).level)
+                      : undefined;
+                  if (level !== undefined && Number.isFinite(level) && level > 0) {
+                    return `${name} (${level}/5)`;
+                  }
+                  return name;
+                })
+                .filter(Boolean)
+                .join(", ");
 
           if (languageText) {
             additionalItems.push({ label: "Languages", value: languageText });
           }
 
-          const certificatesData = resume.content.certificates || [];
+          const certificatesData = shownTypes.has("certificates") ? [] : resume.content.certificates || [];
           const certificateText = certificatesData
             .map(
               (cert: { name?: string; title?: string }) =>
@@ -4942,15 +4921,10 @@ export function ResumeRenderer({
               : "";
 
           if (certificateText) {
-            additionalItems.push({
-              label: "Certifications",
-              value: certificateText,
-            });
-          } else if (interestsText) {
-            additionalItems.push({
-              label: "Certifications",
-              value: interestsText,
-            });
+            additionalItems.push({ label: "Certifications", value: certificateText });
+          }
+          if (interestsText) {
+            additionalItems.push({ label: "Interests", value: interestsText });
           }
 
           if (isMeridian) {

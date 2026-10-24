@@ -38,7 +38,8 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
+  /* The " • " separators space the items; a column gap on top made it uneven. */
+  gap: 4px 0;
   font-size: var(--resume-small-font-size, 11px);
   color: #000000;
   margin-top: 12px;
@@ -61,8 +62,9 @@
   border-bottom: 1px solid #000000;
 }
 .harvard-section-header {
-  margin: 0;
-  padding: 0;
+  /* Room under the title before its rule, and before the content. */
+  margin: 0 0 8px;
+  padding: 0 0 4px;
   font-size: var(--resume-section-header-font-size, 12px);
   font-weight: bold;
   text-transform: uppercase;

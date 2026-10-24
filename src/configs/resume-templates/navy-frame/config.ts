@@ -91,7 +91,7 @@ export const navyframeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
     { id: "experience", type: "experience", title: "Work Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "skills", type: "skills", title: "Additional Information", visible: true },
+    { id: "skills", type: "skills", title: "Skills", visible: true }, // a heading ATS parsers file as skills
     { id: "languages", type: "languages", title: "Languages", visible: false },
     { id: "certificates", type: "certificates", title: "Certificates", visible: false },
   ],

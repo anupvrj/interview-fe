@@ -40,7 +40,9 @@ export const confidentgridTemplate: ResumeTemplate = {
       body: 11,
     },
   },
-  atsOptimized: true,
+  // Two columns: reads well in most current ATS, but older ones read across the page and
+  // mix the columns (measured on our PDFs). So not tagged ATS-optimized.
+  atsOptimized: false,
 };
 
 const LEFT_COLUMN_TYPES = [

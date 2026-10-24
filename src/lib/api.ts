@@ -2013,6 +2013,23 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /**
+   * How ATS software reads this resume: the server builds the same PDF as Export (in memory,
+   * nothing saved) and reads its text the ways ATS parsers do.
+   */
+  atsParsePreview: async (
+    resumeId: string,
+    htmlContent: string,
+    templateCSS: string,
+  ): Promise<AtsParseResult> => {
+    const response = await apiClient.post<{ data: AtsParseResult }>(
+      `/resumes/${resumeId}/ats-parse-preview`,
+      { htmlContent, templateCSS },
+      { timeout: 90000 },
+    );
+    return response.data.data;
+  },
+
   /** Seven-day link to the resume's latest compiled PDF (409 PDF_NOT_READY if none). */
   createShareLink: async (resumeId: string): Promise<{ url: string; expiresAt: string }> => {
     const response = await apiClient.post<{ data: { url: string; expiresAt: string } }>(
@@ -6276,3 +6293,18 @@ export const jobTrackerApi = {
     return response.data.data;
   },
 };
+
+
+/** What ATS software reads from a resume (see interview-core atsParseSimulation). */
+export type AtsReader = "modern" | "basic" | "legacy";
+export interface AtsParseResult {
+  /** 0–100 for layout-aware parsers (most current ATS). */
+  parseRate: number;
+  readers: Record<AtsReader, number>;
+  fields: Array<{ key: string; label: string; found: boolean; missedBy: AtsReader[] }>;
+  problems: string[];
+  text: string;
+  columns: boolean;
+  pages: number;
+  templateId?: string;
+}
