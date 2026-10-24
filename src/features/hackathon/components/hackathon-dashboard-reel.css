@@ -293,3 +293,9 @@ html.hk-no-motion *::after {
 html.hk-no-motion .animate-spin {
   animation: spin 1s linear infinite !important;
 }
+
+/* Challenge cards stay put on hover: no lift, no brackets closing in, no icon zoom
+   (the landing page's .hk-card hover — with motion off here it snapped and looked like a jump). */
+.hk-root.hk-dash .hk-card:hover { transform: none; }
+.hk-root.hk-dash .hk-card:hover::after { inset: 10px; opacity: 0.85; }
+.hk-root.hk-dash .hk-card:hover .hk-lift { transform: none; }
