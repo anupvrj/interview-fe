@@ -61,6 +61,7 @@ import {
   formatResumeDateForDisplay,
   setResumeDateFormat,
 } from "@/lib/resume-date-utils";
+import { unwrapSkills } from "@/lib/skillsShape";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
   normalizePersonalInfoRecord,
@@ -3270,7 +3271,7 @@ export function ResumeRenderer({
           skillItems = executiveRatedSkills;
         } else {
           // Other templates: Get from direct skills field (new structure: single field)
-          skillsData = resume.content.skills;
+          skillsData = unwrapSkills(resume.content.skills);
 
           if (isRoyalIndigo) {
             const skillList = parseRoyalIndigoSkillItems(skillsData);

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { unwrapSkills } from "@/lib/skillsShape";
 
 /**
  * Skills are stored as an array, a comma list, lines, or an HTML list depending on
@@ -10,7 +11,8 @@ import { cn } from "@/lib/utils";
  */
 export type TagShape = "array" | "comma" | "lines" | "html" | "html-inline";
 
-export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
+export function parseTags(raw: unknown): { tags: string[]; shape: TagShape } {
+  const value = unwrapSkills(raw);
   if (Array.isArray(value)) {
     return { tags: value.map((v) => String(v ?? "").trim()).filter(Boolean), shape: "array" };
   }
