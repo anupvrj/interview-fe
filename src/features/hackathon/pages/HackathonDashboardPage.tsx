@@ -24,6 +24,7 @@ import { WhatsAppCommunityCard } from "../components/WhatsAppCommunityCard";
 import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
 import { HackathonShell } from "../components/HackathonShell";
+import { useNoMotion } from "../useNoMotion";
 import { HackathonPageLoader } from "../components/HackathonPageLoader";
 import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
@@ -342,6 +343,7 @@ function DashboardContent() {
 }
 
 export function HackathonDashboardPage() {
+  useNoMotion();
   return (
     <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
       <HackathonShell>

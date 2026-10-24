@@ -23,6 +23,7 @@ import { HackathonOnboardingForm } from "../components/HackathonOnboardingForm";
 import { HackathonRegistrationModal } from "../components/HackathonRegistrationModal";
 import { useHackathonRegistrationGate } from "../useHackathonRegistrationGate";
 import { HackathonShell } from "../components/HackathonShell";
+import { useNoMotion } from "../useNoMotion";
 import { HackathonPageLoader } from "../components/HackathonPageLoader";
 import { PhaseNotice } from "../components/PhaseNotice";
 
@@ -185,6 +186,7 @@ function ProfileContent() {
 }
 
 export function HackathonProfilePage() {
+  useNoMotion();
   return (
     <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
       <HackathonShell>

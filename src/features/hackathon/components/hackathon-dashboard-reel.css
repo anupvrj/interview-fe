@@ -281,3 +281,15 @@
 /* phase-notice title keeps its own (smaller) size */
 .hk-dash main h1.hk-notice-title { font-size: 26px !important; line-height: 1.3 !important; }
 @media (max-width: 639px) { .hk-dash main h1.hk-notice-title { font-size: 19px !important; } }
+
+/* useNoMotion(): the dashboard is still — nothing fades, zooms, slides or pulses. */
+html.hk-no-motion *,
+html.hk-no-motion *::before,
+html.hk-no-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+html.hk-no-motion .animate-spin {
+  animation: spin 1s linear infinite !important;
+}
