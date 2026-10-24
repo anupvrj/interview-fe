@@ -200,6 +200,8 @@ import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/sugges
 import { moveSectionWithinColumn, organizeSectionColumns, sectionMoveBounds } from "@/lib/sectionLayout";
 import { fetchTemplateCssForPdf, serializeResumePagesHtml } from "@/lib/resume-pdf-export";
 import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
+import { clearEditorDraft, readEditorDraft, readEditorPlace, saveEditorDraft, saveEditorPlace, type EditorPlace } from "@/lib/editorDraft";
+import { AUTH_LOST_EVENT, resumeRevisionFor } from "@/lib/api";
 import type { AtsParseResult } from "@/lib/api";
 import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
@@ -832,6 +834,30 @@ export default function EditResumePage() {
    * A save finished. Only mark everything saved if nothing changed while it was in flight
    * (an undo or more typing): otherwise those newer edits would show "Saved" and never go up.
    */
+  // ---- Never lose work to a reload: local copy of unsaved edits, and where you were. ----
+  const restoredDraftRef = useRef(false);
+  useEffect(() => {
+    if (!resumeId || !resume) return;
+    if (!hasChanges) {
+      clearEditorDraft(resumeId);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const current = resumeRef.current ?? resume;
+      // The editable parts only (reports and scores come from the server).
+      const { atsFeedback: _feedback, atsScoringContext: _context, ...editable } = current as Resume & { atsScoringContext?: unknown };
+      void _feedback;
+      void _context;
+      saveEditorDraft(resumeId, {
+        revision: resumeRevisionFor(resumeId) ?? current.revision ?? null,
+        resume: editable,
+        sections: sectionsRef.current,
+        layout: layoutRef.current,
+      });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [resumeId, resume, sections, layout, hasChanges]);
+
   const finishSave = useCallback((sent: { resume: Resume; sections: unknown; layout: unknown }) => {
     const unchanged =
       resumeRef.current === sent.resume && sectionsRef.current === sent.sections && layoutRef.current === sent.layout;
@@ -1585,6 +1611,23 @@ export default function EditResumePage() {
           const educationId = prev.find((s) => s.type === "education")?.id;
           return educationId ? expandOnlySection(prev, educationId) : prev;
         });
+      }
+
+      // Unsaved edits from before a reload / crash: put them back if the server copy is the
+      // one they were made on (a newer save elsewhere wins).
+      const draft = readEditorDraft<Resume, Section[], typeof layout>(resumeId);
+      if (draft) {
+        if (draft.revision !== null && draft.revision === (resumeData.revision ?? null)) {
+          const restored = { ...resumeData, ...draft.resume, revision: resumeData.revision, atsFeedback: resumeData.atsFeedback, atsScore: resumeData.atsScore } as Resume;
+          setResumeState(restored);
+          resumeRef.current = restored;
+          if (Array.isArray(draft.sections) && draft.sections.length) setSectionsState(draft.sections);
+          if (draft.layout) setLayoutState(draft.layout);
+          setHasChanges(true);
+          restoredDraftRef.current = true;
+        } else {
+          clearEditorDraft(resumeId);
+        }
       }
 
       // Single remount after resume, template, layout, and sections are applied (avoids triple bump).
@@ -3269,6 +3312,72 @@ export default function EditResumePage() {
     if (canvasNoticeTimerRef.current) clearTimeout(canvasNoticeTimerRef.current);
     canvasNoticeTimerRef.current = setTimeout(() => setCanvasNotice(null), 3200);
   }, []);
+
+  // Restored unsaved edits on load: say so (they save on their own).
+  useEffect(() => {
+    if (loading || !restoredDraftRef.current) return;
+    restoredDraftRef.current = false;
+    showCanvasNotice("Restored your unsaved changes.");
+  }, [loading, showCanvasNotice]);
+
+  // Signed out and the quiet retry didn't help: keep the page and the work; tell them how to continue.
+  useEffect(() => {
+    const onLost = () =>
+      showCanvasNotice("You're signed out. Sign in again in another tab — your changes stay here and save once you're back.");
+    window.addEventListener(AUTH_LOST_EVENT, onLost);
+    return () => window.removeEventListener(AUTH_LOST_EVENT, onLost);
+  }, [showCanvasNotice]);
+
+  // Where you were (scroll, open panel, selected item, field with the caret), per tab, so a
+  // reload brings you back to the same spot.
+  const placeRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!resumeId || loading || placeRestoredRef.current) return;
+    placeRestoredRef.current = true;
+    const place = readEditorPlace(resumeId);
+    if (!place) return;
+    if (place.panel) setCanvasPanel(place.panel as CanvasPanel);
+    if (place.focus) setCanvasFocus(place.focus);
+    let tries = 0;
+    const restore = () => {
+      const scroller = document.querySelector<HTMLElement>(".rx-canvas-scroll");
+      const pagesReady = !!document.querySelector(".resume-page");
+      if (!scroller || !pagesReady || scroller.scrollHeight < place.scrollTop + scroller.clientHeight / 2) {
+        if (tries++ < 60) window.setTimeout(restore, 100);
+        return;
+      }
+      scroller.scrollTop = place.scrollTop;
+    };
+    restore();
+  }, [resumeId, loading]);
+
+  useEffect(() => {
+    if (!resumeId || loading) return;
+    let frame = 0;
+    const remember = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const active = document.activeElement as HTMLElement | null;
+        const place: EditorPlace = {
+          scrollTop: document.querySelector<HTMLElement>(".rx-canvas-scroll")?.scrollTop ?? 0,
+          panel: canvasPanel,
+          focus: canvasFocus ? { sectionId: canvasFocus.sectionId, index: canvasFocus.index ?? null } : null,
+          field: active?.closest(".resume-page") ? active.getAttribute("data-rx-path") : null,
+        };
+        saveEditorPlace(resumeId, place);
+      });
+    };
+    remember();
+    const scroller = document.querySelector<HTMLElement>(".rx-canvas-scroll");
+    scroller?.addEventListener("scroll", remember, { passive: true });
+    document.addEventListener("focusin", remember);
+    return () => {
+      cancelAnimationFrame(frame);
+      scroller?.removeEventListener("scroll", remember);
+      document.removeEventListener("focusin", remember);
+    };
+    // previewKey: the scroller is remounted on some changes; listen on the new one.
+  }, [resumeId, loading, canvasPanel, canvasFocus, previewKey]);
 
   const closeCanvasPanel = useCallback(() => {
     setCanvasPanel(null);

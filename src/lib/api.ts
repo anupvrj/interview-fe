@@ -144,9 +144,86 @@ export function rememberResumeRevision(resume: { resumeId?: string; revision?: n
   if (resume?.resumeId && typeof resume.revision === "number") resumeRevisions.set(resume.resumeId, resume.revision);
 }
 
+/** The server revision this tab last knew for a resume (null if none yet). */
+export function resumeRevisionFor(resumeId: string): number | null {
+  return resumeRevisions.get(resumeId) ?? null;
+}
+
 function rememberFromWrite(payload: unknown) {
   const data = (payload as { data?: unknown } | undefined)?.data;
   if (data && typeof data === "object" && !Array.isArray(data)) rememberResumeRevision(data as Resume);
+}
+
+/**
+ * A 401 used to send the browser to /onboarding or /sign-in at once — a full page load that
+ * threw away unsaved editor work. Most 401s are momentary: a token that expired mid-request,
+ * or the account record linked to another sign-in (the backend matches accounts by email). So
+ * first recover quietly — fresh token, re-link the account — and retry the request once.
+ */
+export const AUTH_LOST_EVENT = "auth:lost";
+let authRecovery: Promise<boolean> | null = null;
+
+function recoverAuth(needsAccount: boolean): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (!authRecovery) {
+    authRecovery = (async () => {
+      try {
+        const clerk = (window as unknown as {
+          Clerk?: {
+            session?: { getToken: (o?: { skipCache?: boolean }) => Promise<string | null> };
+            user?: { id: string; fullName?: string | null; firstName?: string | null; primaryEmailAddress?: { emailAddress?: string } | null };
+          };
+        }).Clerk;
+        const token = await clerk?.session?.getToken({ skipCache: true });
+        if (!token) return false;
+        const user = clerk?.user;
+        if (needsAccount && user?.id) {
+          await apiClient.post(
+            "/users",
+            { clerkId: user.id, email: user.primaryEmailAddress?.emailAddress ?? "", name: user.fullName || user.firstName || "User" },
+            { headers: { Authorization: `Bearer ${token}` }, _authRetry: true } as Record<string, unknown>,
+          );
+        }
+        return true;
+      } catch {
+        return false;
+      } finally {
+        window.setTimeout(() => {
+          authRecovery = null;
+        }, 1000);
+      }
+    })();
+  }
+  return authRecovery;
+}
+
+/** Pages where leaving would lose work: never navigate away on a 401 there. */
+const isEditingPage = (path: string) => /^\/dashboard\/resumes\/[^/]+\/edit/.test(path);
+
+/** Still unauthorised after recovering: tell the editor (it stays put), or send other pages to sign-in / onboarding. */
+function handleAuthLost(error: AxiosError, message: string | undefined, returnPath: string): void {
+  if (isEditingPage(window.location.pathname)) {
+    window.dispatchEvent(new CustomEvent(AUTH_LOST_EVENT));
+    return;
+  }
+  if (unauthorizedNeedsOnboarding(message)) {
+    const onHackathonSignup =
+      isHackathonSignupPath(window.location.pathname) ||
+      isHackathonSignupPath(returnPath);
+    const onboarding = window.location.pathname.startsWith("/onboarding");
+    if (onHackathonSignup) {
+      // Hackathon profile provisions the user; never send to general onboarding.
+    } else if (!onboarding) {
+      window.location.href = getOnboardingUrlWithRedirect(returnPath);
+    }
+  } else if (
+    shouldRedirectUnauthorizedToSignIn(
+      window.location.pathname,
+      String(error.config?.url || ""),
+    )
+  ) {
+    window.location.href = getSignInUrlWithRedirect(returnPath);
+  }
 }
 
 // Response interceptor for error handling
@@ -169,24 +246,17 @@ apiClient.interceptors.response.use(
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
         const body = error.response.data as { message?: string } | undefined;
-        if (unauthorizedNeedsOnboarding(body?.message)) {
-          const onHackathonSignup =
-            isHackathonSignupPath(window.location.pathname) ||
-            isHackathonSignupPath(returnPath);
-          const onboarding = window.location.pathname.startsWith("/onboarding");
-          if (onHackathonSignup) {
-            // Hackathon profile provisions the user; never send to general onboarding.
-          } else if (!onboarding) {
-            window.location.href = getOnboardingUrlWithRedirect(returnPath);
-          }
-        } else if (
-          shouldRedirectUnauthorizedToSignIn(
-            window.location.pathname,
-            String(error.config?.url || ""),
-          )
-        ) {
-          window.location.href = getSignInUrlWithRedirect(returnPath);
+        const config = error.config as (typeof error.config & { _authRetry?: boolean }) | undefined;
+        // Recover and retry once before anything visible happens.
+        if (config && !config._authRetry) {
+          config._authRetry = true;
+          return recoverAuth(unauthorizedNeedsOnboarding(body?.message)).then((ok) => {
+            if (ok) return apiClient.request(config);
+            handleAuthLost(error, body?.message, returnPath);
+            return Promise.reject(error);
+          });
         }
+        handleAuthLost(error, body?.message, returnPath);
       }
     }
     return Promise.reject(error);
