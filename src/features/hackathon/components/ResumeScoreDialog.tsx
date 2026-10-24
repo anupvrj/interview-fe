@@ -101,7 +101,7 @@ export function ResumeScoreDialog({
         overlayClassName="bg-[#020810]/80"
         onPointerDownOutside={(e) => busy && e.preventDefault()}
         onEscapeKeyDown={(e) => busy && e.preventDefault()}
-        className={`hk-root hk-modal ${hackathonReelFontVars} ${busy ? "[&>button:last-child]:hidden" : ""} max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-lg gap-0 overflow-y-auto border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none`}
+        className={`hk-root hk-modal ${hackathonReelFontVars} ${busy ? "[&>button:last-child]:hidden" : ""} max-h-[90svh] w-[calc(100%-1.5rem)] max-w-lg gap-0 overflow-y-auto border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none`}
       >
         {phase === "analysing" ? (
           <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">

@@ -36,7 +36,7 @@ export function ResumePlaceholderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="bg-[#020810]/80"
-        className={`hk-root hk-modal ${hackathonReelFontVars} max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-lg gap-0 overflow-y-auto border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none sm:max-w-2xl lg:max-h-[94dvh] lg:max-w-6xl`}
+        className={`hk-root hk-modal ${hackathonReelFontVars} max-h-[90svh] w-[calc(100%-1.5rem)] max-w-lg gap-0 overflow-y-auto border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none sm:max-w-2xl lg:max-h-[94svh] lg:max-w-6xl`}
       >
         {/* Desktop: icon beside the title so the list, not the header, gets the height. */}
         <DialogHeader className="space-y-3 border-b border-[#27547d]/60 px-5 pb-4 pt-6 text-center sm:px-6 lg:flex lg:flex-row lg:items-center lg:gap-4 lg:space-y-0 lg:px-8 lg:py-4 lg:text-left">

@@ -70,7 +70,7 @@ export function PlaceholderDataDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl [&>*]:min-w-0">
         <DialogHeader>
           {review ? (
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -140,7 +140,7 @@ export function PlaceholderDataDialog({
           </>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:flex-wrap sm:gap-2">
           {review ? (
             <>
               <Button variant="outline" onClick={onEdit}>
