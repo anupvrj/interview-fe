@@ -62,6 +62,7 @@ import {
   setResumeDateFormat,
 } from "@/lib/resume-date-utils";
 import { unwrapSkills } from "@/lib/skillsShape";
+import { resumeForPrint } from "@/lib/resumePrintContent";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
   normalizePersonalInfoRecord,
@@ -477,7 +478,7 @@ const EMPTY_SECTION_ACTION: Record<string, string> = {
 };
 
 export function ResumeRenderer({
-  resume,
+  resume: resumeProp,
   template,
   sections,
   layout,
@@ -489,8 +490,11 @@ export function ResumeRenderer({
   // resumes keep their data in `content.sections`; those are edited from the side panel.
   const canvasApi = useCanvasEdit();
   const usesLegacySections =
-    resume.templateId === "executive" && Array.isArray((resume.content as { sections?: unknown }).sections);
+    resumeProp.templateId === "executive" && Array.isArray((resumeProp.content as { sections?: unknown }).sections);
   const canvas = usesLegacySections ? null : canvasApi;
+  // Printed (PDF / preview / thumbnail): no blank entries, so no empty headings. The editor
+  // keeps them to fill in.
+  const resume = useMemo(() => (canvas ? resumeProp : resumeForPrint(resumeProp)), [canvas, resumeProp]);
   const ed = (path: string, value: string | undefined | null, placeholder?: string) => (
     <EdText canvas={canvas} path={path} value={value} placeholder={placeholder} />
   );
