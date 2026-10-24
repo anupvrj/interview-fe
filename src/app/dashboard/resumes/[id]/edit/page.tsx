@@ -3682,6 +3682,22 @@ export default function EditResumePage() {
         current: entry?.current === true,
       };
     },
+    getLevel: (entryPath) => {
+      const entry = getAtPath(resume?.content, entryPath) as { level?: unknown; proficiency?: unknown } | undefined;
+      const n = Number(entry?.level || entry?.proficiency);
+      return Number.isFinite(n) && n >= 1 && n <= 5 ? Math.round(n) : null;
+    },
+    onSetLevel: (entryPath, level) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      const entry = getAtPath(current.content, entryPath);
+      if (!entry || typeof entry !== "object") return;
+      // The number is the level everywhere; a word in proficiency would otherwise still show.
+      let next = setAtPath(current.content as unknown as Record<string, unknown>, `${entryPath}.level`, level ?? 0);
+      next = setAtPath(next, `${entryPath}.proficiency`, "");
+      const key = entryPath.split(".")[0] as keyof Resume["content"];
+      updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+    },
     onChangePhoto: openPhotoPicker,
     onRemovePhoto: removePhoto,
     getTags: (sectionType) => parseTags((resume?.content as Record<string, unknown> | undefined)?.[sectionType]).tags,

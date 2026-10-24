@@ -175,11 +175,14 @@ function parseConfidentGridSkillsList(
   return [];
 }
 
+/** Same words as the editor's level picker (1–3 all used to read "Intermediate"). */
 function formatCondensedRuleLanguageLevel(level?: number): string {
   if (!level) return "";
   if (level >= 5) return "Native";
   if (level >= 4) return "Fluent";
-  return "Intermediate";
+  if (level >= 3) return "Intermediate";
+  if (level >= 2) return "Elementary";
+  return "Beginner";
 }
 
 /**
@@ -218,6 +221,8 @@ function renderCondensedRuleLabeledInlineList(
   items: { label: string; value: string }[],
   className: string,
   edit?: InlineEdit,
+  /** Editor: the level as a click target (picker), shown even when empty. */
+  editValue?: InlineEdit,
 ): React.ReactNode {
   const filtered = items.map((item, index) => ({ ...item, index })).filter((item) => item.label.trim());
   if (filtered.length === 0) return null;
@@ -234,7 +239,7 @@ function renderCondensedRuleLabeledInlineList(
             {edit ? edit(item.index, item.label) : item.label}
             {item.value?.trim() ? ":" : ""}
           </span>
-          {item.value?.trim() ? <> {item.value}</> : null}
+          {editValue ? <> {editValue(item.index, item.value)}</> : item.value?.trim() ? <> {item.value}</> : null}
         </span>
       ))}
     </div>
@@ -524,6 +529,22 @@ export function ResumeRenderer({
       content
     );
   /** Dates open a Start/End editor on the canvas; `entryPath` is e.g. "experience.2". */
+  /** A language level opens a level picker on the canvas; `entryPath` is e.g. "languages.2". */
+  const edLevel = (entryPath: string, content: React.ReactNode) =>
+    canvas ? (
+      <span
+        className="rx-date"
+        style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}
+        data-rx-level={entryPath}
+        data-placeholder={revealPath(entryPath) ? "Add level" : undefined}
+        role="button"
+        tabIndex={0}
+      >
+        {content}
+      </span>
+    ) : (
+      content
+    );
   const edDate = (entryPath: string, content: React.ReactNode) =>
     canvas ? (
       <span
@@ -3344,8 +3365,8 @@ export function ResumeRenderer({
                         const levelLabel = formatRoyalIndigoLanguageLevel(Number(lang.level ?? lang.proficiency));
                         return (
                           <>
-                            {ed(`languages.${i}.name`, lang.name)}
-                            {levelLabel ? ` (${levelLabel})` : null}
+                            {ed(`languages.${i}.name`, lang.name)}{" "}
+                            {levelLabel ? <>({edLevel(`languages.${i}`, levelLabel)})</> : edLevel(`languages.${i}`, "")}
                           </>
                         );
                       }),
@@ -4403,6 +4424,9 @@ export function ResumeRenderer({
                 canvas && languagesData.every((l: unknown) => typeof l === "object" && l !== null)
                   ? (i, label) => ed(`languages.${i}.name`, label)
                   : undefined,
+                canvas && languagesData.every((l: unknown) => typeof l === "object" && l !== null)
+                  ? (i, value) => edLevel(`languages.${i}`, value)
+                  : undefined,
               )}
             </div>
           );
@@ -4448,10 +4472,14 @@ export function ResumeRenderer({
                         : item.label}
                       {item.value?.trim() ? ":" : ""}
                     </span>
-                    {item.value?.trim() ? (
+                    {item.value?.trim() || (canvas && typeof languagesData[index] === "object") ? (
                       <>
                         {" "}
-                        <span className={`${template.id}-skill-category-value`}>{item.value}</span>
+                        <span className={`${template.id}-skill-category-value`}>
+                          {canvas && typeof languagesData[index] === "object" && languagesData[index] !== null
+                            ? edLevel(`languages.${index}`, item.value)
+                            : item.value}
+                        </span>
                       </>
                     ) : null}
                   </div>
@@ -4518,68 +4546,79 @@ export function ResumeRenderer({
                           ? ed(`languages.${index}.name`, lang.name, "Language")
                           : lang.name || String(lang)}
                     </span>
+                    {(() => {
+                      // The level (a word, or 1–5 dots): on the canvas it opens a level picker.
+                      const levelNode = (
+                        <>
                     {/* A written level ("Fluent") reads as text; dots only for a 1–5 number
-                        (a word used to give five empty dots). */}
-                    {typeof lang === "object" &&
-                      langConfig.showRatings &&
-                      !(Number(lang.level || lang.proficiency) >= 1) &&
-                      typeof (lang.proficiency || lang.level) === "string" &&
-                      String(lang.proficiency || lang.level).trim() ? (
-                        <span
-                          style={{
-                            marginLeft: "6px",
-                            fontSize: `${templateStyle.fontSize.small}px`,
-                            color: isInSidebar ? templateStyle.colors.sidebarText : templateStyle.colors.secondary || templateStyle.colors.text,
-                          }}
-                        >
-                          {String(lang.proficiency || lang.level).trim()}
-                        </span>
-                      ) : null}
-                    {typeof lang === "object" &&
-                      Number(lang.level || lang.proficiency) >= 1 &&
-                      langConfig.showRatings && (
-                        <div
-                          className={langConfig.ratingClass || ""}
-                          style={{
-                            display: "flex",
-                            gap: `${Math.floor(
-                              (langConfig.dotSize || 6) / 2,
-                            )}px`,
-                            marginLeft: "6px",
-                          }}
-                        >
-                          {Array.from(
-                            { length: langConfig.maxRating || 5 },
-                            (_, i) => i + 1,
-                          ).map((level) => (
-                            <div
-                              key={level}
-                              className={
-                                langConfig.dotClass
-                                  ? `${langConfig.dotClass} ${level <= (lang.level || lang.proficiency)
-                                    ? "filled"
-                                    : ""
-                                  }`
-                                  : ""
-                              }
+                            (a word used to give five empty dots). */}
+                        {typeof lang === "object" &&
+                          langConfig.showRatings &&
+                          !(Number(lang.level || lang.proficiency) >= 1) &&
+                          typeof (lang.proficiency || lang.level) === "string" &&
+                          String(lang.proficiency || lang.level).trim() ? (
+                            <span
                               style={{
-                                width: `${langConfig.dotSize || 6}px`,
-                                height: `${langConfig.dotSize || 6}px`,
-                                borderRadius: "50%",
-                                backgroundColor:
-                                  level <= (lang.level || lang.proficiency)
-                                    ? isInSidebar
-                                      ? templateStyle.colors.sidebarText ||
-                                      "#000"
-                                      : templateStyle.colors.text || "#000"
-                                    : isInSidebar
-                                      ? "rgba(255,255,255,0.3)"
-                                      : "rgba(0,0,0,0.2)",
+                                marginLeft: "6px",
+                                fontSize: `${templateStyle.fontSize.small}px`,
+                                color: isInSidebar ? templateStyle.colors.sidebarText : templateStyle.colors.secondary || templateStyle.colors.text,
                               }}
-                            />
-                          ))}
-                        </div>
-                      )}
+                            >
+                              {String(lang.proficiency || lang.level).trim()}
+                            </span>
+                          ) : null}
+                        {typeof lang === "object" &&
+                          Number(lang.level || lang.proficiency) >= 1 &&
+                          langConfig.showRatings && (
+                            <div
+                              className={langConfig.ratingClass || ""}
+                              style={{
+                                display: "flex",
+                                gap: `${Math.floor(
+                                  (langConfig.dotSize || 6) / 2,
+                                )}px`,
+                                marginLeft: "6px",
+                              }}
+                            >
+                              {Array.from(
+                                { length: langConfig.maxRating || 5 },
+                                (_, i) => i + 1,
+                              ).map((level) => (
+                                <div
+                                  key={level}
+                                  className={
+                                    langConfig.dotClass
+                                      ? `${langConfig.dotClass} ${level <= (lang.level || lang.proficiency)
+                                        ? "filled"
+                                        : ""
+                                      }`
+                                      : ""
+                                  }
+                                  style={{
+                                    width: `${langConfig.dotSize || 6}px`,
+                                    height: `${langConfig.dotSize || 6}px`,
+                                    borderRadius: "50%",
+                                    backgroundColor:
+                                      level <= (lang.level || lang.proficiency)
+                                        ? isInSidebar
+                                          ? templateStyle.colors.sidebarText ||
+                                          "#000"
+                                          : templateStyle.colors.text || "#000"
+                                        : isInSidebar
+                                          ? "rgba(255,255,255,0.3)"
+                                          : "rgba(0,0,0,0.2)",
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                      // Designs that don't show levels keep the page identical to the PDF.
+                      if (!canvas || !langConfig.showRatings || typeof lang !== "object" || !Array.isArray(resume.content.languages)) return levelNode;
+                      const hasLevel = Boolean(String(lang.level || lang.proficiency || "").trim());
+                      return <span style={{ display: "inline-flex" }}>{edLevel(`languages.${index}`, hasLevel ? levelNode : "")}</span>;
+                    })()}
                   </div>
                 </div>
               ))}

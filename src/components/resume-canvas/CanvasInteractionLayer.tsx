@@ -138,6 +138,9 @@ export interface CanvasInteractionHandlers {
   /** Current dates of an entry ("experience.2"). */
   getDates: (entryPath: string) => EntryDates;
   onSetDates: (entryPath: string, dates: EntryDates) => void;
+  /** Language level 1–5 ("languages.2"); null removes it. */
+  getLevel?: (entryPath: string) => number | null;
+  onSetLevel?: (entryPath: string, level: number | null) => void;
   getTags: (sectionType: string) => string[];
   onSetTags: (sectionType: string, tags: string[]) => void;
   /** Profile photo on the page: pick a new one (opens upload + crop) or remove it. */
@@ -295,6 +298,7 @@ export function CanvasInteractionLayer({
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"]; typo: boolean }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
+  const [levelEdit, setLevelEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
@@ -478,6 +482,14 @@ export function CanvasInteractionLayer({
         handlersRef.current.onAddEntry(emptySlot.getAttribute("data-rx-empty-section") ?? "", null);
         return;
       }
+      const levelEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-level]");
+      if (levelEl && levelEl.closest(".resume-page")) {
+        const origin = root.getBoundingClientRect();
+        const r = levelEl.getBoundingClientRect();
+        setLevelEdit({ path: levelEl.getAttribute("data-rx-level") ?? "", top: r.bottom - origin.top + 6, left: r.left - origin.left });
+      } else {
+        setLevelEdit(null);
+      }
       const dateEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-date]");
       if (dateEl && dateEl.closest(".resume-page")) {
         const origin = root.getBoundingClientRect();
@@ -503,7 +515,7 @@ export function CanvasInteractionLayer({
         if (
           section &&
           hasOwnText &&
-          !target!.closest("[data-rx-path], [data-rx-date], [data-section-header], a") &&
+          !target!.closest("[data-rx-path], [data-rx-date], [data-rx-level], [data-section-header], a") &&
           section.type !== "personalInfo"
         ) {
           // Combined lines ("Languages: …", "Certifications: …") belong to another section.
@@ -530,6 +542,7 @@ export function CanvasInteractionLayer({
       setMenuOpen(false);
       setPhotoMenu(false);
       setDateEdit(null);
+      setLevelEdit(null);
       setTagEdit(null);
       onFocusChange(null);
     };
@@ -569,9 +582,10 @@ export function CanvasInteractionLayer({
   // Escape (outside a field) leaves focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (dateEdit || tagEdit)) {
+      if (e.key === "Escape" && (dateEdit || tagEdit || levelEdit)) {
         setDateEdit(null);
         setTagEdit(null);
+        setLevelEdit(null);
         return;
       }
       if (e.key !== "Escape" || !focus) return;
@@ -582,7 +596,7 @@ export function CanvasInteractionLayer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus, onFocusChange, dateEdit, tagEdit]);
+  }, [focus, onFocusChange, dateEdit, tagEdit, levelEdit]);
 
   const focusSection = focus ? sections.find((s) => s.id === focus.sectionId) : undefined;
   const hoverSection = hover ? sections.find((s) => s.id === hover.sectionId) : undefined;
@@ -930,6 +944,22 @@ export function CanvasInteractionLayer({
           />
         </KeepInView>
       ) : null}
+      {levelEdit && handlers.onSetLevel ? (
+        <KeepInView
+          data-rx-overlay
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
+          style={isMobile ? undefined : { top: levelEdit.top, left: Math.max(0, levelEdit.left) }}
+        >
+          <LevelPicker
+            value={handlers.getLevel?.(levelEdit.path) ?? null}
+            onPick={(level) => {
+              handlers.onSetLevel?.(levelEdit.path, level);
+              setLevelEdit(null);
+            }}
+            onClose={() => setLevelEdit(null)}
+          />
+        </KeepInView>
+      ) : null}
       {dateEdit ? (
         <KeepInView
           data-rx-overlay
@@ -946,6 +976,51 @@ export function CanvasInteractionLayer({
           />
         </KeepInView>
       ) : null}
+    </div>
+  );
+}
+
+const LEVELS: Array<{ value: number; label: string }> = [
+  { value: 1, label: "Beginner" },
+  { value: 2, label: "Elementary" },
+  { value: 3, label: "Intermediate" },
+  { value: 4, label: "Fluent" },
+  { value: 5, label: "Native" },
+];
+
+/** Language level for one entry: 1–5 or none (each design words / draws it its own way). */
+function LevelPicker({ value, onPick, onClose }: { value: number | null; onPick: (level: number | null) => void; onClose: () => void }) {
+  return (
+    <div role="dialog" aria-label="Language level" className="w-56 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl">
+      <p className="px-2 pb-1 pt-0.5 text-[11px] font-semibold text-muted-foreground">Level</p>
+      {LEVELS.map((l) => (
+        <button
+          key={l.value}
+          type="button"
+          role="menuitemradio"
+          aria-checked={value === l.value}
+          onClick={() => onPick(l.value)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted",
+            value === l.value && "bg-primary/10 font-semibold text-primary",
+          )}
+        >
+          <span className="flex gap-0.5" aria-hidden>
+            {[1, 2, 3, 4, 5].map((d) => (
+              <span key={d} className={cn("h-1.5 w-1.5 rounded-full", d <= l.value ? "bg-current" : "bg-muted-foreground/30")} />
+            ))}
+          </span>
+          {l.label}
+        </button>
+      ))}
+      <div className="mt-1 flex items-center justify-between border-t border-border px-1 pt-1">
+        <button type="button" onClick={() => onPick(null)} className="rounded-md px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+          No level
+        </button>
+        <button type="button" onClick={onClose} className="rounded-md px-1.5 py-1 text-xs font-semibold text-primary">
+          Done
+        </button>
+      </div>
     </div>
   );
 }
