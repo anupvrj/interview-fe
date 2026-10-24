@@ -184,13 +184,13 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
     if (handledReturn.current || typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (url.searchParams.get(RESUME_SCORE_RETURN_PARAM) !== "1") return;
+    // The board can first render the pre-submit data; wait for the submission to show up.
+    if (!me.resume?.awaitingCompletion) return;
     handledReturn.current = true;
     url.searchParams.delete(RESUME_SCORE_RETURN_PARAM);
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-    if (me.resume?.awaitingCompletion) {
-      document.getElementById(`hk-challenge-${number}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      openSubmitted();
-    }
+    document.getElementById(`hk-challenge-${number}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    openSubmitted();
   }, [me.resume?.awaitingCompletion, number, openSubmitted]);
 
   const scoreDialog = (

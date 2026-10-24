@@ -33,6 +33,7 @@ import {
   Save,
   Download,
   Loader2,
+  CheckCircle2,
   Plus,
   Trash2,
   ChevronDown,
@@ -338,7 +339,7 @@ export default function EditResumePage() {
     searchParams.get("returnLabel")?.slice(0, 40) || (returnsToHackathon ? "Hackathon" : "previous page");
   const [savingAndReturning, setSavingAndReturning] = useState(false);
   /** Which part of "Save and return" is running, so the button doesn't say "Creating PDF" throughout. */
-  const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit">("pdf");
+  const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit" | "done">("pdf");
   /** Save and return stopped at a step: say which, offer Retry (the user stays in the editor). */
   const [saveReturnError, setSaveReturnError] = useState<string | null>(null);
 
@@ -2092,7 +2093,8 @@ export default function EditResumePage() {
         try {
           await hackathonApi.submitResume(slug, () => getToken(), resumeId);
           guideRef.current?.milestone("exported");
-          await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+          // Not on screen here, so refetch it now ("all"); otherwise the board opens on the old data.
+          await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug), refetchType: "all" });
           // Back on the board, show the new score with "Complete Challenge".
           returnUrl = `${resumeReturnTo}${resumeReturnTo.includes("?") ? "&" : "?"}resumeScore=1`;
         } catch (syncError) {
@@ -2100,6 +2102,9 @@ export default function EditResumePage() {
           if (toHackathonError(syncError).code !== "RESUME_LOCKED") throw syncError;
         }
       }
+      // Show the tick for a moment, then go back.
+      setSaveReturnPhase("done");
+      await new Promise((resolve) => setTimeout(resolve, 900));
       router.push(returnUrl);
     } catch (error) {
       console.error(`Save and return failed (${step}):`, error);
@@ -8591,6 +8596,39 @@ export default function EditResumePage() {
         onSelectTemplate={handleChangeTemplate}
         applying={changingTemplate}
       />
+      {/* Save and return: cover the editor while the PDF is made (the preview switches to its
+          print version for a moment), then a tick before going back. */}
+      {savingAndReturning ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 px-6" role="status" aria-live="polite">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card px-6 py-8 text-center shadow-lg">
+            {saveReturnPhase === "done" ? (
+              <>
+                <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+                  <CheckCircle2 className="h-8 w-8" aria-hidden />
+                </span>
+                <p className="mt-4 text-base font-semibold text-foreground">
+                  {returnsToHackathon ? "Resume submitted" : "Resume saved"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {returnsToHackathon ? "Redirecting to the hackathon challenge page…" : `Taking you back to ${resumeReturnLabel || "where you were"}…`}
+                </p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" aria-hidden />
+                <p className="mt-4 text-base font-semibold text-foreground">
+                  {saveReturnPhase === "submit" ? "Submitting and scoring your resume…" : "Creating your PDF…"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {returnsToHackathon
+                    ? `Step ${saveReturnPhase === "submit" ? 2 : 1} of 2 · this can take up to a minute. Please keep this page open.`
+                    : "Please keep this page open."}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
       <ConfirmationDialog
         open={saveReturnError !== null}
         onOpenChange={(open) => {

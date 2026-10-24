@@ -76,14 +76,6 @@ type RevealProps = {
   immediate?: boolean;
 };
 
-const FROM: Record<NonNullable<RevealProps["from"]>, CSSProperties> = {
-  up: {},
-  left: { "--hk-rx": "-32px", "--hk-ry": "0px" } as CSSProperties,
-  right: { "--hk-rx": "32px", "--hk-ry": "0px" } as CSSProperties,
-  scale: { "--hk-ry": "12px", "--hk-rs": "0.96" } as CSSProperties,
-  none: { "--hk-ry": "0px" } as CSSProperties,
-};
-
 export function Reveal({
   children,
   className,
@@ -93,14 +85,13 @@ export function Reveal({
   style,
   immediate = false,
 }: RevealProps) {
-  const { ref, inView } = useInView<HTMLElement>();
+  // No fade/slide-in: sections are simply there. Scroll-triggered entrances made cards jump
+  // and flicker (worst in Instagram's in-app browser). The props stay so callers don't change.
+  void delay;
+  void from;
+  void immediate;
   return (
-    <Tag
-      ref={immediate ? undefined : ref}
-      data-inview={immediate ? undefined : inView ? "true" : undefined}
-      className={cn(immediate ? "hk-enter" : "hk-reveal", className)}
-      style={{ ...FROM[from], "--hk-delay": `${delay}ms`, ...style } as CSSProperties}
-    >
+    <Tag className={className} style={style}>
       {children}
     </Tag>
   );

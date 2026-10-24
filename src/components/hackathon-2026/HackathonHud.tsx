@@ -25,7 +25,7 @@ function useIstClock() {
 export function HackathonHeroHud({ className = "" }: { className?: string }) {
   const clock = useIstClock();
   return (
-    <div className={`hk-enter ${className}`} style={{ "--hk-delay": "40ms" } as React.CSSProperties} aria-hidden>
+    <div className={className} aria-hidden>
       <div className="hk-hud">
         <span>
           <b>IX</b> / The Hiring Games
