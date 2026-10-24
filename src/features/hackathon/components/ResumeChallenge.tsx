@@ -298,89 +298,104 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
 
       {showPicker ? (
         <div className="space-y-4">
-          {/* Build card only when there's nothing to pick yet; with resumes the picker leads. */}
-          {!resumes.isLoading && options.length === 0 ? (
-            <div className="hk-slot flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-[#cfdbe8]">
-                Upload any old resume, or talk to AI for 2 minutes — we&apos;ll design it for you. Submit it right from the editor
-                {displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}
+          {/* One card: pick an existing resume on top, build a new one underneath. */}
+          <div className="hk-slot overflow-hidden rounded-2xl border border-[#27547d]/80 bg-[#071426]/60">
+            {resumes.isLoading ? (
+              <p className="flex items-center gap-2 px-4 pt-4 text-sm text-[#9eb2ca] sm:px-5">
+                <Loader2 className="size-4 animate-spin" /> Loading your resumes…
               </p>
-              <Link href={newResumeHref} className={cn("hk-btn min-h-11 w-full shrink-0 px-5 text-sm sm:w-auto")}>
+            ) : options.length > 0 ? (
+              <div className="space-y-3 p-4 sm:p-5">
+                <label htmlFor="hk-resume-select" className="text-sm font-semibold text-[#dbe9f8]">
+                  Choose the resume to submit
+                </label>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <select
+                    id="hk-resume-select"
+                    value={selectedId}
+                    onChange={(e) => {
+                      setSelectedId(e.target.value);
+                      submit.reset();
+                    }}
+                    className={hkInputClass}
+                  >
+                    {options.map((r) => (
+                      <option key={r.resumeId} value={r.resumeId}>
+                        {r.title}
+                        {r.atsScore !== null ? ` · ATS ${r.atsScore}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="hk-btn h-12 w-full shrink-0 px-6 text-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
+                    disabled={!selected || submit.isPending || preview.isPending}
+                    onClick={() => selected && analyse(selected.resumeId)}
+                  >
+                    {submit.isPending ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" /> Submitting…
+                      </>
+                    ) : (
+                      "Submit resume"
+                    )}
+                  </button>
+                </div>
+                {selected ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <AtsScorePill score={selected.atsScore} target={displayTarget} />
+                    <Link href={editResumeHref(selected.resumeId)} className="inline-flex items-center gap-1.5 font-semibold text-[#6fc0ff] hover:text-white">
+                      <PencilLine className="size-4" aria-hidden />
+                      Edit in builder
+                    </Link>
+                  </div>
+                ) : null}
+                {selected && !selected.hasPdf ? (
+                  <p className="text-sm text-[#9eb2ca]">
+                    This resume hasn&apos;t been exported yet. We&apos;ll create the PDF for you when you submit.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div
+              className={cn(
+                "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+                options.length > 0 && "border-t border-[#27547d]/60 bg-[#050f1f]/60",
+              )}
+            >
+              <p className="text-sm text-[#cfdbe8]">
+                {options.length > 0 ? (
+                  <>
+                    <span className="font-semibold text-white">Or start a new one.</span> Upload any old resume, or talk to AI
+                    for 2 minutes — we&apos;ll design it for you.
+                  </>
+                ) : (
+                  <>
+                    Upload any old resume, or talk to AI for 2 minutes — we&apos;ll design it for you. Submit it right from the
+                    editor{displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}
+                  </>
+                )}
+              </p>
+              <Link
+                href={newResumeHref}
+                className={cn(
+                  options.length > 0 ? hkSecondaryButton : "hk-btn min-h-11 px-5 text-sm",
+                  "w-full shrink-0 whitespace-nowrap sm:w-auto",
+                )}
+              >
                 <FilePlus2 className="size-4" aria-hidden />
-                Build my resume
+                {options.length > 0 ? "Build new resume" : "Build my resume"}
               </Link>
             </div>
-          ) : null}
+          </div>
 
-          {resumes.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-[#9eb2ca]">
-              <Loader2 className="size-4 animate-spin" /> Loading your resumes…
+          {options.length > 0 ? (
+            <p className="text-xs text-[#7189a6]">
+              Save and return to Hackathon updates the PDF this challenge uses. You can replace it until a later challenge
+              starts{passMark != null ? ", or until it meets the passing score" : ""}.
             </p>
-          ) : options.length === 0 ? null : (
-            <div className="space-y-3">
-              <label htmlFor="hk-resume-select" className="text-sm font-semibold text-[#dbe9f8]">
-                Choose the resume to submit
-              </label>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <select
-                  id="hk-resume-select"
-                  value={selectedId}
-                  onChange={(e) => {
-                    setSelectedId(e.target.value);
-                    submit.reset();
-                  }}
-                  className={hkInputClass}
-                >
-                  {options.map((r) => (
-                    <option key={r.resumeId} value={r.resumeId}>
-                      {r.title}
-                      {r.atsScore !== null ? ` · ATS ${r.atsScore}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="hk-btn h-12 w-full shrink-0 px-6 text-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
-                  disabled={!selected || submit.isPending || preview.isPending}
-                  onClick={() => selected && analyse(selected.resumeId)}
-                >
-                  {submit.isPending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" /> Submitting…
-                    </>
-                  ) : (
-                    "Submit resume"
-                  )}
-                </button>
-              </div>
-              {selected ? (
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <AtsScorePill score={selected.atsScore} target={displayTarget} />
-                  <Link href={editResumeHref(selected.resumeId)} className="inline-flex items-center gap-1.5 font-semibold text-[#6fc0ff] hover:text-white">
-                    <PencilLine className="size-4" aria-hidden />
-                    Edit in builder
-                  </Link>
-                </div>
-              ) : null}
-              {selected && !selected.hasPdf ? (
-                <p className="text-sm text-[#9eb2ca]">
-                  This resume hasn&apos;t been exported yet. We&apos;ll create the PDF for you when you submit.
-                </p>
-              ) : null}
-              <p className="text-sm text-[#9eb2ca]">
-                Want a different one?{" "}
-                <Link href={newResumeHref} className="inline-flex items-center gap-1 font-semibold text-[#6fc0ff] hover:text-white">
-                  <FilePlus2 className="size-4" aria-hidden />
-                  Build a new resume
-                </Link>
-              </p>
-              <p className="text-xs text-[#7189a6]">
-                Save and return to Hackathon updates the PDF this challenge uses. You can replace it
-                until a later challenge starts
-                {passMark != null ? ", or until it meets the passing score" : ""}.
-              </p>
-            </div>
-          )}
+          ) : null}
 
           {error ? (
             <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">
