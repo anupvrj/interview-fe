@@ -2455,6 +2455,9 @@ export function ResumeRenderer({
         }
 
         if (experienceData.length === 0) {
+          // Empty sections never reach the PDF ("No experience data available." used to print
+          // on resumes). In the editor: a slot to add the first job, like other sections.
+          if (!canvas) return null;
           return (
             <div data-section={section.id}
               style={{
@@ -2463,15 +2466,16 @@ export function ResumeRenderer({
               }}
             >
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-              <p
+              <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
                   color: templateStyle.colors.secondary,
                   fontStyle: "italic",
+                  opacity: 0.7,
                 }}
               >
-                No experience data available.
-              </p>
+                <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type] ?? "Add an item"}</span>
+              </div>
             </div>
           );
         }
