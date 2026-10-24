@@ -206,6 +206,7 @@ import type { AtsParseResult } from "@/lib/api";
 import { flashAppliedChange } from "@/components/resume-canvas/flashAppliedChange";
 import {
   assignSectionColumnOnReorder,
+  resolveSectionColumn,
   toSectionOrderPayload,
   type SectionWithColumn,
 } from "@/lib/sectionColumnUtils";
@@ -394,6 +395,7 @@ export default function EditResumePage() {
     };
     fontFamily?: string;
     dismissedEmptyTrailingPages?: number;
+    dateFormat?: string;
   } | null>(null);
 
   // Effective typography: template defaults merged with layout overrides (for Layout UI)
@@ -762,12 +764,13 @@ export default function EditResumePage() {
       layoutRef.current = snapshot.layout;
       setHasChanges(true);
       invalidateAtsScoreDisplay();
-      bumpPreviewKey("history");
+      // No remount: the pages update in place (a remount blanked the whole canvas on every
+      // undo / redo and lost the scroll position).
       requestAnimationFrame(() => {
         isApplyingHistoryRef.current = false;
       });
     },
-    [bumpPreviewKey, invalidateAtsScoreDisplay],
+    [invalidateAtsScoreDisplay],
   );
 
   const handleUndo = useCallback(() => {
@@ -1016,18 +1019,13 @@ export default function EditResumePage() {
           debugResumePagination("thumbnail:auto:setResume", {
             targetResumeId,
           });
+          // Only the thumbnail changed. Swapping in the whole server copy gave the page a new
+          // resume object after every autosave, which re-laid out the pages and replaced the
+          // field being typed in (caret and uncommitted text lost).
           setResumeState((prev) => {
-            if (!prev || !hasChangesRef.current) return updatedResume;
-            return {
-              ...updatedResume,
-              templateId: prev.templateId,
-              layout: prev.layout ?? updatedResume.layout,
-              content: prev.content,
-              profileSummary: prev.profileSummary,
-              title: prev.title,
-              sectionOrder: prev.sectionOrder,
-              pdfS3Key: prev.pdfS3Key,
-            };
+            if (!prev) return updatedResume;
+            if (prev.thumbnailS3Key === updatedResume.thumbnailS3Key) return prev;
+            return { ...prev, thumbnailS3Key: updatedResume.thumbnailS3Key };
           });
         } else {
           // Non-critical: the next save captures it again.
@@ -1246,10 +1244,23 @@ export default function EditResumePage() {
                 !section.column,
             );
 
-          if (
-            savedLayoutType !== expectedLayoutType ||
-            sectionsMissingColumns
-          ) {
+          if (savedLayoutType === expectedLayoutType && sectionsMissingColumns) {
+            // Only some sections lack a column (e.g. added from "Insert section"): fill those in
+            // and keep the user's order, ids and titles — rebuilding from the design's default
+            // order moved sections around on every reload.
+            resumeData.sectionOrder = (resumeData.sectionOrder ?? []).map((section) => {
+              if (section.type === "personalInfo" || section.column) return section;
+              const match =
+                expected.sectionOrder.find((s) => s.id === section.id) ??
+                expected.sectionOrder.find((s) => s.type === section.type);
+              return { ...section, column: match?.column ?? "left" };
+            });
+            void resumeApi
+              .update(resumeId, { sectionOrder: resumeData.sectionOrder })
+              .catch((error) => {
+                console.error("Error repairing section columns:", error);
+              });
+          } else if (savedLayoutType !== expectedLayoutType) {
             resumeData.layout = expected.layout;
             resumeData.sectionOrder = expected.sectionOrder;
             void resumeApi
@@ -1296,6 +1307,7 @@ export default function EditResumePage() {
           dismissedEmptyTrailingPages:
             (resumeData.layout as { dismissedEmptyTrailingPages?: number })
               .dismissedEmptyTrailingPages ?? 0,
+          dateFormat: resumeData.layout.dateFormat,
         });
 
         // If Mercury template has wrong padding, update it
@@ -2121,27 +2133,31 @@ export default function EditResumePage() {
         { content: resume.content, sectionOrder: resume.sectionOrder },
       );
 
-      const nextLayout = templateApplication.layout;
-      const sectionOrderData = templateApplication.sectionOrder;
+      // The date style is the user's choice, not the design's: keep it.
+      const nextLayout = { ...templateApplication.layout, dateFormat: layout?.dateFormat };
+      const designOrder = templateApplication.sectionOrder || [];
 
-      const byId = new Map(sections.map((s) => [s.id, s]));
-      const byType = new Map<string, Section>();
-      for (const s of sections) {
-        if (!byType.has(s.type)) {
-          byType.set(s.type, s);
-        }
-      }
-
-      const nextSections = withFirstVisibleExpanded(
-        (sectionOrderData || []).map((s) => {
-          const match = byId.get(s.id) ?? byType.get(s.type);
-          return {
-            ...s,
-            visible: match?.visible ?? s.visible,
-            expanded: match?.expanded ?? false,
-          } as Section;
-        }),
-      );
+      // A new design changes how the resume looks, not what's in it: keep the user's order,
+      // section titles ("Technical Skills") and ids; take only the column placement from the
+      // design. Sections the design adds (content with no section yet) go at the end.
+      const designById = new Map(designOrder.map((s) => [s.id, s]));
+      const designByType = new Map<string, (typeof designOrder)[number]>();
+      for (const s of designOrder) if (!designByType.has(s.type)) designByType.set(s.type, s);
+      const kept = sections.map((s) => {
+        const { column: _previous, ...rest } = s;
+        void _previous;
+        if (nextLayout.type !== "double" || s.type === "personalInfo") return rest as Section;
+        const design = designById.get(s.id) ?? (s.type === "custom" ? undefined : designByType.get(s.type));
+        const column =
+          design?.column ??
+          resolveSectionColumn({ ...rest, column: undefined }, { layoutType: "double", template: newTemplate, visibleSections: sections });
+        return (column ? { ...rest, column } : rest) as Section;
+      });
+      const added = designOrder
+        .filter((d) => !sections.some((s) => s.id === d.id || (d.type !== "custom" && s.type === d.type)))
+        .map((d) => ({ ...d, expanded: false }) as Section);
+      const nextSections = withFirstVisibleExpanded([...kept, ...added]);
+      const sectionOrderData = toSectionOrderPayload(nextSections) as NonNullable<Resume["sectionOrder"]>;
 
       const updatedResume: Resume = {
         ...resume,
@@ -3639,6 +3655,11 @@ export default function EditResumePage() {
     onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
     onNotice: showCanvasNotice,
     getDates: (entryPath) => {
+      // One date ("certificates.0.issueDate"): it is the value itself.
+      if (entryPath.split(".").length === 3) {
+        const value = getAtPath(resume?.content, entryPath);
+        return { startDate: typeof value === "string" ? value : "", endDate: "", current: false };
+      }
       const entry = getAtPath(resume?.content, entryPath) as Record<string, unknown> | undefined;
       return {
         startDate: typeof entry?.startDate === "string" ? entry.startDate : "",
@@ -3658,6 +3679,12 @@ export default function EditResumePage() {
     onSetDates: (entryPath, dates) => {
       const current = resumeRef.current ?? resume;
       if (!current) return;
+      if (entryPath.split(".").length === 3) {
+        const key = entryPath.split(".")[0] as keyof Resume["content"];
+        const next = setAtPath(current.content as unknown as Record<string, unknown>, entryPath, dates.startDate);
+        updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+        return;
+      }
       const entry = getAtPath(current.content, entryPath);
       if (!entry || typeof entry !== "object") return;
       let next = current.content as unknown as Record<string, unknown>;
@@ -3680,11 +3707,17 @@ export default function EditResumePage() {
       const after = afterId ? sections.find((s) => s.id === afterId) : undefined;
       setSectionsState((prev) => {
         const without = prev.filter((s) => s.id !== sectionId);
-        const section: Section = {
+        const base = {
           ...(existing ?? { id: sectionId, type: type as Section["type"], title: titles[type] ?? "New Section", expanded: false }),
           visible: true,
-          ...(after?.column ? { column: after.column } : {}),
         } as Section;
+        // Two-column designs: a section with no column is "repaired" on the next load, which
+        // used to reset the whole order. Next to the section it was inserted after, else where
+        // the design puts this kind of section.
+        const column =
+          after?.column ??
+          resolveSectionColumn({ ...base, column: undefined }, { layoutType: layoutRef.current?.type, template, visibleSections: without });
+        const section: Section = (column ? { ...base, column } : base) as Section;
         const at = after ? without.findIndex((s) => s.id === after.id) + 1 : without.length;
         return [...without.slice(0, at), section, ...without.slice(at)];
       });
@@ -4787,6 +4820,11 @@ export default function EditResumePage() {
                             ...layout,
                             fontFamily: value,
                           });
+                          setHasChanges(true);
+                        }}
+                        dateFormat={layout.dateFormat ?? "auto"}
+                        onDateFormatChange={(value) => {
+                          setLayout({ ...layout, dateFormat: value === "auto" ? undefined : value });
                           setHasChanges(true);
                         }}
                       />
@@ -8592,7 +8630,7 @@ export default function EditResumePage() {
             sectionToDelete.type,
           )
             ? "Cannot delete essential sections like Personal Info, Experience, and Education. These sections are required for your resume."
-            : `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
+            : `Are you sure you want to delete the "${sectionToDelete?.title}" section? You can bring it back with Undo (Ctrl/⌘ Z).`
         }
         confirmText={
           sectionToDelete &&

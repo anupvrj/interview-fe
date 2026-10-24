@@ -1951,6 +1951,8 @@ export interface Resume {
     };
     /** Blank trailing pages removed by the user in the editor preview. */
     dismissedEmptyTrailingPages?: number;
+    /** Date style picked in the Style panel ("auto" / "MM/YYYY" / "Mon YYYY" / …). */
+    dateFormat?: string;
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;

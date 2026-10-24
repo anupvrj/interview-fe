@@ -19,4 +19,13 @@ describe("sanitizeRichHtml keeps the text styles the editor offers", () => {
   it("other markup is unwrapped to its text", () => {
     expect(sanitizeRichHtml('<p><font color="red">Hi</font> <img src="x"></p>')).toBe("<p>Hi </p>");
   });
+
+  it("keeps alignment from the toolbar, and only alignment", () => {
+    expect(sanitizeRichHtml('<p style="text-align: center; color: red">Hi</p>')).toBe('<p style="text-align: center">Hi</p>');
+    expect(sanitizeRichHtml('<ul><li style="text-align:right">A</li></ul>')).toBe('<ul><li style="text-align: right">A</li></ul>');
+    expect(sanitizeRichHtml('<div style="text-align: justify">Wrapped line</div>')).toBe('<p style="text-align: justify">Wrapped line</p>');
+    // left is the default: nothing to store
+    expect(sanitizeRichHtml('<p style="text-align: left">L</p>')).toBe("<p>L</p>");
+    expect(sanitizeRichHtml('<b style="text-align: center">B</b>')).toBe("<b>B</b>");
+  });
 });

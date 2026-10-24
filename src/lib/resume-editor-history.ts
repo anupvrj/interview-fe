@@ -22,6 +22,7 @@ export interface ResumeEditorLayout {
   };
   fontFamily?: string;
   dismissedEmptyTrailingPages?: number;
+  dateFormat?: string;
 }
 
 export interface ResumeEditorSnapshot {

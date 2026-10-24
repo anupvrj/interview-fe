@@ -155,6 +155,13 @@ export function duplicateEntry<C extends AnyRecord>(content: C, section: EntrySe
 /** Allow-list sanitiser for rich text typed on the canvas (bullets, summary). */
 const ALLOWED_TAGS = new Set(["UL", "OL", "LI", "P", "BR", "B", "STRONG", "I", "EM", "U", "A", "SPAN"]);
 
+/** Alignment set from the text toolbar ("text-align: center"), the only style kept. */
+const ALIGNABLE = new Set(["P", "LI", "UL", "OL"]);
+function keptAlignment(el: HTMLElement): string | null {
+  const value = el.style?.textAlign;
+  return value === "center" || value === "right" || value === "justify" ? value : null;
+}
+
 export function sanitizeRichHtml(html: string): string {
   if (typeof document === "undefined") return html;
   const template = document.createElement("template");
@@ -167,6 +174,8 @@ export function sanitizeRichHtml(html: string): string {
           // Browsers wrap new lines in <div> while editing; keep them as paragraphs.
           const p = document.createElement("p");
           p.innerHTML = el.innerHTML;
+          const align = keptAlignment(el);
+          if (align) p.setAttribute("style", `text-align: ${align}`);
           el.replaceWith(p);
           clean(p);
           continue;
@@ -176,10 +185,12 @@ export function sanitizeRichHtml(html: string): string {
           clean(node);
           return;
         }
+        const align = ALIGNABLE.has(el.tagName) ? keptAlignment(el) : null;
         for (const attr of Array.from(el.attributes)) {
           const keep = el.tagName === "A" && attr.name === "href" && /^(https?:|mailto:)/i.test(attr.value);
           if (!keep) el.removeAttribute(attr.name);
         }
+        if (align) el.setAttribute("style", `text-align: ${align}`);
         clean(el);
       } else if (child.nodeType !== Node.TEXT_NODE) {
         child.remove();

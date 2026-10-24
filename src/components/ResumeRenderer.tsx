@@ -59,6 +59,7 @@ import {
   formatExperienceDateRangeAbbreviated,
   formatProjectDateRange,
   formatResumeDateForDisplay,
+  setResumeDateFormat,
 } from "@/lib/resume-date-utils";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
@@ -494,6 +495,21 @@ export function ResumeRenderer({
     return !!canvas?.focus && canvas.focus.sectionType === type && (canvas.focus.index === null || canvas.focus.index === Number(idx));
   };
   const revealContacts = canvas?.focus?.sectionType === "personalInfo";
+  /** A single date (certificate issued, award, course, publication): opens a one-date picker. */
+  const edDate1 = (fieldPath: string, content: string) =>
+    canvas ? (
+      <span
+        className="rx-date"
+        data-rx-date={fieldPath}
+        data-placeholder={pathRevealed(canvas, fieldPath) ? "Add date" : undefined}
+        role="button"
+        tabIndex={0}
+      >
+        {content}
+      </span>
+    ) : (
+      content
+    );
   /** Dates open a Start/End editor on the canvas; `entryPath` is e.g. "experience.2". */
   const edDate = (entryPath: string, content: React.ReactNode) =>
     canvas ? (
@@ -520,6 +536,8 @@ export function ResumeRenderer({
 
   const baseTemplateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
+  // Every date below (and the PDF printed from this page) uses the style picked in Style.
+  setResumeDateFormat((resumeLayout as { dateFormat?: string }).dateFormat);
   const layoutTypo = resumeLayout as {
     fontSize?: {
       heading?: number;
@@ -4498,7 +4516,7 @@ export function ResumeRenderer({
         if (isCondensedRule) {
           // Same one-line style as its certificates (awards used to be left out entirely).
           const awardNames = awardsData.map((award: { title?: string; issuer?: string; date?: string }) =>
-            [award.title, [award.issuer, award.date].filter(Boolean).join(", ")].filter(Boolean).join(" — "),
+            [award.title, [award.issuer, award.date ? formatResumeDateForDisplay(String(award.date)) : ""].filter(Boolean).join(", ")].filter(Boolean).join(" — "),
           );
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
@@ -4617,7 +4635,7 @@ export function ResumeRenderer({
                       }}
                     >
                       {ed(`awards.${index}.issuer`, award.issuer)}
-                      {(award.date || pathRevealed(canvas, `awards.${index}.date`)) ? <>{award.issuer || canvas ? ", " : ""}{ed(`awards.${index}.date`, formatResumeDateForDisplay(String(award.date ?? "")))}</> : null}
+                      {(award.date || pathRevealed(canvas, `awards.${index}.date`)) ? <>{award.issuer || canvas ? ", " : ""}{edDate1(`awards.${index}.date`, formatResumeDateForDisplay(String(award.date ?? "")))}</> : null}
                     </div>
                   )}
                   {(hasText(award.description) || revealEntry(section.id, index)) && (
@@ -4732,7 +4750,7 @@ export function ResumeRenderer({
                       {(cert.issueDate || pathRevealed(canvas, `certificates.${index}.issueDate`)) ? (
                         <>
                           {cert.issuer || canvas ? " • " : ""}
-                          {ed(`certificates.${index}.issueDate`, formatResumeDateForDisplay(String(cert.issueDate ?? "")))}
+                          {edDate1(`certificates.${index}.issueDate`, formatResumeDateForDisplay(String(cert.issueDate ?? "")))}
                         </>
                       ) : null}
                       {cert.expiryDate && ` - ${cert.expiryDate}`}
@@ -4858,7 +4876,22 @@ export function ResumeRenderer({
                     {typeof achievement === "string"
                       ? ed(`achievements.${index}`, achievement)
                       : achievement.title || pathRevealed(canvas, `achievements.${index}.title`)
-                        ? ed(`achievements.${index}.title`, achievement.title)
+                        ? (
+                          <>
+                            {ed(`achievements.${index}.title`, achievement.title)}
+                            {/* The detail used to be hidden whenever there was a title. */}
+                            {hasText(achievement.description) || pathRevealed(canvas, `achievements.${index}.description`) ? (
+                              <>
+                                {" — "}
+                                {ed(
+                                  `achievements.${index}.description`,
+                                  String(achievement.description ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+                                  "Details (optional)",
+                                )}
+                              </>
+                            ) : null}
+                          </>
+                        )
                         : ed(`achievements.${index}.description`, achievement.description, "Achievement")}
                   </div>
                 </div>
@@ -5107,7 +5140,7 @@ export function ResumeRenderer({
                       {(course.date || pathRevealed(canvas, `courses.${index}.date`)) ? (
                         <>
                           {course.institution || course.provider || canvas ? " • " : ""}
-                          {ed(`courses.${index}.date`, formatResumeDateForDisplay(String(course.date ?? "")))}
+                          {edDate1(`courses.${index}.date`, formatResumeDateForDisplay(String(course.date ?? "")))}
                         </>
                       ) : null}
                     </div>
@@ -5202,7 +5235,7 @@ export function ResumeRenderer({
                     }}
                   >
                     {ed(`publications.${index}.publisher`, pub.publisher)}
-                    {(pub.date || pathRevealed(canvas, `publications.${index}.date`)) ? <> • {ed(`publications.${index}.date`, formatResumeDateForDisplay(String(pub.date ?? "")))}</> : null}
+                    {(pub.date || pathRevealed(canvas, `publications.${index}.date`)) ? <> • {edDate1(`publications.${index}.date`, formatResumeDateForDisplay(String(pub.date ?? "")))}</> : null}
                   </div>
                   {(pub.link || pathRevealed(canvas, `publications.${index}.link`)) && (
                     <div
@@ -5387,6 +5420,7 @@ export function ResumeRenderer({
           role?: string;
           startDate?: string;
           endDate?: string;
+          current?: boolean;
           description?: string;
         }>;
         if (orgs.length === 0 && !canvas) return null;
@@ -5400,7 +5434,8 @@ export function ResumeRenderer({
               </div>
             ) : null}
             {orgs.map((org, index) => {
-              const dates = [org.startDate, org.endDate].filter(Boolean).join(" – ");
+              // Same MM/YYYY display and "Present" as experience (raw "2026-10" used to show).
+              const dates = formatExperienceDateRange(org);
               return (
                 <div key={index} data-item-index={index} style={{ marginBottom: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>

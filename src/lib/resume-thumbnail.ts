@@ -195,6 +195,12 @@ export async function captureResumeThumbnail(
     }
     const captureRoot = source.cloneNode(true) as HTMLElement;
     captureRoot.removeAttribute("id");
+    // The copy sits in the live document while it is drawn: keep it out of the editor's way
+    // (no focusable fields, no data-rx-path matches for "find the field on the page").
+    captureRoot.setAttribute("inert", "");
+    captureRoot.setAttribute("aria-hidden", "true");
+    captureRoot.querySelectorAll<HTMLElement>("[contenteditable]").forEach((el) => el.removeAttribute("contenteditable"));
+    captureRoot.querySelectorAll<HTMLElement>("[data-rx-path]").forEach((el) => el.removeAttribute("data-rx-path"));
     captureRoot.style.position = "fixed";
     captureRoot.style.left = "-9999px";
     captureRoot.style.top = "0";

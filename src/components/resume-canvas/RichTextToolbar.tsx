@@ -1,18 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bold, Eraser, Italic, Link2, Link2Off, List, ListOrdered, Underline } from "lucide-react";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Eraser,
+  Italic,
+  Link2,
+  Link2Off,
+  List,
+  ListOrdered,
+  Underline,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * Text styling for descriptions, bullets and the summary (fields marked data-rx-rich):
- * bold, italic, underline, bulleted / numbered list, link, clear formatting. Shown while such
+ * bold, italic, underline, bulleted / numbered list, alignment, link, clear formatting. Shown while such
  * a field is being edited (not only while text is selected), with the active styles lit.
- * Everything it makes (b/strong, i/em, u, ul/ol/li, a href) is kept by sanitizeRichHtml, so it
+ * Everything it makes (b/strong, i/em, u, ul/ol/li, text-align, a href) is kept by sanitizeRichHtml, so it
  * saves, reloads and prints in the PDF.
  */
 
-export type RichCommand = "bold" | "italic" | "underline" | "insertUnorderedList" | "insertOrderedList";
+export type RichCommand =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "insertUnorderedList"
+  | "insertOrderedList"
+  | "justifyLeft"
+  | "justifyCenter"
+  | "justifyRight"
+  | "justifyFull";
 
 export const RICH_ACTIONS: Array<{ cmd: RichCommand; label: string; icon: React.ComponentType<{ className?: string }>; keys?: string }> = [
   { cmd: "bold", label: "Bold", icon: Bold, keys: "⌘B" },
@@ -20,7 +42,13 @@ export const RICH_ACTIONS: Array<{ cmd: RichCommand; label: string; icon: React.
   { cmd: "underline", label: "Underline", icon: Underline, keys: "⌘U" },
   { cmd: "insertUnorderedList", label: "Bulleted list", icon: List },
   { cmd: "insertOrderedList", label: "Numbered list", icon: ListOrdered },
+  { cmd: "justifyLeft", label: "Align left", icon: AlignLeft },
+  { cmd: "justifyCenter", label: "Align center", icon: AlignCenter },
+  { cmd: "justifyRight", label: "Align right", icon: AlignRight },
+  { cmd: "justifyFull", label: "Justify", icon: AlignJustify },
 ];
+/** Toolbar groups start at these positions (a divider goes before each). */
+const GROUP_STARTS = new Set([3, 5]);
 
 /** The rich field the caret is in (inside `root`), if any. */
 export function activeRichField(root: HTMLElement | null): HTMLElement | null {
@@ -241,7 +269,7 @@ export function RichTextToolbar({ rootRef }: Readonly<{ rootRef: React.RefObject
         <>
           {RICH_ACTIONS.map((a, i) => (
             <span key={a.cmd} className="contents">
-              {i === 3 ? <span className="mx-0.5 h-4 w-px bg-white/20" aria-hidden /> : null}
+              {GROUP_STARTS.has(i) ? <span className="mx-0.5 h-4 w-px bg-white/20" aria-hidden /> : null}
               <button
                 type="button"
                 title={a.keys ? `${a.label} (${a.keys})` : a.label}

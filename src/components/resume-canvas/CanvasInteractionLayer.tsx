@@ -48,6 +48,10 @@ const tagWords = (type: string) => TAG_WORDS[type] ?? TAG_WORDS.skills;
 
 /** Sections whose entries have a From/To date. */
 const DATED_SECTIONS = new Set(["experience", "education", "projects", "organisations"]);
+/** Sections with one date per entry, and the field it lives in. */
+const SINGLE_DATE_FIELD: Record<string, string> = { certificates: "issueDate", awards: "date", courses: "date", publications: "date" };
+/** "certificates.0.issueDate" (one date) vs "experience.2" (start / end). */
+const isSingleDatePath = (path: string) => path.split(".").length === 3;
 
 /** Text highlighted on the page: an issue (red/blue), a matched keyword (green) or an AI edit (orange). */
 export interface CanvasMark {
@@ -630,7 +634,9 @@ export function CanvasInteractionLayer({
     if (!handleSection || handleIndex === null || !handleBox) return;
     setMenuOpen(false);
     setTagEdit(null);
-    setDateEdit({ path: `${handleSection.type}.${handleIndex}`, top: handleBox.top + 22, left: handleBox.left + 8 });
+    const single = SINGLE_DATE_FIELD[handleSection.type];
+    const path = single ? `${handleSection.type}.${handleIndex}.${single}` : `${handleSection.type}.${handleIndex}`;
+    setDateEdit({ path, top: handleBox.top + 22, left: handleBox.left + 8 });
   };
 
   type MenuItem = { label: string; icon: React.ComponentType<{ className?: string }>; run: () => void; off?: boolean; danger?: boolean; hint?: string };
@@ -651,6 +657,7 @@ export function CanvasInteractionLayer({
                 hint: "Alt ↓",
               },
               ...(DATED_SECTIONS.has(handleSection.type) ? [{ label: "Edit dates", icon: CalendarDays, run: openDates }] : []),
+              ...(SINGLE_DATE_FIELD[handleSection.type] ? [{ label: "Edit date", icon: CalendarDays, run: openDates }] : []),
             ]
           : []),
         ...(TAG_SECTIONS.has(handleSection.type) && handleBox
@@ -774,7 +781,7 @@ export function CanvasInteractionLayer({
             <Plus className="h-4 w-4" /> Add item
           </button>
         ) : null}
-        {entryFocused && DATED_SECTIONS.has(focusSection.type) ? (
+        {entryFocused && (DATED_SECTIONS.has(focusSection.type) || SINGLE_DATE_FIELD[focusSection.type]) ? (
           <button type="button" onClick={openDates} className="shrink-0 rounded-xl px-3 py-2 text-xs" aria-label="Edit dates">
             <CalendarDays className="h-4 w-4" />
           </button>
@@ -926,6 +933,7 @@ export function CanvasInteractionLayer({
             key={dateEdit.path}
             dates={handlers.getDates(dateEdit.path)}
             allowPresent={!dateEdit.path.startsWith("education")}
+            single={isSingleDatePath(dateEdit.path)}
             onChange={(dates) => handlers.onSetDates(dateEdit.path, dates)}
             onClose={() => setDateEdit(null)}
           />
