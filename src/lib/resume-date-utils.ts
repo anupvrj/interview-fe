@@ -99,10 +99,49 @@ const MONTH_ABBR = [
   "Dec",
 ];
 
+/**
+ * Date style picked in the Style panel (layout.dateFormat). "auto" keeps each design's own
+ * style (MM/YYYY, or "Jan 2023" for designs that use month names). ResumeRenderer sets it at
+ * the start of each render, so every date on the page follows it — and the PDF, which is
+ * printed from the same page.
+ */
+export type ResumeDateFormat = "auto" | "MM/YYYY" | "Mon YYYY" | "Month YYYY" | "YYYY";
+export const RESUME_DATE_FORMATS: Array<{ id: ResumeDateFormat; label: string; example: string }> = [
+  { id: "auto", label: "Design default", example: "" },
+  { id: "MM/YYYY", label: "03/2024", example: "03/2024" },
+  { id: "Mon YYYY", label: "Mar 2024", example: "Mar 2024" },
+  { id: "Month YYYY", label: "March 2024", example: "March 2024" },
+  { id: "YYYY", label: "2024", example: "2024" },
+];
+let activeDateFormat: ResumeDateFormat = "auto";
+export function setResumeDateFormat(format: string | undefined | null): void {
+  activeDateFormat = RESUME_DATE_FORMATS.some((f) => f.id === format) ? (format as ResumeDateFormat) : "auto";
+}
+
+const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Stored "2024-03" / "03/2024" / "2024" → the picked style; anything else as typed. */
+function formatInStyle(value: string, style: Exclude<ResumeDateFormat, "auto">): string | null {
+  const trimmed = value.trim();
+  let year: string | null = null;
+  let month: number | null = null;
+  let m = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/.exec(trimmed);
+  if (m) [year, month] = [m[1], Number(m[2])];
+  else if ((m = /^(\d{1,2})\/(\d{4})$/.exec(trimmed))) [year, month] = [m[2], Number(m[1])];
+  else if ((m = /^(\d{4})$/.exec(trimmed))) year = m[1];
+  if (!year) return null;
+  if (month !== null && (month < 1 || month > 12)) month = null;
+  if (style === "YYYY" || month === null) return year;
+  if (style === "MM/YYYY") return `${String(month).padStart(2, "0")}/${year}`;
+  if (style === "Mon YYYY") return `${MONTH_ABBR[month - 1]} ${year}`;
+  return `${MONTH_FULL[month - 1]} ${year}`;
+}
+
 /** Month-name display for templates that use abbreviated dates (e.g. Jan 2023). */
 export function formatResumeDateAbbreviated(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  if (activeDateFormat !== "auto") return formatInStyle(trimmed, activeDateFormat) ?? trimmed;
 
   const isoMonth = /^(\d{4})-(\d{2})$/.exec(trimmed);
   if (isoMonth) {
@@ -144,6 +183,7 @@ export function formatExperienceDateRangeAbbreviated(exp: {
 export function formatResumeDateForDisplay(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  if (activeDateFormat !== "auto") return formatInStyle(trimmed, activeDateFormat) ?? trimmed;
 
   const isoMonth = /^(\d{4})-(\d{2})$/.exec(trimmed);
   if (isoMonth) {

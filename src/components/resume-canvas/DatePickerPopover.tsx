@@ -92,11 +92,14 @@ function MonthYear({ label, value, onChange, disabled }: { label: string; value:
 export function DatePickerPopover({
   dates,
   allowPresent,
+  single = false,
   onChange,
   onClose,
 }: {
   dates: EntryDates;
   allowPresent: boolean;
+  /** One date (a certificate's issue date, an award…): stored in `startDate`. */
+  single?: boolean;
   onChange: (dates: EntryDates) => void;
   onClose: () => void;
 }) {
@@ -109,9 +112,15 @@ export function DatePickerPopover({
     start.year * 100 + (start.month ?? 1) > end.year * 100 + (end.month ?? 12);
   return (
     <div className="w-72 space-y-3 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl" role="dialog" aria-label="Dates">
-      <MonthYear label="Start" value={dates.startDate} onChange={(startDate) => onChange({ ...dates, startDate })} />
-      <MonthYear label="End" value={dates.endDate} disabled={dates.current} onChange={(endDate) => onChange({ ...dates, endDate })} />
-      {allowPresent ? (
+      {single ? (
+        <MonthYear label="Date" value={dates.startDate} onChange={(startDate) => onChange({ ...dates, startDate })} />
+      ) : (
+        <>
+          <MonthYear label="Start" value={dates.startDate} onChange={(startDate) => onChange({ ...dates, startDate })} />
+          <MonthYear label="End" value={dates.endDate} disabled={dates.current} onChange={(endDate) => onChange({ ...dates, endDate })} />
+        </>
+      )}
+      {allowPresent && !single ? (
         <label className="flex cursor-pointer items-center justify-between rounded-lg bg-muted/50 px-2.5 py-2 text-xs font-medium">
           Currently here
           <input
@@ -130,7 +139,7 @@ export function DatePickerPopover({
           onClick={() => onChange({ startDate: "", endDate: "", current: false })}
           className="text-xs font-semibold text-muted-foreground hover:text-foreground"
         >
-          Remove dates
+          {single ? "Remove date" : "Remove dates"}
         </button>
         <button type="button" onClick={onClose} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
           Done

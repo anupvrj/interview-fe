@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RESUME_DATE_FORMATS } from "@/lib/resume-date-utils";
 
 const INPUT_CLASS =
   "h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums max-md:h-6 max-md:w-[3.75rem] max-md:!h-6 max-md:!px-1 max-md:text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
@@ -138,6 +139,9 @@ interface LayoutTypographyControlsProps {
     value: number,
   ) => void;
   onFontFamilyChange: (value: string) => void;
+  /** How dates print ("auto" = the design's own style). */
+  dateFormat?: string;
+  onDateFormatChange?: (value: string) => void;
 }
 
 export function LayoutTypographyControls({
@@ -146,6 +150,8 @@ export function LayoutTypographyControls({
   selectedFontFamily,
   onFontSizeChange,
   onFontFamilyChange,
+  dateFormat = "auto",
+  onDateFormatChange,
 }: LayoutTypographyControlsProps) {
   return (
     <div className="space-y-2 border-t border-border/60 pt-2">
@@ -210,6 +216,27 @@ export function LayoutTypographyControls({
           </SelectContent>
         </Select>
       </div>
+
+      {onDateFormatChange ? (
+        <div className="space-y-1 pt-1">
+          <Label className="block text-xs font-normal text-muted-foreground">Date format</Label>
+          <Select value={dateFormat} onValueChange={onDateFormatChange}>
+            <SelectTrigger
+              aria-label="Date format"
+              className="h-7 w-[9.5rem] max-w-full shrink-0 !h-7 !px-2 text-xs max-md:h-6 max-md:w-[8.5rem] max-md:!h-6 max-md:text-[11px]"
+            >
+              <SelectValue placeholder="Date format" />
+            </SelectTrigger>
+            <SelectContent>
+              {RESUME_DATE_FORMATS.map((f) => (
+                <SelectItem key={f.id} value={f.id} className="text-xs">
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
     </div>
   );
 }

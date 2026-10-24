@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Skills are stored as an array, a comma list, lines, or an HTML list depending on
  * where they came from. Edit them as tags and write back in the same shape.
  */
-export type TagShape = "array" | "comma" | "lines" | "html";
+export type TagShape = "array" | "comma" | "lines" | "html" | "html-inline";
 
 export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
   if (Array.isArray(value)) {
@@ -18,6 +19,10 @@ export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
     const tags = Array.from(text.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi))
       .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
       .filter(Boolean);
+    // One bullet holding a comma list ("Chess, Running, Travel"): edit the items, keep the look.
+    if (tags.length === 1 && tags[0].includes(",")) {
+      return { tags: tags[0].split(",").map((t) => t.trim()).filter(Boolean), shape: "html-inline" };
+    }
     return { tags, shape: "html" };
   }
   const plain = text.replace(/<[^>]+>/g, "\n").replace(/&amp;/g, "&");
@@ -31,10 +36,11 @@ export function parseTags(value: unknown): { tags: string[]; shape: TagShape } {
 export function serialiseTags(tags: string[], shape: TagShape): string | string[] {
   const clean = tags.map((t) => t.trim()).filter(Boolean);
   if (shape === "array") return clean;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   if (shape === "html") {
-    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return clean.length ? `<ul>${clean.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
   }
+  if (shape === "html-inline") return clean.length ? `<ul><li>${esc(clean.join(", "))}</li></ul>` : "";
   if (shape === "lines") return clean.join("\n");
   return clean.join(", ");
 }
@@ -53,15 +59,30 @@ export function TagListPopover({
   placeholder?: string;
 }) {
   const [draft, setDraft] = useState("");
+  /** Chips to bring into view and light up (just added, or already there). */
+  const [flash, setFlash] = useState<string[]>([]);
+  const listRef = useRef<HTMLDivElement>(null);
   const add = () => {
-    const parts = draft
+    const typed = draft
       .split(",")
       .map((p) => p.trim())
-      .filter(Boolean)
-      .filter((p) => !tags.some((t) => t.toLowerCase() === p.toLowerCase()));
-    if (parts.length) onChange([...tags, ...parts]);
+      .filter(Boolean);
+    const fresh = typed.filter((p, i) => !tags.some((t) => t.toLowerCase() === p.toLowerCase()) && typed.indexOf(p) === i);
+    if (fresh.length) onChange([...tags, ...fresh]);
+    // New chips land at the end of a list that scrolls, so show them (and any that were already there).
+    if (typed.length) setFlash(typed.map((p) => p.toLowerCase()));
     setDraft("");
   };
+  useEffect(() => {
+    if (!flash.length) return;
+    const list = listRef.current;
+    const chip = list
+      ? Array.from(list.querySelectorAll<HTMLElement>("[data-tag]")).reverse().find((el) => flash.includes(el.dataset.tag ?? ""))
+      : null;
+    chip?.scrollIntoView({ block: "nearest" });
+    const timer = window.setTimeout(() => setFlash([]), 1600);
+    return () => window.clearTimeout(timer);
+  }, [flash, tags]);
   const move = (i: number, delta: -1 | 1) => {
     const j = i + delta;
     if (j < 0 || j >= tags.length) return;
@@ -72,10 +93,17 @@ export function TagListPopover({
   return (
     <div className="w-80 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl" role="dialog" aria-label={title}>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+      <div ref={listRef} className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
         {/* Move arrows keep their space (fade in on hover) so "remove" never slides under the pointer. */}
         {tags.map((tag, i) => (
-          <span key={`${tag}-${i}`} className="group inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/50 py-0.5 pl-2 pr-0.5 text-xs">
+          <span
+            key={`${tag}-${i}`}
+            data-tag={tag.toLowerCase()}
+            className={cn(
+              "group inline-flex items-center gap-0.5 rounded-md border py-0.5 pl-2 pr-0.5 text-xs transition-colors",
+              flash.includes(tag.toLowerCase()) ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40" : "border-border bg-muted/50",
+            )}
+          >
             <button type="button" aria-label={`Move ${tag} earlier`} onClick={() => move(i, -1)} className="text-muted-foreground opacity-0 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100">
               <ArrowLeft className="h-3 w-3" />
             </button>
@@ -114,7 +142,15 @@ export function TagListPopover({
       />
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">Tip: paste a comma list to add many.</span>
-        <button type="button" onClick={onClose} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
+        <button
+          type="button"
+          onClick={() => {
+            // Typed but not yet added (no Enter): add it rather than drop it.
+            if (draft.trim()) add();
+            onClose();
+          }}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+        >
           Done
         </button>
       </div>

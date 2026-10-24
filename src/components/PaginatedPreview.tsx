@@ -56,6 +56,13 @@ interface PreviewFrame {
   template: ResumeTemplate;
 }
 
+/**
+ * Last laid-out pages per resume. A remount (template switch, load) shows these until the new
+ * layout is ready instead of an empty canvas — the editor never blinks blank. Never "current",
+ * so export / snapshot consumers still wait for the real layout.
+ */
+const lastFrames = new Map<string, PreviewFrame>();
+
 const ALL_UNIT_SELECTOR =
   '[data-item-id],[data-section-id],[data-section="personalInfo"]';
 
@@ -82,7 +89,21 @@ function nearestAncestorSectionId(node: HTMLElement): string | null {
  *  body paragraphs not wrapped in a marker) cannot leak onto other pages.
  *  Uses !important because some template CSS (e.g. atlantic-blue section headers)
  *  declares `display: flex !important`, which would override a plain inline none. */
+/** Marks what applyPageVisibility hid, so the next pass can show it again (pages are reused). */
+const HIDDEN_ATTR = "data-rx-page-hidden";
+
+function hideOnPage(el: HTMLElement) {
+  el.style.setProperty("display", "none", "important");
+  el.setAttribute(HIDDEN_ATTR, "");
+}
+
 function applyPageVisibility(root: HTMLElement, all: Set<string>, visible: Set<string>) {
+  // Start from what React rendered: undo the previous pass (the page DOM is kept between
+  // layouts now, so edits don't replace the field being typed in).
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>(`[${HIDDEN_ATTR}]`))) {
+    el.style.removeProperty("display");
+    el.removeAttribute(HIDDEN_ATTR);
+  }
   // Sections that have at least one known unit (so we may safely toggle the wrapper)
   // and sections that have at least one visible unit on this page (keep their wrapper).
   const knownSections = new Set<string>();
@@ -100,22 +121,14 @@ function applyPageVisibility(root: HTMLElement, all: Set<string>, visible: Set<s
   for (const sec of Array.from(root.querySelectorAll("[data-section]")) as HTMLElement[]) {
     const sid = sec.getAttribute("data-section");
     if (!sid || !knownSections.has(sid)) continue;
-    if (visibleSections.has(sid)) {
-      sec.style.removeProperty("display");
-    } else {
-      sec.style.setProperty("display", "none", "important");
-    }
+    if (!visibleSections.has(sid)) hideOnPage(sec);
   }
 
   // Within visible sections, hide individual marked units not on this page.
   for (const node of Array.from(root.querySelectorAll(ALL_UNIT_SELECTOR)) as HTMLElement[]) {
     const id = nodeUnitId(node);
     if (!id || !all.has(id)) continue;
-    if (visible.has(id)) {
-      node.style.removeProperty("display");
-    } else {
-      node.style.setProperty("display", "none", "important");
-    }
+    if (!visible.has(id)) hideOnPage(node);
   }
 }
 
@@ -165,8 +178,10 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
     const fs = currentLayout.fontSize as
       | { heading?: number; subheading?: number; body?: number; small?: number; sectionHeader?: number }
       | undefined;
-    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? ""].join("|");
-  }, [currentLayout.fontSize, currentLayout.fontFamily]);
+    const dateFormat = (currentLayout as { dateFormat?: string }).dateFormat ?? "";
+    // Date style changes text width ("March 2024" vs "03/2024"), so it re-paginates too.
+    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? "", dateFormat].join("|");
+  }, [currentLayout]);
 
   const contentMeasureKey = useMemo(() => buildResumeContentMeasureKey(resume), [resume]);
   const sectionOrderKey = useMemo(
@@ -188,13 +203,22 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       measureKey: rendererKey,
     });
 
-  const [frame, setFrame] = useState<PreviewFrame>(() => ({
-    key: "", pages: [], pageUnits: [], allUnitIds: [], resume, sections, layout, template,
-  }));
+  const [frame, setFrame] = useState<PreviewFrame>(() => {
+    const last = resume.resumeId ? lastFrames.get(resume.resumeId) : undefined;
+    return last
+      ? { ...last, key: `stale:${last.key}` }
+      : { key: "", pages: [], pageUnits: [], allUnitIds: [], resume, sections, layout, template };
+  });
 
   useLayoutEffect(() => {
     if (pagesKey && pagesKey === rendererKey && pages.length > 0) {
-      setFrame({ key: rendererKey, pages, pageUnits, allUnitIds, resume, sections, layout, template });
+      const next = { key: rendererKey, pages, pageUnits, allUnitIds, resume, sections, layout, template };
+      setFrame(next);
+      if (resume.resumeId) {
+        lastFrames.delete(resume.resumeId);
+        lastFrames.set(resume.resumeId, next);
+        if (lastFrames.size > 5) lastFrames.delete(lastFrames.keys().next().value as string);
+      }
     }
   }, [pagesKey, rendererKey, pages, pageUnits, allUnitIds, resume, sections, layout, template]);
 
@@ -302,7 +326,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
         <div className="inline-block" style={{ paddingRight: onPageDelete ? "44px" : undefined }}>
           <div className="flex flex-col items-center">
             {visiblePages.map((page, index) => (
-              <div key={`page-wrap-${index}-${frame.key}`} className="relative mb-5" style={{ width: `${A4_WIDTH_MM}mm` }}>
+              <div key={`page-wrap-${index}`} className="relative mb-5" style={{ width: `${A4_WIDTH_MM}mm` }}>
                 <div
                   className={isAtlanticBlue ? "resume-page resume-page--atlantic-blue" : "resume-page"}
                   style={{

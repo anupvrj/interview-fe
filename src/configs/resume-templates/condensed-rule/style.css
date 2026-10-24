@@ -205,8 +205,9 @@
   list-style: none !important;
 }
 
-.condensed-rule-description li,
-.condensed-rule-template .resume-content.condensed-rule-description li {
+/* Dashes are for bulleted lists; a numbered list keeps its numbers. */
+.condensed-rule-description ul > li,
+.condensed-rule-template .resume-content.condensed-rule-description ul > li {
   display: flex;
   align-items: flex-start;
   gap: 0.35em;
@@ -216,7 +217,7 @@
   color: #1a1a1a;
 }
 
-.condensed-rule-description li::before {
+.condensed-rule-description ul > li::before {
   content: "-";
   flex-shrink: 0;
   line-height: inherit;

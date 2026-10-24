@@ -25,4 +25,10 @@ describe("skill tags keep the stored shape", () => {
     expect(tags).toEqual(["R&D", "Go"]);
     expect(serialiseTags([...tags, "A<B"], shape)).toBe("<ul><li>R&amp;D</li><li>Go</li><li>A&lt;B</li></ul>");
   });
+
+  it("one bullet holding a comma list edits as separate items and keeps its look", () => {
+    const { tags, shape } = parseTags("<ul><li>Open-source contribution, System design</li></ul>");
+    expect(tags).toEqual(["Open-source contribution", "System design"]);
+    expect(serialiseTags([...tags, "Chess"], shape)).toBe("<ul><li>Open-source contribution, System design, Chess</li></ul>");
+  });
 });

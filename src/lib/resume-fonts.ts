@@ -123,11 +123,24 @@ export const RESUME_METRIC_FONTS_CSS = `@font-face{font-family:"Arial";font-styl
  * - every section positioned: the browser paints (and writes PDF text for) positioned blocks
  *   after normal ones, so a page could read "Education, Skills, Projects" before the rest of
  *   "Experience" — parsers then filed those jobs under Projects. Same look, pixel for pixel.
+ *
+ * And the text styles the editor offers (bold, italic, underline, numbered lists, links) show the
+ * same in every template — some templates hide list markers to draw their own dashes, which
+ * would have hidden a numbered list's numbers.
  */
 export const RESUME_SHARED_CSS = `${RESUME_METRIC_FONTS_CSS}
 .resume-page, .resume-content { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .resume-page, .resume-content { font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
 .resume-content [data-section] { position: relative; }
+.resume-content strong, .resume-content b { font-weight: 700; }
+.resume-content em, .resume-content i { font-style: italic; }
+.resume-content u { text-decoration: underline; }
+.resume-content ol { list-style: decimal outside !important; padding-left: 1.5em !important; margin-top: 0; margin-bottom: 0; }
+.resume-content ol > li { display: list-item !important; list-style: decimal outside !important; }
+.resume-content ol > li::before { content: none !important; display: none !important; }
+.resume-content li a[href], .resume-content p a[href] { color: inherit; text-decoration: underline; }
+.resume-content li[style*="text-align: center"] { justify-content: center; }
+.resume-content li[style*="text-align: right"] { justify-content: flex-end; }
 `;
 
 /** Put the shared resume CSS on the page once (no-op on the server and when already there). */
