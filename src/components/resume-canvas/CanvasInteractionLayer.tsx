@@ -798,7 +798,14 @@ export function CanvasInteractionLayer({
             <a.icon className="h-4 w-4" />
           </button>
         ))}
-        <button type="button" onClick={() => setMenuOpen((v) => !v)} className="ml-auto flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs" aria-label="More actions">
+        {/* Pinned to the right edge: the formatting buttons scroll under it, so Move / Delete /
+            Duplicate never sit off-screen on a phone. */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="sticky right-0 ml-auto flex shrink-0 items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs shadow-[-8px_0_8px_-4px_rgba(15,23,42,0.9)]"
+          aria-label="More actions"
+        >
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>

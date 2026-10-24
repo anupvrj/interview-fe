@@ -3979,7 +3979,6 @@ export default function EditResumePage() {
               variant="ghost"
               label="Redo (Ctrl/⌘ Shift Z)"
               disabled={!editorHistory.canRedo}
-              className="hidden sm:inline-flex"
             >
               <Redo2 className="h-4 w-4" />
             </IconTooltipButton>

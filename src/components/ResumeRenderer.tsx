@@ -1583,11 +1583,14 @@ export function ResumeRenderer({
                         ? "atlantic-blue-photo-placeholder"
                         : undefined
                     }
-                    style={
-                      template.id === "atlantic-blue"
-                        ? undefined
-                        : { borderRadius: "50%", backgroundColor: "#e5e7eb" }
-                    }
+                    style={{
+                      ...(template.id === "atlantic-blue"
+                        ? {}
+                        : { borderRadius: "50%", backgroundColor: "#e5e7eb" }),
+                      // No photo: the grey placeholder is an editor prompt, not part of the
+                      // resume. Keep its space (the header layout depends on it), never print it.
+                      ...(canvas ? {} : { visibility: "hidden" as const }),
+                    }}
                   >
                     <svg
                       width={template.id === "atlantic-blue" ? 132 : 120}
@@ -2120,16 +2123,18 @@ export function ResumeRenderer({
                 ) : (
                   <div
                     className={`${template.id}-profile-placeholder`}
-                    style={
-                      isSaffronLine || isConfidentGrid
-                        ? undefined
+                    style={{
+                      ...(isSaffronLine || isConfidentGrid
+                        ? {}
                         : {
                             width: "160px",
                             height: "160px",
                             borderRadius: "50%",
                             backgroundColor: "#e0e0e0",
-                          }
-                    }
+                          }),
+                      // Editor prompt only (see the sidebar photo above): never printed.
+                      ...(canvas ? {} : { visibility: "hidden" as const }),
+                    }}
                   />
                 )}
               </div>

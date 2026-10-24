@@ -139,6 +139,8 @@ export const RESUME_SHARED_CSS = `${RESUME_METRIC_FONTS_CSS}
 .resume-content ol > li { display: list-item !important; list-style: decimal outside !important; }
 .resume-content ol > li::before { content: none !important; display: none !important; }
 .resume-content li a[href], .resume-content p a[href] { color: inherit; text-decoration: underline; }
+.resume-content li[style*="text-align: center"] { justify-content: center; }
+.resume-content li[style*="text-align: right"] { justify-content: flex-end; }
 `;
 
 /** Put the shared resume CSS on the page once (no-op on the server and when already there). */
