@@ -3788,6 +3788,16 @@ export function ResumeRenderer({
                       } catch (error) {
                         console.error("Error parsing skills HTML:", error);
                       }
+                      // Plain text ("Communication, CAD Design, …"): no list items or paragraphs,
+                      // so the section printed as an empty heading. One item per comma / line.
+                      if (listItems.length === 0) {
+                        listItems = skillsData
+                          .replace(/<[^>]+>/g, "\n")
+                          .replace(/&amp;/g, "&")
+                          .split(/[,|\n•]/)
+                          .map((item) => item.trim())
+                          .filter(Boolean);
+                      }
                     } else if (Array.isArray(skillsData)) {
                       listItems = skillsData
                         .map((skill: any) =>
@@ -4786,9 +4796,12 @@ export function ResumeRenderer({
         }
 
         if (isCondensedRule) {
+          // "Name — Issuer": the issuer used to be dropped, so ATS never read who issued it.
+          const certIssuer = (cert: { issuer?: string } | string) =>
+            typeof cert === "object" && cert !== null && typeof cert.issuer === "string" ? cert.issuer.trim() : "";
           const certificateNames = certificatesData.map(
-            (cert: { name?: string; title?: string }) =>
-              cert.name || cert.title || String(cert),
+            (cert: { name?: string; title?: string; issuer?: string }) =>
+              [cert.name || cert.title || String(cert), certIssuer(cert)].filter(Boolean).join(" — "),
           );
           return (
             <div
@@ -4801,9 +4814,15 @@ export function ResumeRenderer({
                 `${template.id}-inline-list`,
                 canvas
                   ? (i, label) => {
-                      const cert = certificatesData[i] as { name?: string; title?: string } | string;
+                      const cert = certificatesData[i] as { name?: string; title?: string; issuer?: string } | string;
                       if (typeof cert !== "object" || cert === null) return label;
-                      return ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, label);
+                      const issuer = certIssuer(cert);
+                      return (
+                        <>
+                          {ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, cert.title || cert.name)}
+                          {issuer ? ` — ${issuer}` : null}
+                        </>
+                      );
                     }
                   : undefined,
               )}
