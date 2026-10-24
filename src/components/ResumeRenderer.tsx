@@ -3272,6 +3272,14 @@ export function ResumeRenderer({
         } else {
           // Other templates: Get from direct skills field (new structure: single field)
           skillsData = unwrapSkills(resume.content.skills);
+          // No skills: like other empty sections, nothing reaches the PDF (an empty "Skills"
+          // heading used to print). Royal Indigo's block also carries languages / awards.
+          const noSkills =
+            skillsData == null ||
+            (Array.isArray(skillsData) && skillsData.every((v: unknown) => !String(v ?? "").trim())) ||
+            (typeof skillsData === "string" && !skillsData.replace(/<[^>]+>/g, "").trim()) ||
+            (typeof skillsData === "object" && !Array.isArray(skillsData) && Object.keys(skillsData).length === 0);
+          if (noSkills && !canvas && !isRoyalIndigo) return null;
 
           if (isRoyalIndigo) {
             const skillList = parseRoyalIndigoSkillItems(skillsData);
