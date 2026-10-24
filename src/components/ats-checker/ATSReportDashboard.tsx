@@ -320,6 +320,16 @@ export function ATSReportDashboard({
         />
       )}
       <ReportSummary report={normalizedReport} />
+      {normalizedReport.scoreCap != null && (normalizedReport.scoreCapReasons?.length ?? 0) > 0 ? (
+        <div role="note" className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-foreground">
+          <p className="font-semibold">Your score is held at {normalizedReport.scoreCap} until you fix:</p>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted-foreground">
+            {normalizedReport.scoreCapReasons!.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div
         className={cn(
           "grid min-w-0 gap-4",

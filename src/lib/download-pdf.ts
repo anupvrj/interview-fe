@@ -29,14 +29,21 @@ export function resumePdfFilenameFromResume(input?: {
     };
   };
 } | null): string {
+  // "My Resume", "Resume (2)", "Untitled" say nothing: name the file after the person.
   const title = input?.title?.trim();
-  if (title) return sanitizePdfFilename(title);
+  if (title && !isGenericResumeTitle(title)) return sanitizePdfFilename(title);
 
+  // FirstName_LastName.pdf, as recruiters (and ATS checkers) expect; the role only without a name.
   const pi = input?.content?.personalInfo;
   const name = pi?.fullName?.trim();
   const role = (pi?.portfolio ?? pi?.jobTitle)?.trim();
-  const fromPerson = [name, role].filter(Boolean).join("_");
-  return sanitizePdfFilename(fromPerson || "resume");
+  return sanitizePdfFilename(name || role || "resume");
+}
+
+/** Default / placeholder titles that shouldn't become the file name (same rule as the API). */
+export function isGenericResumeTitle(title?: string | null): boolean {
+  const t = (title ?? "").trim().toLowerCase().replace(/\s*\(\d+\)$/, "").replace(/\s+\d+$/, "");
+  return !t || /^(my |new |untitled |copy of )?(resume|cv)$|^untitled( resume)?$/.test(t);
 }
 
 function clickDownloadAnchor(href: string, filename: string) {

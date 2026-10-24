@@ -177,6 +177,10 @@ export interface ATSReportV3 {
   weaknesses: string[];
   suggestions: string[];
   jobMatch?: JobMatchSummary;
+  /** Most this resume can score until the reasons below are fixed. */
+  scoreCap?: number;
+  /** e.g. "No email or phone number", "Experience has no dates". */
+  scoreCapReasons?: string[];
 }
 
 export function isATSReportV3(
