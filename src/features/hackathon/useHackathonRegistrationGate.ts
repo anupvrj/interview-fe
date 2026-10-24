@@ -47,7 +47,13 @@ export function useHackathonRegistrationGate({
       onSuccess: (data: HackathonMe) => {
         if (!data.registered) return;
         // Confirmed by the API; deduped per account so retries/reloads never double count.
-        trackRegistrationSuccessOnce({ userKey: userId, source, userType: data.profile.userType });
+        trackRegistrationSuccessOnce({
+          userKey: userId,
+          source,
+          userType: data.profile.userType,
+          eventId: data.conversion?.eventId,
+          serverGa4: data.conversion?.serverGa4,
+        });
         if (showModal) {
           setModalPhase("success");
           return;

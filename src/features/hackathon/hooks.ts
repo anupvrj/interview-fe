@@ -3,6 +3,7 @@
 import { createContext, createElement, useContext, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { collectConversionAttribution } from "@/lib/analytics/attribution";
 import { hackathonApi, type HackathonMe } from "./api";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { HACKATHON_FEATURE_KEY, HACKATHON_SLUG } from "./config";
@@ -166,8 +167,8 @@ function useMeMutation<TArgs>(
 }
 
 export function useRegisterForHackathon() {
-  return useMeMutation<string | undefined>((slug, getToken, source) =>
-    hackathonApi.register(slug, getToken, source),
+  return useMeMutation<string | undefined>(async (slug, getToken, source) =>
+    hackathonApi.register(slug, getToken, source, await collectConversionAttribution()),
   );
 }
 
