@@ -206,23 +206,30 @@ function profileHref(kind: "linkedin" | "website", raw?: string): string | undef
   return `https://${value.replace(/^\/\//, "")}`;
 }
 
+/**
+ * `edit` (on the editor canvas) turns each item's name into an inline field, so one-line
+ * lists are editable in place like every other entry.
+ */
+type InlineEdit = (index: number, label: string) => React.ReactNode;
+
 function renderCondensedRuleLabeledInlineList(
   items: { label: string; value: string }[],
   className: string,
+  edit?: InlineEdit,
 ): React.ReactNode {
-  const filtered = items.filter((item) => item.label.trim());
+  const filtered = items.map((item, index) => ({ ...item, index })).filter((item) => item.label.trim());
   if (filtered.length === 0) return null;
 
   return (
     <div className={className}>
-      {filtered.map((item, index) => (
-        <span key={`${item.label}-${index}`}>
-          {index > 0 && (
+      {filtered.map((item, n) => (
+        <span key={`${item.label}-${item.index}`} data-item-index={edit ? item.index : undefined}>
+          {n > 0 && (
             <span className="condensed-rule-inline-separator"> | </span>
           )}
           {/* No level: just the name ("English", not "English:"). */}
           <span className="condensed-rule-inline-label">
-            {item.label}
+            {edit ? edit(item.index, item.label) : item.label}
             {item.value?.trim() ? ":" : ""}
           </span>
           {item.value?.trim() ? <> {item.value}</> : null}
@@ -235,18 +242,19 @@ function renderCondensedRuleLabeledInlineList(
 function renderCondensedRuleInlineList(
   items: string[],
   className: string,
+  edit?: InlineEdit,
 ): React.ReactNode {
-  const filtered = items.map((item) => item.trim()).filter(Boolean);
+  const filtered = items.map((item, index) => ({ text: item.trim(), index })).filter((item) => item.text);
   if (filtered.length === 0) return null;
 
   return (
     <div className={className}>
-      {filtered.map((item, index) => (
-        <span key={`${item}-${index}`}>
-          {index > 0 && (
+      {filtered.map((item, n) => (
+        <span key={`${item.text}-${item.index}`} data-item-index={edit ? item.index : undefined}>
+          {n > 0 && (
             <span className="condensed-rule-inline-separator"> | </span>
           )}
-          {item}
+          {edit ? edit(item.index, item.text) : item.text}
         </span>
       ))}
     </div>
@@ -3291,7 +3299,11 @@ export function ResumeRenderer({
               .join(", ");
 
             const awardsData = resume.content.awards || [];
-            const additionalItems: { label: string; value: string }[] = [];
+            // `node`: the same text with each name as an inline field on the editor canvas.
+            const additionalItems: { label: string; value: string; node?: React.ReactNode }[] = [];
+            const joinNodes = (parts: React.ReactNode[]) =>
+              parts.map((part, i) => <React.Fragment key={i}>{i > 0 ? ", " : null}{part}</React.Fragment>);
+            const editableLanguages = canvas && !languagesSection?.items?.length;
 
             if (skillList.length > 0) {
               additionalItems.push({
@@ -3300,25 +3312,65 @@ export function ResumeRenderer({
               });
             }
             if (languageText) {
-              additionalItems.push({ label: "Languages", value: languageText });
+              additionalItems.push({
+                label: "Languages",
+                value: languageText,
+                node: editableLanguages
+                  ? joinNodes(
+                      languagesData.map((lang, i) => {
+                        if (typeof lang !== "object" || lang === null) return String(lang);
+                        const levelLabel = formatRoyalIndigoLanguageLevel(Number(lang.level ?? lang.proficiency));
+                        return (
+                          <>
+                            {ed(`languages.${i}.name`, lang.name)}
+                            {levelLabel ? ` (${levelLabel})` : null}
+                          </>
+                        );
+                      }),
+                    )
+                  : undefined,
+              });
             }
             if (certificateText) {
               additionalItems.push({
                 label: "Certifications",
                 value: certificateText,
+                node: canvas
+                  ? joinNodes(
+                      certificatesData
+                        .map((cert: { name?: string; title?: string }, i: number) =>
+                          cert.name || cert.title
+                            ? ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, cert.title || cert.name)
+                            : null,
+                        )
+                        .filter(Boolean),
+                    )
+                  : undefined,
               });
             }
             awardsData.forEach((award: {
               title?: string;
               issuer?: string;
               description?: string;
-            }) => {
+            }, i: number) => {
               // The award itself first, then what it was for (the title used to be dropped).
               const name = [award.title?.trim(), award.issuer?.trim()].filter(Boolean).join(", ");
               const about = award.description?.trim();
               const value = name && about ? `${name}: ${about}` : name || about || "";
               if (value) {
-                additionalItems.push({ label: "Awards/Activities", value });
+                const rest = [award.issuer?.trim()].filter(Boolean).join("");
+                additionalItems.push({
+                  label: "Awards/Activities",
+                  value,
+                  node:
+                    canvas && award.title?.trim() ? (
+                      <>
+                        {ed(`awards.${i}.title`, award.title)}
+                        {rest ? `, ${rest}` : null}
+                        {about ? `: ${about}` : null}
+                      </>
+                    ) : undefined,
+                });
               }
             });
 
@@ -3349,7 +3401,7 @@ export function ResumeRenderer({
                         <span className={`${template.id}-skill-label`}>
                           {item.label}:
                         </span>{" "}
-                        {item.value}
+                        {item.node ?? item.value}
                       </li>
                     ))}
                   </ul>
@@ -4316,6 +4368,9 @@ export function ResumeRenderer({
               {renderCondensedRuleLabeledInlineList(
                 languageItems,
                 `${template.id}-inline-list`,
+                canvas && languagesData.every((l: unknown) => typeof l === "object" && l !== null)
+                  ? (i, label) => ed(`languages.${i}.name`, label)
+                  : undefined,
               )}
             </div>
           );
@@ -4356,7 +4411,9 @@ export function ResumeRenderer({
                     className={`${template.id}-language-item`}
                   >
                     <span className={`${template.id}-skill-category-name`}>
-                      {item.label}
+                      {canvas && typeof languagesData[index] === "object" && languagesData[index] !== null
+                        ? ed(`languages.${index}.name`, item.label)
+                        : item.label}
                       {item.value?.trim() ? ":" : ""}
                     </span>
                     {item.value?.trim() ? (
@@ -4515,13 +4572,30 @@ export function ResumeRenderer({
 
         if (isCondensedRule) {
           // Same one-line style as its certificates (awards used to be left out entirely).
+          const awardDetail = (award: { issuer?: string; date?: string }) =>
+            [award.issuer, award.date ? formatResumeDateForDisplay(String(award.date)) : ""].filter(Boolean).join(", ");
           const awardNames = awardsData.map((award: { title?: string; issuer?: string; date?: string }) =>
-            [award.title, [award.issuer, award.date ? formatResumeDateForDisplay(String(award.date)) : ""].filter(Boolean).join(", ")].filter(Boolean).join(" — "),
+            [award.title, awardDetail(award)].filter(Boolean).join(" — "),
           );
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-              {renderCondensedRuleInlineList(awardNames, `${template.id}-inline-list`)}
+              {renderCondensedRuleInlineList(
+                awardNames,
+                `${template.id}-inline-list`,
+                canvas && executiveAwards.length === 0
+                  ? (i) => {
+                      const award = awardsData[i] as { title?: string; issuer?: string; date?: string };
+                      const detail = awardDetail(award);
+                      return (
+                        <>
+                          {ed(`awards.${i}.title`, award.title)}
+                          {detail ? ` — ${detail}` : null}
+                        </>
+                      );
+                    }
+                  : undefined,
+              )}
             </div>
           );
         }
@@ -4715,6 +4789,13 @@ export function ResumeRenderer({
               {renderCondensedRuleInlineList(
                 certificateNames,
                 `${template.id}-inline-list`,
+                canvas
+                  ? (i, label) => {
+                      const cert = certificatesData[i] as { name?: string; title?: string } | string;
+                      if (typeof cert !== "object" || cert === null) return label;
+                      return ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, label);
+                    }
+                  : undefined,
               )}
             </div>
           );
