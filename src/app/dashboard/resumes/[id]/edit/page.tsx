@@ -339,6 +339,8 @@ export default function EditResumePage() {
   const [savingAndReturning, setSavingAndReturning] = useState(false);
   /** Which part of "Save and return" is running, so the button doesn't say "Creating PDF" throughout. */
   const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit">("pdf");
+  /** Save and return stopped at a step: say which, offer Retry (the user stays in the editor). */
+  const [saveReturnError, setSaveReturnError] = useState<string | null>(null);
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResumeState] = useState<Resume | null>(null);
@@ -1689,7 +1691,7 @@ export default function EditResumePage() {
     }
   };
 
-  const compileCurrentPdfFromPreview = async () => {
+  const compileCurrentPdfFromPreview = async (options: { requireServerPdf?: boolean } = {}) => {
     const templateId =
       template?.id ??
       resumeRef.current?.templateId ??
@@ -1724,6 +1726,7 @@ export default function EditResumePage() {
         previewContainerId: `resume-preview-container-${resumeId}`,
         padding: pdfPadding,
         filename,
+        requireServerPdf: options.requireServerPdf,
       });
       return { ...compiled, filename };
     } finally {
@@ -2057,10 +2060,18 @@ export default function EditResumePage() {
     };
   }, [resumeReturnTo]);
 
+  /**
+   * Save and return: save → the server makes the text PDF and uploads it to S3 → (hackathon)
+   * submit it, which stores that uploaded PDF as the submission → only then go back. Any step
+   * failing keeps the user here with a pop-up to retry (no screenshot PDF, no silent skip).
+   */
   const saveAndReturnNow = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
+    setSaveReturnError(null);
     setSaveReturnPhase("pdf");
     setSavingAndReturning(true);
+    const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
+    let step: "save" | "pdf" | "submit" = "save";
     try {
       // The PDF is compiled from the live preview, so it must be on screen.
       setViewMode("edit");
@@ -2070,12 +2081,13 @@ export default function EditResumePage() {
         await new Promise((resolve) => setTimeout(resolve, 150));
       }
       await ensureResumePersisted();
-      await compileCurrentPdfFromPreview();
+      step = "pdf";
+      await compileCurrentPdfFromPreview({ requireServerPdf: Boolean(slug) });
       setHasChanges(false);
-      const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
       let returnUrl = resumeReturnTo;
       if (slug) {
         // Submitting re-scores ATS on the server, which can take a while.
+        step = "submit";
         setSaveReturnPhase("submit");
         try {
           await hackathonApi.submitResume(slug, () => getToken(), resumeId);
@@ -2084,20 +2096,23 @@ export default function EditResumePage() {
           // Back on the board, show the new score with "Complete Challenge".
           returnUrl = `${resumeReturnTo}${resumeReturnTo.includes("?") ? "&" : "?"}resumeScore=1`;
         } catch (syncError) {
-          const hk = toHackathonError(syncError);
-          if (hk.code !== "RESUME_LOCKED" && hk.status !== 401 && hk.status !== 404) {
-            console.error("Hackathon resume sync failed:", syncError);
-            alert(
-              hk.message ||
-                "Saved the PDF, but we couldn't update your hackathon submission. Submit it again from the dashboard.",
-            );
-          }
+          // Challenge already completed: the resume is locked and nothing needs submitting.
+          if (toHackathonError(syncError).code !== "RESUME_LOCKED") throw syncError;
         }
       }
       router.push(returnUrl);
     } catch (error) {
-      console.error("Save and return failed:", error);
-      alert("We couldn't create the PDF for this resume. Please try again.");
+      console.error(`Save and return failed (${step}):`, error);
+      const hk = step === "submit" ? toHackathonError(error) : null;
+      setSaveReturnError(
+        step === "save"
+          ? "We couldn't save your latest changes. Check your connection and try again."
+          : step === "pdf"
+            ? "We couldn't create and upload the PDF of your resume. Your changes are saved — try again."
+            : hk?.status === 401
+              ? "You're signed out. Sign in again in another tab, then retry — your resume and PDF are saved."
+              : hk?.message || "Your PDF is saved, but we couldn't submit it to the hackathon. Try again.",
+      );
       setSavingAndReturning(false);
     }
   };
@@ -8559,6 +8574,20 @@ export default function EditResumePage() {
         currentTemplateId={resume?.templateId}
         onSelectTemplate={handleChangeTemplate}
         applying={changingTemplate}
+      />
+      <ConfirmationDialog
+        open={saveReturnError !== null}
+        onOpenChange={(open) => {
+          if (!open) setSaveReturnError(null);
+        }}
+        title={returnsToHackathon ? "Couldn't submit to the hackathon" : "Couldn't finish saving"}
+        description={saveReturnError ?? ""}
+        confirmText="Retry"
+        cancelText="Stay here"
+        onConfirm={() => {
+          setSaveReturnError(null);
+          void saveAndReturnNow();
+        }}
       />
       <MatchJobDescriptionDialog
         open={matchJobOpen}

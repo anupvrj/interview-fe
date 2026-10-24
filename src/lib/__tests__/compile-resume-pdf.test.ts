@@ -36,4 +36,12 @@ describe("Save and return: the server PDF is kept", () => {
     expect(result.blob).toBe(blob);
     expect(screenshotPdf).not.toHaveBeenCalled();
   });
+
+  it("server PDF required (hackathon): a server failure throws, no screenshot PDF", async () => {
+    generate.mockRejectedValue(new Error("Puppeteer timed out"));
+    await expect(
+      compileResumePdfFromPreviewContainer({ resumeId: "r", templateId: "classic", previewContainerId: "pv", filename: "a.pdf", requireServerPdf: true }),
+    ).rejects.toThrow("Puppeteer timed out");
+    expect(screenshotPdf).not.toHaveBeenCalled();
+  });
 });

@@ -16,8 +16,13 @@ export async function compileResumePdfFromPreviewContainer(options: {
     right: number;
   };
   filename: string;
+  /**
+   * Only a server-made (text) PDF will do — e.g. a hackathon submission: if the server
+   * can't make it, throw instead of falling back to the screenshot PDF ATS can't read.
+   */
+  requireServerPdf?: boolean;
 }): Promise<{ blob: Blob | null; downloadUrl: string | null }> {
-  const { resumeId, templateId, previewContainerId, padding, filename } = options;
+  const { resumeId, templateId, previewContainerId, padding, filename, requireServerPdf } = options;
   await waitForResumePaginationSettled(previewContainerId);
 
   const page1Element = document.getElementById(previewContainerId);
@@ -104,6 +109,7 @@ export async function compileResumePdfFromPreviewContainer(options: {
       debugResumePagination("compile:pdfDone", { path: "server" });
       return { blob: serverBlob, downloadUrl: result.downloadUrl };
     } catch (serverErr) {
+      if (requireServerPdf) throw serverErr;
       console.warn("Server PDF failed, falling back to client html2canvas:", serverErr);
     }
 
