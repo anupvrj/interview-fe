@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Loader2, PencilLine, ScanSearch } from "lucide-react";
 import {
@@ -88,6 +89,11 @@ export function ResumeScoreDialog({
   const belowPass = minScore !== null && score !== null && score < minScore;
   const good = score !== null && score >= (minScore ?? target ?? 75);
   const submitted = phase === "submitted" || phase === "completing";
+  // "Submit" asks once before it goes through.
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (phase !== "scored" || !open) setConfirming(false);
+  }, [phase, open]);
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!busy || next ? onOpenChange(next) : undefined)}>
@@ -110,6 +116,38 @@ export function ResumeScoreDialog({
             </DialogHeader>
             <Loader2 className="size-6 animate-spin text-[#6fc0ff]" aria-hidden />
           </div>
+        ) : confirming ? (
+          <>
+            <DialogHeader className="space-y-2 border-b border-[#27547d]/60 px-5 pb-4 pt-6 text-center sm:px-6">
+              <DialogTitle className="text-xl font-bold text-white sm:text-2xl">Submit this resume?</DialogTitle>
+              <DialogDescription className="text-sm text-[#9eb2ca]">
+                {score !== null ? `ATS ${score}/100. ` : ""}It becomes your hackathon entry and your mock interview is based on it.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="px-5 py-5 sm:px-6">
+              <p className="flex items-start gap-2 rounded-xl border border-[#ffc44d]/50 bg-[#2e2410]/40 p-3 text-left text-sm text-[#ffe2a3]">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-[#ffc44d]" aria-hidden />
+                <span>
+                  Once you start Challenge {challengeNumber + 1}, this resume is locked and can&apos;t be changed or undone.
+                </span>
+              </p>
+            </div>
+            <div className="flex flex-col-reverse gap-3 border-t border-[#27547d]/60 px-5 py-4 sm:flex-row sm:justify-center sm:px-6">
+              <button type="button" className={ghostButton} onClick={() => setConfirming(false)}>
+                Go back
+              </button>
+              <button
+                type="button"
+                className={primaryButton}
+                onClick={() => {
+                  setConfirming(false);
+                  onSubmit();
+                }}
+              >
+                Yes, submit
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <DialogHeader className="space-y-2 border-b border-[#27547d]/60 px-5 pb-4 pt-6 text-center sm:px-6">
@@ -176,7 +214,7 @@ export function ResumeScoreDialog({
                   Complete Challenge {challengeNumber}
                 </button>
               ) : (
-                <button type="button" className={primaryButton} disabled={busy} onClick={onSubmit}>
+                <button type="button" className={primaryButton} disabled={busy} onClick={() => setConfirming(true)}>
                   {phase === "submitting" ? (
                     <>
                       <Loader2 className="size-4 animate-spin" aria-hidden /> Submitting…

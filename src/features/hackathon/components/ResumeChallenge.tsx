@@ -298,27 +298,25 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
 
       {showPicker ? (
         <div className="space-y-4">
-          <div className="hk-slot flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[#cfdbe8]">
-              Upload any old resume, or talk to AI for 2 minutes — we&apos;ll design it for you. Submit it right from the editor
-              {displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}
-            </p>
-            <Link href={newResumeHref} className={cn("hk-btn min-h-11 w-full shrink-0 px-5 text-sm sm:w-auto")}>
-              <FilePlus2 className="size-4" aria-hidden />
-              Build my resume
-            </Link>
-          </div>
+          {/* Build card only when there's nothing to pick yet; with resumes the picker leads. */}
+          {!resumes.isLoading && options.length === 0 ? (
+            <div className="hk-slot flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-[#cfdbe8]">
+                Upload any old resume, or talk to AI for 2 minutes — we&apos;ll design it for you. Submit it right from the editor
+                {displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}
+              </p>
+              <Link href={newResumeHref} className={cn("hk-btn min-h-11 w-full shrink-0 px-5 text-sm sm:w-auto")}>
+                <FilePlus2 className="size-4" aria-hidden />
+                Build my resume
+              </Link>
+            </div>
+          ) : null}
 
           {resumes.isLoading ? (
             <p className="flex items-center gap-2 text-sm text-[#9eb2ca]">
               <Loader2 className="size-4 animate-spin" /> Loading your resumes…
             </p>
-          ) : options.length === 0 ? (
-            <p className="text-sm text-[#9eb2ca]">
-              You don&apos;t have any builder resumes yet. Tap <strong className="text-white">Build my resume</strong> — upload
-              any old resume, or talk to AI if you don&apos;t have one handy.
-            </p>
-          ) : (
+          ) : options.length === 0 ? null : (
             <div className="space-y-3">
               <label htmlFor="hk-resume-select" className="text-sm font-semibold text-[#dbe9f8]">
                 Choose the resume to submit
@@ -369,6 +367,13 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
                   This resume hasn&apos;t been exported yet. We&apos;ll create the PDF for you when you submit.
                 </p>
               ) : null}
+              <p className="text-sm text-[#9eb2ca]">
+                Want a different one?{" "}
+                <Link href={newResumeHref} className="inline-flex items-center gap-1 font-semibold text-[#6fc0ff] hover:text-white">
+                  <FilePlus2 className="size-4" aria-hidden />
+                  Build a new resume
+                </Link>
+              </p>
               <p className="text-xs text-[#7189a6]">
                 Save and return to Hackathon updates the PDF this challenge uses. You can replace it
                 until a later challenge starts
