@@ -258,7 +258,7 @@ export default function NewResumePage() {
       localStorage.setItem("clerk-user-id", user.id);
       checkOnboardingAndLoadTemplates();
     }
-  }, [isLoaded, user, router, searchParams]);
+  }, [isLoaded, user?.id, router, searchParams]);
 
   const checkOnboardingAndLoadTemplates = async () => {
     if (!user) return;
@@ -289,7 +289,9 @@ export default function NewResumePage() {
       const skipTemplate = quickHackathon || searchParams.get("skipTemplate") === "true";
       if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
-        setStep("import");
+        // Only from the start: this re-runs when Clerk refreshes the user (e.g. back to the tab
+        // while the resume is building) and must not send them back to the upload step.
+        setStep((current) => (current === "template" ? "import" : current));
       }
     } catch (error) {
       console.error("Error checking onboarding status:", error);
