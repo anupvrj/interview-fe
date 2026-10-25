@@ -12,7 +12,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const sourcePath = path.join(__dirname, '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs');
+// Legacy build: works in older browsers and in-app web views (e.g. Instagram's); must match
+// the library import in src/lib/pdf-utils.ts (pdfjs-dist/legacy/build/pdf.mjs).
+const sourcePath = path.join(__dirname, '../node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs');
 const destPath = path.join(__dirname, '../public/pdf.worker.min.mjs');
 
 try {

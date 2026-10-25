@@ -373,7 +373,9 @@ export default function NewResumePage() {
     } catch (error) {
       console.error("Error extracting PDF:", error);
       alert(
-        "Failed to extract text from PDF. You can still proceed without uploading.",
+        error instanceof Error && error.message
+          ? error.message
+          : "We couldn't read this PDF. You can still continue without uploading.",
       );
       setUploadedFile(null);
     } finally {

@@ -799,6 +799,17 @@ export const userApi = {
     return response.data.data;
   },
 
+  /** Text of a resume PDF read on the server (fallback when the browser can't read it). Stores nothing. */
+  extractResumeText: async (file: File): Promise<string> => {
+    const blob = await snapshotFileForUpload(file);
+    const formData = new FormData();
+    formData.append("resume", blob, file.name);
+    const response = await apiClient.post<{ data: { text: string } }>("/users/me/resume/text", formData, {
+      timeout: 60_000,
+    });
+    return response.data.data.text;
+  },
+
   extractResumeData: async (
     file: File,
   ): Promise<{
