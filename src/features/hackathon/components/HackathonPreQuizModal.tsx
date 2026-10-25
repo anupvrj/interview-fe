@@ -19,7 +19,7 @@ const STEPS: Step[] = ["hold", "attended", "ready", "google"];
 
 /** The hackathon's primary button (matches .hk-btn, whose CSS only loads on hackathon pages). */
 const PRIMARY_BTN =
-  "group relative isolate inline-flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl border border-[#3aa0ff] bg-[linear-gradient(135deg,#1273f5_0%,#1f95ff_55%,#35b1ff_100%)] px-6 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-[0_14px_36px_rgba(20,130,255,0.42),inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0";
+  "group relative isolate inline-flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl border border-[#3aa0ff] bg-[linear-gradient(135deg,#1273f5_0%,#1f95ff_55%,#35b1ff_100%)] px-6 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-[0_14px_36px_rgba(20,130,255,0.42),inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:brightness-105 active:translate-y-0";
 
 const display = { fontFamily: "var(--font-hk-display), 'Arial Black', sans-serif" };
 const mono = { fontFamily: "var(--font-hk-mono), ui-monospace, monospace" };
@@ -187,7 +187,7 @@ export function HackathonPreQuizModal({
                 <Bot className="size-7 text-[#6fc0ff]" aria-hidden />
               </div>
               <button type="button" onClick={() => setStep("attended")} className={cn(PRIMARY_BTN, "mt-6")} style={mono}>
-                Tell me more <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                Tell me more <ArrowRight className="size-4 transition-transform" aria-hidden />
               </button>
             </>
           ) : step === "attended" ? (

@@ -929,3 +929,67 @@ html:has(.hk-root) body {
     animation: none;
   }
 }
+
+/* Hand-drawn strokes are drawn by default: sections no longer animate in (Reveal is static). */
+.hk-root .hk-draw path,
+.hk-root .hk-draw line {
+  stroke-dashoffset: 0 !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ---------- Static landing (.hk-static) ----------
+   Instagram's in-app browser flickers on animation, transitions, blur and layered effects,
+   so the public page has none: no motion, no backdrop blur, no blurred glows, no ribbons. */
+.hk-root.hk-static *,
+.hk-root.hk-static *::before,
+.hk-root.hk-static *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+.hk-root.hk-static *,
+.hk-root.hk-static *::before,
+.hk-root.hk-static *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  will-change: auto !important;
+}
+.hk-root.hk-static .hk-ribbon,
+.hk-root.hk-static .hk-aurora,
+.hk-root.hk-static .hk-scroll-rail {
+  display: none !important;
+}
+
+/* Static pages and their pop-ups (pop-ups render outside the page, so html.hk-no-motion
+   covers them): nothing moves on hover — no lift, nudge, sweep or zoom. */
+.hk-root.hk-static .hk-btn:hover,
+.hk-root.hk-static .hk-btn:active,
+.hk-root.hk-static .hk-btn:hover .hk-btn-arrow,
+.hk-root.hk-static .hk-card:hover,
+.hk-root.hk-static .hk-card:hover .hk-lift,
+.hk-root.hk-static .hk-agenda-row:hover,
+html.hk-no-motion .hk-root .hk-btn:hover,
+html.hk-no-motion .hk-root .hk-btn:active,
+html.hk-no-motion .hk-root .hk-btn:hover .hk-btn-arrow,
+html.hk-no-motion .hk-root .hk-card:hover,
+html.hk-no-motion .hk-root .hk-card:hover .hk-lift {
+  transform: none !important;
+}
+.hk-root.hk-static .hk-btn::after,
+html.hk-no-motion .hk-root .hk-btn::after {
+  display: none !important;
+}
+.hk-root.hk-static .hk-dash-grid {
+  position: absolute;
+  -webkit-mask-image: none;
+  mask-image: none;
+  opacity: 0.6;
+}
+html.hk-no-motion *,
+html.hk-no-motion *::before,
+html.hk-no-motion *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  will-change: auto !important;
+}

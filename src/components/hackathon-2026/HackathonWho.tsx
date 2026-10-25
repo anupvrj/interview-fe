@@ -30,7 +30,7 @@ export function HackathonWho() {
                   onPointerMove={trackSpotlight}
                   className="hk-card group flex h-full items-center gap-4 rounded-[22px] border border-[#2a64b0]/80 bg-gradient-to-b from-[#0f2a52]/90 to-[#0a1b36]/90 px-5 py-5 text-left sm:gap-5 sm:px-6 sm:py-6"
                 >
-                  <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#1a4fc0,#0f2f7a_75%)] text-[#6fc0ff] shadow-[0_0_0_6px_rgba(45,106,208,0.12),0_0_22px_rgba(58,160,255,0.28)] ring-1 ring-[#2d6ad0] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105 sm:size-16">
+                  <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#1a4fc0,#0f2f7a_75%)] text-[#6fc0ff] shadow-[0_0_0_6px_rgba(45,106,208,0.12),0_0_22px_rgba(58,160,255,0.28)] ring-1 ring-[#2d6ad0] transition-transform duration-300 sm:size-16">
                     <Icon className="size-7 sm:size-8" strokeWidth={1.8} aria-hidden />
                   </span>
                   <div className="min-w-0">

@@ -293,7 +293,7 @@ export function ChallengeCard({
         faded ? (
           <div className="relative isolate mt-5 min-h-[280px] overflow-hidden rounded-2xl sm:min-h-[320px]">
             <div className="pointer-events-none absolute inset-0 select-none overflow-hidden" aria-hidden>
-              <div className="min-h-full origin-center scale-[1.04] p-4 blur-[7px] sm:p-5 sm:blur-[9px]">
+              <div className="min-h-full p-4 opacity-[0.15] sm:p-5">
                 {preview}
               </div>
             </div>

@@ -12,8 +12,7 @@ import { useMarkHackathonMember } from "../returningMember";
 import { ArrowLeft } from "lucide-react";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
-import { Ribbon } from "@/components/hackathon-2026/HackathonMotion";
-import { HackathonHeroHud, HackathonScrollRail } from "@/components/hackathon-2026/HackathonHud";
+import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
 import { hackathonDashboardPath, hackathonLandingPath } from "../config";
 import { useHackathonSlug } from "../hooks";
 import { cn } from "@/lib/utils";
@@ -38,20 +37,10 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
   ];
 
   return (
-    <div className="hk-root hk-dash min-h-screen antialiased">
-      <HackathonScrollRail />
+    // Static on purpose (.hk-static): no scroll rail, aurora, 3D floor or ribbons, no motion —
+    // Instagram's in-app browser flickered on them. The grid backdrop stays, flat.
+    <div className="hk-root hk-dash hk-static min-h-screen antialiased">
       <div className="hk-dash-grid" aria-hidden />
-      <div className="hk-dash-floor" aria-hidden />
-      <div className="hk-aurora" aria-hidden>
-        <span />
-        <span />
-        <span />
-      </div>
-      {/* Page-edge ribbons, as on the event landing page */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <Ribbon variant="b" slow className="-left-56 top-[28rem] h-[620px] w-[480px] -scale-x-100 opacity-40" />
-        <Ribbon variant="b" className="-right-56 top-[56rem] h-[620px] w-[480px] opacity-40" />
-      </div>
 
       <header className="sticky top-0 z-30 border-b border-[#1b3c62]/70 bg-[#040b17]">
         <div className="mx-auto flex h-[4.25rem] w-full max-w-[1460px] items-center justify-between gap-4 px-4 sm:h-[4.75rem] sm:px-6">

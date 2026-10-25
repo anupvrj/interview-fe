@@ -151,7 +151,7 @@ export function SocialFollowAndRateActions() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Review InterviewTrix on Product Hunt"
-        className="group inline-flex w-fit items-center transition-[opacity,transform] duration-200 hover:opacity-95 active:scale-[0.99]"
+        className="group inline-flex w-fit items-center transition-[opacity,transform] duration-200 hover:opacity-95"
       >
         <ProductHuntLogo />
       </a>

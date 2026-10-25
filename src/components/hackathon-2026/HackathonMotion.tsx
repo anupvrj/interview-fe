@@ -107,6 +107,14 @@ export function trackSpotlight(event: PointerEvent<HTMLElement>) {
 
 /** Eases a number from 0 → target once visible. */
 export function useCountUp(target: number, run: boolean, duration = 1600) {
+  // Hackathon pages are static: the number is simply shown.
+  void run;
+  void duration;
+  return target;
+}
+
+/** @deprecated kept for reference; counted up from 0 when visible. */
+export function useAnimatedCountUp(target: number, run: boolean, duration = 1600) {
   const [value, setValue] = useState(0);
 
   useEffect(() => {
@@ -176,7 +184,7 @@ export function useLoopingOfferCountdown(durationSeconds = OFFER_LOOP_SECONDS) {
       setSecondsLeft(Math.floor(leftMs / 1000));
     };
     tick();
-    const id = window.setInterval(tick, 250);
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [durationSeconds]);
 
@@ -186,34 +194,9 @@ export function useLoopingOfferCountdown(durationSeconds = OFFER_LOOP_SECONDS) {
   return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
-/** Subtle pointer parallax: writes --px/--py (-1…1) on the element. Desktop pointers only. */
+/** Was a pointer parallax; hackathon pages are static now, so the layers simply stay put. */
 export function useParallax<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || prefersReducedMotion()) return;
-    if (!window.matchMedia("(pointer: fine)").matches) return;
-
-    let frame = 0;
-    const onMove = (event: globalThis.PointerEvent) => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const rect = node.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
-        node.style.setProperty("--px", Math.max(-1, Math.min(1, x)).toFixed(3));
-        node.style.setProperty("--py", Math.max(-1, Math.min(1, y)).toFixed(3));
-      });
-    };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("pointermove", onMove);
-    };
-  }, []);
-
-  return ref;
+  return useRef<T>(null);
 }
 
 /** Layer offset for useParallax. depth ≈ max px travel. */

@@ -17,7 +17,7 @@ export function ProductHuntLogo({ className }: Readonly<{ className?: string }>)
         className="h-[1.6rem] w-auto max-w-[min(100%,10.24rem)] object-contain shadow-sm ring-1 ring-white/10 sm:h-[1.76rem] sm:max-w-[11.52rem]"
       />
       <ExternalLink
-        className="size-3.5 shrink-0 text-[#6fc0ff] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+        className="size-3.5 shrink-0 text-[#6fc0ff] transition-transform duration-200"
         aria-hidden
       />
     </span>

@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 export function HackathonHeader() {
   const challenge = useLandingChallengeWindow();
   const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -23,26 +22,6 @@ export function HackathonHeader() {
     // Release the scroll lock synchronously so a nav click can scroll straight away.
     document.body.style.overflow = "";
     setOpen(false);
-  }, []);
-
-  // Scroll progress + condensed state
-  useEffect(() => {
-    let frame = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        const progress = max > 0 ? window.scrollY / max : 0;
-        headerRef.current?.style.setProperty("--hk-scroll", progress.toFixed(4));
-        setScrolled(window.scrollY > 12);
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-    };
   }, []);
 
   // Scroll-spy for nav underline
@@ -85,17 +64,13 @@ export function HackathonHeader() {
     <>
       <header
         ref={headerRef}
-        className={cn(
-          "sticky top-0 z-40 border-b transition-[background-color,border-color,box-shadow] duration-300",
-          scrolled
-            ? "border-[rgba(47,92,140,0.4)] bg-[rgba(4,11,23,0.82)] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl"
-            : "border-transparent bg-transparent",
-        )}
+        // One height, solid background, nothing tied to scrolling: a header that shrank and
+        // blurred on scroll made the page jump and flicker in Instagram's in-app browser.
+        className="sticky top-0 z-40 border-b border-[rgba(47,92,140,0.4)] bg-[#040b17]"
       >
         <div
           className={cn(
-            "mx-auto grid w-full max-w-[1360px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 transition-[height] duration-300 sm:px-5 lg:flex lg:justify-between lg:gap-4",
-            scrolled ? "h-16" : "h-[4.5rem] sm:h-20",
+            "mx-auto grid h-16 w-full max-w-[1360px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-[4.5rem] sm:px-5 lg:flex lg:justify-between lg:gap-4",
           )}
         >
           {/* Mobile: hamburger (left) */}
@@ -218,7 +193,7 @@ export function HackathonHeader() {
                 )}
               >
                 {item.label}
-                <ChevronRight className="size-4 text-[#4f8fd0] transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
+                <ChevronRight className="size-4 text-[#4f8fd0] transition-transform duration-300" aria-hidden />
               </SectionLink>
             ))}
           </nav>

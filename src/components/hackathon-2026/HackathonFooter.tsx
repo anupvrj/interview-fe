@@ -56,7 +56,7 @@ export function HackathonFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Interview Trix on ${social.label}`}
-                  className="grid size-9 place-items-center rounded-lg text-white transition-[color,transform] duration-300 hover:-translate-y-0.5 hover:text-[#4fb8ff]"
+                  className="grid size-9 place-items-center rounded-lg text-white transition-[color,transform] duration-300 hover:text-[#4fb8ff]"
                 >
                   <Icon className="size-[22px]" />
                 </a>

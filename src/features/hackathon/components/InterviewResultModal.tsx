@@ -33,7 +33,7 @@ const COPY: Record<InterviewResultPhase, { title: string; body: string }> = {
 };
 
 const PRIMARY =
-  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#3aa0ff] bg-[linear-gradient(135deg,#1273f5_0%,#1f95ff_55%,#35b1ff_100%)] px-6 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-[0_14px_36px_rgba(20,130,255,0.42),inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#3aa0ff] bg-[linear-gradient(135deg,#1273f5_0%,#1f95ff_55%,#35b1ff_100%)] px-6 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-[0_14px_36px_rgba(20,130,255,0.42),inset_0_1px_0_rgba(255,255,255,0.25)] transition disabled:pointer-events-none disabled:opacity-60";
 const SECONDARY =
   "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#2f6fb8] bg-transparent px-6 text-sm font-bold uppercase tracking-[0.08em] text-white transition hover:bg-white/5 disabled:pointer-events-none disabled:opacity-60";
 

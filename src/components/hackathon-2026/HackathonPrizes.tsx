@@ -159,7 +159,7 @@ function CreditsStrip() {
               key={item.label}
               className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3.5 py-3 transition-colors duration-300 hover:border-white/15 hover:bg-white/[0.07] sm:rounded-none sm:border-0 sm:border-l sm:border-l-[#2a5f9e]/70 sm:bg-transparent sm:px-4 sm:py-1 sm:hover:bg-transparent"
             >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_0_16px_rgba(46,155,255,0.45)]">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] transition-transform duration-300 group-hover:shadow-[0_0_16px_rgba(46,155,255,0.45)]">
                 <Icon className="size-5 text-[#6fc0ff]" strokeWidth={1.9} aria-hidden />
               </span>
               <p className="min-w-0 text-[13.5px] font-medium leading-snug text-[#c5d3e2]">

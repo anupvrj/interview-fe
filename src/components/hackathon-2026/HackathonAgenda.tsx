@@ -122,7 +122,7 @@ function SpeakerCard({
               sizes="132px"
               // Small pre-cropped files: serve as-is so a swapped photo never shows a stale optimizer copy.
               unoptimized
-              className="origin-top object-cover object-top transition-transform duration-700 group-hover:scale-105"
+              className="origin-top object-cover object-top transition-transform duration-700"
             />
           ) : (
             <div className="flex h-full items-start justify-center pt-[9%]">

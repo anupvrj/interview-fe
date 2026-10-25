@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 export const hkInputClass =
   "h-12 w-full rounded-xl border border-[#27547d] bg-[#071426] px-3.5 text-[15px] text-white placeholder:text-[#7189a6] focus:border-[#2a7fd4] focus:outline-none focus:ring-2 focus:ring-[#1677ff]/40 disabled:opacity-60";
 export const hkSecondaryButton =
-  "hk-btn-ghost inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/70 bg-transparent px-5 text-[15px] font-semibold text-white transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-60";
+  "hk-btn-ghost inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/70 bg-transparent px-5 text-[15px] font-semibold text-white transition-[background-color,border-color,transform] duration-200 hover:border-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-60";
 
 export function AtsScorePill({ score, target }: Readonly<{ score: number | null; target: number }>) {
   if (score === null) {
