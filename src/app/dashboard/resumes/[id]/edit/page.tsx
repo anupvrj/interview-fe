@@ -2087,7 +2087,7 @@ export default function EditResumePage() {
       setHasChanges(false);
       let returnUrl = resumeReturnTo;
       if (slug) {
-        // Submitting re-scores ATS on the server, which can take a while.
+        // The ATS score is worked out after the submit; the board shows it when it's ready.
         step = "submit";
         setSaveReturnPhase("submit");
         try {
@@ -3890,7 +3890,7 @@ export default function EditResumePage() {
             {savingAndReturning ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {saveReturnPhase === "submit" ? "Submitting & scoring…" : "Creating PDF…"}
+                {saveReturnPhase === "submit" ? "Submitting…" : "Creating PDF…"}
               </>
             ) : returnsToHackathon ? (
               "Submit to Hackathon"
@@ -8617,11 +8617,11 @@ export default function EditResumePage() {
               <>
                 <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" aria-hidden />
                 <p className="mt-4 text-base font-semibold text-foreground">
-                  {saveReturnPhase === "submit" ? "Submitting and scoring your resume…" : "Creating your PDF…"}
+                  {saveReturnPhase === "submit" ? "Submitting your resume…" : "Creating your PDF…"}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {returnsToHackathon
-                    ? `Step ${saveReturnPhase === "submit" ? 2 : 1} of 2 · this can take up to a minute. Please keep this page open.`
+                    ? `Step ${saveReturnPhase === "submit" ? 2 : 1} of 2 · Please keep this page open.`
                     : "Please keep this page open."}
                 </p>
               </>

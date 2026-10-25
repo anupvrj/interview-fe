@@ -98,6 +98,7 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
   const awaiting = me.resume?.awaitingCompletion === true;
+  const scoring = me.resume?.scoring === true;
 
   const openSubmitted = useCallback(() => {
     if (!me.resume) return;
@@ -148,7 +149,8 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
     submit.mutate(dialogResumeId, {
       onSuccess: (data) => {
         setChanging(false);
-        setDialogScore(data.resume?.atsScore ?? dialogScore);
+        // Still scoring: the score below fills in from the board's data when it's ready.
+        setDialogScore(data.resume?.scoring ? null : (data.resume?.atsScore ?? dialogScore));
         setPhase("submitted");
       },
       onError: (err) => {
@@ -193,6 +195,12 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
     openSubmitted();
   }, [me.resume?.awaitingCompletion, number, openSubmitted]);
 
+  // A score worked out after the submit: show it in the open pop-up as soon as it arrives.
+  useEffect(() => {
+    if (phase !== "submitted" || !me.resume || me.resume.scoring) return;
+    if (me.resume.resumeId === dialogResumeId) setDialogScore(me.resume.atsScore);
+  }, [phase, me.resume, dialogResumeId]);
+
   const scoreDialog = (
     <>
       <ResumeScoreDialog
@@ -200,6 +208,7 @@ export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; 
         onOpenChange={setDialogOpen}
         phase={phase}
         score={dialogScore}
+        scoring={scoring && me.resume?.resumeId === dialogResumeId}
         minScore={passMark}
         target={displayTarget}
         challengeNumber={number}

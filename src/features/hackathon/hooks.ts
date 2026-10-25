@@ -68,6 +68,8 @@ export function usePublishedHackathons() {
 
 function pollInterval(data: HackathonMe | undefined): number | false {
   if (!data) return false;
+  // The resume score arrives ~20 s after the submit.
+  if (data.resume?.scoring) return 3_000;
   const slots = [
     ...(data.progress.interviews.slots ?? []),
     ...(data.progress.challenges ?? []).flatMap((c) => c.slots ?? []),

@@ -144,6 +144,8 @@ export interface HackathonMe {
     submittedAt: string | null;
     /** Submitted, but "Complete challenge" hasn't been pressed, so the next challenge is still locked. */
     awaitingCompletion?: boolean;
+    /** The ATS score is still being worked out after the submit (atsScore is null until then). */
+    scoring?: boolean;
   } | null;
   preferredResumeId?: string | null;
   social: {

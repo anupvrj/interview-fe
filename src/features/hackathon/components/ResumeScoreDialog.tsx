@@ -63,6 +63,7 @@ export function ResumeScoreDialog({
   onOpenChange,
   phase,
   score,
+  scoring = false,
   minScore,
   target,
   challengeNumber,
@@ -75,6 +76,8 @@ export function ResumeScoreDialog({
   onOpenChange: (open: boolean) => void;
   phase: ResumeScorePhase;
   score: number | null;
+  /** Submitted and the ATS score is still being worked out. */
+  scoring?: boolean;
   /** Pass mark set by the organisers (blocks completing below it); null = none. */
   minScore: number | null;
   /** Score we encourage ("aim for 75+"). */
@@ -162,6 +165,11 @@ export function ResumeScoreDialog({
             <div className="space-y-4 px-5 py-5 text-center sm:px-6">
               {score !== null ? (
                 <ScoreRing score={score} good={good} />
+              ) : scoring ? (
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <Loader2 className="size-8 animate-spin text-[#6fc0ff]" aria-hidden />
+                  <p className="text-sm text-[#9eb2ca]">Checking your ATS score… this takes about 20 seconds.</p>
+                </div>
               ) : (
                 <p className="text-sm text-[#9eb2ca]">We couldn&apos;t calculate a score right now.</p>
               )}
@@ -175,7 +183,7 @@ export function ResumeScoreDialog({
                 </p>
               ) : null}
 
-              {submitted && !belowPass ? (
+              {submitted && !belowPass && !scoring ? (
                 <p className="flex items-start justify-center gap-2 text-sm text-[#29d6a0]">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden />
                   Submitted. Press Complete Challenge {challengeNumber} to lock it in and unlock the next challenge.
@@ -209,7 +217,7 @@ export function ResumeScoreDialog({
                 </Link>
               ) : null}
               {submitted ? (
-                <button type="button" className={primaryButton} disabled={busy || belowPass} onClick={onComplete}>
+                <button type="button" className={primaryButton} disabled={busy || belowPass || scoring} onClick={onComplete}>
                   {phase === "completing" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
                   Complete Challenge {challengeNumber}
                 </button>
