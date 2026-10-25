@@ -22,7 +22,7 @@ describe("resumePdfFilenameFromResume", () => {
     );
   });
 
-  it("falls back to name and role when the title is empty", () => {
+  it("falls back to the person's name when the title is empty", () => {
     expect(
       resumePdfFilenameFromResume({
         title: "  ",
@@ -33,7 +33,14 @@ describe("resumePdfFilenameFromResume", () => {
           },
         },
       }),
-    ).toBe("Anup_Kumar_Sr._Software_Development_Engineer_(SDE_4).pdf");
+    ).toBe("Anup_Kumar.pdf");
+  });
+
+  it("a default title ('My Resume', 'Resume (2)') is replaced by the name", () => {
+    const content = { personalInfo: { fullName: "Aditya V. Raman", portfolio: "Data Scientist" } };
+    expect(resumePdfFilenameFromResume({ title: "My Resume", content })).toBe("Aditya_V._Raman.pdf");
+    expect(resumePdfFilenameFromResume({ title: "Resume (2)", content })).toBe("Aditya_V._Raman.pdf");
+    expect(resumePdfFilenameFromResume({ title: "Backend Engineer Resume", content })).toBe("Backend_Engineer_Resume.pdf");
   });
 });
 
