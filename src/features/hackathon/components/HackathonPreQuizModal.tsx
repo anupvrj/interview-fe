@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSignIn } from "@clerk/nextjs";
+import { useAuth, useSignIn } from "@clerk/nextjs";
 import { ArrowLeft, ArrowRight, Bot, Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hackathon-reel";
@@ -10,6 +10,8 @@ import { persistPostAuthReturnPath } from "@/lib/post-sign-in-redirect";
 import { cn } from "@/lib/utils";
 import { HK_EVENTS, trackHackathon } from "../analytics";
 import { readHackathonMember } from "../returningMember";
+import { useHackathonSlug } from "../hooks";
+import { savePreSurveyAnswer, type PreSurveyAnswer } from "../preSurvey";
 
 /** Where Google sends the browser back to; finishes sign-in or sign-up (see app/(auth)/sso-callback). */
 export const HACKATHON_SSO_CALLBACK = "/sso-callback";
@@ -88,6 +90,8 @@ export function HackathonPreQuizModal({
   returnTo: string;
 }>) {
   const { signIn, isLoaded } = useSignIn();
+  const { getToken } = useAuth();
+  const slug = useHackathonSlug();
   const [step, setStep] = useState<Step>("hold");
   const [attended, setAttended] = useState<"yes" | "no" | null>(null);
   const [ready, setReady] = useState<"yes" | "nervous" | null>(null);
@@ -114,6 +118,8 @@ export function HackathonPreQuizModal({
   const answer = <T,>(set: (v: T) => void, value: T, next: Step, event: Record<string, string>) => {
     set(value);
     trackHackathon(HK_EVENTS.preQuizStep, { step, ...event });
+    // Saved before sign-up (no personal data); linked to the account once they sign in.
+    void savePreSurveyAnswer(slug, () => getToken(), event as PreSurveyAnswer);
     window.setTimeout(() => setStep(next), 280);
   };
 

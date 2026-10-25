@@ -9,6 +9,7 @@ import "./hackathon-dashboard-reel.css";
 import Link from "next/link";
 import { SignedIn, useAuth } from "@clerk/nextjs";
 import { useMarkHackathonMember } from "../returningMember";
+import { claimSavedPreSurvey } from "../preSurvey";
 import { ArrowLeft } from "lucide-react";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
@@ -21,12 +22,16 @@ type NavItem = { label: string; href?: string; active?: boolean };
 
 export function HackathonShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const slug = useHackathonSlug();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
   useAdoptHackathonDarkTheme();
   // Lets an interview that fails to load return here instead of the main dashboard.
   useEffect(() => rememberHackathonVisit(hackathonDashboardPath(slug)), [slug]);
   // Signed out later? Register skips the pre-questions and goes straight to sign-in.
   useMarkHackathonMember(slug, isSignedIn);
+  // Answers to the pre-sign-up quiz were saved anonymously; link them now that they're signed in.
+  useEffect(() => {
+    if (isSignedIn) void claimSavedPreSurvey(slug, () => getToken());
+  }, [isSignedIn, slug, getToken]);
   const landingPath = hackathonLandingPath(slug);
   // Leaderboard and Resources have no pages yet, so they render as disabled "Soon" items.
   const nav: NavItem[] = [

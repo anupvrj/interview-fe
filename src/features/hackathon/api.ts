@@ -231,6 +231,30 @@ export const hackathonApi = {
     return res.data.data;
   },
 
+  /** Saves a pre-sign-up quiz answer (no account needed). Sends the session if there is one. */
+  preSurvey: async (
+    slug: string,
+    getToken: TokenGetter,
+    body: { token?: string; attended?: "yes" | "no"; ready?: "yes" | "nervous"; utm?: Record<string, string> },
+  ): Promise<{ token: string | null; linked: boolean }> => {
+    const res = await apiClient.post<{ data: { token: string | null; linked: boolean } }>(
+      `${hackathonBase(slug)}/pre-survey`,
+      body,
+      { headers: await authHeaders(getToken) },
+    );
+    return res.data.data;
+  },
+
+  /** Links the quiz answered before sign-up to the signed-in account. */
+  claimPreSurvey: async (slug: string, getToken: TokenGetter, token: string): Promise<{ linked: boolean }> => {
+    const res = await apiClient.post<{ data: { linked: boolean } }>(
+      `${hackathonBase(slug)}/pre-survey/claim`,
+      { token },
+      { headers: await authHeaders(getToken) },
+    );
+    return res.data.data;
+  },
+
   register: async (slug: string, getToken: TokenGetter, source?: string): Promise<HackathonMe> => {
     const res = await apiClient.post<{ data: HackathonMe }>(
       `${hackathonBase(slug)}/register`,
