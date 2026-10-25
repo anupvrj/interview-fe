@@ -58,11 +58,12 @@ export function SocialChallenge({ me }: Readonly<{ me: HackathonMe }>) {
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setLocalError(null);
-    const li = linkedinUrl.trim();
-    const ig = instagramUrl.trim();
+    // Checked here; the cleaned-up links (no tracking params, one form per post) are sent.
+    let li: string;
+    let ig: string;
     try {
-      validateHackathonSocialPostUrl("linkedin", li);
-      validateHackathonSocialPostUrl("instagram", ig);
+      li = validateHackathonSocialPostUrl("linkedin", linkedinUrl);
+      ig = validateHackathonSocialPostUrl("instagram", instagramUrl);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Invalid post URL.");
       return;

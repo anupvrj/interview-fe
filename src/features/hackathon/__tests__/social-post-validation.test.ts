@@ -46,3 +46,28 @@ describe("validateHackathonSocialPostUrl (aligned with interview-core socialVali
     expectInvalid("instagram", "https://www.instagram.com/interviewtrix/");
   });
 });
+
+describe("validateHackathonSocialPostUrl — links the apps hand out today", () => {
+  it("accepts LinkedIn share-sheet short links, feed URNs (also %-encoded) and country hosts", () => {
+    expect(validateHackathonSocialPostUrl("linkedin", "https://lnkd.in/gNJq6xZ8")).toBe("https://lnkd.in/gNJq6xZ8");
+    expect(validateHackathonSocialPostUrl("linkedin", "https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A7123456789012345678")).toBe(
+      "https://www.linkedin.com/feed/update/urn:li:activity:7123456789012345678",
+    );
+    expect(validateHackathonSocialPostUrl("linkedin", "in.linkedin.com/posts/anup_x-activity-7123456789012345678-AbCd")).toBe(
+      "https://www.linkedin.com/posts/anup_x-activity-7123456789012345678-AbCd",
+    );
+  });
+
+  it("accepts Instagram username-path links, Share-button links and instagr.am", () => {
+    expect(validateHackathonSocialPostUrl("instagram", "https://www.instagram.com/anup.kumar_/p/CxYz12AbC/?img_index=1")).toBe("https://www.instagram.com/p/CxYz12AbC");
+    expect(validateHackathonSocialPostUrl("instagram", "https://www.instagram.com/share/reel/_9kzVvBTb/")).toBe("https://www.instagram.com/share/reel/_9kzVvBTb");
+    expect(validateHackathonSocialPostUrl("instagram", "https://instagr.am/p/C1abcdEFG/")).toBe("https://www.instagram.com/p/C1abcdEFG");
+  });
+
+  it("says which box a link belongs in, and why a profile or story isn't a post", () => {
+    expect(() => validateHackathonSocialPostUrl("linkedin", "https://www.instagram.com/p/Cabcdef123/")).toThrow(/That's an Instagram link/);
+    expect(() => validateHackathonSocialPostUrl("instagram", "https://lnkd.in/gNJq6xZ8")).toThrow(/That's a LinkedIn link/);
+    expect(() => validateHackathonSocialPostUrl("linkedin", "https://www.linkedin.com/in/anupkumar/")).toThrow(/not your post/);
+    expect(() => validateHackathonSocialPostUrl("instagram", "https://www.instagram.com/stories/interviewtrix/3123456789/")).toThrow(/story, not a post/);
+  });
+});
