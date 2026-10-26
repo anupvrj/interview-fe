@@ -1,17 +1,15 @@
-"use client";
-
-import { SiteHeader } from "@/components/SiteHeader";
-import { MarketingFooter } from "@/components/MarketingFooter";
-import { InterviewCoachLandingHero } from "@/components/marketing/interview-coach/InterviewCoachLandingHero";
-import { InterviewCoachLandingSections } from "@/components/marketing/interview-coach/InterviewCoachLandingSections";
+import { isMarketing2026Enabled } from "@/components/marketing-2026/flag";
+import { faqPageJsonLd } from "@/components/marketing-2026/faq-jsonld";
+import { MI_FAQ } from "@/components/marketing-2026/mock-interview-faq";
+import { MockInterviewPage } from "@/components/marketing-2026/pages/MockInterviewPage";
+import LegacyPage from "./legacy-page";
 
 export default function InterviewCoachPage() {
+  if (!isMarketing2026Enabled()) return <LegacyPage />;
   return (
-    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
-      <SiteHeader />
-      <InterviewCoachLandingHero />
-      <InterviewCoachLandingSections />
-      <MarketingFooter as="footer" />
-    </div>
+    <>
+      <MockInterviewPage />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd(MI_FAQ)) }} />
+    </>
   );
 }

@@ -1,0 +1,7 @@
+export const HOME_FAQ: string[][] = [
+  ["What is InterviewTrix?", "InterviewTrix is an AI interview preparation platform. Its AI interviewers (voice, coding, system design) and resume coach share one memory of you, track your skills in a Skills Graph and turn your best work into a public portfolio. It runs on the web, in Chrome, and inside ChatGPT, Claude and any MCP client."],
+  ["Is InterviewTrix free?", "You get a 14-day trial with 200 credits, about 40 minutes of AI interviews, and no card. The ATS resume checker is free without the trial. After that, passes start at ₹699 a month and you can cancel any time."],
+  ["Is there an InterviewTrix ChatGPT app?", "Yes. Add InterviewTrix in ChatGPT to build and score resumes and set up mock interviews from chat, with the same account and memory as the website. The Chrome extension and MCP server bring the same tools to job sites, Claude, Cursor and other AI clients."],
+  ["Is using AI for interview prep cheating?", "Practising with AI before an interview is preparation, the same as a mock with a friend. Using AI to feed you answers during a real interview is not. InterviewTrix never gives live answers, and every session runs integrity checks, which is why recruiters can trust an iX Score."],
+  ["Is there a video avatar?", "No. The interviewer is voice-only: you speak, it listens, follows up and scores the answer. No talking head, nothing to stare at."],
+];
