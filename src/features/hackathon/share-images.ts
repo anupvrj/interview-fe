@@ -25,11 +25,9 @@ export const shareImageDownloadName = (img: SharePostImage) =>
   `InterviewTrix-HiringGames-${img.id.replace(/^IX_HG_Share_\d+_/, "")}.png`;
 
 export function randomSharePostImage(exclude?: SharePostImage): SharePostImage {
-  if (SHARE_POST_IMAGES.length === 0) return SHARE_POST_IMAGES[0];
-  if (SHARE_POST_IMAGES.length === 1) return SHARE_POST_IMAGES[0];
-  let next = SHARE_POST_IMAGES[0];
+  let next: SharePostImage = SHARE_POST_IMAGES[0];
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    next = SHARE_POST_IMAGES[Math.floor(Math.random() * SHARE_POST_IMAGES.length)];
+    next = SHARE_POST_IMAGES[Math.floor(Math.random() * SHARE_POST_IMAGES.length)] as SharePostImage;
     if (!exclude || next.id !== exclude.id) break;
   }
   return next;

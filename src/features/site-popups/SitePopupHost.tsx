@@ -140,12 +140,12 @@ function HackathonPopup({
     !waiting &&
     (blocked ||
       !event ||
-      (registers && (event.phase === "ended" || event.isFull)) ||
-      (checkRegistration && isHackathonRegistered(me.data)));
+      (checkRegistration && isHackathonRegistered(me.data)) ||
       (registers &&
         (event.phase === "ended" ||
           event.isFull ||
-          isHackathonSignupClosedForNewParticipants(event, false))) ||
+          isHackathonSignupClosedForNewParticipants(event, false))));
+
   useEffect(() => {
     if (ineligible) onSkip(popup._id);
   }, [ineligible, onSkip, popup._id]);

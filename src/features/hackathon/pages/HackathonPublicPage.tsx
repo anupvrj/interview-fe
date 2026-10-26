@@ -146,7 +146,6 @@ function PublicContent() {
         open={closedOpen}
         onOpenChange={setClosedOpen}
         onRegisterForEvent={openLaunchRegistration}
-        launchFlow
       />
       {preview && data.visibility === "draft" ? (
         <p className="rounded-xl border border-[#8a6a20]/80 bg-[#2e2410]/70 px-4 py-2 text-center text-sm text-[#ffc44d]">
