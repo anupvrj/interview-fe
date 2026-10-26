@@ -6,6 +6,7 @@ import { ChevronRight, Menu, X } from "lucide-react";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { SectionLink } from "@/components/hackathon-2026/HackathonMotion";
+import { HackathonSubmissionExtendedMeta } from "@/components/hackathon-2026/HackathonSubmissionExtendedMeta";
 import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
 import { HACKATHON_2026_PATH, HACKATHON_LAUNCH, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
@@ -200,11 +201,9 @@ export function HackathonHeader() {
 
           <div className="mt-auto border-t border-[#132c48] p-5">
             <p className="mb-3 text-xs text-[#7f98b3]">
-              Hackathon {challenge.publicRangeLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
+              <HackathonSubmissionExtendedMeta challenge={challenge} /> · Launch {HACKATHON_LAUNCH.dateLabel}
             </p>
-            <HackathonRegisterButton ctaLocation="mobile_menu" className="w-full" onClick={closeMenu}>
-              Register Now for Free
-            </HackathonRegisterButton>
+            <HackathonRegisterButton ctaLocation="mobile_menu" className="w-full" onClick={closeMenu} />
           </div>
         </aside>
       </div>

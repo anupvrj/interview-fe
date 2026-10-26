@@ -8,18 +8,21 @@ import {
   HackathonFloatCard,
 } from "@/components/hackathon-2026/HackathonFloatCard";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
+import { HackathonSubmitButton } from "@/components/hackathon-2026/HackathonSubmitButton";
 import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
-import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
+import { HackathonRegisterHint, HackathonRegistrationClosedNote } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
   Reveal,
   Ribbon,
   parallax,
   useCountdown,
-  useLoopingOfferCountdown,
   useParallax,
 } from "@/components/hackathon-2026/HackathonMotion";
+import { HackathonSubmissionExtendedMeta } from "@/components/hackathon-2026/HackathonSubmissionExtendedMeta";
 import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
 import { HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
+import { useHackathonPublic } from "@/features/hackathon/hooks";
+import { isHackathonSignupClosedForNewParticipants } from "@/features/hackathon/hackathonRegistration";
 import { cn } from "@/lib/utils";
 
 // Deterministic particle field (avoids hydration mismatch)
@@ -36,8 +39,12 @@ const PARTICLES = [
 
 export function HackathonHero() {
   const visualRef = useParallax<HTMLDivElement>();
-  const offerTime = useLoopingOfferCountdown();
   const challenge = useLandingChallengeWindow();
+  const pub = useHackathonPublic();
+  const registrationClosed =
+    pub.data != null &&
+    pub.data.phase !== "ended" &&
+    isHackathonSignupClosedForNewParticipants(pub.data, false);
 
   return (
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
@@ -101,7 +108,7 @@ export function HackathonHero() {
                   className="size-4 text-[#2e9bff] sm:size-5"
                   aria-hidden
                 />
-                Hackathon {challenge.publicRangeLabel}
+                <HackathonSubmissionExtendedMeta challenge={challenge} />
               </li>
               <li className="inline-flex basis-full items-center justify-center gap-2 text-center sm:basis-auto sm:justify-start sm:gap-2.5 sm:text-left">
                 <Video className="size-4 shrink-0 text-[#2e9bff] sm:size-5" aria-hidden />
@@ -117,35 +124,22 @@ export function HackathonHero() {
 
           <Reveal immediate delay={380}>
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-              <div className="shrink-0 text-center sm:text-left">
-                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:justify-start lg:flex-col lg:items-start lg:gap-y-1">
-                  <span className="inline-flex items-baseline gap-x-2.5">
-                    <span className="hk-hand text-[1.25rem] leading-none !text-white">
-                      {HACKATHON_HERO.offerNow}
-                    </span>
-                    <span className="text-base font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
-                      {HACKATHON_HERO.offerWas}
-                    </span>
-                  </span>
-                  <span className="hk-meta text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
-                    {HACKATHON_HERO.offerEndsLabel}{" "}
-                    <span className="hk-num text-sm font-bold text-[#ffc44d] sm:text-base">
-                      {offerTime}
-                    </span>
-                  </span>
-                </p>
+              <HackathonRegistrationClosedNote className="mb-3 w-full text-center text-xs leading-relaxed text-[#9eb2ca] sm:text-sm lg:text-left" />
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-center lg:w-auto lg:justify-start">
+                <HackathonRegisterButton
+                  ctaLocation="hero"
+                  size="lg"
+                  idle={!registrationClosed && pub.data?.phase !== "ended"}
+                  className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
+                />
+                <HackathonSubmitButton
+                  ctaLocation="hero"
+                  size="lg"
+                  className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
+                />
               </div>
-              <HackathonRegisterButton
-                ctaLocation="hero"
-                size="lg"
-                idle
-                className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
-              />
             </div>
             <p className="hk-meta mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
-              <span className="font-semibold text-[#ffc44d]">
-                {HACKATHON_HERO.seatNoteLead}
-              </span>{" "}
               {HACKATHON_HERO.seatNote}
             </p>
             <HackathonRegisterHint className="mt-2 text-center text-sm font-medium text-[#ffc44d] lg:text-left" />
@@ -453,8 +447,7 @@ function HeroTicker() {
   const challenge = useLandingChallengeWindow();
   const target = countdownTarget(challenge.startISO, challenge.endISO);
   const countdown = useCountdown(target.startISO, target.endISO);
-  const items = [...HACKATHON_HERO.marquee, ...HACKATHON_HERO.marquee];
-
+  const loop = [...HACKATHON_HERO.marquee, ...HACKATHON_HERO.marquee];
   return (
     <div
       className="relative z-[3] mx-auto -mt-2 w-full max-w-[1400px] px-5 pb-8"
@@ -472,18 +465,19 @@ function HeroTicker() {
           </span>
           <CountdownDigits state={countdown} />
         </div>
-        <div className="hk-marquee relative flex min-w-0 flex-1 items-center overflow-hidden py-3.5">
-          <div className="hk-marquee-track flex w-max items-center gap-8 pr-8 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#8fb4d9]">
-            {items.map((item, i) => (
-              <span
-                key={`${item}-${i}`}
-                className="flex items-center gap-8 whitespace-nowrap"
-              >
-                {item}
-                <span
-                  className="size-1 rounded-full bg-[#2bd2ff]/70"
-                  aria-hidden
-                />
+        <div
+          className="hk-marquee relative flex min-h-[3.25rem] min-w-0 flex-1 items-center overflow-hidden py-3.5"
+          aria-label={HACKATHON_HERO.marquee.join(" · ")}
+        >
+          <div className="hk-marquee-track flex w-max items-center gap-10 pr-10 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9cc6f0] sm:gap-12 sm:pr-12 sm:text-[12px] sm:tracking-[0.18em]">
+            {loop.map((item, i) => (
+              <span key={`${item}-${i}`} className="inline-flex shrink-0 items-center gap-10 whitespace-nowrap sm:gap-12">
+                {item === "₹20,000" ? (
+                  <span className="hk-grad-text-amber normal-case tracking-normal sm:tracking-normal">{item}</span>
+                ) : (
+                  item
+                )}
+                <span className="size-1.5 shrink-0 rounded-full bg-[#2bd2ff]/80" aria-hidden />
               </span>
             ))}
           </div>

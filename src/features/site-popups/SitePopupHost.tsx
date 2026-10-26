@@ -5,9 +5,13 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
+import { HackathonLaunchEventProvider } from "@/components/hackathon-2026/HackathonLaunchEventContext";
 import { HackathonRegisterProvider, useHackathonRegister } from "@/components/hackathon-2026/HackathonRegisterContext";
 import { HackathonSlugProvider, useHackathonFeature, useHackathonMe, useHackathonPublic } from "@/features/hackathon/hooks";
-import { isHackathonRegistered } from "@/features/hackathon/hackathonRegistration";
+import {
+  isHackathonRegistered,
+  isHackathonSignupClosedForNewParticipants,
+} from "@/features/hackathon/hackathonRegistration";
 import { trackEvent } from "@/lib/analytics/gtag";
 import { sitePopupsApi, SITE_POPUPS_QUERY_KEY } from "./api";
 // Loaded only when a popup opens, so pages without one never download the designs or their fonts.
@@ -138,7 +142,10 @@ function HackathonPopup({
       !event ||
       (registers && (event.phase === "ended" || event.isFull)) ||
       (checkRegistration && isHackathonRegistered(me.data)));
-
+      (registers &&
+        (event.phase === "ended" ||
+          event.isFull ||
+          isHackathonSignupClosedForNewParticipants(event, false))) ||
   useEffect(() => {
     if (ineligible) onSkip(popup._id);
   }, [ineligible, onSkip, popup._id]);

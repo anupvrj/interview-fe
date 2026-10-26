@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { HackathonBrandPrizeHighlight } from "@/components/marketing/HackathonBrandPrizeHighlight";
+import { HackathonLaunchEventProvider } from "@/components/hackathon-2026/HackathonLaunchEventContext";
 import { HackathonRegisterProvider, useHackathonRegister } from "@/components/hackathon-2026/HackathonRegisterContext";
 import { HackathonSlugProvider, useHackathonFeature, useHackathonPublic } from "@/features/hackathon/hooks";
 import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";

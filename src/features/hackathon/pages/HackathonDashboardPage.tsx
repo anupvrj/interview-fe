@@ -14,7 +14,10 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { eventTargets, toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
-import { formatIst, PHASE_COPY } from "../copy";
+import { CTA_LABELS, DASHBOARD_NOT_REGISTERED, formatIst, PHASE_COPY } from "../copy";
+import { HackathonLaunchEventProvider, useHackathonLaunchEventOptional } from "@/components/hackathon-2026/HackathonLaunchEventContext";
+import { HackathonRegisterProvider, useHackathonRegister } from "@/components/hackathon-2026/HackathonRegisterContext";
+import { isHackathonSignupClosedForNewParticipants } from "../hackathonRegistration";
 import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
@@ -29,6 +32,7 @@ import { HackathonPageLoader } from "../components/HackathonPageLoader";
 import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
+import { cn } from "@/lib/utils";
 import { SocialChallenge } from "../components/SocialChallenge";
 
 const SUSPENDED_CONTACT_EMAIL = "info@interviewtrix.com";
@@ -87,6 +91,52 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
 
       <CompleteSection me={me} />
     </div>
+  );
+}
+
+function UnregisteredDashboardNotice() {
+  const slug = useHackathonSlug();
+  const router = useRouter();
+  const { openSubmitHackathon, submitHackathonDisabled } = useHackathonRegister();
+  const launch = useHackathonLaunchEventOptional();
+  const c = DASHBOARD_NOT_REGISTERED;
+
+  const onRegisterForEvent = () => {
+    if (launch) {
+      launch.openLaunchRegister();
+      return;
+    }
+    router.push(`${hackathonLandingPath(slug)}?launch=1`);
+  };
+
+  return (
+    <PhaseNotice
+      icon={CalendarClock}
+      tone="amber"
+      title={c.title}
+      message={
+        <>
+          {c.message}
+          <p className="mt-4 rounded-xl border border-[#ffc44d]/25 bg-[#ffc44d]/[0.08] px-3.5 py-3 text-left text-sm leading-relaxed text-[#ffe9a8]">
+            {c.note}
+          </p>
+        </>
+      }
+    >
+      <div className="mx-auto flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center">
+        <button
+          type="button"
+          disabled={submitHackathonDisabled}
+          onClick={() => openSubmitHackathon("other")}
+          className="hk-btn inline-flex min-h-12 w-full items-center justify-center px-6 text-[15px] disabled:pointer-events-none disabled:opacity-55 sm:w-auto"
+        >
+          {c.submitChallenge}
+        </button>
+        <button type="button" onClick={onRegisterForEvent} className={cn(hkSecondaryButton, "w-full sm:w-auto")}>
+          {CTA_LABELS.registerForEvent}
+        </button>
+      </div>
+    </PhaseNotice>
   );
 }
 
@@ -186,16 +236,24 @@ function DashboardContent() {
     }
   }, [me, userId]);
 
-  // Signup not finished (registration happens when the form is done): back to the form.
+  // Registered but profile incomplete → finish signup.
   const needsProfile =
     me &&
+    me.registered &&
     !me.profile.complete &&
     me.hackathon.phase !== "ended" &&
-    !me.progress.completed &&
-    (me.registered || !me.hackathon.isFull);
+    !me.progress.completed;
+  const needsHackathonRegistration =
+    me &&
+    !me.registered &&
+    me.hackathon.phase !== "ended" &&
+    !isHackathonSignupClosedForNewParticipants(me.hackathon, false);
   useEffect(() => {
     if (needsProfile) router.replace(profilePath);
   }, [needsProfile, profilePath, router]);
+  useEffect(() => {
+    if (needsHackathonRegistration) router.replace(profilePath);
+  }, [needsHackathonRegistration, profilePath, router]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -204,7 +262,12 @@ function DashboardContent() {
   }, [isLoaded, isSignedIn, router, slug]);
 
   const loadingDashboard =
-    !isLoaded || !isSignedIn || meQuery.waitingForMe || needsProfile || (!me && !meQuery.isError);
+    !isLoaded ||
+    !isSignedIn ||
+    meQuery.waitingForMe ||
+    needsProfile ||
+    needsHackathonRegistration ||
+    (!me && !meQuery.isError);
   useLoadingTimeout(loadingDashboard, "hackathon dashboard");
   if (loadingDashboard) {
     return <HackathonPageLoader />;
@@ -234,21 +297,10 @@ function DashboardContent() {
     if (phase === "ended") {
       return <PhaseNotice icon={Flag} tone="amber" title={PHASE_COPY.ended} message="Thanks for your interest. Watch out for the next one!" />;
     }
-    if (isFull) {
-      return <PhaseNotice icon={Users} tone="rose" title="Hackathon is full" message="All spots have been taken. Watch out for the next one!" />;
+    if (isHackathonSignupClosedForNewParticipants(me.hackathon, false)) {
+      return <UnregisteredDashboardNotice />;
     }
-    return (
-      <PhaseNotice
-        icon={CalendarClock}
-        tone="blue"
-        title="You're not registered"
-        message="Join this hackathon in one step. If you left recently, you can sign up again anytime."
-      >
-        <Link href={profilePath} className={hkSecondaryButton}>
-          Register for hackathon
-        </Link>
-      </PhaseNotice>
-    );
+    return <HackathonPageLoader />;
   }
 
   if (me.participant?.suspended) {
@@ -264,6 +316,15 @@ function DashboardContent() {
           {SUSPENDED_CONTACT_EMAIL}
         </a>
       </PhaseNotice>
+    );
+  }
+
+  if (me.progress.completed) {
+    return (
+      <div className="space-y-5 sm:space-y-6">
+        <DashboardHero me={me} />
+        <CompleteSection me={me} />
+      </div>
     );
   }
 
@@ -346,9 +407,13 @@ export function HackathonDashboardPage() {
   useNoMotion();
   return (
     <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
-      <HackathonShell>
-        <DashboardContent />
-      </HackathonShell>
+      <HackathonLaunchEventProvider>
+        <HackathonRegisterProvider>
+          <HackathonShell>
+            <DashboardContent />
+          </HackathonShell>
+        </HackathonRegisterProvider>
+      </HackathonLaunchEventProvider>
     </HackathonFeatureGate>
   );
 }

@@ -63,8 +63,13 @@ export function useMarkHackathonMember(slug: string, signedIn: boolean | undefin
 }
 
 /** Read after mount (localStorage isn't there during server render, and this avoids a hydration mismatch). */
-export function useHackathonMember(): HackathonMember | null {
-  const [member, setMember] = useState<HackathonMember | null>(null);
-  useEffect(() => setMember(readHackathonMember()), []);
-  return member;
+export function useHackathonMember(): { member: HackathonMember | null; ready: boolean } {
+  const [state, setState] = useState<{ member: HackathonMember | null; ready: boolean }>({
+    member: null,
+    ready: false,
+  });
+  useEffect(() => {
+    setState({ member: readHackathonMember(), ready: true });
+  }, []);
+  return state;
 }

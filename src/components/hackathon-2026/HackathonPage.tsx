@@ -14,6 +14,8 @@ import { HackathonParticipate } from "@/components/hackathon-2026/HackathonParti
 import { HackathonPrizes } from "@/components/hackathon-2026/HackathonPrizes";
 import { HackathonTimeline } from "@/components/hackathon-2026/HackathonTimeline";
 import { HackathonWho } from "@/components/hackathon-2026/HackathonWho";
+import { HackathonLaunchEventProvider } from "@/components/hackathon-2026/HackathonLaunchEventContext";
+import { HackathonLaunchTeaser } from "@/components/hackathon-2026/HackathonLaunchTeaser";
 import { HackathonRegisterProvider } from "@/components/hackathon-2026/HackathonRegisterContext";
 import { HackathonFeatureGate } from "@/features/hackathon/components/HackathonFeatureGate";
 import { HACKATHON_SLUG } from "@/features/hackathon/config";
@@ -24,7 +26,8 @@ export function HackathonPage() {
   return (
     <HackathonSlugProvider slug={HACKATHON_SLUG}>
       <HackathonFeatureGate showWhileLoading>
-        <HackathonRegisterProvider>
+        <HackathonLaunchEventProvider>
+          <HackathonRegisterProvider>
           {/* Static on purpose: most visitors arrive from an Instagram ad, whose in-app browser
               flickers on animation, blur and scroll effects — so none here (see .hk-static). */}
           <div className="hk-root hk-static min-h-screen antialiased">
@@ -36,13 +39,15 @@ export function HackathonPage() {
               <HackathonParticipate />
               <HackathonTimeline />
               <HackathonAgenda />
+              <HackathonLaunchTeaser />
               <HackathonWho />
               <HackathonFaq />
               <HackathonFinalCta />
             </main>
             <HackathonFooter />
           </div>
-        </HackathonRegisterProvider>
+          </HackathonRegisterProvider>
+        </HackathonLaunchEventProvider>
       </HackathonFeatureGate>
     </HackathonSlugProvider>
   );

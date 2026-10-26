@@ -1,14 +1,21 @@
+import { formatChallengeWindow } from "./hackathon-schedule";
+
 export const HACKATHON_2026_PATH = "/hiring-games-hackathon-2026";
 
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
 /** Challenge window fallback. The landing page prefers the published startsAt/endsAt. */
 export const HACKATHON_CHALLENGE = {
   startISO: "2026-10-20T05:00:00+05:30",
-  endISO: "2026-10-26T23:59:00+05:30",
-  dateLabel: "20–26 Oct 2026",
-  publicRangeLabel: "20th-26th Oct 2026",
-  timeLabel: "Starts 20 Oct, 5 AM IST · submit by 26 Oct, 11:59 PM IST",
+  endISO: "2026-10-28T23:59:00+05:30",
+  dateLabel: "20–28 Oct 2026",
+  publicRangeLabel: "20th-28th Oct 2026",
+  timeLabel: "Starts 20 Oct, 5 AM IST · submit by 28 Oct, 11:59 PM IST",
 } as const;
+
+const HACKATHON_CHALLENGE_WINDOW = formatChallengeWindow(
+  HACKATHON_CHALLENGE.startISO,
+  HACKATHON_CHALLENGE.endISO,
+);
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
 export const HACKATHON_LAUNCH = {
@@ -24,10 +31,53 @@ export const HACKATHON_LAUNCH = {
 /** @deprecated Use HACKATHON_LAUNCH. Kept so older imports still point at the launch. */
 export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 
+/** 31 Oct live launch RSVP modal (Learn from Industry Leaders). */
+export const LAUNCH_EVENT_FORM = {
+  title: "Learn from Industry Leaders",
+  subtitle: `Free online session · ${HACKATHON_LAUNCH.dateLabel}, ${HACKATHON_LAUNCH.timeLabel}`,
+  teaserTitle: "Join the live launch",
+  teaserBody: "Winners, product updates, and career advice from experts — online on 31 Oct.",
+  /** Welcome step primary action (modal). */
+  welcomeCta: "Let Me In",
+  submitLabel: "Reserve My Spot",
+  successTitle: "You're registered for the live event",
+  successBody: "We'll share the joining link by email. Updates and the live link go to our WhatsApp community first.",
+  successLoadingMessage: "Saving your spot…",
+  whatsappCta: "Join WhatsApp community",
+  qAttended: "Have you attended an AI interview recently?",
+  qReady: "Ready to take on an AI interview and build your confidence?",
+  attendedOptions: [
+    { value: "yes" as const, label: "Yes, I have" },
+    { value: "no" as const, label: "Not yet" },
+  ],
+  readyOptions: [
+    { value: "yes" as const, label: "Yes, bring it on" },
+    { value: "nervous" as const, label: "A little nervous" },
+  ],
+  professionOptions: [
+    { value: "student" as const, label: "Student" },
+    { value: "self_employed" as const, label: "Self employed" },
+    { value: "working_professional" as const, label: "Working professional" },
+  ],
+  whyAttendOptions: [
+    { value: "stay_relevant" as const, label: "Stay relevant as AI changes hiring and work" },
+    { value: "expert_advice" as const, label: "Get expert advice on interviews and careers in the AI era" },
+    { value: "practical_solutions" as const, label: "Learn practical ways to stand out to employers" },
+    { value: "community_launch" as const, label: "Join the live launch and winner announcement" },
+  ],
+  fields: {
+    name: "Full name",
+    phone: "Phone number",
+    email: "Email",
+    profession: "Profession",
+    whyAttend: "Why do you want to attend?",
+  },
+} as const;
+
 export const HACKATHON_2026_META = {
   title: "InterviewTrix: The Hiring Games — Free Hiring Hackathon & Product Launch",
   description:
-    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (20–26 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
+    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (submit by 28 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
   keywords: [
     "Interview Trix hackathon",
     "career hackathon 2026",
@@ -46,6 +96,7 @@ export const HACKATHON_NAV = [
   { href: "#participate", label: "How to Participate" },
   { href: "#timeline", label: "Timeline" },
   { href: "#agenda", label: "Agenda" },
+  { href: "#launch", label: "Live event" },
   { href: "#who", label: "Who can Participate" },
   { href: "#faq", label: "FAQ" },
 ] as const;
@@ -74,11 +125,7 @@ export const HACKATHON_HERO = {
   copy: "AI is reshaping hiring. Challenge AI in our 7-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
   registerLabel: "Register Now for Free",
   startChallengeLabel: "Start the Challenge",
-  offerWas: "₹799",
-  offerNow: "FREE",
-  offerEndsLabel: "Offer ends in",
-  seatNoteLead: "Limited seats left.",
-  seatNote: "Register before this offer ends.",
+  seatNote: "Limited seats left. Register for live event and learn from industry leaders.",
   floatCards: [
     { title: "Beat the ATS", subtitle: "Score 80+ to unlock interviews", icon: "FileText", tone: "blue" },
     { title: "Face an AI interviewer", subtitle: "Get instant feedback", icon: "Mic", tone: "rose" },
@@ -87,12 +134,10 @@ export const HACKATHON_HERO = {
   noteTop: ["Are you Ready", "for this?"],
   noteSide: ["Your next interviewer", "might be an AI."],
   marquee: [
-    "Face AI Interviewer",
+    "AI Interviewer",
     "Get Interview Tricks from Experts",
     "Live Scoring Reports",
-    "₹20,000 Prize Pool",
-    "Product Launch",
-    "Industry Leaders",
+    "₹20,000",
   ],
 } as const;
 
@@ -133,7 +178,7 @@ export const HACKATHON_TIMELINE = {
   copy: "Key dates for your journey from registration to the final round.",
   items: [
     { date: "20 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
-    { date: "20–26 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish your mock interview." },
+    { date: "20–28 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish your mock interview." },
     { date: "27–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
     { date: "31 Oct 2026", title: "Winner Announcement", body: "Join the live launch as winners are announced." },
   ],
@@ -330,7 +375,7 @@ export const HACKATHON_FINAL_CTA = {
   title: "Ready to take the challenge?",
   copy: "Submit your resume, unlock the interview round, and compete for the live final.",
   points: [
-    `Hackathon - ${HACKATHON_CHALLENGE.publicRangeLabel}`,
+    `Hackathon ${HACKATHON_CHALLENGE_WINDOW.submissionExtendedLabel}`,
     "Exciting prizes await",
     "Live launch & winners",
   ],

@@ -91,12 +91,14 @@ type FormState = {
   challenges: ChallengeForm[];
   maxConcurrent: string;
   startsAt: string;
+  submissionsDueAt: string;
   endsAt: string;
   grace: string;
   limit: string;
   reminderEnabled: boolean;
   reminderHour: string;
   reminderStart: string;
+  registrationOpen: boolean;
 };
 
 function slugFromTitle(title: string) {
@@ -132,7 +134,7 @@ function defaultsForKind(kind: HackathonChallengeKind): Pick<ChallengeForm, "tit
   }
   return {
     title: "Share your experience",
-    description: "Post about the hackathon on LinkedIn and Instagram, then paste both post links.",
+    description: "Post about your mock interview on LinkedIn, then share post links with us.",
   };
 }
 
@@ -163,6 +165,7 @@ function emptyForm(): FormState {
     challenges: [emptyChallenge("resume"), emptyChallenge("screening"), emptyChallenge("social")],
     maxConcurrent: "50",
     startsAt: "",
+    submissionsDueAt: "",
     endsAt: "",
     grace: "20",
     limit: "",
@@ -204,6 +207,7 @@ function fromOverview(h: AdminHackathonOverview): FormState {
     maxConcurrent: String(h.interviewConfig.maxConcurrent ?? 50),
     startsAt: isoToIstInput(h.startsAt),
     endsAt: isoToIstInput(h.endsAt),
+    submissionsDueAt: isoToIstInput(h.submissionsDueAt),
     grace: String(h.interviewGraceMinutes),
     limit: h.maxCompletions === null ? "" : String(h.maxCompletions),
     reminderEnabled: h.reminders?.enabled !== false,
@@ -245,7 +249,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
       }
       if (c.kind === "coding") config.codingProblemIds = c.codingProblemIds;
       if (c.kind === "system_design") config.systemDesignProblemId = c.systemDesignProblemId || undefined;
-      if (c.kind === "social") config.requiredPlatforms = ["linkedin", "instagram"];
+      if (c.kind === "social") config.requiredPlatforms = ["linkedin"];
       return {
         challengeId: c.challengeId,
         kind: c.kind,
@@ -260,6 +264,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
     startsAt: form.startsAt ? istInputToIso(form.startsAt) : null,
     endsAt: form.endsAt ? istInputToIso(form.endsAt) ?? undefined : undefined,
     interviewGraceMinutes: Number.isInteger(grace) ? grace : 20,
+    submissionsDueAt: form.submissionsDueAt ? istInputToIso(form.submissionsDueAt) : null,
     maxCompletions: trimmedLimit === "" ? null : Number(trimmedLimit),
     reminders: {
       enabled: form.reminderEnabled,
@@ -268,6 +273,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
     },
   };
 }
+    registrationOpen: form.registrationOpen,
 
 const START_CLOCK_SKEW_MS = 2 * 60_000;
 
@@ -293,7 +299,11 @@ function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, e
   if (form.startsAt && !body.startsAt) throw new Error("Enter a valid start date and time.");
   if (form.endsAt && !body.endsAt) throw new Error("Enter a valid end date and time.");
   if (form.reminderStart && !body.reminders?.startAt) throw new Error("Enter a valid reminder start date.");
-  const reminderHour = body.reminders?.hour;
+  if (form.submissionsDueAt && !body.submissionsDueAt) throw new Error("Enter a valid submission due date and time.");
+  if (form.endsAt && !body.endsAt) throw new Error("Enter a valid end date and time.");
+  if (body.submissionsDueAt && body.endsAt && Date.parse(body.submissionsDueAt) > Date.parse(body.endsAt)) {
+    throw new Error("Submission due must be on or before the hackathon end.");
+  }
   if (reminderHour === undefined || !Number.isInteger(reminderHour) || reminderHour < 0 || reminderHour > 23) {
     throw new Error("Reminder hour must be from 0 to 23.");
   }
@@ -734,6 +744,20 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               <p className="text-sm font-semibold text-foreground">Schedule and capacity</p>
               <div className="grid gap-4 md:grid-cols-2">
                 <HackathonIstDateTimeField
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.registrationOpen}
+                  onChange={(e) => patch({ registrationOpen: e.target.checked })}
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Accept registration</span>
+                  <span className="mt-1 block text-muted-foreground">
+                    When off, new hackathon sign-ups are blocked. Existing participants can still submit until the submission due date.
+                  </span>
+                </span>
+              </label>
                   id="hk-start"
                   label="Start"
                   hint="When participants can begin challenges. Leave empty to open only via Status → Start now."
@@ -744,10 +768,18 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                 <HackathonIstDateTimeField
                   id="hk-end"
                   label="End"
-                  hint="When submissions close. Can be changed any time; a past time closes it, a future time reopens it."
+                  id="hk-submissions-due"
+                  label="Submission due"
+                  hint="Last moment participants can submit challenges. After this, steps lock until the hackathon end."
                   previewVerb="Submissions close"
-                  value={form.endsAt}
-                  onChange={(endsAt) => patch({ endsAt })}
+                  value={form.submissionsDueAt}
+                  onChange={(submissionsDueAt) => patch({ submissionsDueAt })}
+                />
+                <HackathonIstDateTimeField
+                  id="hk-end"
+                  label="Hackathon end"
+                  hint="When the overall event ends (phase becomes ended). Can be after the submission deadline (e.g. launch day)."
+                  previewVerb="Event ends"
                 />
                 <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty = unlimited.">
                   <Input id="hk-limit" type="number" min={1} className={hackathonAdminControlClass} value={form.limit} onChange={(e) => patch({ limit: e.target.value })} />

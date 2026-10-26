@@ -3,16 +3,18 @@
 import { useLoadingTimeout } from "@/lib/stuck-loading";
 import { useMemo, useState } from "react";
 import { HackathonPreQuizModal } from "../components/HackathonPreQuizModal";
+import { HackathonRegistrationClosedModal } from "../components/HackathonRegistrationClosedModal";
 import { useHackathonMember } from "../returningMember";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flag, Loader2, Users } from "lucide-react";
 import { formatIst, PHASE_COPY } from "../copy";
+import { REGISTRATION_CLOSED_NOTE } from "../copy";
 import { hackathonLandingCtaLabel, resolveHackathonLandingCta } from "../hackathonLandingCta";
-import { hackathonDashboardPath, hackathonProfilePath } from "../config";
+import { hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { hackathonAdminApi, toHackathonError, type HackathonPublic } from "../api";
 import { hackathonEntryPath } from "../hackathonEntry";
-import { isHackathonRegistered } from "../hackathonRegistration";
+import { isHackathonRegistered, isHackathonSignupClosedForNewParticipants } from "../hackathonRegistration";
 import { useHackathonMe, useHackathonPublic, useHackathonSlug } from "../hooks";
 import { useQuery } from "@tanstack/react-query";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
@@ -31,7 +33,9 @@ function PublicContent() {
   const dashboard = hackathonDashboardPath(slug);
   const profile = hackathonProfilePath(slug);
   const [quizOpen, setQuizOpen] = useState(false);
-  const returning = Boolean(useHackathonMember());
+  const [closedOpen, setClosedOpen] = useState(false);
+  const { member: hackathonMember, ready: hackathonMemberReady } = useHackathonMember();
+  const returning = hackathonMemberReady && Boolean(hackathonMember);
 
   const adminPreview = useQuery({
     queryKey: ["admin", "hackathons", "slug", slug],
@@ -65,6 +69,7 @@ function PublicContent() {
         maxAttemptsPerSlot: admin.interviewConfig.maxAttemptsPerSlot,
       },
       serverNow: new Date().toISOString(),
+      registrationOpen: admin.registrationOpen !== false,
     };
   }, [adminPreview.data, pub.data]);
 
@@ -97,7 +102,22 @@ function PublicContent() {
     disabled: ctaResolved.disabled,
     hint: ctaResolved.hint,
   };
+  const showClosedNote =
+    isHackathonSignupClosedForNewParticipants(data, false) && !registered && !returning;
+
+  const openLaunchRegistration = () => {
+    router.push(`${hackathonLandingPath(slug)}?launch=1`);
+  };
+
   const onCta = () => {
+    if (ctaResolved.labelKey === "registerForEvent") {
+      openLaunchRegistration();
+      return;
+    }
+    if (ctaResolved.labelKey === "registrationClosed") {
+      setClosedOpen(true);
+      return;
+    }
     if (cta.disabled) return;
     if (!isSignedIn) {
       // Quick questions, then one-tap Google; a returning browser goes straight to sign-in.
@@ -112,12 +132,22 @@ function PublicContent() {
       router.push(dashboard);
       return;
     }
+    if (isHackathonSignupClosedForNewParticipants(data, false)) {
+      openLaunchRegistration();
+      return;
+    }
     router.push(hackathonEntryPath({ registered: false, profilePath: profile, dashboardPath: dashboard }));
   };
 
   return (
     <div className="space-y-10">
       <HackathonPreQuizModal open={quizOpen} onOpenChange={setQuizOpen} returnTo={profile} />
+      <HackathonRegistrationClosedModal
+        open={closedOpen}
+        onOpenChange={setClosedOpen}
+        onRegisterForEvent={openLaunchRegistration}
+        launchFlow
+      />
       {preview && data.visibility === "draft" ? (
         <p className="rounded-xl border border-[#8a6a20]/80 bg-[#2e2410]/70 px-4 py-2 text-center text-sm text-[#ffc44d]">
           Preview — this event is still a draft. Publish it to make this page public.
@@ -139,7 +169,15 @@ function PublicContent() {
           {data.endsAt ? ` · Closes ${formatIst(data.endsAt)}` : ""}
         </p>
         <div className="mt-8">
-          <button type="button" className="hk-btn h-14 px-8 text-base disabled:pointer-events-none disabled:opacity-60" disabled={cta.disabled} onClick={onCta}>
+          {showClosedNote ? (
+            <p className="mb-3 text-xs leading-relaxed text-[#9eb2ca] sm:text-sm">{REGISTRATION_CLOSED_NOTE}</p>
+          ) : null}
+          <button
+            type="button"
+            className="hk-btn h-14 px-8 text-base disabled:pointer-events-none disabled:opacity-60"
+            disabled={cta.disabled && ctaResolved.labelKey !== "registrationClosed"}
+            onClick={onCta}
+          >
             {cta.label}
           </button>
           {cta.hint ? <p className="mt-3 text-sm font-medium text-[#ffc44d]">{cta.hint}</p> : null}

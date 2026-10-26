@@ -3,7 +3,8 @@
 import { Award, Calendar, Trophy, Zap } from "lucide-react";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
-import { Reveal, Ribbon, useLoopingOfferCountdown } from "@/components/hackathon-2026/HackathonMotion";
+import { Reveal, Ribbon } from "@/components/hackathon-2026/HackathonMotion";
+import { HackathonSubmissionExtendedMeta } from "@/components/hackathon-2026/HackathonSubmissionExtendedMeta";
 import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
 import { HACKATHON_FINAL_CTA, HACKATHON_HERO } from "@/lib/hackathon-2026-content";
 
@@ -14,7 +15,6 @@ const POINTS = [
 ] as const;
 
 export function HackathonFinalCta() {
-  const offerTime = useLoopingOfferCountdown();
   const challenge = useLandingChallengeWindow();
   const title = HACKATHON_FINAL_CTA.title;
   const splitAt = title.lastIndexOf(" ");
@@ -53,11 +53,14 @@ export function HackathonFinalCta() {
                 <ul className="hk-meta mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#e2ebf5] lg:justify-start">
                   {HACKATHON_FINAL_CTA.points.map((point, index) => {
                     const { icon: Icon, tone } = POINTS[index];
-                    const label = index === 0 ? `Hackathon - ${challenge.publicRangeLabel}` : point;
                     return (
                       <li key={point} className="inline-flex items-center gap-2">
                         <Icon className={`size-4 shrink-0 ${tone}`} strokeWidth={2} aria-hidden />
-                        {label}
+                        {index === 0 ? (
+                          <HackathonSubmissionExtendedMeta challenge={challenge} />
+                        ) : (
+                          point
+                        )}
                       </li>
                     );
                   })}
@@ -65,25 +68,12 @@ export function HackathonFinalCta() {
               </div>
 
               <div className="w-full shrink-0 rounded-[22px] border border-[#5b9cf0]/40 bg-[linear-gradient(165deg,rgba(20,56,112,0.96),rgba(7,22,48,0.94))] p-5 text-center shadow-[0_24px_50px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(190,220,255,0.22)] sm:p-6 lg:w-[22.5rem] lg:text-left">
-                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 lg:justify-start">
-                  <span className="hk-hand text-[1.65rem] leading-none !text-white">{HACKATHON_HERO.offerNow}</span>
-                  <span className="text-lg font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
-                    {HACKATHON_HERO.offerWas}
-                  </span>
-                  <span className="hk-meta whitespace-nowrap text-sm font-medium text-[#dbe6f3]">
-                    {HACKATHON_HERO.offerEndsLabel}{" "}
-                    <span className="hk-num text-base font-bold text-[#ffc44d]">{offerTime}</span>
-                  </span>
-                </p>
                 <HackathonRegisterButton
                   ctaLocation="final_cta"
                   size="lg"
-                  className="mt-5 min-h-[3.75rem] w-full rounded-2xl px-8 text-base"
+                  className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base"
                 />
-                <p className="hk-meta mt-3 text-sm font-medium text-[#dbe6f3]">
-                  <span className="font-semibold text-[#ffc44d]">{HACKATHON_HERO.seatNoteLead}</span>{" "}
-                  {HACKATHON_HERO.seatNote}
-                </p>
+                <p className="hk-meta mt-3 text-sm font-medium text-[#dbe6f3]">{HACKATHON_HERO.seatNote}</p>
                 <HackathonRegisterHint className="mt-2 text-sm font-medium text-[#ffc44d]" />
               </div>
             </div>

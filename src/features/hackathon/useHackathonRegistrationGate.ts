@@ -6,6 +6,7 @@ import type { HackathonMe } from "./api";
 import { useHackathonMe, useRegisterForHackathon } from "./hooks";
 import type { HackathonRegistrationModalPhase } from "./components/HackathonRegistrationModal";
 import { HK_EVENTS, classifyError, trackHackathon, trackRegistrationSuccessOnce } from "./analytics";
+import { isHackathonSignupClosedForNewParticipants } from "./hackathonRegistration";
 
 type GateOptions = {
   /** Passed to the register API (analytics). */
@@ -35,6 +36,7 @@ export function useHackathonRegistrationGate({
     if (!autoRegister) return;
     if (!me || me.registered || registerAttempted.current) return;
     if (me.hackathon.phase === "ended" || me.hackathon.isFull) return;
+    if (isHackathonSignupClosedForNewParticipants(me.hackathon, me.registered)) return;
     // Register once the signup form is done, so "registered" means a real, finished signup
     // (signing in alone used to count, which inflated the numbers with empty profiles).
     if (!me.profile.complete) return;
