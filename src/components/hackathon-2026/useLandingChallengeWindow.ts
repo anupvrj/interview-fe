@@ -11,10 +11,10 @@ const FALLBACK: ChallengeWindow = formatChallengeWindow(HACKATHON_CHALLENGE.star
 export function useLandingChallengeWindow(): ChallengeWindow {
   const { data } = useHackathonPublic();
   const startsAt = data?.startsAt ?? null;
-  const endsAt = data?.endsAt ?? null;
+  const submissionEnd = data?.submissionsDueAt ?? data?.endsAt ?? null;
 
   return useMemo(() => {
-    if (!startsAt || !endsAt) return FALLBACK;
-    return formatChallengeWindow(startsAt, endsAt);
-  }, [startsAt, endsAt]);
+    if (!startsAt || !submissionEnd) return FALLBACK;
+    return formatChallengeWindow(startsAt, submissionEnd);
+  }, [startsAt, submissionEnd]);
 }

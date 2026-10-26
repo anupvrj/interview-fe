@@ -7,6 +7,10 @@ export type ChallengeWindow = {
   dateLabel: string;
   /** e.g. 17th-24th Oct 2026 */
   publicRangeLabel: string;
+  /** e.g. Submission Extended to 28th October 2026 */
+  submissionExtendedLabel: string;
+  /** e.g. 28th October 2026 — deadline portion of {@link submissionExtendedLabel} */
+  submissionExtendedDateLabel: string;
   /** e.g. 17 Oct 2026 */
   registrationDateLabel: string;
   /** Inclusive IST calendar days from start through end. */
@@ -17,11 +21,11 @@ const IST = "Asia/Kolkata";
 
 type IstDate = { day: number; month: string; year: string };
 
-function istDate(iso: string): IstDate {
+function istDate(iso: string, month: "short" | "long" = "short"): IstDate {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: IST,
     day: "numeric",
-    month: "short",
+    month,
     year: "numeric",
   }).formatToParts(new Date(iso));
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
@@ -63,6 +67,7 @@ function ordinal(day: number): string {
 export function formatChallengeWindow(startISO: string, endISO: string): ChallengeWindow {
   const start = istDate(startISO);
   const end = istDate(endISO);
+  const endLong = istDate(endISO, "long");
   const sameMonth = start.month === end.month && start.year === end.year;
 
   const dateLabel = sameMonth
@@ -73,11 +78,16 @@ export function formatChallengeWindow(startISO: string, endISO: string): Challen
     ? `${ordinal(start.day)}-${ordinal(end.day)} ${start.month} ${start.year}`
     : `${ordinal(start.day)} ${start.month}–${ordinal(end.day)} ${end.month} ${end.year}`;
 
+  const submissionExtendedDateLabel = `${ordinal(endLong.day)} ${endLong.month} ${endLong.year}`;
+  const submissionExtendedLabel = `Submission Extended to ${submissionExtendedDateLabel}`;
+
   return {
     startISO,
     endISO,
     dateLabel,
     publicRangeLabel,
+    submissionExtendedLabel,
+    submissionExtendedDateLabel,
     registrationDateLabel: `${start.day} ${start.month} ${start.year}`,
     dayCount: inclusiveDays(startISO, endISO),
   };

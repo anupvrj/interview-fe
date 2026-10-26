@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Copy, FileText, Instagram, Linkedin, Loader2, Lock, Mic, PlayCircle } from "lucide-react";
+import { CheckCircle2, Copy, FileText, Linkedin, Loader2, Lock, Mic, PlayCircle } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { trackSpotlight } from "@/components/hackathon-2026/HackathonMotion";
 import type { HackathonChallengeKind, LockReason, StepState } from "../api";
@@ -90,9 +90,9 @@ function SocialLockedPreview() {
     <div className="space-y-4">
       <div className="rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4">
         <p className="text-sm text-[#cfdbe8]">
-          Share your experience on <strong className="text-white">LinkedIn</strong> and{" "}
-          <strong className="text-white">Instagram</strong>, tag <strong className="text-white">@interviewtrix_official</strong>,
-          and keep each post public. Then paste both post links below.
+          Share your experience on <strong className="text-white">LinkedIn</strong>, tag{" "}
+          <strong className="text-white">InterviewTrix</strong>, and keep your post public. Then paste your post link
+          below.
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <p className="min-w-0 flex-1 rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-[#9eb2ca]">{SOCIAL_CAPTION}</p>
@@ -102,22 +102,12 @@ function SocialLockedPreview() {
           </span>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <p className="flex items-center gap-2 text-sm font-semibold text-[#dbe9f8]">
-            <Linkedin className="size-4 text-[#6fc0ff]" /> LinkedIn post URL
-          </p>
-          <div className={cn(hkInputClass, "flex items-center text-[#7189a6]")}>
-            https://www.linkedin.com/posts/…
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="flex items-center gap-2 text-sm font-semibold text-[#dbe9f8]">
-            <Instagram className="size-4 text-[#ff5f97]" /> Instagram post URL
-          </p>
-          <div className={cn(hkInputClass, "flex items-center text-[#7189a6]")}>
-            https://www.instagram.com/p/…
-          </div>
+      <div className="space-y-2">
+        <p className="flex items-center gap-2 text-sm font-semibold text-[#dbe9f8]">
+          <Linkedin className="size-4 text-[#6fc0ff]" /> LinkedIn post URL
+        </p>
+        <div className={cn(hkInputClass, "flex items-center text-[#7189a6]")}>
+          https://www.linkedin.com/posts/…
         </div>
       </div>
       <span className="hk-btn pointer-events-none inline-flex h-12 px-6 text-sm">Submit Challenge 3</span>

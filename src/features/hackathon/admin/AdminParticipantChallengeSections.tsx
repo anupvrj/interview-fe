@@ -377,7 +377,9 @@ export function AdminParticipantChallengeSections({
                   <div className="grid gap-3 md:grid-cols-2">
                     {[
                       { label: "LinkedIn", url: social.linkedinUrl, Icon: Linkedin },
-                      { label: "Instagram", url: social.instagramUrl, Icon: Instagram },
+                      ...(social.instagramUrl
+                        ? [{ label: "Instagram", url: social.instagramUrl, Icon: Instagram }]
+                        : []),
                     ].map(({ label, url, Icon }) => (
                       <a
                         key={label}

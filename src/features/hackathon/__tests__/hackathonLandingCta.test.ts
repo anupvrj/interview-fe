@@ -6,7 +6,8 @@ const basePub = {
   phase: "upcoming",
   isFull: false,
   spotsLeft: 50,
-} as Pick<HackathonPublic, "phase" | "isFull" | "spotsLeft">;
+  registrationOpen: true,
+} as Pick<HackathonPublic, "phase" | "isFull" | "spotsLeft" | "registrationOpen">;
 
 describe("resolveHackathonLandingCta", () => {
   it("signed out: Register for new browsers, Go to Challenge for returning ones", () => {
@@ -14,8 +15,10 @@ describe("resolveHackathonLandingCta", () => {
     expect(resolveHackathonLandingCta(pub, false, false).labelKey).toBe("register");
     expect(resolveHackathonLandingCta(pub, false, false, true).labelKey).toBe("goToChallenges");
     expect(resolveHackathonLandingCta(undefined, false, false, true).labelKey).toBe("goToChallenges");
-    // A full event doesn't lock out someone who already joined.
-    expect(resolveHackathonLandingCta({ ...basePub, isFull: true } as HackathonPublic, false, false, true)).toMatchObject({ labelKey: "goToChallenges", disabled: false });
+    expect(resolveHackathonLandingCta({ ...basePub, isFull: true } as HackathonPublic, false, false, true)).toMatchObject({
+      labelKey: "goToChallenges",
+      disabled: false,
+    });
   });
 
   it("signed in: the real registration wins over the browser key", () => {
@@ -41,5 +44,32 @@ describe("resolveHackathonLandingCta", () => {
     const cta = resolveHackathonLandingCta(full as HackathonPublic, true, false);
     expect(cta.labelKey).toBe("full");
     expect(cta.disabled).toBe(true);
+  });
+
+  it("shows Register for Event when registration is off or the hackathon ended", () => {
+    const open = { ...basePub, slug: "hiring-games-hackathon-2026" } as HackathonPublic;
+    expect(resolveHackathonLandingCta(open, true, false).labelKey).toBe("register");
+
+    const closed = { ...open, registrationOpen: false } as HackathonPublic;
+    expect(resolveHackathonLandingCta(closed, true, false).labelKey).toBe("registerForEvent");
+    expect(resolveHackathonLandingCta(closed, false, false).labelKey).toBe("registerForEvent");
+    expect(resolveHackathonLandingCta(closed, true, true).labelKey).toBe("goToChallenges");
+
+    const ended = { ...open, phase: "ended" as const } as HackathonPublic;
+    expect(resolveHackathonLandingCta(ended, true, false).labelKey).toBe("registerForEvent");
+    expect(resolveHackathonLandingCta(ended, true, true).labelKey).toBe("seeResults");
+  });
+
+  it("defaults to register while public data is loading", () => {
+    expect(resolveHackathonLandingCta(undefined, true, false).labelKey).toBe("register");
+    expect(resolveHackathonLandingCta(undefined, false, false).labelKey).toBe("register");
+  });
+
+  it("shows Register for Event for returning browsers when hackathon signup is closed", () => {
+    const closed = {
+      ...basePub,
+      registrationOpen: false,
+    } as HackathonPublic;
+    expect(resolveHackathonLandingCta(closed, false, false, true).labelKey).toBe("registerForEvent");
   });
 });

@@ -195,7 +195,7 @@ export function usePreviewResumeScore() {
 }
 
 export function useSubmitHackathonSocial() {
-  return useMeMutation<{ linkedinUrl: string; instagramUrl: string }>((slug, getToken, body) =>
+  return useMeMutation<{ linkedinUrl: string }>((slug, getToken, body) =>
     hackathonApi.submitSocial(slug, getToken, body),
   );
 }

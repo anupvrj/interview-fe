@@ -364,10 +364,22 @@ const NESTED_PAGES: NestedPageRule[] = [
     crumb: "Submission",
   },
   {
-    pattern: /^\/super-admin\/hackathons\/[^/]+\/?$/,
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/launch-event\/?$/,
+    title: "Launch event registrations",
+    description: "RSVPs for the 31 Oct live event (Learn from Industry Leaders).",
+    crumb: "Launch event",
+  },
+  {
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/submissions\/?$/,
     title: "Hackathon submissions",
     description: "Every participant with their ATS score, interview scores, and progress.",
     crumb: "Submissions",
+  },
+  {
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/?$/,
+    title: "Hackathon overview",
+    description: "Status, capacity, and shortcuts for this hackathon.",
+    crumb: "Overview",
   },
   {
     pattern: /^\/super-admin\/users\/[^/]+\/reports\/[^/]+\/?$/,

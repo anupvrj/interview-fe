@@ -28,6 +28,8 @@ export function ProfilePhoneFields({
   onLocalNumberChange,
   onSave,
   showSaveButton = true,
+  fixedCountryCode,
+  compact = false,
   className,
 }: Readonly<{
   countryCode: string;
@@ -39,39 +41,62 @@ export function ProfilePhoneFields({
   onLocalNumberChange: (value: string) => void;
   onSave: () => void;
   showSaveButton?: boolean;
+  /** Hides the country dropdown and shows this dial code only (e.g. launch RSVP). */
+  fixedCountryCode?: string;
+  /** Tighter layout for modals — shorter number field. */
+  compact?: boolean;
   className?: string;
 }>) {
   const [touched, setTouched] = useState(false);
-  const formatted = formatPhoneForStorage(countryCode, localNumber);
-  const check = checkMobileNumber(countryCode, localNumber);
+  const dialCode = fixedCountryCode ?? countryCode;
+  const formatted = formatPhoneForStorage(dialCode, localNumber);
+  const check = checkMobileNumber(dialCode, localNumber);
   // Say what's wrong once they've typed a full number or left the field — not on the first digit.
   const showError =
-    !!localNumber && !check.ok && (touched || localNumber.length >= maxLocalDigits(countryCode));
+    !!localNumber && !check.ok && (touched || localNumber.length >= maxLocalDigits(dialCode));
   const dirty = formatted !== (savedPhone ?? "");
   const canSave =
     dirty &&
-    (formatted === "" || isValidPhoneForStorage(countryCode, localNumber));
+    (formatted === "" || isValidPhoneForStorage(dialCode, localNumber));
 
   return (
-    <div className={cn("mt-1.5", className)}>
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <AppSelect
-        id="profile-phone-country"
-        value={countryCode}
-        onChange={(value) => {
-          onCountryCodeChange(value);
-          onLocalNumberChange(normaliseLocalNumber(value, localNumber));
-        }}
-        options={COUNTRY_CODE_OPTIONS}
-        disabled={disabled || saving}
-        className="h-10 w-full sm:max-w-[10.5rem] bg-card"
-      />
+    <div className={cn(fixedCountryCode ? "mt-0" : "mt-1.5", className)}>
+    <div
+      className={cn(
+        "flex items-center gap-2",
+        compact ? "w-full max-w-[18rem] sm:max-w-[22rem] md:max-w-none" : "flex-col sm:flex-row sm:items-center",
+      )}
+    >
+      {fixedCountryCode ? (
+        <span
+          id="profile-phone-country"
+          className={cn(
+            "inline-flex h-11 shrink-0 items-center rounded-xl border border-[#27547d]/80 bg-[#081a33]/90 px-3 text-[15px] font-semibold tabular-nums text-[#dbe9f8]",
+            compact && "h-11 px-2.5 text-sm",
+          )}
+          aria-hidden
+        >
+          {fixedCountryCode}
+        </span>
+      ) : (
+        <AppSelect
+          id="profile-phone-country"
+          value={countryCode}
+          onChange={(value) => {
+            onCountryCodeChange(value);
+            onLocalNumberChange(normaliseLocalNumber(value, localNumber));
+          }}
+          options={COUNTRY_CODE_OPTIONS}
+          disabled={disabled || saving}
+          className="h-10 w-full sm:max-w-[10.5rem] bg-card"
+        />
+      )}
       <Input
         id="profile-phone-local"
         type="tel"
         inputMode="numeric"
         autoComplete="tel-national"
-        placeholder={countryCode === "+91" ? "10-digit mobile number" : "Mobile number"}
+        placeholder={dialCode === "+91" ? "10-digit mobile" : "Mobile number"}
         value={localNumber}
         disabled={disabled || saving}
         aria-invalid={showError || undefined}
@@ -79,12 +104,15 @@ export function ProfilePhoneFields({
         // Full width when stacked on phones; `flex-1` there would collapse the field's height.
         // 16px text on phones (iOS zooms the page into smaller inputs); `!` beats .app-control.
         className={cn(
-          "h-11 w-full min-w-0 bg-card !text-base sm:h-10 sm:flex-1 sm:!text-sm",
+          "h-11 min-w-0 bg-card !text-base sm:h-10 sm:!text-sm",
+          compact ? "w-full min-w-0 flex-1 md:max-w-none" : "w-full sm:flex-1",
           showError && "!border-destructive focus-visible:!ring-destructive/30",
+          fixedCountryCode &&
+            "rounded-xl border-[#27547d]/80 bg-[#081a33]/90 text-white placeholder:text-[#6a849e] focus-visible:ring-[#3aa6ff]/30",
         )}
         onBlur={() => setTouched(true)}
         onChange={(event) =>
-          onLocalNumberChange(normaliseLocalNumber(countryCode, event.target.value))
+          onLocalNumberChange(normaliseLocalNumber(dialCode, event.target.value))
         }
       />
       {showSaveButton ? (

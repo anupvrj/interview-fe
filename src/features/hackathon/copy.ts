@@ -29,23 +29,48 @@ export const PHASE_COPY = {
   full: "Hackathon is full. All spots have been taken.",
 } as const;
 
+export const REGISTRATION_CLOSED_NOTE =
+  "Registration is over. You can still submit your challenges if you have already started.";
+
+export const HACKATHON_SIGNUP_CLOSED = {
+  title: "Ooops..",
+  message:
+    "We've stopped taking new registrations for the hackathon. Register for our online launch event instead — learn from industry leaders about today's job market, how to stay ahead, and how to get hired.",
+  launchCta: "Register for Event",
+  dismiss: "Got it",
+} as const;
+
+export const DASHBOARD_NOT_REGISTERED = {
+  title: "Hackathon registration is over",
+  message:
+    "Hackathon registration is over. If you have already registered, submit your challenges. If you are new, register for the online launch event.",
+  note:
+    "Note: You can only win a prize if you have submitted the hackathon. Registering for the event only reserves your spot for the online launch.",
+  submitChallenge: "Submit Challenge",
+  registerForEvent: "Register for Event",
+} as const;
+
 export const CTA_LABELS = {
   register: "Register Now for Free",
+  registerForEvent: "Register for Event",
   getReady: "Go to Challenge",
   goToChallenges: "Go to Challenge",
   seeResults: "See your results",
   full: "Hackathon is full",
   ended: "Hackathon is over",
+  registrationClosed: "Registration closed",
 } as const;
 
 /** Short forms of CTA_LABELS for tight spots (e.g. the mobile header). */
 export const CTA_SHORT_LABELS: Record<keyof typeof CTA_LABELS, string> = {
   register: "Register",
+  registerForEvent: "Register",
   getReady: "Go to Challenge",
   goToChallenges: "Challenge",
   seeResults: "Results",
   full: "Full",
   ended: "Ended",
+  registrationClosed: "Closed",
 };
 
 export function lockReasonText(
