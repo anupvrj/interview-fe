@@ -172,6 +172,7 @@ function emptyForm(): FormState {
     reminderEnabled: true,
     reminderHour: "9",
     reminderStart: "",
+    registrationOpen: true,
   };
 }
 
@@ -213,6 +214,7 @@ function fromOverview(h: AdminHackathonOverview): FormState {
     reminderEnabled: h.reminders?.enabled !== false,
     reminderHour: String(h.reminders?.hour ?? 9),
     reminderStart: isoToIstInput(h.reminders?.startAt),
+    registrationOpen: h.registrationOpen !== false,
   };
 }
 
@@ -271,9 +273,9 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
       hour: Number(form.reminderHour),
       startAt: form.reminderStart ? istInputToIso(form.reminderStart) : null,
     },
+    registrationOpen: form.registrationOpen,
   };
 }
-    registrationOpen: form.registrationOpen,
 
 const START_CLOCK_SKEW_MS = 2 * 60_000;
 
@@ -304,6 +306,7 @@ function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, e
   if (body.submissionsDueAt && body.endsAt && Date.parse(body.submissionsDueAt) > Date.parse(body.endsAt)) {
     throw new Error("Submission due must be on or before the hackathon end.");
   }
+  const reminderHour = body.reminders?.hour;
   if (reminderHour === undefined || !Number.isInteger(reminderHour) || reminderHour < 0 || reminderHour > 23) {
     throw new Error("Reminder hour must be from 0 to 23.");
   }
@@ -742,8 +745,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               </div>
 
               <p className="text-sm font-semibold text-foreground">Schedule and capacity</p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <HackathonIstDateTimeField
               <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
                 <input
                   type="checkbox"
@@ -758,6 +759,8 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   </span>
                 </span>
               </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <HackathonIstDateTimeField
                   id="hk-start"
                   label="Start"
                   hint="When participants can begin challenges. Leave empty to open only via Status → Start now."
@@ -766,8 +769,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   onChange={(startsAt) => patch({ startsAt })}
                 />
                 <HackathonIstDateTimeField
-                  id="hk-end"
-                  label="End"
                   id="hk-submissions-due"
                   label="Submission due"
                   hint="Last moment participants can submit challenges. After this, steps lock until the hackathon end."
@@ -780,6 +781,8 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   label="Hackathon end"
                   hint="When the overall event ends (phase becomes ended). Can be after the submission deadline (e.g. launch day)."
                   previewVerb="Event ends"
+                  value={form.endsAt}
+                  onChange={(endsAt) => patch({ endsAt })}
                 />
                 <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty = unlimited.">
                   <Input id="hk-limit" type="number" min={1} className={hackathonAdminControlClass} value={form.limit} onChange={(e) => patch({ limit: e.target.value })} />
