@@ -391,15 +391,6 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                     <TableRow>
                       <TableHead>Participant</TableHead>
                       <TableHead>Phone</TableHead>
-                      <TableHead className="text-center" title="1st phone follow-up">
-                        Call 1
-                      </TableHead>
-                      <TableHead className="text-center" title="2nd phone follow-up">
-                        Call 2
-                      </TableHead>
-                      <TableHead className="text-center" title="3rd phone follow-up">
-                        Call 3
-                      </TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Progress</TableHead>
                       {columns.map((col) => (
@@ -413,6 +404,15 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                       ))}
                       <TableHead>Registered</TableHead>
                       <TableHead>Completed</TableHead>
+                      <TableHead className="text-center" title="1st phone follow-up">
+                        Call 1
+                      </TableHead>
+                      <TableHead className="text-center" title="2nd phone follow-up">
+                        Call 2
+                      </TableHead>
+                      <TableHead className="text-center" title="3rd phone follow-up">
+                        Call 3
+                      </TableHead>
                       <TableHead className="sr-only">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -445,17 +445,6 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          {PHONE_FOLLOW_UP_KEYS.map((key) => (
-                            <TableCell key={`${row.participantId}-${key}`} className="text-center">
-                              <PhoneFollowUpCheckbox
-                                participantId={row.participantId}
-                                followKey={key}
-                                checked={Boolean(row.phoneFollowUps?.[key])}
-                                disabled={followUpPending === `${row.participantId}:${key}`}
-                                onToggle={toggleFollowUp}
-                              />
-                            </TableCell>
-                          ))}
                           <TableCell>{participantStatusBadge(row.status)}</TableCell>
                           <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
                             {row.summary?.challengesCompleted ?? 0}/{requiredChallenges}
@@ -488,6 +477,17 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                           <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                             {row.completedAt ? formatIst(row.completedAt) : "—"}
                           </TableCell>
+                          {PHONE_FOLLOW_UP_KEYS.map((key) => (
+                            <TableCell key={`${row.participantId}-${key}`} className="text-center">
+                              <PhoneFollowUpCheckbox
+                                participantId={row.participantId}
+                                followKey={key}
+                                checked={Boolean(row.phoneFollowUps?.[key])}
+                                disabled={followUpPending === `${row.participantId}:${key}`}
+                                onToggle={toggleFollowUp}
+                              />
+                            </TableCell>
+                          ))}
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
                               <Button asChild size="sm" variant="outline">
