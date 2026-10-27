@@ -1,5 +1,6 @@
 import type { HackathonPublic } from "./api";
 import { CTA_LABELS } from "./copy";
+import { isHackathonSignupClosedForNewParticipants } from "./hackathonRegistration";
 
 export type HackathonLandingCtaKey = keyof typeof CTA_LABELS;
 
@@ -26,33 +27,41 @@ export function resolveHackathonLandingCta(
   returning = false,
 ): HackathonLandingCta {
   const hint = spotsHint(pub);
-  const active = isSignedIn ? registered : returning;
+  /** Signed-out returning browsers only — not the same as an active participant. */
+  const browseAsReturning = !isSignedIn && returning;
 
   if (!pub) {
     return {
-      labelKey: active ? "goToChallenges" : "register",
+      labelKey: browseAsReturning ? "goToChallenges" : "register",
       disabled: false,
       hint: null,
     };
   }
 
   if (pub.phase === "ended") {
-    return {
-      labelKey: active ? "seeResults" : "ended",
-      disabled: !isSignedIn && !active,
-      hint: null,
-    };
+    if (registered) {
+      return { labelKey: "seeResults", disabled: false, hint: null };
+    }
+    return { labelKey: "registerForEvent", disabled: false, hint: null };
   }
 
   if (pub.isFull) {
     return {
-      labelKey: active ? "goToChallenges" : "full",
-      disabled: !active,
+      labelKey: registered || browseAsReturning ? "goToChallenges" : "full",
+      disabled: !(registered || browseAsReturning),
       hint: null,
     };
   }
 
-  if (active) {
+  if (isHackathonSignupClosedForNewParticipants(pub, registered)) {
+    return {
+      labelKey: "registerForEvent",
+      disabled: false,
+      hint,
+    };
+  }
+
+  if (registered || browseAsReturning) {
     return {
       labelKey: "goToChallenges",
       disabled: false,

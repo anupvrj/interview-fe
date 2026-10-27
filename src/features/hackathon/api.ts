@@ -55,6 +55,7 @@ export interface HackathonPublic {
   phase: HackathonPhase;
   startsAt: string | null;
   endsAt: string | null;
+  submissionsDueAt?: string | null;
   isFull: boolean;
   spotsLeft: number | null;
   maxCompletions: number | null;
@@ -64,6 +65,7 @@ export interface HackathonPublic {
   challenges: HackathonChallenge[];
   interviewConfig: { requiredCount: number; durationMinutes: number; maxAttemptsPerSlot: number };
   serverNow: string;
+  registrationOpen?: boolean;
 }
 
 export interface InterviewSlotProgress {
@@ -150,7 +152,7 @@ export interface HackathonMe {
   preferredResumeId?: string | null;
   social: {
     linkedinUrl: string;
-    instagramUrl: string;
+    instagramUrl?: string | null;
     reviewStatus: SocialReviewStatus;
     reviewNote: string | null;
   } | null;
@@ -248,6 +250,25 @@ export const hackathonApi = {
   },
 
   /** Links the quiz answered before sign-up to the signed-in account. */
+  submitLaunchRegistration: async (
+    slug: string,
+    body: {
+      name: string;
+      phone: string;
+      email: string;
+      profession: "student" | "self_employed" | "working_professional";
+      whyAttend: "stay_relevant" | "expert_advice" | "practical_solutions" | "community_launch";
+      attended: "yes" | "no";
+      ready: "yes" | "nervous";
+    },
+  ): Promise<{ registrationId: string }> => {
+    const res = await apiClient.post<{ data: { registrationId: string } }>(
+      `${hackathonBase(slug)}/launch-registration`,
+      body,
+    );
+    return res.data.data;
+  },
+
   claimPreSurvey: async (slug: string, getToken: TokenGetter, token: string): Promise<{ linked: boolean }> => {
     const res = await apiClient.post<{ data: { linked: boolean } }>(
       `${hackathonBase(slug)}/pre-survey/claim`,
@@ -373,7 +394,7 @@ export const hackathonApi = {
   submitSocial: async (
     slug: string,
     getToken: TokenGetter,
-    body: { linkedinUrl: string; instagramUrl: string },
+    body: { linkedinUrl: string },
   ): Promise<HackathonMe> => {
     const res = await apiClient.post<{ data: HackathonMe }>(`${hackathonBase(slug)}/me/social`, body, {
       headers: await authHeaders(getToken),
@@ -411,8 +432,10 @@ export interface AdminHackathonOverview {
   startsAt: string | null;
   startedAt: string | null;
   endsAt: string | null;
+  submissionsDueAt?: string | null;
   endedAt: string | null;
   maxCompletions: number | null;
+  registrationOpen?: boolean;
   interviewGraceMinutes: number;
   reminders?: { enabled: boolean; hour: number; startAt: string | null };
   interviewConfig: {
@@ -430,7 +453,20 @@ export interface AdminHackathonOverview {
   participantCount: number;
   capacity: { maxCompletions: number | null; completedCount: number; isFull: boolean; spotsLeft: number | null };
   counts: Record<ParticipantStatus | "total", number>;
+  launchRegistrationCount?: number;
   statusHistory: Array<{ action: string; from?: string; to?: string; byUserId: string; at: string; note?: string }>;
+}
+
+export interface AdminLaunchRegistrationRow {
+  registrationId: string;
+  name: string;
+  phone: string;
+  email: string;
+  profession: "student" | "self_employed" | "working_professional";
+  whyAttend: "stay_relevant" | "expert_advice" | "practical_solutions" | "community_launch";
+  attended: "yes" | "no";
+  ready: "yes" | "nervous";
+  createdAt: string;
 }
 
 export interface AdminParticipantRow {
@@ -443,6 +479,7 @@ export interface AdminParticipantRow {
   registeredAt: string;
   completedAt?: string | null;
   suspension?: { at: string; byUserId: string; previousStatus: ParticipantStatus; note?: string } | null;
+  phoneFollowUps?: { first?: boolean; second?: boolean; third?: boolean };
   summary?: {
     resumeAtsScore: number | null;
     interview1Score: number | null;
@@ -457,8 +494,11 @@ export interface AdminParticipantRow {
       hasRecording: boolean | null;
     }>;
     missingRecording?: boolean;
+    passedChallengeIds?: string[];
   };
 }
+
+export type AdminPhoneFollowUpKey = "first" | "second" | "third";
 
 export interface AdminParticipantDetail {
   participant: AdminParticipantRow;
@@ -520,8 +560,10 @@ export type AdminHackathonWriteBody = {
   slug?: string;
   startsAt?: string | null;
   endsAt?: string;
+  submissionsDueAt?: string | null;
   interviewGraceMinutes?: number;
   maxCompletions?: number | null;
+  registrationOpen?: boolean;
   landing?: { tagline?: string; description?: string; registerCta?: string };
   targets?: { atsScore?: number; interviewScore?: number };
   challenges?: Array<{
@@ -641,13 +683,31 @@ export const hackathonAdminApi = {
       sort?: AdminParticipantSort;
       socialReview?: AdminSocialReviewFilter;
       missingVideo?: boolean;
+      passedChallenges?: string[];
       page: number;
       limit: number;
     },
   ): Promise<{ rows: AdminParticipantRow[]; total: number; page: number; limit: number }> => {
+    const { passedChallenges, ...rest } = query;
     const res = await apiClient.get<{
       data: { rows: AdminParticipantRow[]; total: number; page: number; limit: number };
-    }>(`${adminBase}/${hackathonId}/participants`, { params: query });
+    }>(`${adminBase}/${hackathonId}/participants`, {
+      params: {
+        ...rest,
+        ...(passedChallenges?.length ? { passedChallenges: passedChallenges.join(",") } : {}),
+      },
+    });
+    return res.data.data;
+  },
+  updatePhoneFollowUps: async (
+    hackathonId: string,
+    participantId: string,
+    patch: Partial<Record<AdminPhoneFollowUpKey, boolean>>,
+  ): Promise<AdminParticipantRow> => {
+    const res = await apiClient.patch<{ data: AdminParticipantRow }>(
+      `${adminBase}/${hackathonId}/participants/${participantId}/phone-follow-ups`,
+      patch,
+    );
     return res.data.data;
   },
   participant: async (hackathonId: string, participantId: string): Promise<AdminParticipantDetail> => {
@@ -698,6 +758,21 @@ export const hackathonAdminApi = {
   },
   exportCsv: async (hackathonId: string): Promise<Blob> => {
     const res = await apiClient.get<Blob>(`${adminBase}/${hackathonId}/export.csv`, { responseType: "blob" });
+    return res.data;
+  },
+  launchRegistrations: async (
+    hackathonId: string,
+    query: { q?: string; page: number; limit: number },
+  ): Promise<{ rows: AdminLaunchRegistrationRow[]; total: number; page: number; limit: number }> => {
+    const res = await apiClient.get<{
+      data: { rows: AdminLaunchRegistrationRow[]; total: number; page: number; limit: number };
+    }>(`${adminBase}/${hackathonId}/launch-registrations`, { params: query });
+    return res.data.data;
+  },
+  exportLaunchRegistrationsCsv: async (hackathonId: string): Promise<Blob> => {
+    const res = await apiClient.get<Blob>(`${adminBase}/${hackathonId}/launch-registrations/export.csv`, {
+      responseType: "blob",
+    });
     return res.data;
   },
 };

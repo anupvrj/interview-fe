@@ -54,9 +54,7 @@ import { usePublicPlatformStats } from "@/hooks/usePublicPlatformStats";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import { HomeHackathonPromoStrip } from "@/components/marketing/HomeHackathonPromoStrip";
-import { useAuth } from "@clerk/nextjs";
-import { HACKATHON_LANDING_PATH, HACKATHON_SLUG, hackathonDashboardPath } from "@/features/hackathon/config";
-import { useHackathonMember } from "@/features/hackathon/returningMember";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 const stackedFeatureCtaRowClass =
   "flex flex-row items-stretch gap-2 pt-4 sm:items-start sm:gap-4";
@@ -165,10 +163,6 @@ function renderHighlightedText(
 }
 
 export default function LandingPage() {
-  // Joined the hackathon on this browser before (even if signed out since): "Go to Challenge".
-  const { isSignedIn } = useAuth();
-  const hackathonMember = useHackathonMember();
-  const hackathonHref = hackathonMember && isSignedIn ? hackathonDashboardPath(HACKATHON_SLUG) : HACKATHON_LANDING_PATH;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -411,15 +405,28 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href={hackathonHref} className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
-                  >
-                    {hackathonMember ? "Go to Challenge" : "Join Hackathon"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+                <SignedOut>
+                  <Link href="/sign-up" className="w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Get Started for Free
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                    >
+                      Go to Dashboard
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </SignedIn>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     {[...Array(5)].map((_, i) => (

@@ -12,6 +12,10 @@ import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 import { hackathonDashboardPath, hackathonProfilePath } from "../config";
 import { PHASE_COPY } from "../copy";
+import { HackathonRegistrationClosedModal } from "../components/HackathonRegistrationClosedModal";
+import { isHackathonSignupClosedForNewParticipants } from "../hackathonRegistration";
+import { HackathonLaunchEventProvider, useHackathonLaunchEventOptional } from "@/components/hackathon-2026/HackathonLaunchEventContext";
+import { hackathonLandingPath } from "../config";
 import {
   completeOnboardingPayloadFromProfile,
   isHackathonProfileReady,
@@ -31,6 +35,8 @@ function ProfileContent() {
   const slug = useHackathonSlug();
   const dashboardPath = hackathonDashboardPath(slug);
   const profilePath = hackathonProfilePath(slug);
+  const landingPath = hackathonLandingPath(slug);
+  const launch = useHackathonLaunchEventOptional();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useUser();
@@ -112,6 +118,26 @@ function ProfileContent() {
 
   const headingToDashboard = !holdForm && profileComplete && Boolean(me?.registered);
 
+  const signupClosedForNew =
+    me &&
+    !me.registered &&
+    isHackathonSignupClosedForNewParticipants(me.hackathon, false);
+
+  if (signupClosedForNew && profileComplete && !holdForm) {
+    return (
+      <HackathonRegistrationClosedModal
+        open
+        onOpenChange={(open) => {
+          if (!open) router.replace(landingPath);
+        }}
+        onRegisterForEvent={() => {
+          if (launch) launch.openLaunchRegister();
+          else router.push(`${landingPath}?launch=1`);
+        }}
+      />
+    );
+  }
+
   const showBlockingShell =
     !isLoaded ||
     !isSignedIn ||
@@ -189,9 +215,11 @@ export function HackathonProfilePage() {
   useNoMotion();
   return (
     <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
-      <HackathonShell>
-        <ProfileContent />
-      </HackathonShell>
+      <HackathonLaunchEventProvider>
+        <HackathonShell>
+          <ProfileContent />
+        </HackathonShell>
+      </HackathonLaunchEventProvider>
     </HackathonFeatureGate>
   );
 }

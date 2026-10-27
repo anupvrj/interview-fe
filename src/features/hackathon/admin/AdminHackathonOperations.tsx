@@ -46,7 +46,8 @@ function fmtHistoryValue(value?: string) {
 function scheduleSummary(hackathon: AdminHackathonOverview) {
   const parts: string[] = [];
   if (hackathon.startsAt) parts.push(`Start ${formatIst(hackathon.startsAt)}`);
-  if (hackathon.endsAt) parts.push(`End ${formatIst(hackathon.endsAt)}`);
+  if (hackathon.submissionsDueAt) parts.push(`Submissions due ${formatIst(hackathon.submissionsDueAt)}`);
+  if (hackathon.endsAt) parts.push(`Event end ${formatIst(hackathon.endsAt)}`);
   if (hackathon.maxCompletions != null) parts.push(`Cap ${hackathon.maxCompletions}`);
   else parts.push("Unlimited cap");
   parts.push(`${hackathon.interviewGraceMinutes}m grace`);
@@ -96,12 +97,13 @@ export function AdminHackathonOperations({
 
   const statsAndActions = (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           ["Registered", counts.total],
           ["Not started", counts.registered],
           ["In progress", counts.in_progress],
           ["Completed", counts.completed],
+          ["Launch RSVPs", hackathon.launchRegistrationCount ?? 0],
           ["Spots left", capacity.spotsLeft === null ? "Unlimited" : capacity.spotsLeft],
         ].map(([label, value]) => (
           <div key={label} className={cn(appSurfaceMuted, "px-3 py-2.5")}>
@@ -120,6 +122,11 @@ export function AdminHackathonOperations({
         <Button asChild variant="outline">
           <Link href={hackathonAdminTabHref(id, "submissions")}>
             <Users className="mr-1.5 h-4 w-4" /> Submissions
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={hackathonAdminTabHref(id, "launch_event")}>
+            <Users className="mr-1.5 h-4 w-4" /> Launch event
           </Link>
         </Button>
         <Button
@@ -198,6 +205,9 @@ export function AdminHackathonOperations({
               {capacity.maxCompletions !== null
                 ? `${capacity.completedCount} / ${capacity.maxCompletions} completed, ${counts.in_progress} in progress.`
                 : `${capacity.completedCount} completed, ${counts.in_progress} in progress. Unlimited spots.`}{" "}
+              {hackathon.launchRegistrationCount != null && hackathon.launchRegistrationCount > 0
+                ? `${hackathon.launchRegistrationCount} launch event RSVP${hackathon.launchRegistrationCount === 1 ? "" : "s"}. `
+                : null}
               {status === "draft"
                 ? "Public page hidden."
                 : hackathon.phase === "upcoming"

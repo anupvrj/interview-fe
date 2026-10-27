@@ -239,6 +239,59 @@
 .hk-root.hk-modal :is(h1, h2, h3) span { font-family: var(--hk-display); letter-spacing: inherit; }
 .hk-dash main h1 .hk-wave-hand { font-family: initial; }
 
+@keyframes hk-launch-success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.hk-launch-success-check {
+  animation: hk-launch-success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes hk-signup-sad-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes hk-signup-sad-sway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(6deg);
+  }
+}
+
+.hk-signup-closed-emoji-wrap {
+  animation: hk-signup-sad-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.hk-signup-closed-emoji {
+  display: block;
+  font-family: initial;
+  line-height: 1;
+  animation: hk-signup-sad-sway 2.4s ease-in-out 0.55s infinite;
+}
+
 /* body copy a touch smaller — mono runs wider than sans */
 .hk-dash main p { font-size: 0.94em; line-height: 1.7; }
 .hk-dash main .hk-pill-m,

@@ -2,9 +2,8 @@
 
 import { Fragment } from "react";
 import { ArrowRight, FileText, MessageSquareText, Share2, UserPlus } from "lucide-react";
-import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { Reveal, Ribbon, trackSpotlight } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_HERO, HACKATHON_STEPS } from "@/lib/hackathon-2026-content";
+import { HACKATHON_STEPS } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
 const ICONS = { UserPlus, FileText, MessageSquareText, Share2 } as const;
@@ -97,34 +96,8 @@ export function HackathonParticipate() {
               );
             })}
           </ol>
-
-          <Reveal delay={300} className="mt-12 flex items-center justify-center gap-5">
-            <Sparks />
-            <HackathonRegisterButton ctaLocation="participate" size="lg" className="min-w-[18rem] rounded-2xl text-lg">
-              {HACKATHON_HERO.startChallengeLabel}
-            </HackathonRegisterButton>
-            <Sparks mirrored />
-          </Reveal>
         </div>
       </div>
     </section>
-  );
-}
-
-function Sparks({ mirrored = false }: { mirrored?: boolean }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 40 40"
-      className={cn("hk-draw hidden h-11 w-11 text-[#2e9bff] sm:block", mirrored && "-scale-x-100")}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-    >
-      <path d="M30 8 L20 14" style={{ "--hk-len": 14 } as React.CSSProperties} />
-      <path d="M32 20 L14 20" style={{ "--hk-len": 20 } as React.CSSProperties} />
-      <path d="M30 32 L20 26" style={{ "--hk-len": 14 } as React.CSSProperties} />
-    </svg>
   );
 }

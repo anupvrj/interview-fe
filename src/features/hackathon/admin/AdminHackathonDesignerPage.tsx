@@ -91,12 +91,14 @@ type FormState = {
   challenges: ChallengeForm[];
   maxConcurrent: string;
   startsAt: string;
+  submissionsDueAt: string;
   endsAt: string;
   grace: string;
   limit: string;
   reminderEnabled: boolean;
   reminderHour: string;
   reminderStart: string;
+  registrationOpen: boolean;
 };
 
 function slugFromTitle(title: string) {
@@ -132,7 +134,7 @@ function defaultsForKind(kind: HackathonChallengeKind): Pick<ChallengeForm, "tit
   }
   return {
     title: "Share your experience",
-    description: "Post about the hackathon on LinkedIn and Instagram, then paste both post links.",
+    description: "Post about your mock interview on LinkedIn, then share post links with us.",
   };
 }
 
@@ -163,12 +165,14 @@ function emptyForm(): FormState {
     challenges: [emptyChallenge("resume"), emptyChallenge("screening"), emptyChallenge("social")],
     maxConcurrent: "50",
     startsAt: "",
+    submissionsDueAt: "",
     endsAt: "",
     grace: "20",
     limit: "",
     reminderEnabled: true,
     reminderHour: "9",
     reminderStart: "",
+    registrationOpen: true,
   };
 }
 
@@ -204,11 +208,13 @@ function fromOverview(h: AdminHackathonOverview): FormState {
     maxConcurrent: String(h.interviewConfig.maxConcurrent ?? 50),
     startsAt: isoToIstInput(h.startsAt),
     endsAt: isoToIstInput(h.endsAt),
+    submissionsDueAt: isoToIstInput(h.submissionsDueAt),
     grace: String(h.interviewGraceMinutes),
     limit: h.maxCompletions === null ? "" : String(h.maxCompletions),
     reminderEnabled: h.reminders?.enabled !== false,
     reminderHour: String(h.reminders?.hour ?? 9),
     reminderStart: isoToIstInput(h.reminders?.startAt),
+    registrationOpen: h.registrationOpen !== false,
   };
 }
 
@@ -245,7 +251,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
       }
       if (c.kind === "coding") config.codingProblemIds = c.codingProblemIds;
       if (c.kind === "system_design") config.systemDesignProblemId = c.systemDesignProblemId || undefined;
-      if (c.kind === "social") config.requiredPlatforms = ["linkedin", "instagram"];
+      if (c.kind === "social") config.requiredPlatforms = ["linkedin"];
       return {
         challengeId: c.challengeId,
         kind: c.kind,
@@ -260,12 +266,14 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
     startsAt: form.startsAt ? istInputToIso(form.startsAt) : null,
     endsAt: form.endsAt ? istInputToIso(form.endsAt) ?? undefined : undefined,
     interviewGraceMinutes: Number.isInteger(grace) ? grace : 20,
+    submissionsDueAt: form.submissionsDueAt ? istInputToIso(form.submissionsDueAt) : null,
     maxCompletions: trimmedLimit === "" ? null : Number(trimmedLimit),
     reminders: {
       enabled: form.reminderEnabled,
       hour: Number(form.reminderHour),
       startAt: form.reminderStart ? istInputToIso(form.reminderStart) : null,
     },
+    registrationOpen: form.registrationOpen,
   };
 }
 
@@ -293,6 +301,11 @@ function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, e
   if (form.startsAt && !body.startsAt) throw new Error("Enter a valid start date and time.");
   if (form.endsAt && !body.endsAt) throw new Error("Enter a valid end date and time.");
   if (form.reminderStart && !body.reminders?.startAt) throw new Error("Enter a valid reminder start date.");
+  if (form.submissionsDueAt && !body.submissionsDueAt) throw new Error("Enter a valid submission due date and time.");
+  if (form.endsAt && !body.endsAt) throw new Error("Enter a valid end date and time.");
+  if (body.submissionsDueAt && body.endsAt && Date.parse(body.submissionsDueAt) > Date.parse(body.endsAt)) {
+    throw new Error("Submission due must be on or before the hackathon end.");
+  }
   const reminderHour = body.reminders?.hour;
   if (reminderHour === undefined || !Number.isInteger(reminderHour) || reminderHour < 0 || reminderHour > 23) {
     throw new Error("Reminder hour must be from 0 to 23.");
@@ -732,6 +745,20 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               </div>
 
               <p className="text-sm font-semibold text-foreground">Schedule and capacity</p>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.registrationOpen}
+                  onChange={(e) => patch({ registrationOpen: e.target.checked })}
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Accept registration</span>
+                  <span className="mt-1 block text-muted-foreground">
+                    When off, new hackathon sign-ups are blocked. Existing participants can still submit until the submission due date.
+                  </span>
+                </span>
+              </label>
               <div className="grid gap-4 md:grid-cols-2">
                 <HackathonIstDateTimeField
                   id="hk-start"
@@ -742,10 +769,18 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   onChange={(startsAt) => patch({ startsAt })}
                 />
                 <HackathonIstDateTimeField
-                  id="hk-end"
-                  label="End"
-                  hint="When submissions close. Can be changed any time; a past time closes it, a future time reopens it."
+                  id="hk-submissions-due"
+                  label="Submission due"
+                  hint="Last moment participants can submit challenges. After this, steps lock until the hackathon end."
                   previewVerb="Submissions close"
+                  value={form.submissionsDueAt}
+                  onChange={(submissionsDueAt) => patch({ submissionsDueAt })}
+                />
+                <HackathonIstDateTimeField
+                  id="hk-end"
+                  label="Hackathon end"
+                  hint="When the overall event ends (phase becomes ended). Can be after the submission deadline (e.g. launch day)."
+                  previewVerb="Event ends"
                   value={form.endsAt}
                   onChange={(endsAt) => patch({ endsAt })}
                 />

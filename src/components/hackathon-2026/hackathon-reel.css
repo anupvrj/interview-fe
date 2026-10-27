@@ -35,7 +35,8 @@
 .hk-root .hk-faq summary { font-family: var(--hk-sans); font-weight: 600 !important; letter-spacing: 0; font-size: inherit; }
 
 /* gradient words: keep a little room so Michroma's last glyph never clips */
-.hk-root .hk-grad-text { padding-right: 0.06em; padding-bottom: 0.08em; }
+.hk-root .hk-grad-text,
+.hk-root .hk-grad-text-amber { padding-right: 0.06em; padding-bottom: 0.08em; }
 
 .hk-root .hk-eyebrow,
 .hk-root .hk-nav-link,

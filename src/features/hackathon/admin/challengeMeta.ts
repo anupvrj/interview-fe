@@ -1,6 +1,8 @@
 import type { HackathonChallenge, HackathonChallengeKind } from "../api";
 
-export function resolveChallengeKind(challenge: HackathonChallenge): HackathonChallengeKind | undefined {
+export function resolveChallengeKind(
+  challenge: HackathonChallenge,
+): HackathonChallengeKind | undefined {
   if (challenge.kind) return challenge.kind;
   if (challenge.key === "resume_submission") return "resume";
   if (challenge.key === "social_share") return "social";
@@ -8,6 +10,8 @@ export function resolveChallengeKind(challenge: HackathonChallenge): HackathonCh
   return undefined;
 }
 
-export function resolveChallengeId(challenge: HackathonChallenge): string | undefined {
+export function resolveChallengeId(
+  challenge: HackathonChallenge,
+): string | undefined {
   return challenge.challengeId?.trim() || undefined;
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { hackathonKeys } from "../hooks";
 import { AdminParticipantChallengeSections } from "./AdminParticipantChallengeSections";
 import { participantStatusBadge } from "./AdminSubmissionsPage";
 import { hackathonAdminTabHref } from "./hackathonAdminNav";
+import { resolveAdminReturnTo } from "./submissionListQuery";
 import { confirmAdminRemoveParticipant } from "./adminRemoveParticipant";
 import { RequestResubmissionDialog } from "./RequestResubmissionDialog";
 
@@ -35,7 +36,12 @@ export function AdminSubmissionDetailPage({
     slot?: number;
   } | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const listKey = ["admin", "hackathons", hackathonId, "participants"];
+  const defaultSubmissionsHref = hackathonAdminTabHref(hackathonId, "submissions");
+  const backHref = resolveAdminReturnTo(searchParams.get("returnTo"), defaultSubmissionsHref);
+  const detailSelfHref = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
 
   const refreshAfterModeration = async () => {
     await Promise.all([
@@ -72,7 +78,7 @@ export function AdminSubmissionDetailPage({
         queryClient.invalidateQueries({ queryKey: hackathonKeys.adminOne(hackathonId) }),
       ]);
       toast.success("Participant removed. They can register for this hackathon again.");
-      router.push(hackathonAdminTabHref(hackathonId, "submissions"));
+      router.push(backHref);
     },
     onError: (err) => toast.error(toHackathonError(err).message),
   });
@@ -124,7 +130,6 @@ export function AdminSubmissionDetailPage({
     onError: (err) => toast.error(toHackathonError(err).message),
   });
 
-  const backHref = hackathonAdminTabHref(hackathonId, "submissions");
   const requiredChallenges = overview.data?.challenges?.length ?? 3;
 
   if (detail.isLoading) {
@@ -149,6 +154,7 @@ export function AdminSubmissionDetailPage({
   const { participant } = detail.data;
   const profile = participant.profileSnapshot;
   const who = profile?.name || profile?.email || "this participant";
+  const userProfileHref = `/super-admin/users/${participant.userId}?returnTo=${encodeURIComponent(detailSelfHref)}`;
 
   return (
     <div className="space-y-5">
@@ -163,7 +169,7 @@ export function AdminSubmissionDetailPage({
           <div className="flex flex-wrap items-center gap-2">
             {participantStatusBadge(participant.status)}
             <Button asChild variant="outline" size="sm">
-              <Link href={`/super-admin/users/${participant.userId}`}>User profile</Link>
+              <Link href={userProfileHref}>User profile</Link>
             </Button>
             {participant.status === "suspended" ? (
               <Button variant="outline" size="sm" disabled={moderating} onClick={() => confirmUnsuspend(who)}>

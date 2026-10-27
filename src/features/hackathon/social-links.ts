@@ -62,6 +62,16 @@ export function buildLinkedInShareComposeUrlFromFullText(fullText: string): stri
   return `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(fullText.trim())}`;
 }
 
+/** Copy caption and open LinkedIn feed composer (text only — attach images via Save image). */
+export async function openLinkedInShareCompose(args: { fullText: string; composeUrl: string }): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(args.fullText.trim());
+  } catch {
+    /* LinkedIn may still prefill via composeUrl */
+  }
+  window.open(args.composeUrl, "_blank", "noopener,noreferrer");
+}
+
 /** Link-only share; use when you need a preview card without prefilled text. */
 export function buildLinkedInShareOffsiteUrl(pageUrl: string): string {
   return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl.trim())}`;

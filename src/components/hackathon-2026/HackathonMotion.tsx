@@ -259,6 +259,9 @@ export function scrollToSection(hash: string) {
     block: "start",
   });
   window.history.replaceState(null, "", hash);
+  if (hash === "#launch" || hash === "#launch-form") {
+    window.dispatchEvent(new CustomEvent("hackathon-open-launch-modal"));
+  }
   return true;
 }
 

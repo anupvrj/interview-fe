@@ -24,6 +24,27 @@ export const shareImagePreviewUrl = (img: SharePostImage) => `${IMAGE_DIR}/previ
 export const shareImageDownloadName = (img: SharePostImage) =>
   `InterviewTrix-HiringGames-${img.id.replace(/^IX_HG_Share_\d+_/, "")}.png`;
 
-export function randomSharePostImage(): SharePostImage {
-  return SHARE_POST_IMAGES[Math.floor(Math.random() * SHARE_POST_IMAGES.length)];
+export function randomSharePostImage(exclude?: SharePostImage): SharePostImage {
+  let next: SharePostImage = SHARE_POST_IMAGES[0];
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    next = SHARE_POST_IMAGES[Math.floor(Math.random() * SHARE_POST_IMAGES.length)] as SharePostImage;
+    if (!exclude || next.id !== exclude.id) break;
+  }
+  return next;
+}
+
+export async function fetchSharePostImageFile(img: SharePostImage): Promise<File> {
+  const blob = await (await fetch(shareImageFullUrl(img))).blob();
+  return new File([blob], shareImageDownloadName(img), { type: blob.type || "image/png" });
+}
+
+export function downloadSharePostImageFile(file: File): void {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
