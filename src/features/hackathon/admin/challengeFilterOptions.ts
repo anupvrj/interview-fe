@@ -13,5 +13,7 @@ export function buildChallengeFilterOptions(
       const title = c.title?.trim() || kind || "Challenge";
       return { challengeId, label: `Challenge ${index + 1} · ${title}` };
     })
-    .filter((row): row is { challengeId: string; label: string } => row !== null);
+    .filter(
+      (row): row is { challengeId: string; label: string } => row !== null,
+    );
 }
