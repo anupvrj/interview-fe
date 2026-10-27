@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Loader2, Search, Trash2, VideoOff } from "lucide-react";
 import { toast } from "sonner";
@@ -20,14 +20,22 @@ import {
   type ParticipantStatus,
   type SocialReviewStatus,
 } from "../api";
-import { HACKATHON_ADMIN_PATH } from "../config";
 import { formatIst } from "../copy";
 import { hackathonKeys } from "../hooks";
 import { ADMIN_REMOVE_PARTICIPANT_DESCRIPTION } from "./adminRemoveParticipant";
 import { buildSubmissionTableColumns, cellForColumn } from "./buildSubmissionTableColumns";
+import { buildChallengeFilterOptions } from "./challengeFilterOptions";
+import { ChallengeMultiFilter } from "./ChallengeMultiFilter";
 import { HackathonAdminField, hackathonAdminControlClass } from "./HackathonAdminField";
 import { HackathonAdminShell } from "./HackathonAdminShell";
+import {
+  buildSubmissionsListQueryString,
+  parseSubmissionsListSearchParams,
+  participantDetailHref,
+  type SubmissionsListFilters,
+} from "./submissionListQuery";
 import { cn } from "@/lib/utils";
+import type { AdminPhoneFollowUpKey, AdminParticipantRow } from "../api";
 
 const PAGE_SIZE = 25;
 
@@ -65,6 +73,34 @@ export function scoreText(score: number | null | undefined) {
   return typeof score === "number" ? `${Math.round(score)}%` : "—";
 }
 
+const PHONE_FOLLOW_UP_KEYS: AdminPhoneFollowUpKey[] = ["first", "second", "third"];
+
+function PhoneFollowUpCheckbox({
+  participantId,
+  followKey,
+  checked,
+  disabled,
+  onToggle,
+}: Readonly<{
+  participantId: string;
+  followKey: AdminPhoneFollowUpKey;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: (participantId: string, followKey: AdminPhoneFollowUpKey, next: boolean) => void;
+}>) {
+  return (
+    <input
+      type="checkbox"
+      className="size-4 rounded border-input"
+      checked={checked}
+      disabled={disabled}
+      aria-label={`Phone follow-up ${followKey}`}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => onToggle(participantId, followKey, e.target.checked)}
+    />
+  );
+}
+
 function InterviewScoreCell({ score, hasRecording }: Readonly<{ score: number | null; hasRecording: boolean | null }>) {
   return (
     <div className="flex flex-col items-end gap-1">
@@ -81,48 +117,134 @@ function InterviewScoreCell({ score, hasRecording }: Readonly<{ score: number | 
 
 export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: string }>) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [searchInput, setSearchInput] = useState("");
+  const filters = useMemo(() => parseSubmissionsListSearchParams(searchParams), [searchParams]);
+  const [searchInput, setSearchInput] = useState(filters.q);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ participantId: string; who: string } | null>(null);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState<ParticipantStatus | "all">("all");
-  const [socialReview, setSocialReview] = useState<SocialReviewStatus | "all">("all");
-  const [missingVideo, setMissingVideo] = useState<"all" | "yes">("all");
-  const [sort, setSort] = useState<AdminParticipantSort>("recent");
-  const [page, setPage] = useState(1);
+  const [followUpPending, setFollowUpPending] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSearchInput(filters.q);
+  }, [filters.q]);
+
+  const replaceFilters = useCallback(
+    (patch: Partial<SubmissionsListFilters>) => {
+      const next: SubmissionsListFilters = { ...filters, ...patch };
+      const qs = buildSubmissionsListQueryString(next);
+      router.replace(`${pathname}${qs}`, { scroll: false });
+    },
+    [filters, pathname, router],
+  );
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setQ(searchInput.trim());
-      setPage(1);
+      const trimmed = searchInput.trim();
+      if (trimmed === filters.q) return;
+      replaceFilters({ q: trimmed, page: 1 });
     }, 300);
     return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [searchInput, filters.q, replaceFilters]);
 
   const hackathon = useQuery({
     queryKey: hackathonKeys.adminOne(hackathonId),
     queryFn: () => hackathonAdminApi.get(hackathonId),
   });
+  const challengeOptions = useMemo(() => buildChallengeFilterOptions(hackathon.data), [hackathon.data]);
+  const validChallengeIds = useMemo(() => new Set(challengeOptions.map((o) => o.challengeId)), [challengeOptions]);
+  const passedChallenges = useMemo(
+    () => filters.passedChallenges.filter((id) => validChallengeIds.has(id)),
+    [filters.passedChallenges, validChallengeIds],
+  );
+
+  useEffect(() => {
+    if (challengeOptions.length === 0) return;
+    const stale = filters.passedChallenges.some((id) => !validChallengeIds.has(id));
+    if (!stale) return;
+    replaceFilters({ passedChallenges });
+  }, [challengeOptions.length, filters.passedChallenges, passedChallenges, replaceFilters, validChallengeIds]);
+
   const list = useQuery({
     queryKey: [
       "admin",
       "hackathons",
       hackathonId,
       "participants",
-      { q, status, socialReview, missingVideo, sort, page },
+      {
+        q: filters.q,
+        status: filters.status,
+        socialReview: filters.socialReview,
+        missingVideo: filters.missingVideo,
+        sort: filters.sort,
+        page: filters.page,
+        passedChallenges,
+      },
     ],
     queryFn: () =>
       hackathonAdminApi.participants(hackathonId, {
-        q: q || undefined,
-        status: status === "all" ? undefined : status,
-        socialReview: socialReview === "all" ? undefined : socialReview,
-        missingVideo: missingVideo === "yes" ? true : undefined,
-        sort,
-        page,
+        q: filters.q || undefined,
+        status: filters.status === "all" ? undefined : filters.status,
+        socialReview: filters.socialReview === "all" ? undefined : filters.socialReview,
+        missingVideo: filters.missingVideo === "yes" ? true : undefined,
+        passedChallenges: passedChallenges.length ? passedChallenges : undefined,
+        sort: filters.sort,
+        page: filters.page,
         limit: PAGE_SIZE,
       }),
     placeholderData: keepPreviousData,
+  });
+
+  const phoneFollowUp = useMutation({
+    mutationFn: ({
+      participantId,
+      key,
+      value,
+    }: {
+      participantId: string;
+      key: AdminPhoneFollowUpKey;
+      value: boolean;
+    }) => hackathonAdminApi.updatePhoneFollowUps(hackathonId, participantId, { [key]: value }),
+    onMutate: async ({ participantId, key, value }) => {
+      setFollowUpPending(`${participantId}:${key}`);
+      const queryKey = [
+        "admin",
+        "hackathons",
+        hackathonId,
+        "participants",
+        {
+          q: filters.q,
+          status: filters.status,
+          socialReview: filters.socialReview,
+          missingVideo: filters.missingVideo,
+          sort: filters.sort,
+          page: filters.page,
+          passedChallenges,
+        },
+      ] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<{ rows: AdminParticipantRow[] }>(queryKey);
+      if (previous) {
+        queryClient.setQueryData(queryKey, {
+          ...previous,
+          rows: previous.rows.map((row) =>
+            row.participantId === participantId
+              ? { ...row, phoneFollowUps: { ...row.phoneFollowUps, [key]: value } }
+              : row,
+          ),
+        });
+      }
+      return { previous, queryKey };
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(context.queryKey, context.previous);
+      toast.error(toHackathonError(err).message);
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      setFollowUpPending(null);
+      if (context?.queryKey) void queryClient.invalidateQueries({ queryKey: context.queryKey });
+    },
   });
 
   const removeParticipant = useMutation({
@@ -143,11 +265,15 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
 
   const columns = useMemo(() => buildSubmissionTableColumns(hackathon.data), [hackathon.data]);
   const requiredChallenges = hackathon.data?.challenges?.length ?? 3;
-  const detailHref = (participantId: string) =>
-    `${HACKATHON_ADMIN_PATH}/${hackathonId}/participants/${participantId}`;
+  const listFiltersForLinks: SubmissionsListFilters = { ...filters, passedChallenges };
+  const detailHref = (participantId: string) => participantDetailHref(hackathonId, participantId, listFiltersForLinks);
 
   const total = list.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const toggleFollowUp = (participantId: string, key: AdminPhoneFollowUpKey, next: boolean) => {
+    phoneFollowUp.mutate({ participantId, key, value: next });
+  };
 
   return (
     <HackathonAdminShell hackathonId={hackathonId} activeTab="submissions">
@@ -165,12 +291,19 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
               />
             </div>
           </HackathonAdminField>
+          <HackathonAdminField id="hk-sub-challenges" label="Challenges passed" className="sm:w-56">
+            <ChallengeMultiFilter
+              id="hk-sub-challenges"
+              options={challengeOptions}
+              selectedIds={passedChallenges}
+              onChange={(ids) => replaceFilters({ passedChallenges: ids, page: 1 })}
+            />
+          </HackathonAdminField>
           <HackathonAdminField id="hk-sub-status" label="Status" className="sm:w-44">
             <Select
-              value={status}
+              value={filters.status}
               onValueChange={(v) => {
-                setStatus(v as ParticipantStatus | "all");
-                setPage(1);
+                replaceFilters({ status: v as ParticipantStatus | "all", page: 1 });
               }}
             >
               <SelectTrigger id="hk-sub-status" className="w-full">
@@ -188,10 +321,9 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
           </HackathonAdminField>
           <HackathonAdminField id="hk-sub-social" label="Social review" className="sm:w-44">
             <Select
-              value={socialReview}
+              value={filters.socialReview}
               onValueChange={(v) => {
-                setSocialReview(v as SocialReviewStatus | "all");
-                setPage(1);
+                replaceFilters({ socialReview: v as SocialReviewStatus | "all", page: 1 });
               }}
             >
               <SelectTrigger id="hk-sub-social" className="w-full">
@@ -208,10 +340,9 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
           </HackathonAdminField>
           <HackathonAdminField id="hk-sub-video" label="Recording" className="sm:w-40">
             <Select
-              value={missingVideo}
+              value={filters.missingVideo}
               onValueChange={(v) => {
-                setMissingVideo(v as "all" | "yes");
-                setPage(1);
+                replaceFilters({ missingVideo: v as "all" | "yes", page: 1 });
               }}
             >
               <SelectTrigger id="hk-sub-video" className="w-full">
@@ -225,10 +356,9 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
           </HackathonAdminField>
           <HackathonAdminField id="hk-sub-sort" label="Sort" className="sm:w-48">
             <Select
-              value={sort}
+              value={filters.sort}
               onValueChange={(v) => {
-                setSort(v as AdminParticipantSort);
-                setPage(1);
+                replaceFilters({ sort: v as AdminParticipantSort, page: 1 });
               }}
             >
               <SelectTrigger id="hk-sub-sort" className="w-full">
@@ -261,6 +391,15 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                     <TableRow>
                       <TableHead>Participant</TableHead>
                       <TableHead>Phone</TableHead>
+                      <TableHead className="text-center" title="1st phone follow-up">
+                        Call 1
+                      </TableHead>
+                      <TableHead className="text-center" title="2nd phone follow-up">
+                        Call 2
+                      </TableHead>
+                      <TableHead className="text-center" title="3rd phone follow-up">
+                        Call 3
+                      </TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Progress</TableHead>
                       {columns.map((col) => (
@@ -306,6 +445,17 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
+                          {PHONE_FOLLOW_UP_KEYS.map((key) => (
+                            <TableCell key={`${row.participantId}-${key}`} className="text-center">
+                              <PhoneFollowUpCheckbox
+                                participantId={row.participantId}
+                                followKey={key}
+                                checked={Boolean(row.phoneFollowUps?.[key])}
+                                disabled={followUpPending === `${row.participantId}:${key}`}
+                                onToggle={toggleFollowUp}
+                              />
+                            </TableCell>
+                          ))}
                           <TableCell>{participantStatusBadge(row.status)}</TableCell>
                           <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
                             {row.summary?.challengesCompleted ?? 0}/{requiredChallenges}
@@ -397,13 +547,23 @@ export function AdminSubmissionsPage({ hackathonId }: Readonly<{ hackathonId: st
         {total > PAGE_SIZE ? (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              Page {page} of {pages} · {total} participants
+              Page {filters.page} of {pages} · {total} participants
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={filters.page <= 1}
+                onClick={() => replaceFilters({ page: filters.page - 1 })}
+              >
                 <ChevronLeft className="h-4 w-4" /> Previous
               </Button>
-              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={filters.page >= pages}
+                onClick={() => replaceFilters({ page: filters.page + 1 })}
+              >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

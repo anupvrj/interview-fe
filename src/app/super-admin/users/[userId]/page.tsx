@@ -49,6 +49,7 @@ export default function SuperAdminUserViewPage() {
   const userId = params.userId as string;
   const nameQ = searchParams.get("name") || "";
   const emailQ = searchParams.get("email") || "";
+  const returnToRaw = searchParams.get("returnTo");
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +63,15 @@ export default function SuperAdminUserViewPage() {
   if (nameQ) backParams.set("name", nameQ);
   if (emailQ) backParams.set("email", emailQ);
   const backSuffix = backParams.toString() ? `?${backParams.toString()}` : "";
+  let userListBackHref = `/super-admin/users${backSuffix}`;
+  if (returnToRaw) {
+    try {
+      const decoded = decodeURIComponent(returnToRaw);
+      if (decoded.startsWith("/super-admin/") && !decoded.includes("://")) userListBackHref = decoded;
+    } catch {
+      /* keep default */
+    }
+  }
 
   const reportBase = `/super-admin/users/${encodeURIComponent(userId)}/reports`;
 
@@ -172,6 +182,8 @@ export default function SuperAdminUserViewPage() {
   return (
     <div className="space-y-6">
       <SuperAdminPageHeader
+        backHref={returnToRaw ? userListBackHref : null}
+        backLabel={returnToRaw ? "Back" : undefined}
         title={`User — ${displayName}`}
         description={`${emailQ || "—"} · Resumes, practice interviews, and coding practice sessions`}
       />

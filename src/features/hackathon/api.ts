@@ -479,6 +479,7 @@ export interface AdminParticipantRow {
   registeredAt: string;
   completedAt?: string | null;
   suspension?: { at: string; byUserId: string; previousStatus: ParticipantStatus; note?: string } | null;
+  phoneFollowUps?: { first?: boolean; second?: boolean; third?: boolean };
   summary?: {
     resumeAtsScore: number | null;
     interview1Score: number | null;
@@ -493,8 +494,11 @@ export interface AdminParticipantRow {
       hasRecording: boolean | null;
     }>;
     missingRecording?: boolean;
+    passedChallengeIds?: string[];
   };
 }
+
+export type AdminPhoneFollowUpKey = "first" | "second" | "third";
 
 export interface AdminParticipantDetail {
   participant: AdminParticipantRow;
@@ -679,13 +683,31 @@ export const hackathonAdminApi = {
       sort?: AdminParticipantSort;
       socialReview?: AdminSocialReviewFilter;
       missingVideo?: boolean;
+      passedChallenges?: string[];
       page: number;
       limit: number;
     },
   ): Promise<{ rows: AdminParticipantRow[]; total: number; page: number; limit: number }> => {
+    const { passedChallenges, ...rest } = query;
     const res = await apiClient.get<{
       data: { rows: AdminParticipantRow[]; total: number; page: number; limit: number };
-    }>(`${adminBase}/${hackathonId}/participants`, { params: query });
+    }>(`${adminBase}/${hackathonId}/participants`, {
+      params: {
+        ...rest,
+        ...(passedChallenges?.length ? { passedChallenges: passedChallenges.join(",") } : {}),
+      },
+    });
+    return res.data.data;
+  },
+  updatePhoneFollowUps: async (
+    hackathonId: string,
+    participantId: string,
+    patch: Partial<Record<AdminPhoneFollowUpKey, boolean>>,
+  ): Promise<AdminParticipantRow> => {
+    const res = await apiClient.patch<{ data: AdminParticipantRow }>(
+      `${adminBase}/${hackathonId}/participants/${participantId}/phone-follow-ups`,
+      patch,
+    );
     return res.data.data;
   },
   participant: async (hackathonId: string, participantId: string): Promise<AdminParticipantDetail> => {
