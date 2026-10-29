@@ -34,6 +34,8 @@ export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 /** 31 Oct live launch RSVP modal (Learn from Industry Leaders). */
 export const LAUNCH_EVENT_FORM = {
   title: "Learn from Industry Leaders",
+  /** Welcome step heading — always two lines (mobile + desktop). */
+  titleLines: ["Learn from", "Industry Leaders"] as const,
   subtitle: `Free online session · ${HACKATHON_LAUNCH.dateLabel}, ${HACKATHON_LAUNCH.timeLabel}`,
   teaserTitle: "Join the live launch",
   teaserBody: "Winners, product updates, and career advice from experts — online on 31 Oct.",

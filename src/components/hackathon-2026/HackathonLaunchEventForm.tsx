@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
+import { AppSelect } from "@/components/ui/app-select";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { LaunchEventWelcomePromo } from "@/components/hackathon-2026/LaunchEventWelcomePromo";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { LAUNCH_EVENT_FORM, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phone-country-codes";
@@ -42,6 +44,15 @@ const PRIMARY_BTN =
 
 const inputClass =
   "mt-1.5 w-full min-h-11 rounded-xl border border-[#27547d]/80 bg-[#081a33]/90 px-3.5 text-[15px] text-white placeholder:text-[#6a849e] focus:border-[#3aa6ff] focus:outline-none focus:ring-2 focus:ring-[#3aa6ff]/30";
+
+const launchSelectTriggerClass = (hasError?: boolean) =>
+  cn(
+    inputClass,
+    "h-11 py-0 text-left font-normal shadow-none focus:ring-2",
+    "!bg-[#081a33]/90 !text-white [&_svg]:text-[#9eb2ca]",
+    "[&_[data-placeholder]]:text-[#6a849e]",
+    hasError && inputErrorClass,
+  );
 
 const inputErrorClass =
   "border-[#ff8fab]/80 focus:border-[#ff8fab] focus:ring-[#ff8fab]/30";
@@ -120,6 +131,7 @@ export function HackathonLaunchEventForm({
   id,
   dialogSemantics = false,
   showStepChrome = false,
+  embeddedInPage = false,
   onClose,
   className,
 }: Readonly<{
@@ -128,6 +140,8 @@ export function HackathonLaunchEventForm({
   dialogSemantics?: boolean;
   /** Progress bar + back nav on a standalone page (same UX as the modal). */
   showStepChrome?: boolean;
+  /** Standalone /event-registration — avoid clipping native selects and dropdowns. */
+  embeddedInPage?: boolean;
   onClose?: () => void;
   className?: string;
 }>) {
@@ -227,6 +241,7 @@ export function HackathonLaunchEventForm({
 
   const TitleEl = dialogSemantics ? DialogTitle : "h2";
   const SubtitleEl = dialogSemantics ? DialogDescription : "p";
+  const ScreenReaderHintEl = dialogSemantics ? DialogDescription : "p";
 
   const body = (() => {
     if (step === "success") {
@@ -275,13 +290,22 @@ export function HackathonLaunchEventForm({
             {HACKATHON_LAUNCH.summaryLabel}
           </p>
           <TitleEl
-            className="mt-3 text-[clamp(1.25rem,4.5vw,1.55rem)] font-extrabold leading-tight tracking-[-0.02em]"
+            className="mt-3 text-[clamp(1.25rem,4.5vw,1.55rem)] font-extrabold leading-[1.15] tracking-[-0.02em]"
             style={display}
+            {...(dialogSemantics ? {} : { "aria-label": c.title })}
           >
-            <span className="bg-gradient-to-br from-white via-[#e8f4ff] to-[#5eb8ff] bg-clip-text text-transparent">{c.title}</span>
+            {c.titleLines.map((line) => (
+              <span
+                key={line}
+                className="block bg-gradient-to-br from-white via-[#e8f4ff] to-[#5eb8ff] bg-clip-text text-transparent"
+              >
+                {line}
+              </span>
+            ))}
           </TitleEl>
+          <LaunchEventWelcomePromo />
           <div
-            className="mt-5 rounded-2xl border border-[#3aa6ff]/45 bg-[linear-gradient(145deg,rgba(13,37,80,0.95)_0%,rgba(8,26,51,0.88)_100%)] p-4 shadow-[0_0_0_1px_rgba(58,166,255,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-5"
+            className="mt-4 rounded-2xl border border-[#3aa6ff]/45 bg-[linear-gradient(145deg,rgba(13,37,80,0.95)_0%,rgba(8,26,51,0.88)_100%)] p-4 shadow-[0_0_0_1px_rgba(58,166,255,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-5"
             role="group"
             aria-label="Event details"
           >
@@ -315,7 +339,7 @@ export function HackathonLaunchEventForm({
               {c.qAttended}
             </TitleEl>
           </legend>
-          <DialogDescription className="sr-only">Choose yes or no.</DialogDescription>
+          <ScreenReaderHintEl className="sr-only">Choose yes or no.</ScreenReaderHintEl>
           <div className="mt-5 space-y-3">
             {c.attendedOptions.map((o) => (
               <RadioCard
@@ -341,7 +365,7 @@ export function HackathonLaunchEventForm({
               {c.qReady}
             </TitleEl>
           </legend>
-          <DialogDescription className="sr-only">Choose an answer.</DialogDescription>
+          <ScreenReaderHintEl className="sr-only">Choose an answer.</ScreenReaderHintEl>
           <div className="mt-5 space-y-3">
             {c.readyOptions.map((o) => (
               <RadioCard
@@ -397,7 +421,9 @@ export function HackathonLaunchEventForm({
               <ProfilePhoneFields
                 countryCode={LAUNCH_PHONE_COUNTRY}
                 fixedCountryCode={LAUNCH_PHONE_COUNTRY}
+                hideFixedDialCode
                 compact
+                fullWidth
                 localNumber={phoneLocal}
                 savedPhone={null}
                 disabled={busy}
@@ -440,21 +466,16 @@ export function HackathonLaunchEventForm({
           </div>
           <div>
             <FieldLabel>{c.fields.profession}</FieldLabel>
-            <select
-              className={cn(inputClass, professionFieldError && inputErrorClass)}
+            <AppSelect
+              id="launch-profession"
+              variant="hackathon"
+              allowEmpty
+              emptyLabel="Select…"
               value={form.profession}
-              required
-              aria-invalid={professionFieldError ? true : undefined}
-              aria-describedby={professionFieldError ? "launch-profession-error" : undefined}
-              onChange={(e) => patch({ profession: e.target.value as FormState["profession"] })}
-            >
-              <option value="">Select…</option>
-              {c.professionOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={c.professionOptions.map((o) => ({ value: o.value, label: o.label }))}
+              className={launchSelectTriggerClass(!!professionFieldError)}
+              onChange={(value) => patch({ profession: value as FormState["profession"] })}
+            />
             {professionFieldError ? (
               <p id="launch-profession-error" role="alert" className="mt-1.5 text-xs font-medium text-[#ff8fab]">
                 {professionFieldError}
@@ -463,21 +484,16 @@ export function HackathonLaunchEventForm({
           </div>
           <div>
             <FieldLabel>{c.fields.whyAttend}</FieldLabel>
-            <select
-              className={cn(inputClass, whyAttendFieldError && inputErrorClass)}
+            <AppSelect
+              id="launch-why-attend"
+              variant="hackathon"
+              allowEmpty
+              emptyLabel="Select…"
               value={form.whyAttend}
-              required
-              aria-invalid={whyAttendFieldError ? true : undefined}
-              aria-describedby={whyAttendFieldError ? "launch-why-error" : undefined}
-              onChange={(e) => patch({ whyAttend: e.target.value as FormState["whyAttend"] })}
-            >
-              <option value="">Select…</option>
-              {c.whyAttendOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={c.whyAttendOptions.map((o) => ({ value: o.value, label: o.label }))}
+              className={launchSelectTriggerClass(!!whyAttendFieldError)}
+              onChange={(value) => patch({ whyAttend: value as FormState["whyAttend"] })}
+            />
             {whyAttendFieldError ? (
               <p id="launch-why-error" role="alert" className="mt-1.5 text-xs font-medium text-[#ff8fab]">
                 {whyAttendFieldError}
@@ -541,7 +557,13 @@ export function HackathonLaunchEventForm({
         </div>
       ) : null}
 
-      <div key={step} className="relative z-[3] max-h-[calc(90svh-4rem)] overflow-y-auto px-5 pb-6 pt-4 sm:px-7 md:px-8 md:pb-8">
+      <div
+        key={step}
+        className={cn(
+          "relative z-[3] px-5 pb-6 pt-4 sm:px-7 md:px-8 md:pb-8",
+          embeddedInPage ? "overflow-visible" : "max-h-[calc(90svh-4rem)] overflow-y-auto",
+        )}
+      >
         {body}
         {back[step] && !busy ? (
           <button

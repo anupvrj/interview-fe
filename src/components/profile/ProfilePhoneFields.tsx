@@ -29,7 +29,9 @@ export function ProfilePhoneFields({
   onSave,
   showSaveButton = true,
   fixedCountryCode,
+  hideFixedDialCode = false,
   compact = false,
+  fullWidth = false,
   className,
 }: Readonly<{
   countryCode: string;
@@ -43,8 +45,12 @@ export function ProfilePhoneFields({
   showSaveButton?: boolean;
   /** Hides the country dropdown and shows this dial code only (e.g. launch RSVP). */
   fixedCountryCode?: string;
+  /** Keep fixedCountryCode for formatting but do not show +91 (etc.) in the UI. */
+  hideFixedDialCode?: boolean;
   /** Tighter layout for modals — shorter number field. */
   compact?: boolean;
+  /** Full-width row on small screens (launch / event registration). */
+  fullWidth?: boolean;
   className?: string;
 }>) {
   const [touched, setTouched] = useState(false);
@@ -63,11 +69,12 @@ export function ProfilePhoneFields({
     <div className={cn(fixedCountryCode ? "mt-0" : "mt-1.5", className)}>
     <div
       className={cn(
-        "flex items-center gap-2",
-        compact ? "w-full max-w-[18rem] sm:max-w-[22rem] md:max-w-none" : "flex-col sm:flex-row sm:items-center",
+        "flex w-full items-center gap-2",
+        compact && !fullWidth && "max-w-[18rem] sm:max-w-[22rem] md:max-w-none",
+        !compact && "flex-col sm:flex-row sm:items-center",
       )}
     >
-      {fixedCountryCode ? (
+      {fixedCountryCode && !hideFixedDialCode ? (
         <span
           id="profile-phone-country"
           className={cn(
@@ -78,7 +85,12 @@ export function ProfilePhoneFields({
         >
           {fixedCountryCode}
         </span>
-      ) : (
+      ) : fixedCountryCode && hideFixedDialCode ? (
+        <span id="profile-phone-country" className="sr-only">
+          Country code {fixedCountryCode}, applied automatically
+        </span>
+      ) : null}
+      {!fixedCountryCode ? (
         <AppSelect
           id="profile-phone-country"
           value={countryCode}
@@ -90,7 +102,7 @@ export function ProfilePhoneFields({
           disabled={disabled || saving}
           className="h-10 w-full sm:max-w-[10.5rem] bg-card"
         />
-      )}
+      ) : null}
       <Input
         id="profile-phone-local"
         type="tel"
@@ -105,7 +117,7 @@ export function ProfilePhoneFields({
         // 16px text on phones (iOS zooms the page into smaller inputs); `!` beats .app-control.
         className={cn(
           "h-11 min-w-0 bg-card !text-base sm:h-10 sm:!text-sm",
-          compact ? "w-full min-w-0 flex-1 md:max-w-none" : "w-full sm:flex-1",
+          compact ? (hideFixedDialCode ? "w-full min-w-0" : "min-w-0 flex-1") : "w-full sm:flex-1",
           showError && "!border-destructive focus-visible:!ring-destructive/30",
           fixedCountryCode &&
             "rounded-xl border-[#27547d]/80 bg-[#081a33]/90 text-white placeholder:text-[#6a849e] focus-visible:ring-[#3aa6ff]/30",
