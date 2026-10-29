@@ -49,6 +49,10 @@ export const LAUNCH_EVENT_FORM = {
   /** Welcome step primary action (modal). */
   welcomeCta: "Let Me In",
   submitLabel: "Reserve My Spot",
+  alreadyHackathonParticipantTitle: "You're already in the hackathon",
+  alreadyHackathonParticipantBody:
+    "You have already participated in the hackathon. You will get an invite to join the live launch event.",
+  alreadyHackathonParticipantOk: "Okay",
   successTitle: "You're registered for the live event",
   successBody: "We'll share the joining link by email. Updates and the live link go to our WhatsApp community first.",
   successLoadingMessage: "Saving your spot…",

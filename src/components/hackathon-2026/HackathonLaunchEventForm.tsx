@@ -2,6 +2,15 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AppSelect } from "@/components/ui/app-select";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LaunchEventWelcomePromo } from "@/components/hackathon-2026/LaunchEventWelcomePromo";
@@ -157,6 +166,7 @@ export function HackathonLaunchEventForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [successReveal, setSuccessReveal] = useState(false);
+  const [alreadyHackathonParticipantOpen, setAlreadyHackathonParticipantOpen] = useState(false);
 
   useEffect(() => {
     if (step !== "success") {
@@ -224,7 +234,12 @@ export function HackathonLaunchEventForm({
       trackLaunchRegistrationSuccessOnce({ source: embeddedInPage ? "page" : "modal", profession: form.profession });
       setStep("success");
     } catch (e) {
-      setError(toHackathonError(e, "Could not register. Please try again.").message);
+      const apiErr = toHackathonError(e, "Could not register. Please try again.");
+      if (apiErr.code === "ALREADY_HACKATHON_PARTICIPANT") {
+        setAlreadyHackathonParticipantOpen(true);
+        return;
+      }
+      setError(apiErr.message);
     } finally {
       setBusy(false);
     }
@@ -518,10 +533,46 @@ export function HackathonLaunchEventForm({
 
   const stepChrome = dialogSemantics || showStepChrome;
 
+  const alreadyParticipantDialog = (
+    <AlertDialog
+      open={alreadyHackathonParticipantOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          setAlreadyHackathonParticipantOpen(false);
+          onClose?.();
+        }
+      }}
+    >
+      <AlertDialogContent className="hk-theme border-[#27547d]/90 bg-[#071426] text-white shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-lg font-bold text-white" style={display}>
+            {c.alreadyHackathonParticipantTitle}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-[15px] leading-relaxed text-[#b4c6db]">
+            {c.alreadyHackathonParticipantBody}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            className={cn(PRIMARY_BTN, "mt-0 h-11 w-full sm:w-auto")}
+            style={mono}
+            onClick={() => {
+              setAlreadyHackathonParticipantOpen(false);
+              onClose?.();
+            }}
+          >
+            {c.alreadyHackathonParticipantOk}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (!stepChrome) {
     return (
       <div id={id} className={className}>
         {body}
+        {alreadyParticipantDialog}
       </div>
     );
   }
@@ -577,6 +628,7 @@ export function HackathonLaunchEventForm({
           </button>
         ) : null}
       </div>
+      {alreadyParticipantDialog}
     </div>
   );
 }
