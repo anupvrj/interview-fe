@@ -24,7 +24,6 @@ export const FOOTER_PRODUCT_LINKS: FooterLink[] = [
     href: "/ai-system-design",
     label: "AI Live System Design Interview",
   },
-  { href: "/ai-job-search", label: "AI Job Search" },
   { href: "/become-peer-interviewer", label: "Become a Peer Interviewer" },
   { href: "/hire-ix-talent", label: "Hire iX Talent" },
 ];

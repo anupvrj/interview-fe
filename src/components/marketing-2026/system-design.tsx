@@ -3,13 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight, Check, Circle, Diamond, Eye, MousePointer2, Network, PenLine, Play, Square, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BrowserFrame, LoopVideo, Mono } from "./primitives";
+import { BrowserFrame, LoopVideo, Mono, SoundToggle } from "./primitives";
+import { mk26Asset } from "./assets";
+import { MK26_ROUTES } from "./cta";
+import { StartLink } from "./StartLink";
 import { CircuitTraces, GridRunners } from "./graphics";
 import { CountUp, DARK, Dots, ease, Head, HL, INK, LAVENDER, LIGHT, StickyCta, useFocusCamera, Wiring, WRAP } from "./landing-kit";
 import { SkillsSection, type SkHub } from "./skills-section";
+import { Voice } from "./mock-interview";
 import { cn } from "@/lib/utils";
-import { MK26_ROUTES } from "./cta";
-import { StartLink } from "./StartLink";
 
 /**
  * AI System Design landing page, same kit as the other product pages:
@@ -68,7 +70,9 @@ const HAND = "font-[family-name:var(--font-hand)]";
 
 function Stroke({ d, show, delay = 0, color = "#1E1E2E", w = 1.6, dur = 0.7 }: { d: string; show: boolean; delay?: number; color?: string; w?: number; dur?: number }) {
   return <motion.path d={d} fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round"
-    initial={{ pathLength: 0, opacity: 0 }} animate={show ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }} transition={{ pathLength: { delay, duration: dur, ease: "easeInOut" }, opacity: { delay, duration: 0.1 } }} />;
+    initial={{ pathLength: 0, opacity: 0 }} animate={show ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+    // drawing takes its time; wiping is instant, so a new round never starts on a half-erased board
+    transition={show ? { pathLength: { delay, duration: dur, ease: "easeInOut" }, opacity: { delay, duration: 0.1 } } : { duration: 0 }} />;
 }
 
 /** The whiteboard. `drawn` = how many sketch elements are on the board (0 → all), plus the later layers. */
@@ -148,7 +152,7 @@ type Caption = { who: "AI" | "YOU"; text: string; talking: boolean };
 const AGENDA = ["Requirements", "High-level design", "Deep dive", "Trade-offs"];
 
 /** The system-design room: Excalidraw canvas on the left, people and the agenda on the right. */
-function Room({ notes, drawn, read, hot, trade, cam, caption, agenda, compact }: { notes: number; drawn: number; read: boolean; hot: boolean; trade: boolean; cam: Cam; caption?: Caption; agenda: number; compact?: boolean }) {
+function Room({ notes, drawn, read, hot, trade, cam, caption, agenda, compact, clip, sound = false }: { notes: number; drawn: number; read: boolean; hot: boolean; trade: boolean; cam: Cam; caption?: Caption; agenda: number; compact?: boolean; clip?: string; sound?: boolean }) {
   return (
     <div className={cn("relative grid gap-px bg-[#E4E6EF] text-left max-sm:grid-cols-1", compact ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_200px]")}>
       {/* canvas */}
@@ -166,7 +170,8 @@ function Room({ notes, drawn, read, hot, trade, cam, caption, agenda, compact }:
         {/* voice caption: its own strip under the canvas, so it never covers the drawing */}
         {!compact && (
           <div className="flex h-[62px] items-center gap-3 border-t border-[#ECEDF3] bg-[#0B1A30] px-3 text-white">
-            <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-bold transition-colors", caption?.who === "YOU" ? "bg-[#2E3656]" : "bg-gradient-to-br from-[#7367F0] to-[#1FB6FF]")}>{caption?.who === "YOU" ? "You" : "RK"}</span>
+            {caption?.who === "YOU" || (!caption && cam === "type") ? <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#2E3656] text-[10px] font-bold">You</span>
+              : <img src="/personas/persona-1.jpg" alt="" className="size-8 shrink-0 rounded-full border border-white/20 object-cover" />}
             <AnimatePresence mode="wait">
               <motion.p key={caption?.text ?? "idle"} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className="min-w-0 text-[12.5px] leading-snug md:text-[14px]">
                 {caption ? <><Mono className={cn("mr-2 text-[9.5px]", caption.who === "AI" ? "text-sky-300" : "text-white/60")}>{caption.who === "AI" ? "INTERVIEWER" : "YOU"}</Mono>{caption.text}</>
@@ -181,14 +186,27 @@ function Room({ notes, drawn, read, hot, trade, cam, caption, agenda, compact }:
       {!compact && (
         <div className="flex flex-col gap-px bg-[#E4E6EF] max-sm:grid max-sm:grid-cols-2">
           <div className="relative aspect-[4/3] overflow-hidden bg-black">
-            {(["type", "think", "talk"] as Cam[]).map((k) => (
-              <div key={k} className={cn("absolute inset-0 transition-opacity duration-300", cam === k ? "opacity-100" : "opacity-0")}><LoopVideo name={`cr-cand-${k}`} className="!aspect-auto h-full" priority /></div>
-            ))}
+            {/* listening loop underneath; the current answer's lip-synced clip mounts over it from its first frame */}
+            <div className="absolute inset-0"><LoopVideo name="sd-cand-listen" className="!aspect-auto h-full" priority /></div>
+            {/* sketching: eyes down on the laptop, working the board */}
+            {/* leaning in: closer to the webcam, head tipped toward the keyboard, a touch of tilt */}
+            <motion.div className={cn("absolute inset-0 origin-[50%_30%] transition-opacity duration-500", cam === "type" ? "opacity-100" : "opacity-0")}
+              animate={cam === "type" ? { scale: 1.14, y: "5%", rotate: -2.2 } : { scale: 1, y: "0%", rotate: 0 }} transition={{ duration: 0.9, ease }}>
+              <LoopVideo name="sd-cand-draw" className="!aspect-auto h-full" priority />
+            </motion.div>
+            {clip && (
+              <div key={clip} className={cn("absolute inset-0 transition-opacity duration-200", cam === "talk" ? "opacity-100" : "opacity-0")}>
+                <LoopVideo name={clip.split("#")[0]} loop={false} sound={sound} className="!aspect-auto h-full" priority />
+              </div>
+            )}
             <Mono className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[8.5px] text-white/80">● CAMERA</Mono>
           </div>
           <div className="flex items-center gap-2 bg-[#0B1A30] p-2.5 text-white">
-            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#7367F0] to-[#1FB6FF] text-[9.5px] font-bold">RK</span>
-            <div className="min-w-0 leading-tight"><p className="truncate text-[11px] font-semibold">Rachel Kim</p><Mono className="text-[8.5px] text-white/50">STAFF ENGINEER · VOICE</Mono></div>
+            <span className="relative size-7 shrink-0">
+              {caption?.who === "AI" && caption.talking && <motion.span className="absolute -inset-[3px] rounded-full border-2 border-[#7367F0]" animate={{ scale: [1, 1.15, 1], opacity: [0.9, 0.3, 0.9] }} transition={{ duration: 1.1, repeat: Infinity }} />}
+              <img src="/personas/persona-1.jpg" alt="Daniel Reed, the AI interviewer" className="size-full rounded-full border border-white/20 object-cover" />
+            </span>
+            <div className="min-w-0 leading-tight"><p className="truncate text-[11px] font-semibold">Daniel Reed</p><Mono className="block truncate text-[8.5px] text-white/50">INTERVIEWER · VOICE</Mono></div>
             <span className="ml-auto flex h-5 items-center gap-[2px]">
               {Array.from({ length: 10 }).map((_, i) => (
                 <motion.span key={i} className="w-[2.5px] rounded-full bg-gradient-to-t from-[#7367F0] to-[#5CC2FF]"
@@ -297,26 +315,27 @@ export function SdTicker() {
 
 /* ═══════════════ 01 · THE ROUND, START TO FINISH (whiteboard film) ═══════════════ */
 
-type Line = { who: "AI" | "YOU"; text: string; ms: number };
+// every line is a real recording: the interviewer's plays as audio, the candidate's as a lip-synced clip; `ms` leaves a beat after `say`
+type Line = { who: "AI" | "YOU"; text: string; ms: number; say: number; audio?: string; clip?: string };
 const CH: { k: string; agenda: number; lines: Line[]; quiet?: number }[] = [
   { k: "Clarify", agenda: 0, lines: [
-    { who: "AI", text: "Before you draw anything: how many new links a day, and how many reads?", ms: 3200 },
-    { who: "YOU", text: "About a hundred million new links. Reads are a hundred times that.", ms: 3200 },
-    { who: "AI", text: "And the latency target?", ms: 1600 },
-    { who: "YOU", text: "p99 under fifty milliseconds. Links never expire.", ms: 2600 },
+    { who: "AI", ms: 8400, say: 7820, audio: "sd-ai-1", text: "Alright, let's design a URL shortener. Before you draw anything — roughly how many new links a day, and how many reads?" },
+    { who: "YOU", ms: 8500, say: 7970, clip: "sd-cand-1", text: "Hmm, let's say… a hundred million new links a day. And reads are way heavier — maybe a hundred times that." },
+    { who: "AI", ms: 4200, say: 3650, audio: "sd-ai-2", text: "Okay, read heavy. And what about latency?" },
+    { who: "YOU", ms: 5800, say: 5270, clip: "sd-cand-2", text: "p99 under fifty milliseconds. Oh — and links never expire." },
   ]},
-  { k: "Sketch", agenda: 1, quiet: 5200, lines: [{ who: "AI", text: "Good. Sketch the high level for me.", ms: 2000 }] },
+  { k: "Sketch", agenda: 1, quiet: 5200, lines: [{ who: "AI", ms: 4200, say: 3650, audio: "sd-ai-3", text: "Good. Go ahead and sketch the high level for me — take your time." }] },
   { k: "It reads the board", agenda: 1, lines: [
-    { who: "AI", text: "I see a cache in front of the store. What's your eviction policy?", ms: 3200 },
-    { who: "YOU", text: "LRU, with a TTL on cold links.", ms: 2400 },
+    { who: "AI", ms: 5800, say: 5240, audio: "sd-ai-4", text: "Okay, I see you've put a cache in front of the store. What's your eviction policy there?" },
+    { who: "YOU", ms: 5000, say: 4490, clip: "sd-cand-3", text: "LRU, mostly. With a TTL on the cold links." },
   ]},
   { k: "10× traffic", agenda: 2, lines: [
-    { who: "AI", text: "A link goes viral. Two million hits a minute on one key. What breaks?", ms: 3400 },
-    { who: "YOU", text: "That key's shard. I'd replicate hot keys and serve them from an edge cache.", ms: 3800 },
+    { who: "AI", ms: 8300, say: 7740, audio: "sd-ai-5", text: "Mm-hm. Now — a link goes viral. Two million hits a minute, on one key. What breaks first?" },
+    { who: "YOU", ms: 6700, say: 6200, clip: "sd-cand-4", text: "That key's shard, for sure. So I'd replicate the hot keys… and serve them from an edge cache." },
   ]},
   { k: "Trade-offs", agenda: 3, lines: [
-    { who: "AI", text: "Counter or hash for the short code?", ms: 2200 },
-    { who: "YOU", text: "A counter gives shorter codes, so I'd pre-allocate ID ranges per server. No lock.", ms: 4000 },
+    { who: "AI", ms: 4900, say: 4330, audio: "sd-ai-6", text: "Nice. Last one — counter or hash for the short code?" },
+    { who: "YOU", ms: 6400, say: 5800, clip: "sd-cand-5", text: "Counter — shorter codes. I'd pre-allocate ID ranges per server, so there's no lock." },
   ]},
   { k: "Report", agenda: 4, lines: [], quiet: 4800 },
 ];
@@ -329,6 +348,7 @@ export function SdFilm() {
   const [c, setC] = useState(0);
   const [t, setT] = useState(0);
   const [restart, setRestart] = useState(0);
+  const [sound, setSound] = useState(false);
   const ch = CH[c], ms = chMs(ch);
 
   useEffect(() => {
@@ -342,13 +362,19 @@ export function SdFilm() {
 
   // where we are inside the chapter: which line, and is anyone mid-sentence
   let elapsed = t * ms, li = -1, caption: Caption | undefined;
-  for (let i = 0; i < ch.lines.length; i++) { if (elapsed <= ch.lines[i].ms) { li = i; caption = { ...ch.lines[i], talking: elapsed < ch.lines[i].ms - 380 }; break; } elapsed -= ch.lines[i].ms; }
+  for (let i = 0; i < ch.lines.length; i++) { if (elapsed <= ch.lines[i].ms) { li = i; caption = { ...ch.lines[i], talking: elapsed < ch.lines[i].say }; break; } elapsed -= ch.lines[i].ms; }
+  const line = li >= 0 ? ch.lines[li] : undefined;
+  // seconds into the current line, for audio switched on mid-sentence
+  const pos = useRef(0);
+  pos.current = li >= 0 ? elapsed / 1000 : 0;
+  const at = useRef(() => pos.current).current;
   const quietT = ch.quiet && li === -1 ? Math.min(1, elapsed / ch.quiet) : li === -1 ? 1 : 0;
 
   // what is on the board by now
   const notes = c > 0 ? 4 : li >= 3 ? 4 : li >= 1 ? 2 : 0;
   const drawn = c > 1 ? BOXES.length : c === 1 ? Math.floor(quietT * (BOXES.length + 0.6)) : 0;
-  const cam: Cam = c === 1 && li === -1 ? "type" : caption?.who === "YOU" ? "talk" : "think";
+  // from "sketch the high level" until the board is done, he is heads-down drawing
+  const cam: Cam = c === 1 ? "type" : caption?.who === "YOU" && caption.talking ? "talk" : "think";
   const report = ch.k === "Report";
 
   return (
@@ -357,12 +383,18 @@ export function SdFilm() {
       <div className="pointer-events-none absolute -inset-x-1/2 bottom-0 h-[42%] origin-bottom [transform:perspective(520px)_rotateX(58deg)] bg-[linear-gradient(rgba(31,143,255,.28)_2px,transparent_2px),linear-gradient(90deg,rgba(31,143,255,.28)_2px,transparent_2px)] bg-[length:90px_90px] opacity-50 [mask-image:linear-gradient(to_top,#000_10%,transparent_85%)]" />
       <div ref={ref} className={WRAP}>
         <Head dark n="01" label="The round, start to finish" title={<>A whiteboard that <span className="bg-gradient-to-r from-[#A99CFF] to-[#5CC2FF] bg-clip-text pr-[0.06em] text-transparent">asks questions back.</span></>}
-          aside={<Mono className="mb-3 inline-block rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[11.5px] text-sky-300">● ONE FULL ROUND · 40 SECONDS</Mono>}
+          aside={<Mono className="mb-3 inline-block rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[11.5px] text-sky-300">● ONE FULL ROUND · ABOUT A MINUTE</Mono>}
           sub="Clarify the requirements, sketch the system, and defend it while the interviewer reads your board and pushes on scale." />
         <div className="mx-auto max-w-[1080px]">
+          <div className="relative">
+          <SoundToggle sound={sound} onToggle={() => setSound((x) => !x)} className="absolute -top-5 right-5" />
           <BrowserFrame dark={false} url="app.interviewtrix.com/system-design/url-shortener">
             <div className="relative">
-              <Room notes={notes} drawn={drawn} read={c >= 2} hot={c > 3 || (c === 3 && li >= 1)} trade={c > 4 || (c === 4 && li >= 1)} cam={cam} caption={caption} agenda={ch.agenda} />
+              <Room notes={notes} drawn={drawn} read={c >= 2} hot={c > 3 || (c === 3 && li >= 1)} trade={c > 4 || (c === 4 && li >= 1)} cam={cam} caption={caption} agenda={ch.agenda}
+                clip={line?.clip && `${line.clip}#${restart}`} sound={sound} />
+              {line?.audio && on && <Voice key={`${line.audio}-${restart}`} src={line.audio} sound={sound} at={at} />}
+              {/* warm the cache so each answer starts on its first frame, not after a fetch */}
+              {on && <div aria-hidden className="hidden">{CH.flatMap((x) => x.lines).map((l) => l.clip ? <video key={l.clip} src={mk26Asset(`/video/${l.clip}.mp4`)} preload="auto" muted /> : <audio key={l.audio} src={mk26Asset(`/audio/${l.audio}.mp3`)} preload="auto" />)}</div>}
               <AnimatePresence>
                 {report && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-20 grid place-items-center bg-[#050E1C]/55 p-4 backdrop-blur-[3px]">
@@ -386,6 +418,7 @@ export function SdFilm() {
               </AnimatePresence>
             </div>
           </BrowserFrame>
+          </div>
           <div className="mt-5 grid grid-cols-6 gap-2">
             {CH.map((x, i) => (
               <button key={x.k} onClick={() => { setC(i); setT(0); setRestart((r) => r + 1); }} className="group text-left">

@@ -1,6 +1,6 @@
 /** Public prefix for copied prototype media. Never re-render these files. */
 export const MK26_PUBLIC = "/marketing-2026";
-export const MK26_CACHE = "9";
+export const MK26_CACHE = "13";
 
 export function mk26Path(path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;

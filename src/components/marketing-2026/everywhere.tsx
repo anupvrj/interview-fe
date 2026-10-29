@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Chrome, Code2, Copy, MessageSquare, Sparkle } from "lucide-react";
+import { Chrome, Code2, MessageSquare, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Index, Mono } from "./primitives";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { id: "chatgpt", icon: MessageSquare, label: "ChatGPT", cta: "Add InterviewTrix to ChatGPT", steps: ["Pasted a Razorpay SDE-2 JD into ChatGPT", "Picked Meridian from the InterviewTrix templates", "Draft created, scored 81 against the JD", "The same resume is already in the dashboard"] },
-  { id: "chrome", icon: Chrome, label: "Chrome extension", cta: "Add to Chrome, free", steps: ["Opened a Swiggy job post on LinkedIn", "Match: 82%. Missing gRPC and on-call", "Tailored 4 bullets for this JD", "Application landed in the Job Tracker"] },
+  { id: "chatgpt", icon: MessageSquare, label: "ChatGPT", cta: "Add InterviewTrix to ChatGPT", steps: ["Pasted a Razorpay SDE-2 JD into ChatGPT", "InterviewTrix drafted it from the JD", "Draft created, scored 81 against the JD", "The same resume is already in the dashboard"] },
+  { id: "chrome", icon: Chrome, label: "Chrome extension", cta: "Add to Chrome, free", steps: ["Opened a Swiggy job post on LinkedIn", "Match: 82%. Missing gRPC and on-call", "Tailored 4 bullets for this JD", "Tailored resume saved to your dashboard"] },
   { id: "claude", icon: Sparkle, label: "Claude", cta: "Connect Claude", steps: ["Asked Claude about last week's mock", "Claude pulled the real InterviewTrix report", "Answered from Tuesday's session, not a guess", "Same memory as the website"] },
   { id: "mcp", icon: Code2, label: "Any AI via MCP", cta: "Copy the MCP URL", steps: ["Pasted one URL and a personal token", "The editor now sees 15 InterviewTrix tools", "Scored a resume without leaving Cursor", "Results sync to the dashboard"] },
 ] as const;
@@ -56,11 +56,6 @@ export function Everywhere() {
             <p className="mt-4 text-[12.5px] text-muted-foreground">Voice interviews run on interviewtrix.com. Everything else works where you are.</p>
           </div>
         </div>
-        <div className="mt-6 flex flex-wrap items-center gap-3 text-[13px]">
-          <Mono className="rounded-lg border border-border bg-card px-3 py-2">mcp.interviewtrix.com/mcp</Mono>
-          <button className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-white" onClick={() => navigator.clipboard?.writeText("https://mcp.interviewtrix.com/mcp")}><Copy className="size-3.5" />Copy</button>
-          <span className="text-muted-foreground">ChatGPT and Claude sign in with OAuth · Cursor, VS Code and Windsurf use a personal token</span>
-        </div>
       </div>
     </section>
   );
@@ -72,13 +67,15 @@ function ChatGPT() {
       <Mono className="text-[11px] text-muted-foreground">chatgpt.com</Mono>
       <div className="self-end rounded-[18px] bg-[#F2F2F2] px-4 py-2.5 text-[14.5px]">Build my resume for this Razorpay SDE-2 JD</div>
       <div className="rounded-2xl border border-border p-4">
-        <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold"><span className="grid size-5 place-items-center rounded bg-primary text-[10px] text-white">iX</span>InterviewTrix · pick a template</div>
-        <div className="grid grid-cols-4 gap-2">
-          {["meridian", "harvard", "atlantic-blue", "clean-slate"].map((t, k) => (
-            <div key={t} className={cn("relative h-28 overflow-hidden rounded-lg border", k === 0 ? "border-2 border-primary" : "border-border")}>
-              <img src={`/marketing-2026/templates/${t}-preview.webp`} alt="" className="h-full w-full object-cover object-top" />
-            </div>
-          ))}
+        <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold"><span className="grid size-5 place-items-center rounded bg-primary text-[10px] text-white">iX</span>InterviewTrix · resume draft</div>
+        {/* the draft itself, sketched: name, role, and the lines it wrote */}
+        <div className="flex items-center gap-4 rounded-xl border border-border bg-[#FBFBFD] p-3.5">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="text-[14px] font-bold text-[#2E3656]">Aarav Rao</p>
+            <p className="text-[12px] text-muted-foreground">Backend Engineer · Razorpay SDE-2</p>
+            <div className="h-1.5 w-full rounded-full bg-[#E4E2F2]" /><div className="h-1.5 w-5/6 rounded-full bg-[#E4E2F2]" /><div className="h-1.5 w-2/3 rounded-full bg-[#E4E2F2]" />
+          </div>
+          <div className="text-center"><p className="text-[26px] font-extrabold leading-none text-primary">81</p><Mono className="text-[9.5px] text-muted-foreground">ATS / 100</Mono></div>
         </div>
       </div>
       <p className="text-[14.5px] leading-relaxed">Draft's ready with your Infosys payments work up top. ATS score against this JD: <b>81/100</b>. Two keywords are missing: <b>Kafka</b> and <b>idempotency</b>. Want me to add them?</p>
@@ -107,8 +104,7 @@ function ChromeExt() {
         <div className="flex items-baseline justify-between rounded-xl border border-border bg-card px-3 py-2.5 text-[12.5px] text-muted-foreground">Match<Mono className="text-[20px] text-success">82%</Mono></div>
         <p className="text-[12.5px] text-muted-foreground">Missing: gRPC, on-call</p>
         <Button size="sm" className="rounded-lg">Tailor resume</Button>
-        <Button size="sm" variant="outline" className="rounded-lg">Autofill form</Button>
-        <p className="text-[12px] text-success">✓ Added to Job Tracker · Applied</p>
+        <p className="text-[12px] text-success">✓ Saved to your resumes</p>
       </div>
     </div>
   );

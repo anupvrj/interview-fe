@@ -2004,6 +2004,16 @@
   scroll-behavior: smooth;
 }
 
+/* One type family across the 2026 pages: the hackathon banner and site popups keep their look but drop
+   Michroma for Geist (and Geist Mono for their small caps) while they sit on a marketing page. */
+.mk26 .ixp-root {
+  --ixp-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --ixp-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+.mk26 .ixp-root .ixp-title { font-weight: 800; letter-spacing: -0.035em; }
+.mk26 .ixp-root :is(.ixp-price-now, .ixp-price-was, .ixp-prize-value, .ixp-cd-num, .ixp-cd-inline-digits, .ixp-brand-win, .ixp-brand-voucher, .ixp-brand-plus, .ixp-brand-claude-text) { font-weight: 800; letter-spacing: -0.02em; }
+
 @layer utilities {
   .bg-blueprint {
     background-image: linear-gradient(hsl(var(--primary) / .08) 1px, transparent 1px),

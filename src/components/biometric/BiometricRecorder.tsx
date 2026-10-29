@@ -477,11 +477,11 @@ export function BiometricRecorder({
       <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-5 lg:gap-6">
         <div className="min-w-0 space-y-4 sm:space-y-5 lg:col-span-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              How it works
+            <p className="font-[family-name:var(--font-geist-mono)] text-[12px] tracking-wider text-primary">
+              — HOW IT WORKS —
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground sm:text-xl">
-              Read this first — camera stays off
+            <h2 className="mt-3 text-[22px] font-extrabold tracking-[-0.035em] text-foreground">
+              Read this first. The camera stays off.
             </h2>
           </div>
           <ol className="space-y-3">
@@ -490,16 +490,16 @@ export function BiometricRecorder({
               return (
                 <li
                   key={step.title}
-                  className="flex gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4"
+                  className="flex gap-3.5 rounded-2xl border border-border bg-background/60 p-4"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
-                    <Icon className="h-5 w-5" />
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white">
+                    <Icon className="h-[18px] w-[18px]" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                      Step {index + 1}
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-[0.06em] text-muted-foreground">
+                      STEP {String(index + 1).padStart(2, "0")}
                     </p>
-                    <p className="text-sm font-semibold text-foreground sm:text-base">
+                    <p className="mt-0.5 text-[15px] font-semibold text-foreground">
                       {step.title}
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -514,11 +514,10 @@ export function BiometricRecorder({
 
         <aside
           className={cn(
-            appCard,
-            "flex min-w-0 flex-col p-4 sm:p-5 lg:col-span-2 lg:row-span-2",
+            "flex min-w-0 flex-col rounded-2xl border border-border bg-background/60 p-4 sm:p-5 lg:col-span-2 lg:row-span-2",
           )}
         >
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-[#7367F0]/40">
+          <div className="relative overflow-hidden rounded-xl bg-[#0B1530] bg-[radial-gradient(60%_80%_at_100%_0%,rgba(115,103,240,.45),transparent_70%)]">
             <div className="flex aspect-[16/10] flex-col items-center justify-center gap-3 px-4 text-center sm:aspect-video">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white sm:h-14 sm:w-14">
                 <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -531,7 +530,7 @@ export function BiometricRecorder({
               </p>
             </div>
           </div>
-          <h3 className="mt-4 text-base font-semibold text-foreground sm:mt-5">
+          <h3 className="mt-4 text-[17px] font-extrabold tracking-[-0.025em] text-foreground sm:mt-5">
             Ready when you are
           </h3>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -545,7 +544,7 @@ export function BiometricRecorder({
           ) : null}
           <Button
             type="button"
-            className={cn(appPrimaryButton, "mt-4 h-11 w-full sm:mt-5")}
+            className="mt-4 h-11 w-full rounded-xl text-[14.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] sm:mt-5"
             onClick={() => {
               setError(null);
               setStarted(true);
@@ -556,15 +555,15 @@ export function BiometricRecorder({
           </Button>
         </aside>
 
-        <div className="min-w-0 rounded-xl border border-border/70 bg-muted/15 p-3 sm:p-4 lg:col-span-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            You will read this on the video
+        <div className="min-w-0 rounded-2xl border border-border bg-background/60 p-4 sm:p-5 lg:col-span-3">
+          <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-[0.06em] text-muted-foreground">
+            YOU WILL READ THIS ON THE VIDEO
           </p>
           <ol className="mt-3 space-y-3">
             {CREDENTIAL_SENTENCES.map((sentence, index) => (
               <li key={sentence} className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#7367F0]/12 text-xs font-bold text-[#7367F0]">
-                  {index + 1}
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">
+                  {String(index + 1).padStart(2, "0")}
                 </span>
                 <p className="min-w-0 break-words text-sm leading-relaxed text-foreground sm:text-[0.9375rem]">
                   {sentence}

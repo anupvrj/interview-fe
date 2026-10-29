@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ATSCategoryResult, ATSCheckResult } from "@/types/atsReport";
 import {
@@ -18,6 +18,10 @@ interface ATSScoreSidebarProps {
   selectedCheckId: string | null;
   onSelectCheck: (check: ATSCheckResult, categoryLabel: string) => void;
   compact?: boolean;
+  /** The page shows the score elsewhere: list the checks only, without the card chrome. */
+  hideScore?: boolean;
+  /** Open this category (e.g. its finding was picked on the resume). */
+  openCategoryId?: string | null;
 }
 
 function ScoreGauge({ score }: { score: number }) {
@@ -66,11 +70,16 @@ export function ATSScoreSidebar({
   selectedCheckId,
   onSelectCheck,
   compact = false,
+  hideScore = false,
+  openCategoryId = null,
 }: ATSScoreSidebarProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     jobMatch: true,
     content: true,
   });
+  useEffect(() => {
+    if (openCategoryId) setExpanded((prev) => (prev[openCategoryId] ? prev : { ...prev, [openCategoryId]: true }));
+  }, [openCategoryId]);
 
   const toggle = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -78,11 +87,12 @@ export function ATSScoreSidebar({
   return (
     <div
       className={cn(
-        "min-w-0 space-y-5 rounded-xl border border-border bg-card shadow-card",
-        compact ? "p-4" : "p-5",
+        "min-w-0 space-y-5",
+        !hideScore && "rounded-xl border border-border bg-card shadow-card",
+        !hideScore && (compact ? "p-4" : "p-5"),
       )}
     >
-      <div className="text-center">
+      {!hideScore && <div className="text-center">
         <h2 className="text-lg font-bold text-foreground mb-3">Your Score</h2>
         <ScoreGauge score={score} />
         <p className="text-sm text-muted-foreground mt-2">
@@ -90,7 +100,7 @@ export function ATSScoreSidebar({
           {/* In the editor the list above changes as you edit; this is the last check's count. */}
           {compact ? " at last check" : ""}
         </p>
-      </div>
+      </div>}
 
       <div className="space-y-2">
         {CATEGORY_ORDER.map((catId) => {

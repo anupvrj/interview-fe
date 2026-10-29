@@ -20,10 +20,8 @@ import {
   Clock,
   ArrowLeft,
   ArrowRight,
-  Coins,
   AlertCircle,
   Briefcase,
-  Check,
 } from "lucide-react";
 import { interviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
@@ -45,11 +43,12 @@ import {
   FormField,
 } from "@/components/onboarding/onboarding-form-primitives";
 import {
-  appCard,
-  appCardElevated,
-  appPrimaryButton,
-  appSurfaceMuted,
-} from "@/lib/app-theme";
+  resumeBuilderCard,
+  resumeBuilderFooterActions,
+  resumeBuilderOutlineButton,
+  resumeBuilderPrimaryButton,
+} from "@/components/resume-builder/resumeBuilderStyles";
+import { dash2026Scope, Eyebrow, SegmentedSteps } from "@/components/dashboard-2026/ui";
 import { cn } from "@/lib/utils";
 import {
   applyJobCaptureToInterviewForm,
@@ -96,28 +95,28 @@ const STEPS = [
     number: 1,
     title: "Role & Background",
     icon: Target,
-    headline: "What role are you preparing for?",
+    headline: "Which round are you rehearsing?",
     description:
-      "We'll tailor questions to your target role, experience, and job.",
+      "The role, company and job post shape every question you'll be asked.",
   },
   {
     number: 2,
     title: "Session",
     icon: Clock,
-    headline: "Choose session length",
-    description: "Credits depend on the voice model you pick.",
+    headline: "How long, and which voice?",
+    description: "Pick the length and the interviewer's voice. Credits follow the voice model.",
   },
   {
     number: 3,
     title: "Resume",
     icon: FileText,
-    headline: "Add your resume",
-    description: "Personalized questions are built from your resume.",
+    headline: "Which resume should it read?",
+    description: "Follow-ups come straight from your own projects and numbers.",
   },
 ] as const;
 
 const controlClass =
-  "h-11 w-full rounded-[0.625rem] border-border/60 bg-card text-sm shadow-sm sm:h-12";
+  "h-12 w-full rounded-xl border-border bg-background text-[14.5px] shadow-none";
 
 function FieldError({ message }: { message: string }) {
   return (
@@ -147,12 +146,11 @@ function JobCaptureBanner({
   return (
     <div
       className={cn(
-        appSurfaceMuted,
-        "mb-5 rounded-xl border border-border/60 p-3 sm:p-4",
+        "mb-5 rounded-[18px] border border-primary/30 bg-[linear-gradient(120deg,rgba(115,103,240,.08),transparent_60%)] p-4",
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-[0_10px_24px_-12px_rgba(115,103,240,.8)]">
           <Briefcase className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
@@ -204,10 +202,10 @@ function ResumeOptionCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-all sm:p-4",
+        "flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition-all",
         selected
-          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] shadow-sm ring-1 ring-[#7367F0]/20"
-          : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-muted/20",
+          ? "border-primary bg-primary/[0.05] shadow-[0_0_0_4px_rgba(115,103,240,0.12)]"
+          : "border-border bg-card hover:border-primary/40",
       )}
     >
       <span
@@ -222,11 +220,11 @@ function ResumeOptionCard({
           <span className="h-2 w-2 rounded-full bg-white" />
         ) : null}
       </span>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10">
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
+        <span className="block truncate text-[14.5px] font-semibold text-foreground">
           {title}
         </span>
         {subtitle ? (
@@ -611,71 +609,23 @@ export default function NewInterviewPage() {
 
   const activeStep = STEPS[currentStep - 1];
   const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
+  const voiceOption = voiceProviderOptions.find((o) => o.id === formData.voiceProvider);
+  const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
+  const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
+  const summary: [string, string | null][] = [
+    ["Role", filledForm.role.trim() || null],
+    ["Company", filledForm.targetCompany.trim() || null],
+    ["Experience", experienceLabel ?? null],
+    ["Job post", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? `${jobDescription.trim().length.toLocaleString()} characters` : null],
+    ["Length", `${formData.duration} min`],
+    ["Voice", voiceOption?.label ?? null],
+    ["Resume", useSavedResume ? activeSavedResume?.title ?? null : uploadedFile?.name ?? null],
+  ];
 
   const interviewForm = (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <div className={cn(appCardElevated, "overflow-hidden")}>
-        <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-5 py-5 sm:px-6">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0]">
-            Step {currentStep} of {STEPS.length}
-          </p>
-          <h2 className="mt-2 text-center text-lg font-semibold text-foreground sm:text-xl">
-            {activeStep.headline}
-          </h2>
-          <p className="mx-auto mt-1 max-w-md text-center text-sm text-muted-foreground">
-            {activeStep.description}
-          </p>
-
-          <div className="mt-5 flex items-center gap-2">
-            {STEPS.map((step, index) => {
-              const done = currentStep > step.number;
-              const active = currentStep === step.number;
-              const StepIcon = step.icon;
-              return (
-                <div
-                  key={step.number}
-                  className="flex min-w-0 flex-1 items-center gap-2"
-                >
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
-                      active &&
-                        "border-[#7367F0] bg-[#7367F0] text-white shadow-[0_2px_6px_rgba(115,103,240,0.35)]",
-                      done && "border-emerald-500 bg-emerald-500 text-white",
-                      !active &&
-                        !done &&
-                        "border-border bg-muted/40 text-muted-foreground",
-                    )}
-                  >
-                    {done ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <StepIcon className="h-3.5 w-3.5" />
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "hidden truncate text-xs font-medium sm:block",
-                      active ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
-                  </span>
-                  {index < STEPS.length - 1 ? (
-                    <div
-                      className={cn(
-                        "mx-1 h-px min-w-[1rem] flex-1",
-                        done ? "bg-emerald-400/70" : "bg-border",
-                      )}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-5 py-6 sm:px-6">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className={cn(resumeBuilderCard, "relative")}>
+        <form onSubmit={handleSubmit} className="p-5 sm:p-7">
           {jobCapture && currentStep === 1 ? (
             <JobCaptureBanner
               capture={jobCapture}
@@ -683,7 +633,7 @@ export default function NewInterviewPage() {
             />
           ) : null}
           {currentStep === 1 ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
@@ -708,7 +658,7 @@ export default function NewInterviewPage() {
                 label="Target company"
                 htmlFor="targetCompany"
                 optional
-                hint="We'll match questions to the company's typical interview pattern."
+                hint="Questions follow that company's usual interview pattern."
               >
                 <Input
                   id="targetCompany"
@@ -753,34 +703,32 @@ export default function NewInterviewPage() {
                 />
               </FormField>
             </div>
-            <FormField
-              label="Job description"
-              htmlFor="jobDescription"
-              optional
-              hint="Paste the posting so questions match this role. At least 50 characters."
-            >
-              <Textarea
-                id="jobDescription"
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                rows={6}
-                placeholder="Paste the job description (optional)"
-                className="min-h-[140px] resize-y text-sm"
-              />
-              {jobDescription.trim() &&
-              jobDescription.trim().length < MIN_JOB_DESCRIPTION_CHARS ? (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Add at least {MIN_JOB_DESCRIPTION_CHARS} characters to use
-                  this job description.
-                </p>
-              ) : null}
+            <FormField label="Job description" htmlFor="jobDescription" optional>
+              <div className="overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
+                <Textarea
+                  id="jobDescription"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  rows={6}
+                  placeholder="Paste the job post so the questions match this role"
+                  className="min-h-[150px] resize-y !rounded-none !border-0 !bg-transparent px-4 py-3 text-[14px] leading-relaxed !shadow-none !ring-0"
+                />
+                <div className="flex items-center justify-between border-t border-border px-4 py-2">
+                  <span className="text-[12px] text-muted-foreground">At least {MIN_JOB_DESCRIPTION_CHARS} characters</span>
+                  <span className={cn("font-[family-name:var(--font-geist-mono)] text-[11px]", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                    {jobDescription.trim().length.toLocaleString()} CHARS
+                  </span>
+                </div>
+              </div>
             </FormField>
             </div>
           ) : null}
 
           {currentStep === 2 ? (
-            <div className="space-y-5">
-              <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+            <div className="space-y-6">
+              <div>
+                <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
+                <div className="grid grid-cols-2 gap-3">
                 {(["15", "30"] as const).map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
@@ -790,6 +738,7 @@ export default function NewInterviewPage() {
                     key={duration}
                     type="button"
                     disabled={disabled}
+                    aria-pressed={selected}
                     onClick={() =>
                       setFormData((prev) => ({
                         ...prev,
@@ -803,33 +752,34 @@ export default function NewInterviewPage() {
                       }))
                     }
                     className={cn(
-                      "relative flex min-w-[9rem] flex-col items-start rounded-xl border px-5 py-4 text-left transition-all",
+                      "relative flex flex-col items-start rounded-[18px] border p-5 text-left transition-all",
                       selected
-                        ? "border-[#7367F0]/50 bg-[#7367F0]/[0.08] ring-1 ring-[#7367F0]/25"
-                        : "border-border/70 bg-card hover:border-[#7367F0]/30",
-                      disabled && "cursor-not-allowed opacity-50",
+                        ? "border-primary bg-primary/[0.05] shadow-[0_0_0_4px_rgba(115,103,240,0.12)]"
+                        : "border-border bg-card hover:border-primary/40",
+                      disabled && "cursor-not-allowed opacity-55 hover:border-border",
                     )}
                   >
-                    <span className="text-base font-semibold text-foreground">
-                      {duration} min
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-[34px] font-black leading-none tracking-[-0.04em] text-foreground tabular-nums">{duration}</span>
+                      <span className="text-[14px] font-medium text-muted-foreground">min</span>
                     </span>
-                    <span className="mt-1 text-xs text-muted-foreground">
-                      {duration === "15"
-                        ? "Standard session"
-                        : "Extended depth"}
+                    <span className="mt-2 text-[13px] text-muted-foreground">
+                      {duration === "15" ? "A focused screening round" : "More depth and more follow-ups"}
                     </span>
                     {is30 && !canUse30Min ? (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                      <span className="mt-3 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10px] text-amber-700 dark:text-amber-300">
                         <Crown className="h-3 w-3" />
-                        Tech Pro
+                        TECH PRO
                       </span>
                     ) : null}
+                    {selected ? <CheckCircle className="absolute right-4 top-4 h-5 w-5 text-primary" /> : null}
                   </button>
                 );
               })}
+                </div>
               </div>
 
-              <FormField label="Voice AI model" htmlFor="voiceProvider">
+              <FormField label="Interviewer voice" htmlFor="voiceProvider">
                 <VoiceProviderSelect
                   id="voiceProvider"
                   value={formData.voiceProvider}
@@ -841,7 +791,7 @@ export default function NewInterviewPage() {
                   }
                   options={voiceProviderOptions}
                   durationMinutes={Number(formData.duration)}
-                  className={cn(controlClass, "h-auto min-h-11 py-1.5 sm:min-h-12")}
+                  className={cn(controlClass, "h-auto min-h-12 py-1.5")}
                 />
               </FormField>
             </div>
@@ -863,7 +813,7 @@ export default function NewInterviewPage() {
                 />
               ) : !savedResumeKnown ? (
                 <div
-                  className="h-[4.5rem] animate-pulse rounded-xl border border-border/60 bg-muted/20"
+                  className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
                   aria-hidden
                 />
               ) : null}
@@ -872,7 +822,7 @@ export default function NewInterviewPage() {
                 selected={!useSavedResume}
                 onSelect={() => setUseSavedResume(false)}
                 icon={Upload}
-                title="Upload a new resume"
+                title="Upload a different resume"
                 subtitle="PDF only · Max 5 MB"
               />
 
@@ -882,46 +832,46 @@ export default function NewInterviewPage() {
                     <div
                       {...getRootProps()}
                       className={cn(
-                        "cursor-pointer rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all",
+                        "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
                         isDragActive
-                          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06]"
+                          ? "border-primary bg-primary/[0.06]"
                           : errors.resume
                             ? "border-destructive/40 bg-destructive/5"
-                            : "border-border/70 bg-muted/15 hover:border-[#7367F0]/35 hover:bg-[#7367F0]/[0.04]",
+                            : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
                       )}
                     >
                       <input {...getInputProps()} />
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
                         <Upload className="h-6 w-6" />
                       </div>
-                      <p className="text-sm font-medium text-foreground">
-                        {isDragActive
-                          ? "Drop your PDF here"
-                          : "Drag & drop or click to upload"}
+                      <p className="text-[16px] font-bold tracking-tight text-foreground">
+                        {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PDF only · Max 5 MB
+                      <p className="mt-1 text-[13px] text-muted-foreground">
+                        or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
                       </p>
+                      <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3.5">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                    <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                         <FileText className="h-5 w-5" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">
+                        <p className="truncate text-[14.5px] font-semibold text-foreground">
                           {uploadedFile.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        <p className="text-[12.5px] text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
                         </p>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove file"
                         onClick={() => setUploadedFile(null)}
-                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -931,10 +881,6 @@ export default function NewInterviewPage() {
               ) : null}
 
               {errors.resume ? <FieldError message={errors.resume} /> : null}
-
-              <p className="pt-1 text-xs text-muted-foreground">
-                You&apos;ll need a working microphone for the live session.
-              </p>
             </div>
           ) : null}
 
@@ -945,15 +891,14 @@ export default function NewInterviewPage() {
             </div>
           ) : null}
 
-          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className={cn(resumeBuilderFooterActions, "mt-7")}>
             {currentStep > 1 ? (
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
                 onClick={goBackStep}
                 disabled={loading}
-                className="w-full sm:w-auto"
+                className={cn(resumeBuilderOutlineButton, "w-full sm:w-auto")}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
@@ -964,27 +909,23 @@ export default function NewInterviewPage() {
 
             <Button
               type="submit"
-              size="lg"
-              className={cn(
-                "h-12 w-full px-8 text-base font-semibold sm:ml-auto sm:w-auto",
-                appPrimaryButton,
-              )}
+              className={cn(resumeBuilderPrimaryButton, "w-full sm:ml-auto sm:w-auto")}
               disabled={loading || (limitCheck && !limitCheck.allowed)}
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating session…
                 </>
               ) : currentStep < STEPS.length ? (
                 <>
                   Continue
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               ) : (
                 <>
                   Start interview
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
             </Button>
@@ -992,67 +933,93 @@ export default function NewInterviewPage() {
         </form>
       </div>
 
-      <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
-        <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Credits follow the voice model you pick. Wrap cleanly to unlock
-          transcripts, scores, and discussion coaching in your report.
+      {/* what you're about to start, filled in as you go */}
+      <aside className={cn(resumeBuilderCard, "p-5 lg:sticky lg:top-6")}>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">YOUR SESSION</p>
+        <dl className="mt-3 divide-y divide-border">
+          {summary.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+              <dt className="text-[13px] text-muted-foreground">{k}</dt>
+              <dd className={cn("min-w-0 truncate text-right text-[13.5px]", v ? "font-medium text-foreground" : "text-muted-foreground/60")}>{v ?? "—"}</dd>
+            </div>
+          ))}
+        </dl>
+        {estimatedCredits != null ? (
+          <div className="mt-3 flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
+            <span className="text-[13px] text-muted-foreground">About</span>
+            <span className="text-[13px] text-muted-foreground"><b className="font-[family-name:var(--font-geist-mono)] text-[18px] font-medium text-foreground">{estimatedCredits}</b> credits</span>
+          </div>
+        ) : null}
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">
+          You&apos;ll need a working microphone. Finish the session to unlock the transcript, scores and coaching in your report.
         </p>
-      </div>
+      </aside>
     </div>
   );
 
   if (!isLoaded) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto w-full max-w-3xl space-y-6">
-      <div className="flex items-center">
-        <Button variant="ghost" asChild className="-ml-2 text-muted-foreground">
-          <Link href="/dashboard/interviews">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to interviews
-          </Link>
-        </Button>
-      </div>
+  const creditsReady = !checkingLimit && profileReady && !aiPracticeLocked && limitCheck && limitCheck.allowed;
 
-      {checkingLimit || !profileReady ? (
-        <div
-          className={cn(
-            appCard,
-            "flex items-center justify-center gap-3 px-6 py-8",
-          )}
-        >
-          <Loader2 className="h-5 w-5 animate-spin text-[#7367F0]" />
-          <p className="text-sm font-medium text-muted-foreground">
-            {checkingLimit ? "Checking your credits…" : "Loading your profile…"}
-          </p>
+  return (
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      {/* header: where you are in setup, and whether you can start */}
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/dashboard/interviews" className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> AI interviews
+            </Link>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[11.5px] text-muted-foreground">STEP {currentStep} OF {STEPS.length}</span>
+          </div>
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
+              <Eyebrow>NEW INTERVIEW</Eyebrow>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{activeStep.headline}</h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{activeStep.description}</p>
+            </div>
+            {checkingLimit || !profileReady ? (
+              <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2.5 text-[13px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                {checkingLimit ? "Checking your credits…" : "Loading your profile…"}
+              </span>
+            ) : creditsReady ? (
+              <span className="inline-flex w-fit items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] px-3.5 py-2.5 text-[13px] text-foreground">
+                <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>
+                Ready · <b className="font-[family-name:var(--font-geist-mono)] font-medium">{(limitCheck.creditsAvailable || 0).toLocaleString()}</b> credits
+              </span>
+            ) : null}
+          </div>
         </div>
-      ) : !aiPracticeLocked && limitCheck && !limitCheck.allowed ? (
-        <div
-          className={cn(
-            appCardElevated,
-            "overflow-hidden border-amber-500/25",
-          )}
-        >
-          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+        <div className="relative border-t border-border px-6 py-4 md:px-8">
+          <SegmentedSteps labels={STEPS.map((st) => st.title)} current={currentStep - 1} />
+        </div>
+      </section>
+
+      {!checkingLimit && profileReady && !aiPracticeLocked && limitCheck && !limitCheck.allowed ? (
+        <div className={cn(resumeBuilderCard, "border-amber-500/30")}>
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-7">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
               <Crown className="h-7 w-7" />
             </span>
-            <div className="min-w-0 flex-1 space-y-3">
+            <div className="min-w-0 flex-1 space-y-4">
               <div>
-                <h3 className="text-lg font-semibold text-foreground sm:text-xl">
+                <h3 className="text-[20px] font-bold tracking-tight text-foreground">
                   {limitCheck.isExpired
                     ? "Subscription expired"
                     : limitCheck.gate === "upgrade_required"
                       ? "Upgrade required"
                       : "Not enough credits"}
                 </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-[14px] text-muted-foreground">
                   {limitCheck.reason ||
                     "Purchase a plan to continue interviewing."}
                 </p>
@@ -1060,36 +1027,25 @@ export default function NewInterviewPage() {
 
               {limitCheck.creditsAvailable !== undefined &&
               limitCheck.minimumRequired !== undefined ? (
-                <div className="flex flex-wrap gap-4 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Coins className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Available</span>
-                    <span className="font-semibold tabular-nums text-foreground">
-                      {limitCheck.creditsAvailable}
-                    </span>
+                <div className="grid w-fit grid-cols-2 divide-x divide-border rounded-xl border border-border">
+                  <div className="px-4 py-2.5">
+                    <p className="text-[12px] text-muted-foreground">Available</p>
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[20px] text-foreground">{limitCheck.creditsAvailable}</p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Required</span>
-                    <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">
-                      {limitCheck.minimumRequired}
-                    </span>
+                  <div className="px-4 py-2.5">
+                    <p className="text-[12px] text-muted-foreground">Required</p>
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[20px] text-amber-600 dark:text-amber-400">{limitCheck.minimumRequired}</p>
                   </div>
                 </div>
               ) : null}
 
               <div className="flex flex-wrap gap-2">
                 {limitCheck.isExpired ? (
-                  <Button
-                    onClick={() => router.push("/dashboard/plan?renew=1")}
-                    className={appPrimaryButton}
-                  >
+                  <Button onClick={() => router.push("/dashboard/plan?renew=1")} className={resumeBuilderPrimaryButton}>
                     Renew subscription
                   </Button>
                 ) : (
-                  <Button
-                    onClick={() => router.push("/pricing")}
-                    className={appPrimaryButton}
-                  >
+                  <Button onClick={() => router.push("/pricing")} className={resumeBuilderPrimaryButton}>
                     View plans
                   </Button>
                 )}
@@ -1097,36 +1053,12 @@ export default function NewInterviewPage() {
             </div>
           </div>
         </div>
-      ) : !aiPracticeLocked && limitCheck && limitCheck.allowed ? (
-        <div
-          className={cn(
-            appCard,
-            "flex flex-col gap-3 border-emerald-500/25 bg-emerald-500/[0.04] px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Ready to practice
-              </p>
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {limitCheck.creditsAvailable || 0}
-                </span>{" "}
-                credits available
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : !aiPracticeLocked && !limitCheck ? (
-        <div className={cn(appCard, "px-5 py-5")}>
+      ) : !checkingLimit && profileReady && !aiPracticeLocked && !limitCheck ? (
+        <div className={cn(resumeBuilderCard, "px-5 py-5")}>
           <p className="mb-3 text-sm text-muted-foreground">
             Could not verify your interview access. Please try again.
           </p>
-          <Button type="button" variant="outline" onClick={() => checkInterviewLimit()}>
+          <Button type="button" variant="outline" className={resumeBuilderOutlineButton} onClick={() => checkInterviewLimit()}>
             Retry
           </Button>
         </div>

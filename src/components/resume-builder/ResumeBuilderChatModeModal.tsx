@@ -1,6 +1,9 @@
 "use client";
 
-import { MessageSquare, Mic } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Emblem, Mono, type EmblemKind } from "@/components/marketing-2026/primitives";
+import { useDashboardTheme } from "@/components/dashboard-theme";
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { appCard } from "@/lib/app-theme";
 
 export type ResumeChatSubMode = "text" | "voice";
 
@@ -26,9 +28,10 @@ export function ResumeBuilderChatModeModal({
 }: Readonly<ResumeBuilderChatModeModalProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(appCard, "sm:max-w-lg border-primary/20")}>
+      <DialogContent className={cn(dash2026Scope, "rounded-[22px] border border-border bg-card p-6 sm:max-w-xl sm:p-7")}>
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-foreground">
+          <Mono className="text-[11px] text-primary">— BUILD IT WITH AI —</Mono>
+          <DialogTitle className="pt-1 text-[24px] font-extrabold tracking-[-0.03em] text-foreground">
             How would you like to chat?
           </DialogTitle>
           <DialogDescription className="pt-1 text-left text-muted-foreground">
@@ -39,13 +42,13 @@ export function ResumeBuilderChatModeModal({
 
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <ModeCard
-            icon={<MessageSquare className="h-5 w-5" />}
+            emblem="code"
             title="Type in chat"
             description="Answer questions by typing. Great for quiet spaces."
             onClick={() => onSelect("text")}
           />
           <ModeCard
-            icon={<Mic className="h-5 w-5" />}
+            emblem="voice"
             title="Talk with voice AI"
             description="Speak naturally with Ava, your AI resume coach."
             badge="New"
@@ -58,38 +61,34 @@ export function ResumeBuilderChatModeModal({
 }
 
 function ModeCard({
-  icon,
+  emblem,
   title,
   description,
   badge,
   onClick,
 }: Readonly<{
-  icon: React.ReactNode;
+  emblem: EmblemKind;
   title: string;
   description: string;
   badge?: string;
   onClick: () => void;
 }>) {
+  const { theme } = useDashboardTheme();
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-start gap-3 rounded-2xl border border-border/80 bg-card p-5 text-left transition-all hover:border-primary/40 hover:bg-primary/[0.04] hover:shadow-[0_8px_24px_rgba(115,103,240,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="group flex flex-col items-start gap-4 rounded-[18px] border border-border bg-card p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_24px_50px_-30px_rgba(115,103,240,.6)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
-      <div className="flex w-full items-center justify-between">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#7367F0] to-[#8b7ff5] text-white shadow-[0_2px_10px_rgba(115,103,240,0.35)]">
-          {icon}
-        </span>
-        {badge ? (
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            {badge}
-          </span>
-        ) : null}
+      <div className="flex w-full items-start justify-between">
+        <Emblem kind={emblem} tone={theme === "dark" ? "dark" : "light"} />
+        {badge ? <Mono className="rounded-md bg-primary/10 px-2 py-1 text-[10px] text-primary">{badge.toUpperCase()}</Mono> : null}
       </div>
       <div>
-        <p className="font-semibold text-foreground">{title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="text-[16px] font-bold tracking-tight text-foreground">{title}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{description}</p>
       </div>
+      <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary">Choose <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" /></span>
     </button>
   );
 }

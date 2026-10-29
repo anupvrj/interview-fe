@@ -5,32 +5,22 @@ import Link from "next/link";
 import Script from "next/script";
 import { useUser } from "@clerk/nextjs";
 import {
+  ArrowLeft,
   CalendarClock,
-  CheckCircle2,
   Clock,
-  IndianRupee,
   Loader2,
   Plus,
-  Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/app/PageHeader";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { ListHeader } from "@/components/dashboard-2026/PracticeHero";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { CandidateBookingsTable } from "@/components/peer/CandidateBookingsTable";
 import { PeerMeetingJoinButton } from "@/components/peer/PeerMeetingJoinButton";
 import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTimezoneSelect";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
-import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
-import { appCard } from "@/lib/app-theme";
 import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import {
   buildPeerHistorySessionRows,
@@ -176,178 +166,131 @@ export default function CandidateBookingsPage() {
     }
   };
 
+  const card = "min-w-0 overflow-hidden rounded-[22px] border border-border bg-card";
+
   return (
-    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 sm:space-y-6">
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl min-w-0 space-y-5 overflow-x-hidden lg:space-y-6")}>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayLoaded(true)}
       />
-      <PageHeader
-        title="My peer interviews"
-        badge="Bookings"
-        description="Track your booking requests, pay once accepted, and join your interviews."
-        className="min-w-0"
-        actions={
-          <>
-            <Link href="/dashboard/peer-interviews/book" className="lg:hidden">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-10 w-10 shrink-0"
-                aria-label="Book new interview"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/dashboard/peer-interviews/book" className="hidden lg:block">
-              <Button className="h-10 bg-[#7367F0] text-white hover:bg-[#6e62e5]">
-                Book new interview
-              </Button>
-            </Link>
-          </>
-        }
-      />
+
+      {/* header: what you've booked, at a glance */}
+      <section className={cn(card, "relative")}>
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <Link href="/dashboard/peer-interviews" className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Peer interviews
+          </Link>
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <Eyebrow>MY BOOKINGS</Eyebrow>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">Your peer interviews.</h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">
+                Track requests, pay once they&apos;re accepted, and join your sessions from here.
+              </p>
+            </div>
+            <Button asChild className="h-11 shrink-0 rounded-xl px-5 text-[14.5px] shadow-[0_10px_30px_-12px_rgba(115,103,240,.75)] hover:bg-primary/90">
+              <Link href="/dashboard/peer-interviews/book"><Plus className="h-4 w-4" />Book an interview</Link>
+            </Button>
+          </div>
+        </div>
+        {!loading && bookings.length > 0 ? (
+          <div className="relative grid grid-cols-2 border-t border-border md:grid-cols-4 md:divide-x md:divide-border [&>*:nth-child(-n+2)]:max-md:border-b [&>*:nth-child(odd)]:max-md:border-r">
+            {[
+              ["Bookings", String(stats.total), "all your peer interviews"],
+              ["Payment due", String(stats.paymentDue), "accepted, pay to confirm"],
+              ["Upcoming", String(stats.upcoming), "confirmed and scheduled"],
+              ["Completed", String(stats.completed), "finished sessions"],
+            ].map(([k, v, d]) => (
+              <div key={k} className="border-border px-5 py-4 md:px-6">
+                <p className="text-[12.5px] text-muted-foreground">{k}</p>
+                <p className={cn("mt-1 font-[family-name:var(--font-geist-mono)] text-[24px] tracking-tight", k === "Payment due" && stats.paymentDue > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>{v}</p>
+                <p className="text-[11.5px] text-muted-foreground/80">{d}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       {loading ? (
-        <div className={cn(appCard, "flex h-64 items-center justify-center")}>
-          <Loader2 className="h-7 w-7 animate-spin text-[#7367F0]" />
+        <div className={cn(card, "flex h-64 items-center justify-center")}>
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
       ) : bookings.length === 0 ? (
-        <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
-          <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+        <div className={cn(card, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10">
             <CalendarClock className="h-8 w-8" />
           </span>
-          <p className="text-lg font-semibold">No bookings yet</p>
-          <p className="max-w-md text-sm text-muted-foreground">
+          <p className="text-[18px] font-bold tracking-tight">No bookings yet.</p>
+          <p className="max-w-md text-[14px] text-muted-foreground">
             Find a verified interviewer, pick a slot, and get real mock interview practice.
           </p>
-          <Link href="/dashboard/peer-interviews/book">
-            <Button className="bg-[#7367F0] text-white hover:bg-[#6e62e5]">Find an interviewer</Button>
-          </Link>
+          <Button asChild className="mt-1 h-11 rounded-xl px-5">
+            <Link href="/dashboard/peer-interviews/book">Find an interviewer</Link>
+          </Button>
         </div>
       ) : (
         <>
-          <div className={cn(appCard, "min-w-0 overflow-hidden p-3 sm:p-4")}>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          {/* next session first, with the timezone it's shown in */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+            {nextUpcoming ? (
+              <div className={cn(card, "flex flex-col gap-4 border-emerald-500/30 p-5 sm:flex-row sm:items-center sm:justify-between md:p-6")}>
+                <div className="min-w-0">
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-emerald-600 dark:text-emerald-400">NEXT INTERVIEW</p>
+                  <p className="mt-1 text-[18px] font-bold tracking-tight text-foreground">
+                    {typeNames[nextUpcoming.interviewType] || nextUpcoming.interviewType}
+                  </p>
+                  <p className="mt-0.5 text-[13.5px] text-muted-foreground">
+                    {formatPeerSchedule(nextUpcoming.start, timezone)} · Ref {nextUpcoming.bookingRef}
+                  </p>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                  {nextUpcoming.videoLink ? (
+                    <PeerMeetingJoinButton
+                      bookingId={nextUpcoming.id}
+                      videoLink={nextUpcoming.videoLink}
+                      start={nextUpcoming.start}
+                      end={nextUpcoming.end}
+                      timezone={timezone}
+                      label="Join meeting room"
+                      size="default"
+                      variant="default"
+                      className="h-10 w-full rounded-xl disabled:opacity-60 sm:w-auto"
+                    />
+                  ) : null}
+                  <Button asChild variant="outline" className="h-10 w-full rounded-xl sm:w-auto">
+                    <Link href={`/dashboard/peer-interviews/bookings/${nextUpcoming.id}`}>
+                      <Clock className="mr-2 h-4 w-4" /> View details
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className={cn(card, "flex items-center p-5 text-[14px] text-muted-foreground md:p-6")}>
+                No confirmed session coming up. Requests and payments due are listed below.
+              </div>
+            )}
+            <div className={cn(card, "p-5 md:p-6")}>
               <PeerTimezoneSelect
                 timezone={timezone}
                 onChange={setTimezone}
                 disabled={tzLoading || savingTimezone}
-                className="w-full min-w-0 flex-1 lg:max-w-md"
+                className="w-full min-w-0"
               />
-              <PeerTimezoneBadge label={timezoneLabel} className="self-start lg:self-auto" />
+              <PeerTimezoneBadge label={timezoneLabel} className="mt-3" />
             </div>
           </div>
-
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            <DashboardStatCard
-              theme="purple"
-              label="Total bookings"
-              value={stats.total}
-              icon={CalendarClock}
-              hint={
-                <>
-                  <CalendarClock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                  <span>All your peer interviews</span>
-                </>
-              }
-            />
-            <DashboardStatCard
-              theme="amber"
-              label="Payment due"
-              value={stats.paymentDue}
-              icon={IndianRupee}
-              hint={
-                <>
-                  <IndianRupee className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                  <span>Accepted — pay to confirm</span>
-                </>
-              }
-            />
-            <DashboardStatCard
-              theme="emerald"
-              label="Upcoming"
-              value={stats.upcoming}
-              icon={Video}
-              hint={
-                <>
-                  <Video className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                  <span>Confirmed &amp; scheduled</span>
-                </>
-              }
-            />
-            <DashboardStatCard
-              theme="violet"
-              label="Completed"
-              value={stats.completed}
-              icon={CheckCircle2}
-              hint={
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                  <span>Finished sessions</span>
-                </>
-              }
-            />
-          </div>
-
-          {nextUpcoming ? (
-            <div
-              className={cn(
-                appCard,
-                "flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4",
-              )}
-            >
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#7367F0]">
-                  Next interview
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-foreground">
-                  {typeNames[nextUpcoming.interviewType] || nextUpcoming.interviewType}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {formatPeerSchedule(nextUpcoming.start, timezone)} · Ref{" "}
-                  {nextUpcoming.bookingRef}
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                {nextUpcoming.videoLink ? (
-                  <PeerMeetingJoinButton
-                    bookingId={nextUpcoming.id}
-                    videoLink={nextUpcoming.videoLink}
-                    start={nextUpcoming.start}
-                    end={nextUpcoming.end}
-                    timezone={timezone}
-                    label="Join meeting room"
-                    size="default"
-                    variant="default"
-                    className="w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60 sm:w-auto"
-                  />
-                ) : null}
-                <Link
-                  href={`/dashboard/peer-interviews/bookings/${nextUpcoming.id}`}
-                  className="w-full sm:w-auto"
-                >
-                  <Button variant="outline" className="w-full sm:w-auto">
-                    <Clock className="mr-2 h-4 w-4" /> View details
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          ) : null}
 
           {activeBookings.length > 0 ? (
-            <Card className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-              <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
-                <div className="min-w-0">
-                  <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
-                    Active bookings
-                  </CardTitle>
-                  <CardDescription className="mt-1 text-xs sm:text-sm">
-                    Requests awaiting acceptance, payment, or your upcoming confirmed sessions.
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="min-w-0 max-w-full overflow-hidden p-0 pb-4">
+            <section className={card}>
+              <ListHeader
+                eyebrow="ACTIVE BOOKINGS"
+                title={`${activeBookings.length} active booking${activeBookings.length === 1 ? "" : "s"}.`}
+                description="Requests waiting for acceptance, bookings to pay for, and your confirmed sessions."
+              />
+              <div className="min-w-0 max-w-full overflow-hidden pb-4">
                 <CandidateBookingsTable
                   bookings={activeBookings}
                   types={types}
@@ -356,22 +299,17 @@ export default function CandidateBookingsPage() {
                   payingId={payingId}
                   onPay={handlePay}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           ) : null}
 
-          <Card className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-            <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
-              <div className="min-w-0">
-                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
-                  Previous peer interviews
-                </CardTitle>
-                <CardDescription className="mt-1 text-xs sm:text-sm">
-                  Completed, past, and closed peer sessions — same layout as your dashboard history.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="min-w-0 max-w-full overflow-hidden p-0">
+          <section className={card}>
+            <ListHeader
+              eyebrow="PREVIOUS INTERVIEWS"
+              title="Finished, past and closed sessions."
+              description="Scores and report links for every peer interview you've had."
+            />
+            <div className="min-w-0 max-w-full overflow-hidden">
               <RecentInterviewsList
                 sessionRows={previousSessionRows}
                 currentPage={previousPage}
@@ -389,8 +327,8 @@ export default function CandidateBookingsPage() {
                   "Actions",
                 ]}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </>
       )}
     </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Mic, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,9 @@ export function TryQuestion() {
               </div>
               <Mono className="w-14 text-right text-[13px] text-[#9FB3CF]">0:{String(Math.floor(secs)).padStart(2, "0")}</Mono>
             </div>
-            <p className="mt-4 min-h-[52px] text-[15px] leading-relaxed text-[#CFE0F7]">
+            <p className="mt-4 min-h-[52px] break-words text-[15px] leading-relaxed text-[#CFE0F7]">
               {phase === "idle" ? <span className="text-[#6E86A8]">Tap the mic and answer like you would in the room.</span> :
-                said.map((t, i) => <span key={i} className={cn("mr-1", fillers.has(t) && "rounded bg-[#FFC44D]/15 px-1 text-[#FFC44D] line-through")}>{t}</span>)}
+                said.map((t, i) => <Fragment key={i}>{i > 0 && " "}<span className={cn(fillers.has(t) && "rounded bg-[#FFC44D]/15 px-1 text-[#FFC44D] line-through")}>{t}</span></Fragment>)}
             </p>
           </div>
 

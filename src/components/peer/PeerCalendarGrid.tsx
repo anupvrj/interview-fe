@@ -60,15 +60,15 @@ function fmtTime(d: string, timeZone: string) {
   });
 }
 
-/** Very light weekday column tints (Sun → Sat). */
+/** Weekday column tones (Sun → Sat): one calm surface, weekends a touch quieter. */
 const WEEKDAY_TONES = [
-  "bg-rose-50/40 dark:bg-rose-950/20",
-  "bg-sky-50/35 dark:bg-sky-950/20",
-  "bg-violet-50/30 dark:bg-violet-950/20",
-  "bg-muted/30 dark:bg-muted/20",
-  "bg-cyan-50/30 dark:bg-cyan-950/20",
-  "bg-indigo-50/25 dark:bg-indigo-950/20",
-  "bg-fuchsia-50/25 dark:bg-fuchsia-950/20",
+  "bg-muted/40 dark:bg-white/[0.02]",
+  "bg-card",
+  "bg-card",
+  "bg-card",
+  "bg-card",
+  "bg-card",
+  "bg-muted/40 dark:bg-white/[0.02]",
 ] as const;
 
 function getDayCellTone(

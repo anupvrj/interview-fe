@@ -1,42 +1,17 @@
-"use client";
+import { isMarketing2026Enabled } from "@/components/marketing-2026/flag";
+import { faqPageJsonLd } from "@/components/marketing-2026/faq-jsonld";
+import { piFaq } from "@/components/marketing-2026/peer-interviewer-faq";
+import { getPeerRounds } from "@/components/marketing-2026/peer-rounds";
+import { PeerInterviewerPage } from "@/components/marketing-2026/pages/PeerInterviewerPage";
+import LegacyPage from "./legacy-page";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { SiteHeader } from "@/components/SiteHeader";
-import { MarketingFooter } from "@/components/MarketingFooter";
-import { InterviewerApplyDialog } from "@/components/peer/InterviewerApplyDialog";
-import { InterviewerLandingHero } from "@/components/marketing/interviewer/InterviewerLandingHero";
-import { InterviewerLandingSections } from "@/components/marketing/interviewer/InterviewerLandingSections";
-
-function BecomePeerInterviewerPageContent() {
-  const searchParams = useSearchParams();
-  const [applyOpen, setApplyOpen] = useState(false);
-
-  const openApply = useCallback(() => {
-    setApplyOpen(true);
-  }, []);
-
-  useEffect(() => {
-    if (searchParams.get("apply") === "1") {
-      setApplyOpen(true);
-    }
-  }, [searchParams]);
-
+export default async function BecomePeerInterviewerPage() {
+  if (!isMarketing2026Enabled()) return <LegacyPage />;
+  const rounds = await getPeerRounds();
   return (
-    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
-      <SiteHeader />
-      <InterviewerLandingHero onBecomeInterviewer={openApply} />
-      <InterviewerLandingSections onBecomeInterviewer={openApply} />
-      <MarketingFooter as="footer" />
-      <InterviewerApplyDialog open={applyOpen} onOpenChange={setApplyOpen} />
-    </div>
-  );
-}
-
-export default function BecomePeerInterviewerPage() {
-  return (
-    <Suspense fallback={null}>
-      <BecomePeerInterviewerPageContent />
-    </Suspense>
+    <>
+      <PeerInterviewerPage rounds={rounds} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd(piFaq(rounds))) }} />
+    </>
   );
 }

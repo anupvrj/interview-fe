@@ -62,7 +62,7 @@ function findFirstActionableCheck(report: ATSReportV3): {
   return null;
 }
 
-function ReportSummary({ report }: { report: ATSReportV3 }) {
+export function ReportSummary({ report }: { report: ATSReportV3 }) {
   const sections = [
     {
       id: "strengths",
@@ -147,7 +147,7 @@ function ReportSummary({ report }: { report: ATSReportV3 }) {
   );
 }
 
-function JobMatchBanner({ report }: { report: ATSReportV3 }) {
+export function JobMatchBanner({ report }: { report: ATSReportV3 }) {
   if (!reportHasJobMatch(report)) return null;
 
   const jm = report.jobMatch;

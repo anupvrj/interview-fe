@@ -48,7 +48,6 @@ import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAf
 import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import { ProfileDesignedResumePicker, type ProfileDesignedResumePickerHandle } from "@/components/profile/ProfileDesignedResumePicker";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
-import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
 import { IxScoreSummaryCard } from "@/components/ix-score/IxScoreSummaryCard";
 import { CandidateStatusInlineSelect } from "@/components/recruiter/CandidateStatusInlineSelect";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/recruiter";
@@ -66,8 +65,8 @@ import {
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
-import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
-import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { Mono } from "@/components/marketing-2026/primitives";
+import { dash2026Scope, Eyebrow, ScoreRing } from "@/components/dashboard-2026/ui";
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
@@ -591,10 +590,77 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
-      <ProfileWelcomeHero
-        firstName={clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}
-      />
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
+        <div className="relative grid items-center gap-8 p-6 md:p-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0">
+            <Eyebrow>YOUR PROFILE</Eyebrow>
+            <div className="mt-5 flex items-center gap-4">
+              {clerkUser?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={clerkUser.imageUrl} alt="" className="size-14 shrink-0 rounded-2xl object-cover ring-2 ring-primary/25 sm:size-16" />
+              ) : (
+                <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-[22px] font-black text-white sm:size-16">
+                  {(displayName.trim()[0] || "?").toUpperCase()}
+                </div>
+              )}
+              <h1 className="min-w-0 text-balance text-[32px] font-black leading-[1.03] tracking-[-0.05em] text-foreground sm:text-[42px] xl:text-[50px]">
+                Hi,{" "}
+                <span className="bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] bg-clip-text text-transparent">{clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}.</span>
+              </h1>
+            </div>
+            <p className="text-balance mt-4 max-w-[56ch] text-[15.5px] leading-relaxed text-muted-foreground md:text-[17px]">
+              Your account, professional details and resume. The AI interviewer reads these to pick questions that fit you, so the more complete they are, the more personal each round gets.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {["Account", "Professional", "Resume", "Preferences"].map((t) => (
+                <Mono key={t} className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground">{t.toUpperCase()}</Mono>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-background/70 p-5 shadow-[0_24px_50px_-30px_rgba(47,43,61,.45)] backdrop-blur">
+            <Mono className="text-[11px] text-muted-foreground">PROFILE COMPLETE</Mono>
+            <div className="mt-3 flex items-center gap-4">
+              <ScoreRing score={profileCompletionScore} />
+              <ul className="min-w-0 space-y-1.5 text-[13px]">
+                {([
+                  ["Your name", Boolean(user?.name?.trim())],
+                  ["Profile type", Boolean(user?.userType)],
+                  ["A resume", hasActiveResume],
+                  ["Skills or industry", Boolean(displayIndustry || displaySkills.length || user?.affiliationInstitutionName)],
+                ] as const).map(([label, done]) => (
+                  <li key={label} className={cn("flex items-center gap-2", done ? "text-foreground" : "text-muted-foreground")}>
+                    <span className={cn("grid size-4 shrink-0 place-items-center rounded-full text-[10px]", done ? "bg-emerald-500 text-white" : "border border-border")}>{done ? "✓" : ""}</span>
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative grid grid-cols-2 border-t border-border md:grid-cols-4 md:divide-x md:divide-border [&>*:nth-child(-n+2)]:max-md:border-b [&>*:nth-child(odd)]:max-md:border-r">
+          {([
+            ["Profile type", profileUserTypeLabel(user?.userType), user?.createdAt ? `since ${formatDate(user.createdAt)}` : "member"],
+            [
+              "Resume",
+              user?.resume ? "Uploaded" : defaultDesignedResume ? "Designed" : "Not set",
+              user?.resume ? formatFileSize(user.resume.size) : defaultDesignedResume ? defaultDesignedResume.title?.trim() || "default resume" : "add a PDF or pick one",
+            ],
+            ["Skills", String(displaySkills.length), displaySkills.length ? "on your profile" : "add a few below"],
+            ["Industry", displayIndustry || "—", displayIndustry ? "used to match questions" : "not set yet"],
+          ] as const).map(([k, v, d]) => (
+            <div key={k} className="min-w-0 border-border px-5 py-4 md:px-6">
+              <p className="text-[12.5px] text-muted-foreground">{k}</p>
+              <Mono className="mt-1 block truncate text-[20px] tracking-tight text-foreground">{v}</Mono>
+              <p className="truncate text-[11.5px] text-muted-foreground/80">{d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {(error || success) && (
         <div className="space-y-2">
@@ -615,55 +681,13 @@ export default function ProfilePage() {
 
       <IxOptInNotice onSnapshotUpdated={() => setIxScoreCardKey((k) => k + 1)} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <DashboardStatCard
-          theme="violet"
-          label="Profile type"
-          value={profileUserTypeLabel(user?.userType)}
-          hint={user?.createdAt ? `Since ${formatDate(user.createdAt)}` : "Member"}
-          icon={UserIcon}
-        />
-        <DashboardStatCard
-          theme="emerald"
-          label="Resume"
-          value={
-            user?.resume
-              ? "Uploaded"
-              : defaultDesignedResume
-                ? "Designed"
-                : "Not set"
-          }
-          hint={
-            user?.resume
-              ? formatFileSize(user.resume.size)
-              : defaultDesignedResume
-                ? defaultDesignedResume.title?.trim() || "Default resume"
-                : "Add PDF or choose designed resume"
-          }
-          icon={FileText}
-          progress={hasActiveResume ? 100 : 0}
-        />
-        <DashboardStatCard
-          theme="sky"
-          label="Profile complete"
-          value={`${profileCompletionScore}%`}
-          hint={
-            profileCompletionScore >= 100
-              ? "All set"
-              : "Fill professional details"
-          }
-          icon={Award}
-          progress={profileCompletionScore}
-        />
-      </div>
-
       <IxScoreSummaryCard key={ixScoreCardKey} />
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <div className="space-y-4 lg:col-span-2">
           {/* Profile summary */}
           <Card className={profileCardClass}>
-            <CardHeader className="border-b border-border/60 px-5 py-4">
+            <CardHeader className="border-b border-border px-5 py-5 md:px-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   {clerkUser?.imageUrl ? (
@@ -704,7 +728,7 @@ export default function ProfilePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0 gap-1.5"
+                    className="h-9 shrink-0 gap-1.5 rounded-xl"
                     onClick={() => {
                       resetProfileInfoForm();
                       setEditingProfileInfo(true);
@@ -716,7 +740,7 @@ export default function ProfilePage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent className="p-5 md:p-6">
               {editingProfileInfo ? (
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -902,7 +926,7 @@ export default function ProfilePage() {
                       size="sm"
                       onClick={() => void handleSaveProfileInfo()}
                       disabled={savingProfileInfo}
-                      className={cn("gap-1.5", institutePrimaryClass)}
+                      className="h-10 gap-1.5 rounded-xl px-4"
                     >
                       {savingProfileInfo ? (
                         <>
@@ -984,12 +1008,12 @@ export default function ProfilePage() {
 
           {/* Professional details */}
           <Card className={profileCardClass}>
-            <CardHeader className="border-b border-border/60 px-5 py-4">
+            <CardHeader className="border-b border-border px-5 py-5 md:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <SectionIcon icon={Briefcase} tone="cyan" />
                   <div>
-                    <CardTitle className="text-lg font-semibold text-foreground">
+                    <CardTitle className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">
                       Professional details
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-sm">
@@ -1001,7 +1025,7 @@ export default function ProfilePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0 gap-1.5"
+                    className="h-9 shrink-0 gap-1.5 rounded-xl"
                     onClick={() => setEditingProfile(true)}
                   >
                     <Edit2 className="h-4 w-4" />
@@ -1363,7 +1387,7 @@ export default function ProfilePage() {
                       size="sm"
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
-                      className={cn("gap-1.5", institutePrimaryClass)}
+                      className="h-10 gap-1.5 rounded-xl px-4"
                     >
                       {savingProfile ? (
                         <>
@@ -1579,12 +1603,12 @@ export default function ProfilePage() {
 
           {/* Resume */}
           <Card className={profileCardClass}>
-            <CardHeader className="border-b border-border/60 px-5 py-4">
+            <CardHeader className="border-b border-border px-5 py-5 md:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <SectionIcon icon={FileText} tone="emerald" />
                   <div>
-                    <CardTitle className="text-lg font-semibold text-foreground">
+                    <CardTitle className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">
                       Resume
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-sm">
@@ -1616,7 +1640,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-5">
+            <CardContent className="space-y-4 p-5 md:p-6">
               {user?.resume ? (
                 <div className="flex items-center gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 to-transparent p-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
@@ -1701,7 +1725,7 @@ export default function ProfilePage() {
                 <Button
                   onClick={handleUpload}
                   disabled={uploading}
-                  className={cn("gap-1.5", institutePrimaryClass)}
+                  className="h-10 gap-1.5 rounded-xl px-4"
                 >
                   {uploading ? (
                     <>
@@ -1745,7 +1769,7 @@ export default function ProfilePage() {
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        className={cn("gap-1.5", institutePrimaryClass)}
+                        className="h-10 gap-1.5 rounded-xl px-4"
                         disabled={savingApplication}
                         onClick={() => void handleSaveApplication()}
                       >
@@ -1785,7 +1809,7 @@ export default function ProfilePage() {
         {/* Sidebar tips */}
         <div className="lg:col-span-1">
           <Card className={cn(profileCardClass, "sticky top-6")}>
-            <CardHeader className="border-b border-border/60 px-5 py-4">
+            <CardHeader className="border-b border-border px-5 py-5 md:px-6">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[#7367F0]" />
                 <CardTitle className="text-base font-semibold text-foreground">
@@ -1793,7 +1817,7 @@ export default function ProfilePage() {
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-5">
+            <CardContent className="space-y-4 p-5 md:p-6">
               {[
                 {
                   icon: Target,
@@ -1836,8 +1860,8 @@ export default function ProfilePage() {
       </div>
 
       <Card className={profileCardClass}>
-        <CardHeader className="border-b border-border/60 px-5 py-4">
-          <CardTitle className="text-lg font-semibold text-foreground">
+        <CardHeader className="border-b border-border px-5 py-5 md:px-6">
+          <CardTitle className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">
             Chrome extension
           </CardTitle>
           <CardDescription className="mt-0.5 text-sm">
@@ -1845,18 +1869,18 @@ export default function ProfilePage() {
             boards, then create a tailored resume copy while staying signed in.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-5">
+        <CardContent className="p-5 md:p-6">
           <AddToChromeButton />
         </CardContent>
       </Card>
 
       {/* Danger zone */}
-      <Card className="overflow-hidden rounded-xl border border-destructive/25 bg-destructive/5 shadow-card">
-        <CardHeader className="border-b border-destructive/15 px-5 py-4">
+      <Card className="overflow-hidden rounded-[22px] border border-destructive/25 bg-destructive/[0.04]">
+        <CardHeader className="border-b border-destructive/15 px-5 py-5 md:px-6">
           <div className="flex items-center gap-3">
-            <SectionIcon icon={AlertTriangle} tone="amber" />
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive"><AlertTriangle className="h-[18px] w-[18px]" /></div>
             <div>
-              <CardTitle className="text-lg font-semibold text-foreground">
+              <CardTitle className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">
                 Danger zone
               </CardTitle>
               <CardDescription className="mt-0.5 text-sm">
@@ -1865,7 +1889,7 @@ export default function ProfilePage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 p-5">
+        <CardContent className="space-y-4 p-5 md:p-6">
           <p className="text-sm text-muted-foreground">
             This cannot be undone. Deletes your profile, interviews, payments,
             resume, videos, and Clerk account.
@@ -1877,7 +1901,7 @@ export default function ProfilePage() {
               variant="destructive"
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              className="gap-1.5"
+              className="h-10 gap-1.5 rounded-xl px-4"
             >
               <Trash2 className="h-4 w-4" />
               Delete my account

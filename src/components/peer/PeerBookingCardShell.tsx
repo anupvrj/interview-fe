@@ -24,19 +24,19 @@ export function PeerBookingCardShell({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm",
+        "overflow-hidden rounded-[18px] border border-border bg-card",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-gradient-to-r from-[#7367F0]/[0.05] via-transparent to-transparent px-4 py-3 sm:px-5">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5 sm:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           {Icon ? (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10">
               <Icon className="h-4 w-4" />
             </span>
           ) : null}
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <h3 className="truncate text-[15px] font-bold tracking-tight text-foreground">
               {title}
             </h3>
             {description ? (

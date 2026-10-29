@@ -1,16 +1,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
-import { ArrowRight, ClipboardPaste, FileBarChart2, Mic, Play } from "lucide-react";
+import { ArrowRight, ClipboardPaste, FileBarChart2, Mic, PhoneOff, Play, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BrowserFrame, Index, LoopVideo, Mono } from "./primitives";
+import { BrowserFrame, Index, LoopVideo, Mono, SoundToggle } from "./primitives";
+import { mk26Asset } from "./assets";
+import { MK26_ROUTES } from "./cta";
+import { StartLink } from "./StartLink";
 import { CircuitTraces, GridRunners } from "./graphics";
 import { STYLE, type State } from "./skill-trend";
 import { SkillsSection, type SkHub } from "./skills-section";
 import { CountUp, DARK, Dots, ease, Head, HL, INK, LAVENDER, LIGHT, Stepper, StickyCta, Wiring, WRAP } from "./landing-kit";
 import { cn } from "@/lib/utils";
-import { MK26_ROUTES } from "./cta";
-import { StartLink } from "./StartLink";
 
 /**
  * AI Mock Interview landing page. Same story shape as the homepage, narrowed to one product:
@@ -59,9 +60,138 @@ function Wave({ bars = 28 }: { bars?: number }) {
   );
 }
 
+/* the live round in the hero: a recreation of /interview/live. The AI interviewer is a voice with a portrait, as in the
+   product; the candidate camera plays a lip-synced answer per line over a silent listening loop. */
+type LrBeat = { who: "AI" | "YOU"; ms: number; say: number; text: string; label?: string; audio?: string; clip?: string };
+const LR: LrBeat[] = [
+  { who: "AI", ms: 8100, say: 7560, audio: "mi-ai-1", label: "QUESTION 1 OF 12", text: "Hi Rohan, good to meet you. Let's keep it relaxed to start — tell me a little about yourself, and what you're working on these days." },
+  { who: "YOU", ms: 11900, say: 11390, clip: "mi-cand-1", text: "Sure, yeah. So I'm a backend engineer — about four years now, all at a fintech startup in Bangalore. Mostly I own our payments API… and last year I led our move off the monolith." },
+  { who: "AI", ms: 9500, say: 8930, audio: "mi-ai-2", label: "QUESTION 2 OF 12", text: "Oh, nice — the payments side. Okay, picture sale day. Traffic jumps ten times in under a minute. What's the first thing you actually do?" },
+  { who: "YOU", ms: 12600, say: 12030, clip: "mi-cand-2", text: "Hmm… honestly, first I'd open the dashboards and see what's actually choking — is it the database, or the pods? Then scale out the API, switch on rate limits, and push the hot reads onto cache." },
+  { who: "AI", ms: 6100, say: 5540, audio: "mi-ai-3", label: "FOLLOW-UP 1", text: "Mm-hm, that buys you time. But next sale — how do you make sure it doesn't happen again?" },
+  { who: "YOU", ms: 10800, say: 10280, clip: "mi-cand-3", text: "Right. So — autoscale on queue depth, not CPU. Load test before every big launch. And an alert that fires before users ever notice." },
+  { who: "AI", ms: 5400, say: 3730, audio: "mi-ai-4", label: "FOLLOW-UP 2", text: "I like that you said queue depth. Let's dig into that next." },
+];
+
+/** One interviewer line. Mounted per beat, so it starts from 0; turning sound on mid-line picks up where the line is. */
+export function Voice({ src, sound, at }: { src: string; sound: boolean; at: () => number }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const a = ref.current;
+    if (!a) return;
+    if (sound) { if (a.paused) { a.currentTime = at(); a.play().catch(() => {}); } } else a.pause();
+  }, [sound, at]);
+  return <audio ref={ref} src={mk26Asset(`/audio/${src}.mp3`)} preload="auto" />;
+}
+
+/** The answer as it's being spoken: words so far, trimmed to the latest dozen so the caption stays two lines. */
+function liveWords(text: string, k: number) {
+  const w = text.split(" ");
+  const n = Math.max(1, Math.min(w.length, Math.ceil(k * w.length)));
+  return (n > 12 ? "…" : "") + w.slice(Math.max(0, n - 12), n).join(" ");
+}
+
+export function LiveRound({ sound }: { sound: boolean }) {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const on = useInView(ref, { amount: 0.3 });
+  const [b, setB] = useState(0);
+  const [t, setT] = useState(0);
+  const beat = LR[b];
+  // where the current line is, in seconds, for audio that starts mid-line
+  const pos = useRef(0);
+  pos.current = (t * beat.ms) / 1000;
+  const at = useRef(() => pos.current).current;
+
+  useEffect(() => {
+    if (reduce || !on) return;
+    let raf = 0; const t0 = performance.now();
+    const tick = (n: number) => { const k = Math.min(1, (n - t0) / beat.ms); setT(k); if (k < 1) raf = requestAnimationFrame(tick); else { setB((x) => (x + 1) % LR.length); setT(0); } };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [b, on, reduce, beat.ms]);
+
+  const talking = t * beat.ms < beat.say;
+  const aiTalking = beat.who === "AI" && talking;
+  const youTalking = beat.who === "YOU" && talking;
+  // the question on the left stays up while the candidate answers it
+  const q = beat.who === "AI" ? beat : LR[b - 1];
+  const secs = 42 + Math.round(LR.slice(0, b).reduce((n, x) => n + x.ms, 0) / 1000 + t * beat.ms / 1000);
+  const clock = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
+
+  return (
+    <div ref={ref} className="relative overflow-hidden bg-[#0B0F17] p-3 text-white md:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0"><p className="truncate text-[13px] font-semibold md:text-[14px]">Backend Engineer · SDE 2</p><Mono className="text-[9.5px] text-white/50">{clock} / 15:00</Mono></div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#E5484D] px-2.5 py-1 text-[10.5px] font-semibold max-sm:hidden"><PhoneOff className="size-3" />End interview</span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-2.5 max-sm:grid-cols-1">
+        {/* the interviewer: a voice with a portrait, never a video */}
+        <div className="rounded-xl border border-white/10 bg-[#141A26] p-3">
+          <div className="flex items-center gap-2.5">
+            <span className="relative size-11 shrink-0 md:size-12">
+              {aiTalking && !reduce && <motion.span className="absolute -inset-1 rounded-full border-2 border-[#7367F0]" animate={{ scale: [1, 1.12, 1], opacity: [0.9, 0.3, 0.9] }} transition={{ duration: 1.1, repeat: Infinity }} />}
+              <img src="/personas/persona-4.jpg" alt="Priya Sharma, the AI interviewer" className="size-full rounded-full border-2 border-white/15 object-cover" />
+            </span>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-[13px] font-semibold">Priya Sharma</p>
+              <p className="text-[10.5px] text-white/55">Lead interviewer</p>
+              <p className={cn("text-[10.5px]", aiTalking ? "text-[#A99CFF]" : "text-white/45")}>{aiTalking ? "Speaking…" : "Listening"}</p>
+            </div>
+          </div>
+          <div className="mt-3 grid">
+            {/* every question sits in the same cell, so the card never changes height */}
+            {LR.filter((x) => x.who === "AI").map((x) => <div key={x.text} aria-hidden className="invisible [grid-area:1/1]"><Mono className="text-[9.5px]">{x.label}</Mono><p className="mt-1 text-[13px] leading-snug md:text-[14.5px]">{x.text}</p></div>)}
+            <AnimatePresence mode="wait">
+              <motion.div key={q.text} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="[grid-area:1/1]">
+                <Mono className="text-[9.5px] text-sky-300">{q.label}</Mono>
+                <p className="mt-1 text-[13px] font-medium leading-snug md:text-[14.5px]">{q.text}</p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          {aiTalking && <div className="mt-2.5"><Wave bars={18} /></div>}
+        </div>
+
+        {/* the candidate camera */}
+        <div className="rounded-xl border border-white/10 bg-[#141A26] p-2">
+          <Mono className="mb-1.5 inline-block rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-white/70">CANDIDATE CAMERA</Mono>
+          <div className={cn("relative overflow-hidden rounded-lg ring-2 transition-all duration-300", youTalking ? "ring-sky-400/70" : "ring-transparent")}>
+            <LoopVideo name="mi-cand-listen" priority />
+            {beat.clip && (
+              <div key={beat.clip} className={cn("absolute inset-0 transition-opacity duration-200", youTalking ? "opacity-100" : "opacity-0")}>
+                <LoopVideo name={beat.clip} loop={false} sound={sound} className="!aspect-auto h-full" priority />
+              </div>
+            )}
+            {/* live transcript of the answer */}
+            {beat.who === "YOU" && (
+              <p className="absolute inset-x-2 bottom-2 line-clamp-2 rounded-md bg-black/65 px-2 py-1 text-[10.5px] leading-snug backdrop-blur md:text-[11.5px]">
+                <Mono className="mr-1 text-[9px] text-white/55">YOU</Mono>{liveWords(beat.text, (t * beat.ms) / beat.say)}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* call controls: mic and camera on, end call set apart */}
+      <div className="mt-3 flex items-center justify-center gap-3 border-t border-white/10 pt-3 md:mt-4 md:gap-4 md:pt-4">
+        <span aria-label="Microphone on" className="grid size-10 place-items-center rounded-full bg-white/10 ring-1 ring-white/15 md:size-12"><Mic className="size-[18px] md:size-5" /></span>
+        <span aria-label="Camera on" className="grid size-10 place-items-center rounded-full bg-white/10 ring-1 ring-white/15 md:size-12"><Video className="size-[18px] md:size-5" /></span>
+        <span aria-label="End interview" className="grid h-10 w-14 place-items-center rounded-full bg-[#E5484D] shadow-[0_8px_20px_-8px_rgba(229,72,77,.8)] md:h-12 md:w-16"><PhoneOff className="size-[18px] md:size-5" /></span>
+      </div>
+      {beat.audio && on && <Voice key={beat.audio} src={beat.audio} sound={sound} at={at} />}
+      {/* warm the cache so each answer starts on its first frame, not after a fetch */}
+      {on && <div aria-hidden className="hidden">{LR.filter((x) => x.clip).map((x) => <video key={x.clip} src={mk26Asset(`/video/${x.clip}.mp4`)} preload="auto" muted />)}{LR.filter((x) => x.audio).map((x) => <audio key={x.audio} src={mk26Asset(`/audio/${x.audio}.mp3`)} preload="auto" />)}</div>}
+    </div>
+  );
+}
+
 export function MiHero() {
   const reduce = useReducedMotion();
   const [t, setT] = useState(1);
+  const [sound, setSound] = useState(false);
   const track = TRACKS[t];
   const fillerCount = (track.a.match(FILLERS) || []).length;
 
@@ -103,10 +233,10 @@ export function MiHero() {
             <Button asChild className="h-12 rounded-xl px-6 text-[15.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
               <StartLink href={MK26_ROUTES.startInterview}>Start my free mock interview <ArrowRight /></StartLink>
             </Button>
-            {/* TODO: dedicated interviewer voice sample — no standalone audio asset yet */}
-            <a href="#mk26-mi-demo" className="inline-flex items-center gap-2 text-[15px] font-semibold text-[#2E3656] hover:text-primary">
+            {/* plays the live round in the hero with its voices on */}
+            <button type="button" onClick={() => setSound(true)} className="inline-flex items-center gap-2 text-[15px] font-semibold text-[#2E3656] hover:text-primary">
               <span className="grid size-9 place-items-center rounded-full border border-border bg-white"><Play className="size-3.5 fill-current" /></span>Hear the interviewer
-            </a>
+            </button>
           </div>
           <Mono className="mt-4 block text-[12px] text-muted-foreground">14-day trial · 200 credits · No card</Mono>
 
@@ -122,16 +252,10 @@ export function MiHero() {
         <div className="relative [perspective:1600px]">
           <motion.div initial={reduce ? false : { opacity: 0, rotateY: -14, rotateX: 6, y: 30 }} animate={{ opacity: 1, rotateY: -7, rotateX: 3, y: 0 }} transition={{ delay: 0.2, duration: 1.1, ease }}
             className="[transform-style:preserve-3d]">
-            <BrowserFrame url="app.interviewtrix.com/interview/live" className="shadow-[0_60px_120px_-40px_rgba(40,30,140,.6)]"><div id="mk26-mi-demo"><LoopVideo name="mi-live" priority /></div></BrowserFrame>
+            <BrowserFrame url="app.interviewtrix.com/interview/live" className="shadow-[0_60px_120px_-40px_rgba(40,30,140,.6)]"><LiveRound sound={sound} /></BrowserFrame>
           </motion.div>
 
-          {/* speaking pill */}
-          <motion.div initial={reduce ? false : { opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
-            className="absolute -top-5 right-6 flex items-center gap-3 rounded-full border border-white bg-white/90 py-1.5 pl-2 pr-4 shadow-[0_16px_36px_-18px_rgba(30,20,90,.55)] backdrop-blur">
-            <span className="relative grid size-7 place-items-center rounded-full bg-primary text-white"><Mic className="size-3.5" />{!reduce && <span className="absolute inset-0 animate-ping rounded-full bg-primary/30" />}</span>
-            <Wave />
-            <Mono className="text-[10.5px] text-primary">SPEAKING</Mono>
-          </motion.div>
+          <SoundToggle sound={sound} onToggle={() => setSound((x) => !x)} className="absolute -top-5 right-6" />
 
           {/* question → your answer, swapped by the chips on the left */}
           <motion.div initial={reduce ? false : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, type: "spring", stiffness: 150, damping: 20 }}

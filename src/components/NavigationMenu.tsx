@@ -144,7 +144,8 @@ function isResumeActive(pathname: string) {
   );
 }
 
-function useVisibleMarketingNav() {
+/** Which marketing nav entries the platform feature flags allow; shared with the 2026 marketing nav. */
+export function useVisibleMarketingNav() {
   const { isNavHrefVisible } = usePlatformFeatures();
   return {
     mockItems: mockInterviewNavItems.filter((item) =>

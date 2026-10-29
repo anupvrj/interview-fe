@@ -3,8 +3,6 @@
 import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Lock, RefreshCw, RotateCcw, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { isATSReportV3, resumeApi } from "@/lib/api";
 import { applyPersistedJobMatchScore } from "@/lib/atsReportNormalize";
 import { insightsFromAtsReport } from "@/lib/ats-insights";
@@ -19,11 +17,10 @@ import {
   rerunATSAnalysis,
   runATSAnalysis,
 } from "@/lib/atsCheckFlow";
-import { ATSReportDashboard } from "@/components/ats-checker/ATSReportDashboard";
+import { ATSReportWorkspace } from "@/components/ats-checker/ATSReportWorkspace";
 import { ATSProcessingView, ATS_IMPROVE_STEPS } from "@/components/ats-checker/ATSProcessingView";
 import { ATSDashboardUploadView } from "@/components/ats-checker/ATSDashboardUploadView";
 import { ATSImproveTemplatePicker } from "@/components/ats-checker/ATSImproveTemplatePicker";
-import { cn } from "@/lib/utils";
 import type { ATSReportV3 } from "@/types/atsReport";
 
 type Step = "upload" | "processing" | "results" | "improving" | "template";
@@ -56,6 +53,7 @@ function DashboardATSCheckerContent() {
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const [fileName, setFileName] = useState<string | undefined>();
+  const [resumeTitle, setResumeTitle] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [improving, setImproving] = useState(false);
   const [improveStep, setImproveStep] = useState(0);
@@ -78,6 +76,7 @@ function DashboardATSCheckerContent() {
           ),
         );
         setResumeId(id);
+        setResumeTitle(resume.title);
         setJobDescription(resume.atsScoringContext?.lastJobDescription || "");
         setStep("results");
       }
@@ -106,6 +105,7 @@ function DashboardATSCheckerContent() {
         );
         setReport(result.report);
         setResumeId(result.resumeId);
+        setResumeTitle(file.name.replace(/\.pdf$/i, ""));
         setStep("results");
         router.replace(`/dashboard/ats-checker?resumeId=${result.resumeId}`, {
           scroll: false,
@@ -291,7 +291,7 @@ function DashboardATSCheckerContent() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
+    <div className="mx-auto w-full max-w-7xl">
       {step === "upload" && (
         <ATSDashboardUploadView
           onStart={handleStartAnalysis}
@@ -325,92 +325,21 @@ function DashboardATSCheckerContent() {
         />
       )}
 
-      {step === "results" && report && (
-        <div className="space-y-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-                Your ATS Report
-              </h1>
-              <p className="mt-1 text-muted-foreground">
-                {report.issueCount} issues found across{" "}
-                {Object.keys(report.categories).length} categories
-              </p>
-            </div>
-
-            <div className="flex flex-row flex-wrap gap-2 sm:justify-end">
-              <Button
-                size="lg"
-                onClick={() => void handleImproveScore()}
-                disabled={improving || !resumeId}
-                className="h-10 min-w-0 flex-1 gap-1.5 bg-primary px-2 text-xs text-white hover:bg-primary/90 sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
-                title={
-                  globalOptimizerEnabled
-                    ? "Improve your resume"
-                    : "Improve your resume (trial or paid plan required)"
-                }
-              >
-                {globalOptimizerEnabled ? (
-                  <TrendingUp className="h-4 w-4 shrink-0 sm:hidden" />
-                ) : (
-                  <Lock className="h-4 w-4 shrink-0 sm:hidden" />
-                )}
-                <span className="truncate sm:hidden">
-                  {globalOptimizerEnabled ? "Improve" : "Improve (locked)"}
-                </span>
-                <span className="hidden sm:inline">
-                  {globalOptimizerEnabled
-                    ? "Improve your resume"
-                    : "Improve your resume (upgrade)"}
-                </span>
-                <ArrowRight className="hidden h-4 w-4 sm:ml-1 sm:inline" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={handleRerun}
-                disabled={rerunning || !resumeId}
-                className="h-10 min-w-0 flex-1 gap-1.5 px-2 text-xs sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
-                title="Re-run ATS check"
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-4 w-4 shrink-0",
-                    rerunning && "animate-spin",
-                  )}
-                />
-                <span className="truncate sm:hidden">Re-run</span>
-                <span className="hidden sm:inline">Re-run ATS check</span>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={handleCheckAnother}
-                className="h-10 min-w-0 flex-1 gap-1.5 px-2 text-xs sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
-                title="Check another resume"
-              >
-                <RotateCcw className="h-4 w-4 shrink-0" />
-                <span className="truncate sm:hidden">Another</span>
-                <span className="hidden sm:inline">Check another resume</span>
-              </Button>
-            </div>
-          </div>
-
-          {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          <ATSReportDashboard
-            report={report}
-            resumeId={resumeId}
-            showImproveCta={false}
-            onRunJobMatch={handleRunJobMatch}
-            jobMatchRunning={rerunning}
-            initialJobDescription={jobDescription}
-          />
-        </div>
+      {step === "results" && report && resumeId && (
+        <ATSReportWorkspace
+          report={report}
+          resumeId={resumeId}
+          resumeTitle={resumeTitle}
+          error={error}
+          improveUnlocked={globalOptimizerEnabled}
+          improving={improving}
+          rerunning={rerunning}
+          onImprove={() => void handleImproveScore()}
+          onRerun={() => void handleRerun()}
+          onCheckAnother={handleCheckAnother}
+          onRunJobMatch={handleRunJobMatch}
+          initialJobDescription={jobDescription}
+        />
       )}
 
       <TrialUpsellDialog

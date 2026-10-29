@@ -1,14 +1,11 @@
 "use client";
-import Image from "next/image";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrowserFrame, Index, LoopVideo, Mono } from "./primitives";
 import { MK26_ROUTES } from "./cta";
 import { StartLink } from "./StartLink";
 
-const templates = ["meridian", "harvard", "atlantic-blue", "clean-slate", "executive", "royal-indigo", "saffron-line", "cobalt-stream", "navy-frame", "ember-timeline", "mercury", "classic", "corporate", "confident-grid", "amber-edge", "condensed-rule", "true-blue"];
-
-/** Enhancv pattern: show the output (real templates) + the act of improving it (real capture). */
+/** Enhancv pattern: show the act of improving a resume (real capture). */
 export function ResumeSpotlight() {
   return (
     <section className="relative overflow-clip border-y border-primary/10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F1EEFF_100%)] py-28">
@@ -24,7 +21,7 @@ export function ResumeSpotlight() {
 
           <p className="mt-5 max-w-[48ch] text-[17px] text-muted-foreground">Click a weak line and get a specific one back, in place. The preview re-flows and your ATS score moves while you watch. Build it here, in ChatGPT, or straight from a job post with the Chrome extension.</p>
           <ul className="mt-7 grid gap-3 text-[15px]">
-            {["34 ATS checks across 8 categories, free without sign-up", "17 templates, one click apart, PDF download", "Import from LinkedIn or an old PDF, or talk it out with Ava"].map((t) => (
+            {["34 ATS checks across 8 categories, free without sign-up", "Switch designs in one click, download as PDF", "Import from LinkedIn or an old PDF, or talk it out with Ava"].map((t) => (
               <li key={t} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0 text-success" />{t}</li>
             ))}
           </ul>
@@ -38,18 +35,6 @@ export function ResumeSpotlight() {
           </div>
         </div>
         <BrowserFrame url="app.interviewtrix.com/dashboard/resumes/aarav-rao/edit"><LoopVideo name="rewrite" /></BrowserFrame>
-      </div>
-      <div className="mt-20">
-        <p className="mb-6 text-center text-[15px] font-semibold">17 ATS-safe templates <span className="font-normal text-muted-foreground">· all free to try</span></p>
-        <div className="mask-x overflow-hidden">
-          <div className="flex w-max gap-5 [animation:marquee_70s_linear_infinite] hover:[animation-play-state:paused]">
-            {[...templates, ...templates].map((t, i) => (
-              <div key={i} className="relative h-[300px] w-[212px] shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-card transition-transform hover:-translate-y-1">
-                <Image src={`/marketing-2026/templates/${t}-preview.webp`} alt={i < templates.length ? `${t} resume template` : ""} fill sizes="212px" className="object-cover object-top" />
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </section>
   );

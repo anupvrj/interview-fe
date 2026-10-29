@@ -22,8 +22,6 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle,
-  FileEdit,
-  Sparkles,
   ArrowRight,
   SkipForward,
   AlertCircle,
@@ -39,7 +37,8 @@ import {
   type BuildResumeImportPayload,
 } from "@/lib/resume-data-import";
 import { TemplatePreview } from "@/components/TemplatePreview";
-import { PageHeader } from "@/components/app/PageHeader";
+import Image from "next/image";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
 import { ResumeBuilderImportChoiceCards } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
 import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
 import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
@@ -70,13 +69,11 @@ import type {
 import {
   resumeBuilderFooterActions,
   resumeBuilderHeroCard,
-  resumeBuilderInfoBanner,
   resumeBuilderOutlineButton,
   resumeBuilderPage,
   resumeBuilderPrimaryButton,
   resumeBuilderFilterPill,
   resumeBuilderFilterPillActive,
-  resumeBuilderSelectedBanner,
   resumeBuilderTemplateCard,
   resumeBuilderTemplateCardSelected,
 } from "@/components/resume-builder/resumeBuilderStyles";
@@ -98,6 +95,7 @@ const categoryLabels = {
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
 type Step = "template" | "import" | "jobDescription" | "processing";
+const STEP_ORDER: Step[] = ["template", "import", "jobDescription", "processing"];
 
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
@@ -766,13 +764,13 @@ export default function NewResumePage() {
     { title: string; description: string; badge?: string }
   > = {
     template: {
-      badge: "Resume builder",
-      title: "Choose a template",
+      badge: "New resume",
+      title: "Start with a design you like.",
       description:
-        "Pick a layout — designs marked ATS optimized read cleanly in every ATS we tested. You can change templates anytime in the editor.",
+        "Pick a layout now and switch any time in the editor. Green dot means every ATS we tested read it cleanly.",
     },
     import: {
-      badge: "Import data",
+      badge: "Your details",
       title:
         importSource === "chat"
           ? "Chat with Live AI"
@@ -780,7 +778,7 @@ export default function NewResumePage() {
             ? "Connect your LinkedIn profile"
             : importSource === "pdf"
               ? "Upload your resume PDF"
-              : "How would you like to start?",
+              : "Bring in what you already have.",
       description:
         importSource === "chat"
           ? "Paste your full profile or answer guided questions. Skip anytime and build with what you have."
@@ -790,18 +788,18 @@ export default function NewResumePage() {
               ? quickHackathon
                 ? "Any old resume PDF works — we’ll pull your details into a fresh design."
                 : "Upload a PDF to auto-fill sections, then optionally tailor to a target job."
-              : "Chat with AI, import from LinkedIn, or upload an existing PDF.",
+              : "Upload an old resume, import LinkedIn, or build it with AI. We fill the sections in for you.",
     },
     jobDescription: {
-      badge: "Target role",
-      title: "Tailor to a job description",
+      badge: "Target job",
+      title: "Paste the job you're going for.",
       description:
-        "Optionally paste a job description so AI aligns your resume to that role. You can skip this step.",
+        "We write your summary, bullets and skills for that role. Optional: skip it and tailor later.",
     },
     processing: {
       badge: "Almost there",
-      title: "Building your resume",
-      description: "AI is organizing your content into a polished, editable draft.",
+      title: "Building your resume.",
+      description: "Your details are going into the template as a draft you can edit line by line.",
     },
   };
 
@@ -848,203 +846,185 @@ export default function NewResumePage() {
     (t) => t.id === selectedTemplate,
   )?.name;
 
-  return (
-    <div className={resumeBuilderPage}>
-      <div className="flex items-start gap-3">
-        <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mt-1 shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        {quickHackathonChooser ? null : (
-          <div className="min-w-0 flex-1">
-            <PageHeader
-              badge={currentMeta.badge}
-              title={currentMeta.title}
-              description={currentMeta.description}
-            />
-          </div>
-        )}
-      </div>
+  const stepNumber = Math.max(0, STEP_ORDER.indexOf(step)) + 1;
+  const selectedTemplateMeta = templates.find((t) => t.id === selectedTemplate);
 
-      {quickHackathon ? null : <ResumeCreationStepper currentStep={step} />}
+  return (
+    <div className={cn(dash2026Scope, resumeBuilderPage)}>
+      {quickHackathonChooser ? (
+        <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
+      ) : (
+        <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+          <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+          <div className="relative p-6 md:p-8">
+            <div className="flex items-center justify-between gap-3">
+              <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <ArrowLeft className="h-4 w-4" /> {quickHackathon ? "Back" : "Your resumes"}
+              </Link>
+              {quickHackathon ? null : (
+                <span className="font-[family-name:var(--font-geist-mono)] text-[11.5px] text-muted-foreground">STEP {stepNumber} OF {STEP_ORDER.length}</span>
+              )}
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div>
+                {currentMeta.badge ? <Eyebrow>{currentMeta.badge.toUpperCase()}</Eyebrow> : null}
+                <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">
+                  {currentMeta.title}
+                </h1>
+                <p className="text-balance mt-3 max-w-[62ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">
+                  {currentMeta.description}
+                </p>
+              </div>
+              {selectedTemplateMeta && step !== "template" ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-border bg-background/70 p-2.5 pr-4 backdrop-blur">
+                  <div className="relative h-[68px] w-[52px] shrink-0 overflow-hidden rounded-lg border border-border bg-white">
+                    {selectedTemplateMeta.preview?.startsWith("/") ? (
+                      <Image src={selectedTemplateMeta.preview} alt="" fill sizes="52px" className="object-cover object-top" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">TEMPLATE</p>
+                    <p className="truncate text-[14px] font-semibold text-foreground">{selectedTemplateMeta.name}</p>
+                    {step === "import" && !quickHackathon ? (
+                      <button type="button" onClick={() => setStep("template")} className="text-[12.5px] font-medium text-primary hover:underline">Change</button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          {quickHackathon ? null : (
+            <div className="relative border-t border-border px-6 py-4 md:px-8">
+              <ResumeCreationStepper currentStep={step} />
+            </div>
+          )}
+        </section>
+      )}
 
       {step === "template" && (
         <>
-          {selectedTemplate ? (
-            <div className={resumeBuilderSelectedBanner}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                  <CheckCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {selectedTemplateName}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Selected template — hover a card and click Use Template to
-                    continue
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            {filterButtons.map((filter) => {
-              const isActive = activeFilter === filter.id;
-              const count =
-                filter.id === "all"
-                  ? templates.length
-                  : templates.filter((t) => t.category === filter.id).length;
-              return (
-                <button
-                  key={filter.id}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.id)}
-                  className={cn(
-                    isActive
-                      ? resumeBuilderFilterPillActive
-                      : resumeBuilderFilterPill,
-                  )}
-                >
-                  {filter.label}
-                  <span
-                    className={cn(
-                      "ml-2 rounded-full px-2 py-0.5 text-xs",
-                      isActive
-                        ? "bg-card/20 text-white"
-                        : "bg-muted text-muted-foreground",
-                    )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div role="tablist" aria-label="Template style" className="inline-flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
+              {filterButtons.map((filter) => {
+                const isActive = activeFilter === filter.id;
+                const count =
+                  filter.id === "all"
+                    ? templates.length
+                    : templates.filter((t) => t.category === filter.id).length;
+                if (count === 0 && !isActive) return null; // an empty style is just noise
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveFilter(filter.id)}
+                    className={isActive ? resumeBuilderFilterPillActive : resumeBuilderFilterPill}
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    {filter.label}
+                    <span className={cn("ml-1.5 font-[family-name:var(--font-geist-mono)] text-[11px]", isActive ? "text-white/75" : "text-muted-foreground/70")}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              ATS optimized: read fully by every ATS we tested. You can switch designs any time in the editor.
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-foreground">
-                {activeFilter === "all"
-                  ? "All templates"
-                  : `${categoryLabels[activeFilter]} templates`}
-              </h2>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                {filteredTemplates.length}
-              </span>
-            </div>
-
-            {filteredTemplates.length > 0 ? (
-              <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5">
-                {filteredTemplates.map((template) => {
-                  const isSelected = selectedTemplate === template.id;
-                  return (
-                    <div
-                      key={template.id}
-                      className={cn(
-                        resumeBuilderTemplateCard,
-                        isSelected && resumeBuilderTemplateCardSelected,
+          {filteredTemplates.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filteredTemplates.map((template) => {
+                const isSelected = selectedTemplate === template.id;
+                const hasImage = Boolean(template.preview?.startsWith("/resume-template-images/"));
+                return (
+                  <div
+                    key={template.id}
+                    className={cn(resumeBuilderTemplateCard, isSelected && resumeBuilderTemplateCardSelected)}
+                    onClick={() => handleTemplateSelect(template.id)}
+                    onDoubleClick={() => useTemplateAndGoToImport(template.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleTemplateSelect(template.id);
+                      }
+                    }}
+                    role="button"
+                    aria-pressed={isSelected}
+                    tabIndex={0}
+                  >
+                    <div className="relative aspect-[1/1.3] overflow-hidden rounded-xl border border-border bg-white">
+                      {hasImage ? (
+                        <Image src={template.preview!} alt={`${template.name} template`} fill sizes="(min-width:1280px) 18vw, (min-width:640px) 30vw, 45vw" className="object-cover object-top" />
+                      ) : (
+                        <div className="pointer-events-none origin-top scale-[.9]"><TemplatePreview template={template} isSelected={false} /></div>
                       )}
-                      onClick={() => handleTemplateSelect(template.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          handleTemplateSelect(template.id);
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <TemplatePreview
-                        template={template}
-                        isSelected={isSelected}
-                      />
-                      <div className="flex flex-1 flex-col bg-card p-4">
-                        <h3 className="mb-1 font-semibold text-foreground">
-                          {template.name}
-                        </h3>
-                        <p className="mb-3 text-sm text-muted-foreground">
-                          {template.description}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className="rounded-md px-2 py-1 text-xs font-medium"
-                            style={{
-                              backgroundColor: `${template.colors.primary}20`,
-                              color: template.colors.primary,
-                            }}
-                          >
-                            {categoryLabels[template.category]}
-                          </span>
-                          {template.atsOptimized ? (
-                            <span
-                              className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700"
-                              title="Every ATS reader we tested picked up all of this design's details, in the right sections."
-                            >
-                              ATS optimized
-                            </span>
-                          ) : (
-                            <span
-                              className="rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-300"
-                              title="Two columns: reads well in most current ATS, but older ones read straight across the page and can mix the columns."
-                            >
-                              Two-column
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#2f2b3d]/45 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      {isSelected ? (
+                        <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-white shadow-lg"><CheckCircle className="h-4 w-4" /></span>
+                      ) : null}
+                      <div className="absolute inset-x-2.5 bottom-2.5 translate-y-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
                         <Button
                           type="button"
-                          className={resumeBuilderPrimaryButton}
+                          className={cn(resumeBuilderPrimaryButton, "h-9 w-full px-3 text-[13px]")}
                           onClick={(e) => {
                             e.stopPropagation();
                             useTemplateAndGoToImport(template.id);
                           }}
                         >
-                          Use template
-                          <ArrowRight className="ml-2 h-4 w-4" />
+                          Use this template
+                          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className={cn(resumeBuilderHeroCard, "py-12 text-center")}>
-                <p className="text-muted-foreground">
-                  No templates found in this category.
-                </p>
-              </div>
-            )}
-          </div>
+                    <div className="flex flex-1 flex-col px-1 pb-1 pt-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-[14.5px] font-semibold text-foreground">{template.name}</h3>
+                        <span
+                          className={cn("h-2 w-2 shrink-0 rounded-full", template.atsOptimized ? "bg-emerald-500" : "bg-amber-500")}
+                          title={template.atsOptimized ? "ATS optimized: every ATS reader we tested picked up all of this design's details." : "Two columns: reads well in most current ATS, but older ones can mix the columns."}
+                        />
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">{template.description}</p>
+                      <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground/80">
+                        {categoryLabels[template.category].toUpperCase()} · {template.atsOptimized ? "ATS OPTIMIZED" : "TWO-COLUMN"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={cn(resumeBuilderHeroCard, "py-12 text-center")}>
+              <p className="text-muted-foreground">No templates found in this category.</p>
+            </div>
+          )}
 
-          <div className={resumeBuilderInfoBanner}>
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">
-                  Tested against ATS parsers
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  Designs marked &ldquo;ATS optimized&rdquo; were fully read by every ATS reader we tested.
-                  Two-column designs read well in most current ATS, but older systems can mix the columns — for
-                  big-company portals (Workday, Taleo, iCIMS) pick a one-column design. In the editor, the ATS
-                  score shows exactly what an ATS reads from your resume.
-                </p>
+          <p className={cn("text-[12.5px] leading-relaxed text-muted-foreground", selectedTemplateMeta && "pb-24")}>
+            Applying through Workday, Taleo or iCIMS? Pick a one-column design: older systems can mix two columns together. The editor&apos;s ATS score shows exactly what gets read.
+          </p>
+
+          {/* floating continue bar once a template is picked */}
+          {selectedTemplateMeta ? (
+            <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 lg:pl-[260px]">
+              <div className="pointer-events-auto flex w-full max-w-xl items-center gap-3 rounded-2xl border border-border bg-card/95 p-2.5 pl-3 shadow-[0_24px_60px_-24px_rgba(30,20,90,.5)] backdrop-blur-xl">
+                <div className="relative h-11 w-[34px] shrink-0 overflow-hidden rounded-md border border-border bg-white">
+                  {selectedTemplateMeta.preview?.startsWith("/") ? <Image src={selectedTemplateMeta.preview} alt="" fill sizes="34px" className="object-cover object-top" /> : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">SELECTED</p>
+                  <p className="truncate text-[14px] font-semibold text-foreground">{selectedTemplateMeta.name}</p>
+                </div>
+                <Button className={resumeBuilderPrimaryButton} onClick={() => useTemplateAndGoToImport(selectedTemplateMeta.id)}>
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </div>
-          </div>
+          ) : null}
         </>
       )}
 
@@ -1067,35 +1047,19 @@ export default function NewResumePage() {
               onOpenResume={(resumeId) => router.push(resumeEditorPath(resumeId))}
             />
           ) : null}
-          {selectedTemplateName && !quickHackathon ? (
-            <div className={resumeBuilderSelectedBanner}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                  <CheckCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    Template: {selectedTemplateName}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Choose how you&apos;d like to populate your resume
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           {!importSource && quickHackathon ? null : !importSource ? (
             <>
               {uploadedCv ? (
-                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <div className="flex flex-col gap-4 rounded-[18px] border border-primary/40 bg-[linear-gradient(120deg,rgba(115,103,240,.08),transparent_60%)] p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-[0_12px_26px_-12px_rgba(115,103,240,.8)]">
                       <FileText className="h-5 w-5" aria-hidden />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">Use the CV you already uploaded</p>
-                      <p className="truncate text-xs text-muted-foreground">{uploadedCv.filename}</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-primary">ONE CLICK</p>
+                      <p className="text-[15px] font-semibold text-foreground">Use the CV you already uploaded</p>
+                      <p className="truncate text-[13px] text-muted-foreground">{uploadedCv.filename}</p>
                     </div>
                   </div>
                   <Button
@@ -1127,13 +1091,13 @@ export default function NewResumePage() {
                   Back
                 </Button>
                 <Button
-                  variant="outline"
-                  className={resumeBuilderOutlineButton}
+                  variant="ghost"
+                  className="h-11 rounded-xl px-4 text-[14px] text-muted-foreground hover:text-foreground"
                   onClick={handleSkip}
                   disabled={creating}
                 >
                   <SkipForward className="mr-2 h-4 w-4" />
-                  Skip & use defaults
+                  Skip, start with sample content
                 </Button>
               </div>
             </>
@@ -1207,13 +1171,13 @@ export default function NewResumePage() {
                     {/* Hackathon: sample data blocks the submit — the chooser keeps a small link instead. */}
                     {quickHackathon ? null : (
                       <Button
-                        variant="outline"
-                        className={resumeBuilderOutlineButton}
+                        variant="ghost"
+                        className="h-11 rounded-xl px-4 text-[14px] text-muted-foreground hover:text-foreground"
                         onClick={handleSkip}
                         disabled={creating}
                       >
                         <SkipForward className="mr-2 h-4 w-4" />
-                        Skip & use defaults
+                        Skip, start with sample content
                       </Button>
                     )}
                     <Button

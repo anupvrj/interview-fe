@@ -1,5 +1,8 @@
 "use client";
 
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
+import { cn } from "@/lib/utils";
+
 import { useEffect, useState } from "react";
 import {
   CalendarClock,
@@ -121,7 +124,7 @@ export function PendingBookingDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl gap-0 overflow-hidden overflow-y-auto p-0 sm:max-w-2xl">
+      <DialogContent className={cn(dash2026Scope, "max-h-[90vh] max-w-2xl gap-0 overflow-hidden overflow-y-auto p-0 sm:max-w-2xl rounded-[22px]")}>
         <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 to-transparent px-6 py-5 text-center">
           <DialogHeader className="space-y-0 text-center sm:text-center">
             <DialogTitle className="text-center text-xl font-semibold sm:text-2xl">
@@ -194,7 +197,7 @@ export function PendingBookingDetailsDialog({
                       {candidate?.resume ? (
                         <Button
                           asChild
-                          className="h-9 w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] sm:w-auto"
+                          className="h-9 w-full rounded-xl bg-primary font-semibold text-white hover:bg-primary/90 sm:w-auto"
                         >
                           <a
                             href={candidate.resume.url}
@@ -286,7 +289,7 @@ export function PendingBookingDetailsDialog({
               <Button
                 onClick={handleAccept}
                 disabled={busy}
-                className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+                className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
               >
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Accept

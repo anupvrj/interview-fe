@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Mono } from "@/components/marketing-2026/primitives";
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
 
 export const ATS_PROCESSING_STEPS = [
   "Parsing your resume",
@@ -164,24 +166,26 @@ export function ATSProcessingView({
   const activeLabel = steps[activeIndex];
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-6xl")}>
       {/* Header */}
-      <div className="mb-8 text-center sm:mb-10">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {headerLabel}
+      <div className="relative mb-6 overflow-hidden rounded-[22px] border border-border bg-card px-6 py-8 text-center sm:mb-8 md:py-10">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_50%_0%,rgba(115,103,240,.16),transparent_70%)]" />
+        <div className="relative mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.06] px-3 py-1">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <Mono className="text-[11px] uppercase tracking-wider text-primary">{headerLabel}</Mono>
         </div>
 
         <h1
           key={activeLabel}
-          className="animate-fade-in text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl"
+          className="relative animate-fade-in text-[30px] font-black leading-[1.05] tracking-[-0.045em] text-foreground sm:text-[40px]"
         >
           {activeLabel}
           <span className="inline-block w-6 animate-pulse text-primary">…</span>
         </h1>
 
         {fileName && (
-          <p className="mx-auto mt-2 flex w-full max-w-xl min-w-0 flex-col items-center gap-0.5 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-1 sm:px-0 sm:text-base">
+          <p className="relative mx-auto mt-3 flex w-full max-w-xl min-w-0 flex-col items-center gap-0.5 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-1 sm:px-0 sm:text-base">
             <span className="shrink-0">Analyzing</span>
             <span
               className="min-w-0 max-w-full truncate font-medium text-foreground"
@@ -196,12 +200,10 @@ export function ATSProcessingView({
       {/* Side-by-side: scan panel (left) + step list (right) */}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(300px,360px)_1fr] lg:gap-8 xl:gap-10">
         {/* Left on desktop — document scan + category bars */}
-        <div className="order-2 rounded-2xl border border-border/80 bg-card p-6 shadow-card sm:p-8 lg:order-1 lg:sticky lg:top-6">
+        <div className="order-2 rounded-[22px] border border-border bg-card p-6 sm:p-8 lg:order-1 lg:sticky lg:top-6">
           <div className="mb-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Document scan
-            </p>
-            <p className="mt-1 text-lg font-bold text-foreground">Your Score</p>
+            <Mono className="text-[11px] tracking-wider text-muted-foreground">DOCUMENT SCAN</Mono>
+            <p className="mt-1 text-[17px] font-extrabold tracking-[-0.02em] text-foreground">Your score</p>
           </div>
 
           <ResumeScanMock active={currentStep < steps.length} />
@@ -223,7 +225,7 @@ export function ATSProcessingView({
               <div
                 key={step}
                 className={cn(
-                  "flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all duration-500 sm:px-6 sm:py-5",
+                  "flex items-center gap-4 rounded-[18px] border bg-card px-5 py-4 text-left transition-all duration-500 sm:px-6 sm:py-5",
                   done && "border-primary/15 bg-primary/[0.04] shadow-sm",
                   active &&
                     "scale-[1.01] border-primary/40 bg-gradient-to-r from-primary/[0.08] to-transparent shadow-md",
@@ -235,7 +237,7 @@ export function ATSProcessingView({
                   className={cn(
                     "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-300",
                     done
-                      ? "bg-primary text-white shadow-md shadow-primary/25"
+                      ? "bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white shadow-md shadow-primary/25"
                       : active
                         ? "border-2 border-primary bg-card text-primary ring-4 ring-primary/15"
                         : "border-2 border-muted-foreground/20 bg-muted/30 text-muted-foreground",

@@ -83,7 +83,7 @@ const TYPO_WAVE: React.CSSProperties = { backgroundImage: WAVY, backgroundRepeat
  * Find a mark's text on the page. AI quotes don't always match the page word for word
  * (trailing words cut, punctuation), so fall back to the first words of the quote.
  */
-function locateMark(root: HTMLElement, mark: CanvasMark, max: number): TextHit[] {
+export function locateMark(root: HTMLElement, mark: CanvasMark, max: number): TextHit[] {
   if (!mark.text.trim()) return [];
   const exact = locateText(root, mark.text, { wholeWord: mark.wholeWord, max });
   if (exact.length || mark.wholeWord) return exact;

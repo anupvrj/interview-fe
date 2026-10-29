@@ -11,7 +11,7 @@ export type SkLeaf = { n: string; s: State; v: number; d: number; why: string };
 export type SkHub = { name: string; a: number; leaves: SkLeaf[] };
 
 /** The live Skills Graph section: same graph on every product page, each page brings its own areas and skills. */
-export function SkillsSection({ n, hubs, initial, live }: { n: string; hubs: SkHub[]; initial: string; live: string }) {
+export function SkillsSection({ n, hubs, initial, live, label = "Skills Graph", title }: { n: string; hubs: SkHub[]; initial: string; live: string; label?: string; title?: React.ReactNode }) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const on = useInView(ref, { amount: 0.35, once: true });
@@ -40,7 +40,7 @@ export function SkillsSection({ n, hubs, initial, live }: { n: string; hubs: SkH
     <section className={LIGHT}>
       <Dots />
       <div ref={ref} className={WRAP}>
-        <Head n={n} label="Skills Graph" title={<>Every round updates your <span className={HL}>Skills Graph.</span></>}
+        <Head n={n} label={label} title={title ?? <>Every round updates your <span className={HL}>Skills Graph.</span></>}
           aside={<div className="flex flex-wrap gap-4">
             {(Object.keys(STYLE) as State[]).map((k) => (
               <span key={k} className="flex items-center gap-2 text-[13px] text-[#4B5275]">

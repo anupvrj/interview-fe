@@ -471,7 +471,7 @@ export function RbAfter() {
       ins={["LinkedIn profile", "Your old PDF", "A talk with Ava"]}
       outs={[
         { t: "Mock interviews", d: "Questions come from the projects you actually listed." },
-        { t: "Chrome extension", d: "Autofills the application and attaches the PDF." },
+        { t: "Chrome extension", d: "Tailors your resume to the job post you're reading." },
         { t: "ChatGPT app", d: "Edit, tailor and score it from a chat." },
         { t: "Portfolio", d: "Your best work, public only when you turn it on." },
       ]}>

@@ -8,13 +8,13 @@ import { MK26_ROUTES } from "./cta";
 /** Zoom's homepage pattern: the product family as the hero's second beat. Each card shows real UI. */
 const cards = [
   { icon: Mic, title: "AI Mock Interview", line: "A voice interviewer that pushes back.", media: { v: "interview" }, tint: "from-[#1d2a6b] to-[#0b1530]", href: MK26_ROUTES.interview },
-  { icon: FileText, title: "Resume Builder", line: "17 templates. Rewrites in place.", media: { v: "rewrite" }, tint: "from-[#3a2a8a] to-[#120f33]", href: MK26_ROUTES.resume },
+  { icon: FileText, title: "Resume Builder", line: "ATS-ready. Rewrites in place.", media: { v: "rewrite" }, tint: "from-[#3a2a8a] to-[#120f33]", href: MK26_ROUTES.resume },
   { icon: ScanSearch, title: "ATS Checker", line: "34 checks. Free score, no sign-up.", media: { v: "agent" }, tint: "from-[#0e4b5a] to-[#06202a]", href: MK26_ROUTES.ats },
   { icon: Code2, title: "Coding Round", line: "Hidden tests. Then defend your logic.", media: { img: "/marketing-2026/shots/Interviewtrix-AI-Interview-History.png" }, tint: "from-[#123a2a] to-[#07160f]", href: MK26_ROUTES.coding },
   { icon: Network, title: "System Design", line: "It reads your diagram and asks what breaks.", media: { img: "/marketing-2026/shots/Interviewtrix-report.png" }, tint: "from-[#2b1b4d] to-[#100a1e]", href: MK26_ROUTES.systemDesign },
   { icon: Share2, title: "iX Score & Skills Graph", line: "One score. Strong, slipping, hidden.", media: { img: "/marketing-2026/shots/Interview-trix-Report.png" }, tint: "from-[#1b2f5c] to-[#0a1224]", href: MK26_ROUTES.home },
   { icon: MessageSquare, title: "InterviewTrix for ChatGPT", line: "Build and score a resume in chat.", media: { v: "templates" }, tint: "from-[#0f3d34] to-[#071b17]", href: MK26_ROUTES.chrome },
-  { icon: Chrome, title: "Chrome extension", line: "Match, tailor, autofill on any job post.", media: { img: "/marketing-2026/shots/Interviewtrix-job-tracker.png" }, tint: "from-[#4a2a14] to-[#1d1008]", href: MK26_ROUTES.chrome },
+  { icon: Chrome, title: "Chrome extension", line: "Match and tailor your resume to any job post.", media: { img: "/marketing-2026/shots/Interviewtrix-resume-editor.png" }, tint: "from-[#4a2a14] to-[#1d1008]", href: MK26_ROUTES.chrome },
 ];
 
 export function ProductRail() {

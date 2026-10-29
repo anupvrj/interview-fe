@@ -35,63 +35,46 @@ export function ResumeCreationStepper({
     steps.findIndex((step) => step.id === currentStep),
   );
 
+  // a segmented progress bar: one segment per step, numbered in mono like the dashboard eyebrows
   return (
-    <nav
-      aria-label="Resume creation progress"
-      className="rounded-xl border border-border/80 bg-card p-4 shadow-card sm:p-5"
-    >
-      <ol className="flex items-center justify-between gap-2">
+    <nav aria-label="Resume creation progress">
+      <ol className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((step, index) => {
           const isComplete = index < currentIndex;
           const isActive = index === currentIndex;
-          const isUpcoming = index > currentIndex;
-
           return (
-            <li
-              key={step.id}
-              className="flex min-w-0 flex-1 items-center last:flex-none"
-            >
-              <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
+            <li key={step.id} aria-current={isActive ? "step" : undefined} className="min-w-0">
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    "h-full rounded-full bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] transition-[width] duration-700 ease-out",
+                    isComplete ? "w-full" : isActive ? "w-1/2" : "w-0",
+                  )}
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-1.5">
                 <span
                   className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-all",
-                    isComplete &&
-                      "bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(115,103,240,0.35)]",
-                    isActive &&
-                      "border-2 border-primary bg-primary/[0.08] text-primary shadow-[0_0_0_4px_rgba(115,103,240,0.12)]",
-                    isUpcoming &&
-                      "border border-border/80 bg-muted/40 text-muted-foreground",
+                    "font-[family-name:var(--font-geist-mono)] text-[11px]",
+                    isComplete || isActive ? "text-primary" : "text-muted-foreground/70",
                   )}
                 >
-                  {isComplete ? <Check className="h-4 w-4" /> : index + 1}
+                  {isComplete ? <Check className="inline h-3 w-3" /> : String(index + 1).padStart(2, "0")}
                 </span>
                 <span
                   className={cn(
-                    "hidden text-xs font-medium sm:block sm:text-sm",
-                    isActive && "text-primary",
-                    isComplete && "text-foreground",
-                    isUpcoming && "text-muted-foreground",
+                    "truncate text-[12.5px] font-medium",
+                    isActive ? "text-foreground" : isComplete ? "text-foreground/80" : "text-muted-foreground",
+                    !isActive && "max-sm:hidden",
                   )}
                 >
                   {step.label}
                 </span>
               </div>
-              {index < steps.length - 1 ? (
-                <div
-                  className={cn(
-                    "mx-2 hidden h-0.5 flex-1 rounded-full sm:block",
-                    index < currentIndex ? "bg-primary/50" : "bg-border/80",
-                  )}
-                  aria-hidden
-                />
-              ) : null}
             </li>
           );
         })}
       </ol>
-      <p className="mt-3 text-center text-sm font-medium text-primary sm:hidden">
-        {steps[currentIndex]?.label}
-      </p>
     </nav>
   );
 }

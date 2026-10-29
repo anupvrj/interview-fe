@@ -20,7 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/app/PageHeader";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,7 +65,6 @@ import { PeerBookingChatHistoryCard } from "@/components/peer/PeerBookingChatHis
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
-import { appCard } from "@/lib/app-theme";
 import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { cn } from "@/lib/utils";
 import { peerApi, type PeerBooking, type PeerInterviewType } from "@/lib/api";
@@ -337,15 +336,15 @@ export default function BookingDetailPage() {
 
   if (loading) {
     return (
-      <div className={cn(appCard, "flex h-64 items-center justify-center")}>
-        <Loader2 className="h-7 w-7 animate-spin text-[#7367F0]" />
+      <div className="flex h-64 items-center justify-center rounded-[22px] border border-border bg-card">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
+      <div className={cn(dash2026Scope, "flex flex-col items-center gap-3 rounded-[22px] border border-border bg-card px-6 py-16 text-center")}>
         <p className="text-lg font-semibold">Booking not found</p>
         <p className="text-sm text-muted-foreground">
           This booking may have been removed or you don&apos;t have access.
@@ -433,14 +432,14 @@ export default function BookingDetailPage() {
           label="Join meeting room"
           size="default"
           variant="default"
-          className="bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60"
+          className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
         />
       ) : null}
       {canPay ? (
         <Button
           onClick={() => void handlePay()}
           disabled={paying || submitting}
-          className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+          className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
         >
           {paying ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -455,7 +454,7 @@ export default function BookingDetailPage() {
           <Button
             onClick={() => void handleAccept()}
             disabled={submitting}
-            className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+            className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
           >
             {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Accept request
@@ -495,7 +494,7 @@ export default function BookingDetailPage() {
         <Button
           onClick={() => setFeedbackOpen(true)}
           disabled={submitting}
-          className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+          className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
         >
           <Star className="mr-2 h-4 w-4" />
           Leave a review
@@ -518,39 +517,33 @@ export default function BookingDetailPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayLoaded(true)}
       />
 
-      <Link href={backHref}>
-        <Button variant="ghost" size="sm" className="h-9 w-fit px-2 sm:h-10 sm:px-4">
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          <span className="hidden sm:inline">Back to bookings</span>
-          <span className="sm:hidden">Back</span>
-        </Button>
-      </Link>
-
-      <div className="hidden lg:block">
-        <PageHeader
-          title={interviewLabel}
-          badge={isCandidate ? "My booking" : undefined}
-          actions={headerActions}
-        />
-      </div>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <Link href={backHref} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Back to bookings
+          </Link>
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <Eyebrow>{isCandidate ? `MY BOOKING · REF ${booking.bookingRef}` : `BOOKING · REF ${booking.bookingRef}`}</Eyebrow>
+              <h1 className="text-balance mt-4 break-words text-[28px] font-black leading-[1.05] tracking-[-0.045em] text-foreground md:text-[38px]">{interviewLabel}</h1>
+            </div>
+            <div className="hidden shrink-0 lg:block">{headerActions}</div>
+          </div>
+        </div>
+      </section>
 
       <div className="min-w-0 space-y-3 overflow-hidden lg:hidden">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-1">
-            {isCandidate ? (
-              <span className="inline-flex max-w-full w-fit items-center rounded-md bg-info-muted px-2.5 py-0.5 text-xs font-medium text-primary">
-                My booking
-              </span>
-            ) : null}
-            <h1 className="text-lg font-semibold leading-tight tracking-tight text-foreground">
-              {interviewLabel}
-            </h1>
+            <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground">ACTIONS</p>
           </div>
           {canPay ? (
             <Button
@@ -581,7 +574,7 @@ export default function BookingDetailPage() {
               label="Join meeting room"
               size="default"
               variant="default"
-              className="h-9 w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60"
+              className="h-9 w-full rounded-xl bg-primary font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
             />
           ) : null}
           {canRespond ? (
@@ -589,7 +582,7 @@ export default function BookingDetailPage() {
               <Button
                 onClick={() => void handleAccept()}
                 disabled={submitting}
-                className="h-9 flex-1 bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+                className="h-9 flex-1 rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Accept request
@@ -635,7 +628,7 @@ export default function BookingDetailPage() {
             <Button
               onClick={() => setFeedbackOpen(true)}
               disabled={submitting}
-              className="h-9 w-full bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+              className="h-9 w-full rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
             >
               <Star className="mr-2 h-4 w-4" />
               Leave a review
@@ -775,7 +768,7 @@ export default function BookingDetailPage() {
                     onClick={() => void submitCandidateScore()}
                     disabled={submitting}
                     size="sm"
-                    className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+                    className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {booking.interviewerCandidateScore ? "Update" : "Submit"}
@@ -861,7 +854,7 @@ export default function BookingDetailPage() {
                     onClick={() => void submitFeedback()}
                     disabled={submitting}
                     size="sm"
-                    className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+                    className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
                   >
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {existingFeedback ? "Update" : "Submit"}
@@ -960,7 +953,7 @@ export default function BookingDetailPage() {
       ) : null}
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent>
+        <DialogContent className={cn(dash2026Scope, "rounded-[22px] p-6 sm:p-7")}>
           <DialogHeader>
             <DialogTitle>Cancel booking?</DialogTitle>
             <DialogDescription>
@@ -1015,7 +1008,7 @@ export default function BookingDetailPage() {
       ) : null}
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
-        <DialogContent>
+        <DialogContent className={cn(dash2026Scope, "rounded-[22px] p-6 sm:p-7")}>
           <DialogHeader>
             <DialogTitle>Decline booking request?</DialogTitle>
             <DialogDescription>
@@ -1046,7 +1039,7 @@ export default function BookingDetailPage() {
           setFeedbackOpen(open);
         }}
       >
-        <DialogContent>
+        <DialogContent className={cn(dash2026Scope, "rounded-[22px] p-6 sm:p-7")}>
           <DialogHeader>
             <DialogTitle>How was the interview?</DialogTitle>
             <DialogDescription>
@@ -1077,7 +1070,7 @@ export default function BookingDetailPage() {
               Later
             </Button>
             <Button
-              className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+              className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
               disabled={submitting || rating < 1}
               onClick={() => void submitFeedback()}
             >

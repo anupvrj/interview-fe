@@ -11,9 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Coins,
-  Calendar,
   Shield,
-  Sparkles,
   AlertCircle,
   CreditCard,
 } from "lucide-react";
@@ -34,13 +32,11 @@ import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import Script from "next/script";
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
-import { MarketingFooter } from "@/components/MarketingFooter";
-import {
-  appCardElevated,
-  appPrimaryButton,
-  appSurfaceMuted,
-} from "@/lib/app-theme";
+import { Marketing2026Shell } from "@/components/marketing-2026/Marketing2026Shell";
+import { Nav } from "@/components/marketing-2026/nav";
+import { Footer } from "@/components/marketing-2026/closing";
+import { Emblem, type EmblemKind, Index, Mono } from "@/components/marketing-2026/primitives";
+import { Blueprint, HL, INK, WRAP } from "@/components/marketing-2026/landing-kit";
 import { cn } from "@/lib/utils";
 import {
   isCheckoutPlanId,
@@ -48,11 +44,10 @@ import {
   type CheckoutPlanId,
   type PaidPlanId,
 } from "@/lib/pricingPageContent";
-import {
-  getMarketingPlanGradient,
-  getMarketingPlanIcon,
-} from "@/lib/planMarketingDisplay";
 import type { SelfServePlanSlug } from "@/lib/api";
+
+/** Same emblem each plan wears on the pricing page. */
+const PLAN_EMBLEM: Record<string, EmblemKind> = { general_pass: "voice", tech_basic: "code", tech_pro: "layers", enterprise: "seats", free: "spark" };
 
 declare global {
   interface Window {
@@ -492,25 +487,30 @@ function CheckoutPageContent() {
 
   if (!isLoaded || !user || !planId || checkingSubscription) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
-      </div>
+      <Marketing2026Shell>
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Marketing2026Shell>
     );
   }
 
   if (catalogError || !selectedPlan) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-        <div className={cn(appCardElevated, "max-w-md p-8 text-center")}>
-          <AlertCircle className="mx-auto mb-4 h-10 w-10 text-[#7367F0]" />
-          <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
-            {catalogError ?? "Unable to load plan."}
-          </p>
-          <Button variant="outline" asChild>
-            <Link href="/pricing">Back to pricing</Link>
-          </Button>
-        </div>
-      </div>
+      <Marketing2026Shell>
+        <Nav />
+        <main className="relative flex min-h-screen items-center justify-center overflow-clip px-5 pt-20">
+          <Blueprint />
+          <div className="relative max-w-md rounded-[22px] border border-[#E7E6F2] bg-white p-8 text-center shadow-[0_30px_70px_-40px_rgba(47,43,61,.45)] dark:border-border dark:bg-card">
+            <Mono className="text-[11px] text-primary">— CHECKOUT —</Mono>
+            <p className={cn("mt-3 text-[22px] font-extrabold tracking-[-0.03em] dark:text-foreground", INK)}>That plan didn&apos;t load.</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{catalogError ?? "Unable to load plan."}</p>
+            <Button asChild className="mt-6 h-11 rounded-xl px-5">
+              <Link href="/pricing">Back to pricing</Link>
+            </Button>
+          </div>
+        </main>
+      </Marketing2026Shell>
     );
   }
 
@@ -528,9 +528,8 @@ function CheckoutPageContent() {
       : planPrice;
   const hasIntroDiscount = dueToday < planPrice;
   const planCredits = plan.creditsIncluded[billingCycle];
-  const highlightLines = getPlanMarketingHighlights(plan);
-  const PlanIcon = getMarketingPlanIcon(plan.planId, plan.icon);
-  const planGradient = getMarketingPlanGradient(plan.planId);
+  // the credits line already sits in the pill above the list
+  const includedLines = getPlanMarketingHighlights(plan).filter((h) => !/^\d[\d,]*\s*(monthly\s+)?credits?\b/i.test(h));
   const planLabel =
     PLAN_COLUMN_LABELS[plan.planId as PaidPlanId] ??
     plan.displayName ??
@@ -543,7 +542,7 @@ function CheckoutPageContent() {
         : "Yearly";
 
   return (
-    <>
+    <Marketing2026Shell>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="afterInteractive"
@@ -564,101 +563,80 @@ function CheckoutPageContent() {
         }}
       />
 
-      <div className="relative min-h-screen scroll-smooth bg-background selection:bg-[#7367F0]/20">
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(115,103,240,0.08),transparent_40%),radial-gradient(circle_at_85%_20%,rgba(139,92,246,0.06),transparent_38%)]"
-        />
-        <SiteHeader />
-
-        <div className="container relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-24 sm:pt-28 lg:pt-32">
-          <Button
-            variant="ghost"
-            asChild
-            className="-ml-2 mb-6 text-muted-foreground hover:text-foreground"
-          >
-            <Link href="/pricing">
-              <ArrowLeft className="mr-2 h-4 w-4" />
+      <Nav />
+      <main>
+        <section className="relative overflow-clip pb-20 pt-28 md:pb-28 md:pt-40">
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_55%_at_50%_20%,rgba(115,103,240,.16),transparent_70%),linear-gradient(180deg,#FFFFFF_0%,#F8F8FB_80%)]" />
+          <Blueprint />
+          <div className={WRAP}>
+            <Link href="/pricing" className="inline-flex items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="size-4" />
               Back to pricing
             </Link>
-          </Button>
 
-          <div className="space-y-4">
-            <div className={cn(appCardElevated, "overflow-hidden")}>
-              <div className="relative overflow-hidden border-b border-border/60 px-5 py-6 sm:px-6">
-                <div
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#7367F0]/15 via-transparent to-transparent"
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[#7367F0]/15 blur-3xl"
-                  aria-hidden
-                />
+            <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-14">
+              <div>
+                <Index n="01" label="Checkout" />
+                <h1 className={cn("text-[38px] font-black leading-[0.98] tracking-[-0.055em] sm:text-[48px] md:text-[60px]", INK)}>
+                  You&apos;re one step from <span className={HL}>{planLabel}</span>.
+                </h1>
+                <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-[#4B5275] md:text-[18px]">
+                  Review your plan and pay securely with Razorpay. Credits are added to your account after the payment succeeds.
+                </p>
 
-                <div className="relative space-y-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7367F0]/25 bg-[#7367F0]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#7367F0]">
-                    <Sparkles className="h-3 w-3" aria-hidden />
-                    Secure checkout
-                  </span>
-
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-4">
-                      <span
-                        className={cn(
-                          "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg",
-                          planGradient,
-                        )}
-                      >
-                        <PlanIcon className="h-7 w-7" aria-hidden />
-                      </span>
-                      <div>
-                        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                          Complete your purchase
-                        </h1>
-                        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                          Review your plan and pay securely with Razorpay.
-                          Credits apply after successful payment.
-                        </p>
-                      </div>
+                <div className="relative mt-9 overflow-hidden rounded-2xl border border-primary bg-[#0D1F36] shadow-[0_0_0_1px_hsl(var(--primary)),0_30px_60px_-30px_rgba(115,103,240,.75)]">
+                  <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_45%_at_40%_0%,rgba(115,103,240,.28),transparent_70%)]" />
+                  <div className="relative p-6 sm:p-7">
+                    <div className="flex items-start justify-between gap-3">
+                      <Emblem kind={PLAN_EMBLEM[plan.planId] ?? "spark"} glow />
+                      <Mono className="rounded-md bg-primary px-2 py-0.5 text-[10.5px] text-white">{billingLabel.toUpperCase()}</Mono>
                     </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <CheckoutStatPill icon={PlanIcon} label={planLabel} />
-                    <CheckoutStatPill
-                      icon={Coins}
-                      label={`${planCredits.toLocaleString()} credits`}
-                    />
-                    <CheckoutStatPill icon={Calendar} label={billingLabel} />
-                    <CheckoutStatPill icon={Shield} label="Razorpay secure" />
+                    <Mono className="mt-5 block text-[11px] text-[#6E86A8]">PASS · {isTrialCheckout ? "14 DAYS" : billingLabel.toUpperCase()}</Mono>
+                    <h2 className="mt-1 text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-white">{plan.displayName || plan.name}</h2>
+                    {plan.description ? <p className="mt-2 max-w-[52ch] text-[14.5px] leading-snug text-[#9FB3CF]">{plan.description}</p> : null}
+                    <span className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/25 px-3 py-1.5 text-[13px] font-semibold text-white">
+                      <Coins className="size-3.5" />
+                      {planCredits.toLocaleString("en-IN")} credits
+                    </span>
+                    {includedLines.length > 0 && (
+                      <ul className="mt-6 grid gap-x-6 gap-y-2.5 border-t border-dashed border-[#1B3C62] pt-5 sm:grid-cols-2">
+                        {includedLines.map((line) => (
+                          <li key={line} className="flex items-start gap-2.5 text-[14px] leading-snug text-[#CFE0F7]">
+                            <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-sky-400/15 text-sky-300"><Check className="size-3" /></span>
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
+
+                <p className="mt-5 max-w-[60ch] text-[13.5px] leading-relaxed text-muted-foreground">
+                  Card payments usually activate your plan instantly. UPI AutoPay may take until the bank confirms the first debit — often same day, sometimes the next day.
+                </p>
               </div>
 
-              <div className="space-y-5 px-5 py-6 sm:px-6">
-                <div className="rounded-2xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] p-4 sm:p-5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Order summary
-                  </p>
-                  <div className="mt-3 space-y-3">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">Plan</span>
-                      <span className="font-semibold text-foreground">
-                        {plan.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">Credits</span>
-                      <span className="font-semibold text-foreground">
-                        {planCredits.toLocaleString()} credits
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">Billing</span>
-                      <span className="font-semibold text-foreground">
-                        {billingLabel}
-                      </span>
-                    </div>
+              <div className="lg:sticky lg:top-28">
+                <div className="overflow-hidden rounded-[22px] border border-[#E7E6F2] bg-white shadow-[0_30px_70px_-40px_rgba(47,43,61,.45)] dark:border-border dark:bg-card">
+                  <div className="border-b border-[#E7E6F2] px-6 py-5 dark:border-border">
+                    <Mono className="text-[11px] text-primary">— ORDER SUMMARY —</Mono>
+                    <p className={cn("mt-2 text-[20px] font-extrabold tracking-[-0.03em] dark:text-foreground", INK)}>{plan.name}</p>
+                  </div>
+
+                  <div className="space-y-5 px-6 py-5">
+                    <dl className="space-y-2.5 text-[14px]">
+                      {([
+                        ["Plan", planLabel],
+                        ["Credits", `${planCredits.toLocaleString("en-IN")}`],
+                        ["Billing", billingLabel],
+                      ] as const).map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between gap-3">
+                          <dt className="text-muted-foreground">{k}</dt>
+                          <dd className="font-semibold text-foreground">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+
                     {!isTrialCheckout ? (
                       <CheckoutCouponField
                         inputValue={couponInput}
@@ -670,179 +648,98 @@ function CheckoutPageContent() {
                       />
                     ) : null}
                     {!isTrialCheckout && referralApplies ? (
-                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300">
-                        {referralDiscountPercent}% referral discount applied —
-                        first month only
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2.5 text-[13.5px] text-emerald-700 dark:text-emerald-300">
+                        {referralDiscountPercent}% referral discount applied — first month only
                       </div>
                     ) : null}
-                    <div className="border-t border-border/60 pt-3">
+
+                    <div className="border-t border-dashed border-[#E7E6F2] pt-5 dark:border-border">
                       <div className="flex items-end justify-between gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          Total due today
-                        </span>
+                        <Mono className="pb-1.5 text-[11px] text-muted-foreground">TOTAL DUE TODAY</Mono>
                         <span className="text-right">
                           {hasIntroDiscount ? (
-                            <span className="mr-2 text-base font-medium text-muted-foreground line-through">
-                              ₹{planPrice.toLocaleString()}
-                            </span>
+                            <span className="mr-2 text-[16px] font-medium text-muted-foreground line-through">₹{planPrice.toLocaleString("en-IN")}</span>
                           ) : null}
-                          <span className="text-3xl font-bold tracking-tight text-[#7367F0]">
-                            ₹{dueToday.toLocaleString()}
+                          <span className={cn("text-[40px] font-black leading-none tracking-[-0.04em] tabular-nums dark:text-foreground", INK)}>
+                            ₹{dueToday.toLocaleString("en-IN")}
                           </span>
                         </span>
                       </div>
                       {hasIntroDiscount ? (
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          Recurring months bill at the full list price of ₹
-                          {planPrice.toLocaleString()}.
+                        <p className="mt-2 text-[12.5px] text-muted-foreground">
+                          Recurring months bill at the full list price of ₹{planPrice.toLocaleString("en-IN")}.
                         </p>
                       ) : null}
                     </div>
-                  </div>
-                </div>
 
-                {samePlanError ? (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground">
-                          Already subscribed
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {samePlanError}
-                        </p>
+                    {samePlanError ? (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-foreground">Already subscribed</p>
+                            <p className="mt-1 text-[13.5px] text-muted-foreground">{samePlanError}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex flex-col gap-2">
+                          {currentSubscription && getNextPlan(currentSubscription.plan) ? (
+                            <Button className="h-11 rounded-xl" asChild>
+                              <Link href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}>
+                                <ArrowUp className="mr-1.5 h-4 w-4" />
+                                Upgrade to{" "}
+                                {planCatalog.find((p) => p.planId === getNextPlan(currentSubscription.plan))?.name ?? "Next Plan"}
+                              </Link>
+                            </Button>
+                          ) : null}
+                          <Button variant="outline" className="h-11 rounded-xl" asChild>
+                            <Link href="/dashboard">Go to dashboard</Link>
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                      {currentSubscription &&
-                      getNextPlan(currentSubscription.plan) ? (
-                        <Button className={cn("flex-1", appPrimaryButton)} asChild>
-                          <Link
-                            href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
-                          >
-                            <ArrowUp className="mr-2 h-4 w-4" />
-                            Upgrade to{" "}
-                            {planCatalog.find(
-                              (p) =>
-                                p.planId ===
-                                getNextPlan(currentSubscription.plan),
-                            )?.name ?? "Next Plan"}
-                          </Link>
-                        </Button>
-                      ) : null}
-                      <Button variant="outline" className="flex-1" asChild>
-                        <Link href="/dashboard">Go to dashboard</Link>
-                      </Button>
-                    </div>
+                    ) : null}
+
+                    {error ? (
+                      <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13.5px] text-destructive">
+                        <X className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>{error}</span>
+                      </div>
+                    ) : null}
+
+                    <Button
+                      onClick={handlePayment}
+                      disabled={loading || !razorpayLoaded || !!samePlanError}
+                      className="h-[52px] w-full rounded-xl text-[15.5px] font-semibold shadow-[0_14px_34px_-12px_rgba(115,103,240,.8)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Processing…</>
+                      ) : !razorpayLoaded ? (
+                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading payment gateway…</>
+                      ) : (
+                        <>Pay ₹{dueToday.toLocaleString("en-IN")} now<ArrowRight className="ml-2 h-5 w-5" /></>
+                      )}
+                    </Button>
                   </div>
-                ) : null}
 
-                {error ? (
-                  <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                    <X className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{error}</span>
+                  <div className="grid grid-cols-3 divide-x divide-[#E7E6F2] border-t border-[#E7E6F2] bg-[#F8F8FB] text-center dark:divide-border dark:border-border dark:bg-muted/30">
+                    {([
+                      [Shield, "RAZORPAY SECURE"],
+                      [CreditCard, "UPI · CARDS"],
+                      [Coins, "NETBANKING · WALLETS"],
+                    ] as const).map(([Icon, label]) => (
+                      <div key={label} className="flex flex-col items-center gap-1.5 px-2 py-3.5">
+                        <Icon className="size-4 text-primary" />
+                        <Mono className="text-[9.5px] leading-tight text-muted-foreground">{label}</Mono>
+                      </div>
+                    ))}
                   </div>
-                ) : null}
-
-                {!razorpayLoaded ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#7367F0]" />
-                    Loading payment gateway…
-                  </div>
-                ) : null}
-
-                <Button
-                  onClick={handlePayment}
-                  disabled={loading || !razorpayLoaded || !!samePlanError}
-                  size="lg"
-                  className={cn(
-                    "h-12 w-full text-base font-semibold shadow-lg shadow-[#7367F0]/20 disabled:cursor-not-allowed disabled:opacity-50",
-                    appPrimaryButton,
-                  )}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Processing…
-                    </>
-                  ) : !razorpayLoaded ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Loading…
-                    </>
-                  ) : (
-                    <>
-                      Pay ₹
-                      {dueToday.toLocaleString()}{" "}
-                      now
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-
-                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <CreditCard className="h-3.5 w-3.5" aria-hidden />
-                  <span>Secure payment powered by Razorpay</span>
                 </div>
               </div>
-            </div>
-
-            <div className={cn(appCardElevated, "overflow-hidden")}>
-              <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-                <h2 className="text-sm font-semibold text-foreground">
-                  What&apos;s included
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Everything you unlock with {planLabel}
-                </p>
-              </div>
-              <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 p-5 sm:grid-cols-2 sm:p-6">
-                {highlightLines.map((highlight) => (
-                  <li key={highlight} className="flex items-start gap-3 text-sm">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
-                      <Check
-                        className="h-3 w-3 text-emerald-600 dark:text-emerald-400"
-                        strokeWidth={3}
-                        aria-hidden
-                      />
-                    </span>
-                    <span className="font-medium text-foreground/90">
-                      {highlight}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
-              <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Card payments usually activate your plan instantly. UPI AutoPay
-                may take until the bank confirms the first debit — often same
-                day, sometimes the next day.
-              </p>
             </div>
           </div>
-        </div>
-
-        <MarketingFooter as="footer" className="relative z-10" />
-      </div>
-    </>
-  );
-}
-
-function CheckoutStatPill({
-  icon: Icon,
-  label,
-}: Readonly<{
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}>) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7367F0]/15 bg-background/80 px-3 py-1 text-xs font-medium text-foreground shadow-sm">
-      <Icon className="h-3.5 w-3.5 text-[#7367F0]" aria-hidden />
-      {label}
-    </span>
+        </section>
+      </main>
+      <Footer />
+    </Marketing2026Shell>
   );
 }
 

@@ -111,6 +111,9 @@ const RECRUITER_APPLY = "/dashboard/ix-recruiter/apply";
 
 const PEER_CANDIDATE_BOOK = "/dashboard/peer-interviews/book";
 
+/** Job search isn't offered to candidates: the job board and job tracker stay super-admin only. */
+const JOB_SEARCH_PREFIXES = ["/dashboard/job-board", "/dashboard/job-tracker"];
+
 /** Candidate marketplace and booking list — not for the interviewer role view. */
 function isCandidatePeerMarketplacePath(pathname: string): boolean {
   return (
@@ -238,6 +241,7 @@ export function isPathAllowedForRole(
 
   // candidate: peer marketplace + apply; interviewer hub only while application is in review.
   if (matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)) return false;
+  if (matchesPrefix(pathname, JOB_SEARCH_PREFIXES)) return false;
   if (matchesPrefix(pathname, INSTITUTE_PREFIXES)) return false;
 
   if (

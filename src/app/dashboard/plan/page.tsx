@@ -6,27 +6,15 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Crown,
   Loader2,
-  Sparkles,
   ArrowRight,
-  Calendar,
   Coins,
   XCircle,
   AlertTriangle,
-  CheckCircle,
-  Shield,
-  TrendingUp,
 } from "lucide-react";
 import { paymentApi, planApi, CreditBalance } from "@/lib/api";
 import { usePendingSubscriptionPolling } from "@/hooks/usePendingSubscriptionPolling";
@@ -38,8 +26,9 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscriptionPlans";
 import { SubscriptionRenewalGate } from "@/components/SubscriptionRenewalGate";
-import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
-import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
+import { Mono } from "@/components/marketing-2026/primitives";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { ListHeader } from "@/components/dashboard-2026/PracticeHero";
 
 interface Plan {
   _id: string;
@@ -416,468 +405,283 @@ export default function PlanPage() {
           ? "Active"
           : "Free tier";
 
+  const statusTone = isFailedActivation
+    ? "border-destructive/30 bg-destructive/10 text-destructive"
+    : isPendingActivation || subscription?.status === "cancelled"
+      ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+      : isPaidPlan || isTrialPlan
+        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+        : "border-border bg-muted text-muted-foreground";
+
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-xl border border-[#7367F0]/10 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] px-4 py-6 sm:px-6 sm:py-8">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#7367F0]/10 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-12 left-1/4 h-32 w-32 rounded-full bg-violet-400/10 blur-2xl"
-        />
-        <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-3 py-1 text-xs font-semibold text-[#7367F0] sm:text-sm">
-            <Sparkles className="h-3.5 w-3.5" />
-            Plan &amp; billing
-          </div>
-          <div className="max-w-2xl space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Subscription &amp;{" "}
-              <span className="text-[#7367F0]">credits</span>
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
+        <div className="relative grid items-center gap-8 p-6 md:p-9 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div>
+            <Eyebrow>PLAN &amp; BILLING</Eyebrow>
+            <h1 className="text-balance mt-5 text-[32px] font-black leading-[1.03] tracking-[-0.05em] text-foreground sm:text-[42px] xl:text-[50px]">
+              Your plan, your credits,{" "}
+              <span className="bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] bg-clip-text text-transparent">and what&apos;s left.</span>
             </h1>
-            <p className="text-sm text-muted-foreground sm:text-base">
-              Manage your plan, track interview credits, and top up when you
-              need more runway for AI practice, coding rounds, and reports.
+            <p className="text-balance mt-4 max-w-[56ch] text-[15.5px] leading-relaxed text-muted-foreground md:text-[17px]">
+              Manage your subscription, see your credit balance, and top up when you need more time for AI interviews, coding rounds and reports.
             </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {["5 credits / minute", "Monthly plan credits", "One-click top-up"].map((t) => (
+                <Mono key={t} className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground">{t.toUpperCase()}</Mono>
+              ))}
+            </div>
           </div>
-          <ul className="flex flex-wrap gap-2 pt-1">
-            {[
-              "5 credits / minute",
-              "Monthly plan credits",
-              "One-click top-up",
-            ].map((pill) => (
-              <li
-                key={pill}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground"
-              >
-                <CheckCircle className="h-3 w-3 text-[#7367F0]" />
-                {pill}
-              </li>
-            ))}
-          </ul>
+
+          <div className="rounded-2xl border border-border bg-background/70 p-5 shadow-[0_24px_50px_-30px_rgba(47,43,61,.45)] backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <Mono className="text-[11px] text-muted-foreground">CURRENT PLAN</Mono>
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] font-semibold", statusTone)}>
+                {isPendingActivation && isPolling ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                {statusLabel}
+              </span>
+            </div>
+            <p className="mt-2 text-[24px] font-extrabold tracking-[-0.035em] text-foreground">{planName}</p>
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <Mono className="text-[11px] text-muted-foreground">CREDITS AVAILABLE</Mono>
+                {monthlyCredits > 0 && <Mono className="text-[11px] text-muted-foreground">OF {monthlyCredits.toLocaleString()} / MO</Mono>}
+              </div>
+              <Mono className="mt-1 block text-[36px] leading-none tracking-tight text-foreground">{displayCredits.toLocaleString()}</Mono>
+              {creditProgress != null && (
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-gradient-to-r from-[#7367F0] to-[#1F8FFF]" style={{ width: `${creditProgress}%` }} />
+                </div>
+              )}
+              <p className="mt-2 text-[12.5px] text-muted-foreground">
+                {isPaidPlan ? (subscription?.autoRenew ? "Auto-renew is on." : "Auto-renew is off.") : "Upgrade anytime for monthly plan credits."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative grid grid-cols-2 border-t border-border md:grid-cols-4 md:divide-x md:divide-border [&>*:nth-child(-n+2)]:max-md:border-b [&>*:nth-child(odd)]:max-md:border-r">
+          {([
+            ["Minutes left", Math.floor(displayCredits / 5).toLocaleString(), "at 5 credits a minute"],
+            [
+              isPaidPlan && subscription?.currentPeriodEnd ? "Next renewal" : "Subscription",
+              isPaidPlan && subscription?.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : isPaidPlan || isTrialPlan || isPendingActivation ? statusLabel : "None",
+              subscription?.status === "cancelled" ? "access until period ends" : isPaidPlan ? "billing period" : "no active subscription",
+            ],
+            ["Lifetime used", creditBalance ? creditBalance.used.toLocaleString() : "—", "credits spent"],
+            ["Wallet total", creditBalance ? creditBalance.total.toLocaleString() : "—", "credits ever added"],
+          ] as const).map(([k, v, d]) => (
+            <div key={k} className="min-w-0 border-border px-5 py-4 md:px-6">
+              <p className="text-[12.5px] text-muted-foreground">{k}</p>
+              <Mono className="mt-1 block truncate text-[20px] tracking-tight text-foreground">{v}</Mono>
+              <p className="text-[11.5px] text-muted-foreground/80">{d}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {isPendingActivation && subscription?.pendingPayment ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-4 text-sm text-amber-900 dark:text-amber-100">
-          <div className="flex items-start gap-3">
-            {isPolling ? (
-              <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-amber-600" />
-            ) : (
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-            )}
-            <div>
-              <p className="font-semibold">Payment processing</p>
-              <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
-                UPI AutoPay is set up for ₹
-                {subscription.pendingPayment.amount.toLocaleString()}. Paid plan
-                features unlock when Razorpay captures the charge — keep
-                sufficient balance and do not cancel the mandate in GPay.
-                {pollTimedOut
-                  ? " If this takes longer than expected, contact support."
-                  : " Checking automatically every few seconds…"}
-              </p>
-            </div>
+        <div className="flex items-start gap-3 rounded-[18px] border border-amber-500/30 bg-amber-500/[0.06] px-5 py-4 text-sm">
+          {isPolling ? (
+            <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-amber-600" />
+          ) : (
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          )}
+          <div>
+            <p className="font-semibold text-foreground">Payment processing</p>
+            <p className="mt-1 text-muted-foreground">
+              UPI AutoPay is set up for ₹{subscription.pendingPayment.amount.toLocaleString()}. Paid plan
+              features unlock when Razorpay captures the charge — keep
+              sufficient balance and do not cancel the mandate in GPay.
+              {pollTimedOut
+                ? " If this takes longer than expected, contact support."
+                : " Checking automatically every few seconds…"}
+            </p>
           </div>
         </div>
       ) : null}
 
       {isFailedActivation ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-destructive">
-                Subscription payment could not be completed
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                AutoPay was cancelled or the bank did not confirm the payment.
-                You are on the free tier until checkout succeeds.
-              </p>
-            </div>
-            <Link
-              href={`/checkout?plan=${subscription?.failedPayment?.plan || subscription?.pendingPayment?.plan || "tech_basic"}`}
-              className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
-            >
-              Complete payment
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+        <div className="flex flex-col gap-3 rounded-[18px] border border-destructive/30 bg-destructive/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-destructive">Subscription payment could not be completed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              AutoPay was cancelled or the bank did not confirm the payment. You are on the free tier until checkout succeeds.
+            </p>
           </div>
+          <Link
+            href={`/checkout?plan=${subscription?.failedPayment?.plan || subscription?.pendingPayment?.plan || "tech_basic"}`}
+            className={cn(buttonVariants(), "h-10 shrink-0 rounded-xl")}
+          >
+            Complete payment <ArrowRight className="ml-1 h-4 w-4" />
+          </Link>
         </div>
       ) : null}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <DashboardStatCard
-          theme="violet"
-          label="Current plan"
-          value={planName}
-          hint={
-            isPaidPlan && subscription?.autoRenew
-              ? "Auto-renew on"
-              : isPaidPlan
-                ? "Auto-renew off"
-                : "Upgrade anytime"
-          }
-          icon={Crown}
-        />
-        <DashboardStatCard
-          theme="emerald"
-          label="Credits available"
-          value={displayCredits.toLocaleString()}
-          hint="5 credits per interview minute"
-          icon={Coins}
-          progress={creditProgress}
-        />
-        <DashboardStatCard
-          theme="sky"
-          label={
-            isPaidPlan && subscription?.currentPeriodEnd
-              ? "Next renewal"
-              : "Status"
-          }
-          value={
-            isPaidPlan && subscription?.currentPeriodEnd
-              ? formatDate(subscription.currentPeriodEnd)
-              : statusLabel
-          }
-          hint={
-            subscription?.status === "cancelled"
-              ? "Access until period ends"
-              : isPaidPlan
-                ? "Billing period"
-                : "No active subscription"
-          }
-          icon={Calendar}
-        />
-      </div>
-
-      {/* Main grid */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 lg:gap-6">
-        {/* Subscription */}
-        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card lg:col-span-3">
-          <CardHeader className="border-b border-border/60 px-5 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold text-foreground">
-                    Your subscription
-                  </CardTitle>
-                  <CardDescription className="mt-0.5 text-sm">
-                    {isPaidPlan
-                      ? "Paid plan — interview sessions and monthly credits"
-                      : "Free tier — purchase a plan or credits to unlock more"}
-                  </CardDescription>
-                </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5 lg:gap-6">
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card lg:col-span-3">
+          <ListHeader
+            eyebrow="YOUR SUBSCRIPTION"
+            title={isPaidPlan ? "What a session costs you." : "You're on the free tier."}
+            description={isPaidPlan ? "Paid plan: interview sessions and monthly credits." : "Buy a plan or credits to unlock more practice."}
+          />
+          <div className="grid grid-cols-3 gap-px border-b border-border bg-border">
+            {[
+              ["30-min session", "150"],
+              ["60-min session", "300"],
+              ["Min. to start", "150"],
+            ].map(([label, value]) => (
+              <div key={label} className="bg-card px-4 py-4 md:px-6">
+                <p className="text-[12px] text-muted-foreground">{label}</p>
+                <Mono className="mt-1 block text-[22px] tracking-tight text-foreground">{value}</Mono>
+                <Mono className="text-[10.5px] text-muted-foreground">CREDITS</Mono>
               </div>
-              {isPaidPlan ? (
-                <span className="inline-flex shrink-0 items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  {statusLabel}
-                </span>
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5 p-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: "30-min session", value: "150 credits" },
-                { label: "60-min session", value: "300 credits" },
-                { label: "Min. to start", value: "150 credits" },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
-                >
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {row.label}
-                  </p>
-                  <p className="mt-1 text-base font-bold tabular-nums text-foreground">
-                    {row.value}
-                  </p>
-                </div>
-              ))}
-            </div>
+            ))}
+          </div>
 
-            {creditBalance ? (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                <span>
-                  Lifetime used:{" "}
-                  <strong className="font-semibold text-foreground">
-                    {creditBalance.used.toLocaleString()}
-                  </strong>
-                </span>
-                <span className="hidden h-4 w-px bg-border sm:inline" />
-                <span>
-                  Wallet total:{" "}
-                  <strong className="font-semibold text-foreground">
-                    {creditBalance.total.toLocaleString()}
-                  </strong>
-                </span>
-              </div>
-            ) : null}
-
-            {isPaidPlan &&
-              subscription?.status === "active" &&
-              subscription?.autoRenew && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-                  {!showCancelConfirm ? (
-                    <>
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            Cancel subscription
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Stop auto-renewal. You keep access and credits until
-                            the current period ends.
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() => setShowCancelConfirm(true)}
-                        variant="outline"
-                        size="sm"
-                        className="mt-4 w-full border-destructive/30 text-destructive hover:bg-destructive/10 sm:w-auto"
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancel subscription
+          <div className="space-y-4 p-5 md:p-6">
+            {isPaidPlan && subscription?.status === "active" && subscription?.autoRenew && (
+              <div className="rounded-2xl border border-border p-4">
+                {!showCancelConfirm ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Cancel subscription</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">Stop auto-renewal. You keep access and credits until the current period ends.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => setShowCancelConfirm(true)}
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <XCircle className="mr-1.5 h-4 w-4" />
+                      Cancel subscription
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-foreground">Cancel auto-renewal?</p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">You keep access and credits until the current period ends.</p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <Button type="button" onClick={handleCancelSubscription} disabled={cancellingSubscription} variant="destructive" className="h-10 rounded-xl">
+                        {cancellingSubscription ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cancelling…</>) : "Yes, cancel"}
                       </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-semibold text-foreground">
-                        Cancel auto-renewal?
-                      </p>
-                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                        <Button
-                          type="button"
-                          onClick={handleCancelSubscription}
-                          disabled={cancellingSubscription}
-                          variant="destructive"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          {cancellingSubscription ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Cancelling…
-                            </>
-                          ) : (
-                            "Yes, cancel"
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => setShowCancelConfirm(false)}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          Keep plan
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                      <Button type="button" onClick={() => setShowCancelConfirm(false)} variant="outline" className="h-10 rounded-xl">
+                        Keep plan
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {isPaidPlan &&
               subscription?.status === "cancelled" &&
               subscription?.currentPeriodEnd &&
               new Date(subscription.currentPeriodEnd) > new Date() && (
-                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        Reactivate subscription
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Access until{" "}
-                        <span className="font-medium text-foreground">
-                          {formatDate(subscription.currentPeriodEnd)}
-                        </span>
-                        . Turn auto-renewal back on to continue uninterrupted.
-                      </p>
-                    </div>
+                <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Reactivate subscription</p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">
+                      Access until <span className="font-medium text-foreground">{formatDate(subscription.currentPeriodEnd)}</span>. Turn auto-renewal back on to continue uninterrupted.
+                    </p>
                   </div>
                   <Button
                     type="button"
                     onClick={handleReactivateSubscription}
                     disabled={reactivatingSubscription}
-                    size="sm"
-                    className="mt-4 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+                    className="h-10 shrink-0 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
                   >
-                    {reactivatingSubscription ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Reactivating…
-                      </>
-                    ) : (
-                      <>
-                        <Crown className="mr-2 h-4 w-4" />
-                        Reactivate now
-                      </>
-                    )}
+                    {reactivatingSubscription ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reactivating…</>) : (<><Crown className="mr-1.5 h-4 w-4" />Reactivate now</>)}
                   </Button>
                 </div>
               )}
-          </CardContent>
-        </Card>
 
-        {/* Credits purchase */}
-        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card lg:col-span-2">
-          <CardHeader className="border-b border-border/60 px-5 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
-                <Coins className="h-5 w-5" />
+            {nextPlan && !isHighestSelfServePlan(normalizedPlan) ? (
+              <div className="relative overflow-hidden rounded-2xl bg-[#0B1530] p-5 text-white">
+                <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_100%_0%,rgba(115,103,240,.45),transparent_70%)]" />
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <Mono className="text-[11px] text-white/60">NEXT PLAN UP</Mono>
+                    <p className="mt-1 text-[20px] font-extrabold tracking-[-0.03em]">{nextPlan.name}</p>
+                    <p className="mt-0.5 text-[13px] text-white/70">From ₹{nextPlan.price}/mo: more sessions, coding rounds and system design.</p>
+                  </div>
+                  <Link href="/pricing" className={cn(buttonVariants(), "h-10 shrink-0 rounded-xl")}>
+                    View all plans <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-lg font-semibold text-foreground">
-                  Top up credits
-                </CardTitle>
-                <CardDescription className="mt-0.5 text-sm">
-                  1 credit = ₹1 · minimum 300 credits
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 p-5">
-            <div className="rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] to-transparent p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#7367F0]">
-                Available balance
-              </p>
-              <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
-                {displayCredits.toLocaleString()}
-              </p>
-              {creditBalance ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {creditBalance.used.toLocaleString()} used lifetime
+            ) : null}
+
+            {isHighestSelfServePlan(normalizedPlan) && (
+              <div className="rounded-2xl border border-border p-4">
+                <p className="text-sm font-semibold text-foreground">You&apos;re on our highest plan</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
+                  Tech Pro includes the fullest session allotments and priority support. Thank you for being a valued member.
                 </p>
-              ) : null}
-            </div>
+              </div>
+            )}
+          </div>
+        </section>
 
-            <div className="space-y-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="credit-amount">Credit amount</Label>
-                <Input
-                  id="credit-amount"
-                  type="number"
-                  placeholder="e.g. 500 (min 300)"
-                  value={customCreditAmount}
-                  onChange={(e) => handleCreditAmountChange(e.target.value)}
-                  min="300"
-                  step="50"
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card lg:col-span-2">
+          <ListHeader eyebrow="TOP UP" title="Add credits." description="1 credit = ₹1 · minimum 300 credits." />
+          <div className="space-y-4 p-5 md:p-6">
+            <div className="grid grid-cols-3 gap-2">
+              {[300, 600, 1000].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleCreditAmountChange(String(n))}
                   className={cn(
-                    "h-11 w-full text-base",
-                    creditAmountError &&
-                      "border-destructive focus-visible:ring-destructive",
+                    "rounded-xl border px-3 py-2.5 text-left transition-colors",
+                    customCreditAmount === String(n) ? "border-primary bg-primary/[0.07]" : "border-border hover:border-primary/40",
                   )}
-                />
-              </div>
-              {creditAmountError ? (
-                <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                  {creditAmountError}
-                </p>
-              ) : customCreditAmount ? (
-                <p className="text-sm text-muted-foreground">
-                  You pay{" "}
-                  <span className="font-semibold text-foreground">
-                    ₹{Number.parseInt(customCreditAmount) || 0}
-                  </span>
-                </p>
-              ) : null}
-
-              <Button
-                type="button"
-                onClick={handlePurchaseCredits}
-                disabled={
-                  purchasingCredits ||
-                  !customCreditAmount ||
-                  !!creditAmountError
-                }
-                size="lg"
-                className={cn(
-                  "h-11 w-full shadow-lg transition-all hover:shadow-xl",
-                  institutePrimaryClass,
-                )}
-              >
-                {purchasingCredits ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processing…
-                  </>
-                ) : (
-                  <>
-                    <Coins className="mr-2 h-5 w-5" />
-                    Buy credits
-                  </>
-                )}
-              </Button>
+                >
+                  <Mono className="block text-[16px] text-foreground">{n}</Mono>
+                  <span className="text-[11.5px] text-muted-foreground">{Math.floor(n / 5)} min</span>
+                </button>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Upgrade CTA */}
-      {nextPlan && !isHighestSelfServePlan(normalizedPlan) && (
-        <Card className="overflow-hidden rounded-xl border border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/[0.08] via-card to-violet-500/[0.06] shadow-card">
-          <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#7367F0] text-white shadow-lg shadow-[#7367F0]/25">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground sm:text-lg">
-                  Upgrade to {nextPlan.name}
-                </h3>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  From ₹{nextPlan.price}/mo — more sessions, coding rounds, and
-                  system design allotments.
-                </p>
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="credit-amount" className="text-[13px]">Or enter an amount</Label>
+              <Input
+                id="credit-amount"
+                type="number"
+                placeholder="e.g. 500 (min 300)"
+                value={customCreditAmount}
+                onChange={(e) => handleCreditAmountChange(e.target.value)}
+                min="300"
+                step="50"
+                className={cn("h-11 w-full rounded-xl text-base", creditAmountError && "border-destructive focus-visible:ring-destructive")}
+              />
             </div>
-            <Link
-              href="/pricing"
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                institutePrimaryClass,
-                "w-full shrink-0 shadow-lg sm:w-auto",
-              )}
-            >
-              View all plans
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
-      {isHighestSelfServePlan(normalizedPlan) && (
-        <Card className="overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-500/[0.08] to-card shadow-card">
-          <CardContent className="flex items-start gap-4 p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/25">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-foreground sm:text-lg">
-                You&apos;re on our highest plan
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tech Pro includes the fullest session allotments and priority
-                support. Thank you for being a valued member.
+            {creditAmountError ? (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {creditAmountError}
               </p>
+            ) : null}
+
+            <div className="flex items-baseline justify-between rounded-xl bg-muted/50 px-4 py-3">
+              <span className="text-[13px] text-muted-foreground">You pay</span>
+              <Mono className="text-[20px] text-foreground">₹{customCreditAmount && !creditAmountError ? Number.parseInt(customCreditAmount) || 0 : 0}</Mono>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            <Button
+              type="button"
+              onClick={handlePurchaseCredits}
+              disabled={purchasingCredits || !customCreditAmount || !!creditAmountError}
+              className="h-11 w-full rounded-xl text-[14.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)]"
+            >
+              {purchasingCredits ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>) : (<><Coins className="mr-2 h-4 w-4" />Buy credits</>)}
+            </Button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

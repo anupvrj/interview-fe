@@ -136,7 +136,7 @@ export function ATSUploadHero({
           type="button"
           size="lg"
           onClick={() => setOpen(true)}
-          className="h-12 px-8 text-base bg-primary text-white hover:bg-primary/90 shadow-lg"
+          className="h-12 rounded-xl px-6 text-[15.5px] bg-primary text-white shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90"
         >
           <Upload className="h-5 w-5 mr-2" />
           Upload Your Resume
@@ -157,7 +157,7 @@ export function ATSUploadHero({
       </div>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[480px]">
+        <DialogContent className="gap-0 overflow-hidden rounded-[22px] p-0 sm:max-w-[480px]">
           <div className="flex max-h-[85vh] flex-col gap-6 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
           {modalStep === "upload" ? (
             <>

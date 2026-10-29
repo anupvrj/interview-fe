@@ -1,8 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,43 +10,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Check, ArrowRight, Loader2, Coins } from "lucide-react";
-import { planApi, userApi } from "@/lib/api";
-import type { PlanRecord } from "@/lib/planRecord";
-import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import {
   getMarketingPlanGradient,
   getMarketingPlanIcon,
 } from "@/lib/planMarketingDisplay";
 import { ContactSalesDialog } from "@/components/ContactSalesDialog";
-import { COMING_SOON_PLAN_FEATURES } from "@/lib/pricingPageContent";
+import { parseHighlightLine } from "@/lib/pricingPlanRows";
+import { usePricingPlans } from "@/hooks/usePricingPlans";
 import { cn } from "@/lib/utils";
-
-const COMING_SOON_SUFFIX = /\s*\(Coming soon\)\s*$/i;
-
-function isComingSoonHighlight(
-  line: string,
-  comingSoonHighlights?: string[],
-): boolean {
-  const stripped = line.replace(COMING_SOON_SUFFIX, "").trim();
-  if (COMING_SOON_SUFFIX.test(line)) return true;
-  const markers = comingSoonHighlights?.length
-    ? comingSoonHighlights
-    : [...COMING_SOON_PLAN_FEATURES];
-  return markers.some(
-    (h) => h === line || h === stripped || stripped.startsWith(h),
-  );
-}
-
-function parseHighlightLine(
-  line: string,
-  comingSoonHighlights?: string[],
-): { text: string; comingSoon: boolean } {
-  const text = line.replace(COMING_SOON_SUFFIX, "").trim();
-  return {
-    text,
-    comingSoon: isComingSoonHighlight(line, comingSoonHighlights),
-  };
-}
 
 function ComingSoonTag({ compact = false }: { compact?: boolean }) {
   return (
@@ -72,41 +40,6 @@ function UpcomingSectionLabel() {
       Upcoming
     </span>
   );
-}
-
-function buildDisplayRows(plans: PlanRecord[]) {
-  return plans.map((p) => {
-    const isEnterprise = p.planId === "enterprise";
-    const isFree = p.planId === "free";
-    const priceLabel = isEnterprise
-      ? "Custom"
-      : isFree
-        ? "0"
-        : String(p.pricing.monthly);
-    const creditsMonthly = p.creditsIncluded.monthly;
-    const periodLabel = isEnterprise || isFree ? "" : "month";
-    const rawHighlights = p.highlights?.length
-      ? p.highlights
-      : getPlanMarketingHighlights(p);
-    const highlights = rawHighlights.filter(
-      (line) => !/^\d[\d,]*\s*credits?\b/i.test(line.trim()),
-    );
-    const comingSoonHighlights = Array.isArray(p.metadata?.comingSoonHighlights)
-      ? p.metadata.comingSoonHighlights
-      : [...COMING_SOON_PLAN_FEATURES];
-    return {
-      id: p.planId,
-      plan: p,
-      popular: p.isPopular,
-      priceLabel,
-      creditsMonthly,
-      isEnterprise,
-      isFree,
-      periodLabel,
-      highlights,
-      comingSoonHighlights,
-    };
-  });
 }
 
 function PlanCreditsBadge({
@@ -184,102 +117,16 @@ export function PricingPlansBlock({
   renewalMode = false,
   showAutoRenewNote = false,
 }: PricingPlansBlockProps) {
-  const router = useRouter();
-  const { user, isLoaded } = useUser();
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const [contactSalesOpen, setContactSalesOpen] = useState(false);
-  const [plans, setPlans] = useState<PlanRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoadError(null);
-        setLoading(true);
-        const list = await planApi.getAllPlans();
-        if (cancelled) return;
-        const sorted = [...list].sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0),
-        );
-        setPlans(sorted);
-      } catch (e) {
-        if (!cancelled) {
-          setLoadError(
-            e instanceof Error ? e.message : "Could not load plans. Try again.",
-          );
-          setPlans([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const rows = buildDisplayRows(plans);
-
-  const handleChoosePlan = async (planId: string) => {
-    if (!isLoaded) return;
-
-    if (planId === "enterprise") {
-      setContactSalesOpen(true);
-      return;
-    }
-
-    setLoadingPlanId(planId);
-
-    try {
-      if (planId === "free") {
-        if (!user) {
-          localStorage.setItem("pendingPlan", "free");
-          router.push(`/sign-in?redirect=/onboarding`);
-          return;
-        }
-        try {
-          const profile = await userApi.getMyProfile();
-          if (!profile.onboardingCompleted) {
-            localStorage.setItem("pendingPlan", "free");
-            router.push("/onboarding");
-            return;
-          }
-          router.push("/dashboard");
-        } catch {
-          localStorage.setItem("pendingPlan", "free");
-          router.push("/onboarding");
-        }
-        return;
-      }
-
-      if (!user) {
-        localStorage.setItem("pendingPlan", planId);
-        router.push(`/sign-in?redirect=/onboarding`);
-        return;
-      }
-
-      try {
-        const profile = await userApi.getMyProfile();
-
-        if (!profile.onboardingCompleted) {
-          localStorage.setItem("pendingPlan", planId);
-          router.push("/onboarding");
-          return;
-        }
-
-        router.push(`/checkout?plan=${planId}&cycle=monthly`);
-      } catch {
-        localStorage.setItem("pendingPlan", planId);
-        router.push("/onboarding");
-      }
-    } catch (error) {
-      console.error("Error in handleChoosePlan:", error);
-    } finally {
-      setLoadingPlanId(null);
-    }
-  };
+  const {
+    rows,
+    loading,
+    loadError,
+    loadingPlanId,
+    isLoaded,
+    contactSalesOpen,
+    setContactSalesOpen,
+    handleChoosePlan,
+  } = usePricingPlans();
 
   return (
     <>
