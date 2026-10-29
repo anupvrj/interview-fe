@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { resolveHackathonLandingCta } from "../hackathonLandingCta";
 import type { HackathonPublic } from "../api";
 
+const beforeLaunchRsvpClose = new Date("2026-10-31T18:59:00+05:30").getTime();
+const afterLaunchRsvpClose = new Date("2026-10-31T19:01:00+05:30").getTime();
+
 const basePub = {
   phase: "upcoming",
   isFull: false,
@@ -46,18 +49,33 @@ describe("resolveHackathonLandingCta", () => {
     expect(cta.disabled).toBe(true);
   });
 
-  it("shows Register for Event when registration is off or the hackathon ended", () => {
+  it("shows Register for Event when registration is off or the hackathon ended (before launch)", () => {
     const open = { ...basePub, slug: "hiring-games-hackathon-2026" } as HackathonPublic;
     expect(resolveHackathonLandingCta(open, true, false).labelKey).toBe("register");
 
     const closed = { ...open, registrationOpen: false } as HackathonPublic;
-    expect(resolveHackathonLandingCta(closed, true, false).labelKey).toBe("registerForEvent");
-    expect(resolveHackathonLandingCta(closed, false, false).labelKey).toBe("registerForEvent");
-    expect(resolveHackathonLandingCta(closed, true, true).labelKey).toBe("goToChallenges");
+    expect(resolveHackathonLandingCta(closed, true, false, false, beforeLaunchRsvpClose).labelKey).toBe(
+      "registerForEvent",
+    );
+    expect(resolveHackathonLandingCta(closed, false, false, false, beforeLaunchRsvpClose).labelKey).toBe(
+      "registerForEvent",
+    );
+    expect(resolveHackathonLandingCta(closed, true, true, false, beforeLaunchRsvpClose).labelKey).toBe("goToChallenges");
 
     const ended = { ...open, phase: "ended" as const } as HackathonPublic;
-    expect(resolveHackathonLandingCta(ended, true, false).labelKey).toBe("registerForEvent");
-    expect(resolveHackathonLandingCta(ended, true, true).labelKey).toBe("seeResults");
+    expect(resolveHackathonLandingCta(ended, true, false, false, beforeLaunchRsvpClose).labelKey).toBe(
+      "registerForEvent",
+    );
+    expect(resolveHackathonLandingCta(ended, true, true, false, beforeLaunchRsvpClose).labelKey).toBe("registerForEvent");
+  });
+
+  it("disables Register for Event after launch start; registered users see results", () => {
+    const ended = { ...basePub, phase: "ended" as const, slug: "hiring-games-hackathon-2026" } as HackathonPublic;
+    expect(resolveHackathonLandingCta(ended, true, false, false, afterLaunchRsvpClose)).toMatchObject({
+      labelKey: "registerForEvent",
+      disabled: true,
+    });
+    expect(resolveHackathonLandingCta(ended, true, true, false, afterLaunchRsvpClose).labelKey).toBe("seeResults");
   });
 
   it("defaults to register while public data is loading", () => {

@@ -3,7 +3,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
 import { AppSelect } from "@/components/ui/app-select";
-import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";
 import { LaunchEventWelcomePromo } from "@/components/hackathon-2026/LaunchEventWelcomePromo";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { LAUNCH_EVENT_FORM, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
@@ -157,6 +158,7 @@ export function HackathonLaunchEventForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [successReveal, setSuccessReveal] = useState(false);
+  const [alreadyHackathonParticipantOpen, setAlreadyHackathonParticipantOpen] = useState(false);
 
   useEffect(() => {
     if (step !== "success") {
@@ -224,7 +226,12 @@ export function HackathonLaunchEventForm({
       trackLaunchRegistrationSuccessOnce({ source: embeddedInPage ? "page" : "modal", profession: form.profession });
       setStep("success");
     } catch (e) {
-      setError(toHackathonError(e, "Could not register. Please try again.").message);
+      const apiErr = toHackathonError(e, "Could not register. Please try again.");
+      if (apiErr.code === "ALREADY_HACKATHON_PARTICIPANT") {
+        setAlreadyHackathonParticipantOpen(true);
+        return;
+      }
+      setError(apiErr.message);
     } finally {
       setBusy(false);
     }
@@ -518,10 +525,56 @@ export function HackathonLaunchEventForm({
 
   const stepChrome = dialogSemantics || showStepChrome;
 
+  const dismissAlreadyParticipant = () => {
+    setAlreadyHackathonParticipantOpen(false);
+    onClose?.();
+  };
+
+  /** Same shell as HackathonLaunchEventModal; stacks above it when nested (dialogSemantics). */
+  const alreadyParticipantDialog = (
+    <Dialog
+      open={alreadyHackathonParticipantOpen}
+      onOpenChange={(open) => {
+        if (!open) dismissAlreadyParticipant();
+      }}
+    >
+      <DialogContent
+        overlayClassName={cn(
+          "hk-hackathon-dialog-overlay bg-[#020810]/80 backdrop-blur-sm",
+          dialogSemantics ? "z-[110]" : "z-[100]",
+        )}
+        className={cn(
+          hackathonReelFontVars,
+          "hk-root hk-modal hk-hackathon-dialog fixed left-1/2 top-1/2 max-h-[90svh] w-[calc(100%-1.5rem)] max-w-[26rem] sm:max-w-[31rem] md:max-w-[34rem] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden p-0 text-[#dbe9f8] shadow-none [&>button]:hidden",
+          dialogSemantics ? "z-[111]" : "z-[101]",
+        )}
+      >
+        <div className="relative z-[3] flex flex-col items-center px-5 pb-8 pt-7 text-center sm:px-7 md:px-8">
+          <div
+            className="grid size-16 shrink-0 place-items-center rounded-full bg-[#0d2550] text-[#6fc0ff] shadow-[0_0_32px_rgba(58,166,255,0.25)] ring-4 ring-[#3aa6ff]/15"
+            aria-hidden
+          >
+            <Check className="size-8" strokeWidth={2.5} />
+          </div>
+          <DialogTitle className="mt-5 max-w-md text-xl font-bold text-white md:text-[1.35rem]" style={display}>
+            {c.alreadyHackathonParticipantTitle}
+          </DialogTitle>
+          <DialogDescription className="mt-2 max-w-md text-[15px] leading-relaxed text-[#cfdbe8] md:text-base">
+            {c.alreadyHackathonParticipantBody}
+          </DialogDescription>
+          <button type="button" onClick={dismissAlreadyParticipant} className={cn(PRIMARY_BTN, "mt-6 w-full max-w-md")} style={mono}>
+            {c.alreadyHackathonParticipantOk}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (!stepChrome) {
     return (
       <div id={id} className={className}>
         {body}
+        {alreadyParticipantDialog}
       </div>
     );
   }
@@ -577,6 +630,7 @@ export function HackathonLaunchEventForm({
           </button>
         ) : null}
       </div>
+      {alreadyParticipantDialog}
     </div>
   );
 }
