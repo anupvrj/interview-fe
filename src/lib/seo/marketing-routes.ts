@@ -79,10 +79,10 @@ export const SUPPORT_MARKETING_ROUTES: MarketingRoute[] = [
     sitemap: { changeFrequency: "weekly", priority: 0.8 },
   },
   {
-    path: "/event-registration",
-    name: "InterviewTrix Live Event Registration",
+    path: "/product-launch",
+    name: "InterviewTrix Product Launch",
     description:
-      "Register for the free 31 Oct online launch — winners, product updates, and expert career advice in the AI hiring era.",
+      "Free live product launch — learn from industry leaders. 31 Oct, 7 PM IST. Winners, updates, and expert career advice. Register free.",
     sitemap: { changeFrequency: "weekly", priority: 0.75 },
   },
   {

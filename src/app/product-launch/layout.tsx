@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { hackathonHand } from "@/lib/fonts/hackathon-hand";
 import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hackathon-reel";
 import { EVENT_REGISTRATION_PATH } from "@/features/hackathon/config";
-import { HACKATHON_LAUNCH, LAUNCH_EVENT_FORM } from "@/lib/hackathon-2026-content";
+import { LAUNCH_EVENT_META } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 import { StuckLoadingWatchdog } from "@/components/StuckLoadingWatchdog";
 
@@ -14,24 +14,22 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-const title = `${LAUNCH_EVENT_FORM.title} · InterviewTrix Live Event`;
-const description = `${LAUNCH_EVENT_FORM.teaserBody} ${HACKATHON_LAUNCH.dateLabel}, ${HACKATHON_LAUNCH.timeLabel}. Free registration.`;
-
 export const metadata: Metadata = {
-  title,
-  description,
+  title: LAUNCH_EVENT_META.title,
+  description: LAUNCH_EVENT_META.description,
+  // og:image / twitter:image from ./opengraph-image.tsx (1200×630 PNG).
   openGraph: {
-    title,
-    description,
+    title: LAUNCH_EVENT_META.title,
+    description: LAUNCH_EVENT_META.description,
     type: "website",
     url: pageUrl,
     siteName: "InterviewTrix",
     locale: "en_IN",
   },
   twitter: {
-    card: "summary",
-    title,
-    description,
+    card: "summary_large_image",
+    title: LAUNCH_EVENT_META.title,
+    description: LAUNCH_EVENT_META.description,
   },
   alternates: {
     canonical: pageUrl,
@@ -42,7 +40,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function EventRegistrationLayout({ children }: { children: React.ReactNode }) {
+export default function ProductLaunchLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={`${hackathonHand.variable} ${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`}

@@ -31,6 +31,13 @@ export const HACKATHON_LAUNCH = {
 /** @deprecated Use HACKATHON_LAUNCH. Kept so older imports still point at the launch. */
 export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 
+/** Link previews + document metadata for /product-launch. */
+export const LAUNCH_EVENT_META = {
+  title: "InterviewTrix Product Launch · Learn from Industry Leaders",
+  description: `Free live online session — ${HACKATHON_LAUNCH.dateLabel}, ${HACKATHON_LAUNCH.timeLabel}. Winners, product updates, and career advice from ex-MNC leaders. Register free.`,
+  ogAlt: "InterviewTrix Product Launch — Learn from Industry Leaders · 31 Oct, 7 PM IST",
+} as const;
+
 /** 31 Oct live launch RSVP modal (Learn from Industry Leaders). */
 export const LAUNCH_EVENT_FORM = {
   title: "Learn from Industry Leaders",

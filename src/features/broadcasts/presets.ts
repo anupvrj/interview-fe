@@ -13,7 +13,7 @@ export const AUDIENCE_OPTIONS: { value: BroadcastAudience; label: string; hint: 
   {
     value: "launch_event_registered",
     label: "Registered for the 31 Oct live event",
-    hint: "Launch event RSVPs from /event-registration (email list).",
+    hint: "Launch event RSVPs from /product-launch (email list).",
   },
   { value: "all_except_submitted", label: "All users except those who submitted", hint: "Everyone who can still take part." },
   { value: "all_users", label: "All users", hint: "Every account with an email address." },
