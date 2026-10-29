@@ -11,6 +11,7 @@ import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phone-country-codes";
 import { emailValidationMessage, normalizeEmailForStorage } from "@/lib/email-validation";
 import { formatPhoneForStorage, isValidPhoneForStorage } from "@/lib/phone-utils";
 import { cn } from "@/lib/utils";
+import { trackLaunchRegistrationSuccessOnce } from "@/features/hackathon/analytics";
 import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { useHackathonSlug } from "@/features/hackathon/hooks";
 import { HACKATHON_WHATSAPP_COMMUNITY_URL } from "@/features/hackathon/whatsapp-links";
@@ -140,7 +141,7 @@ export function HackathonLaunchEventForm({
   dialogSemantics?: boolean;
   /** Progress bar + back nav on a standalone page (same UX as the modal). */
   showStepChrome?: boolean;
-  /** Standalone /event-registration — avoid clipping native selects and dropdowns. */
+  /** Standalone /product-launch — avoid clipping native selects and dropdowns. */
   embeddedInPage?: boolean;
   onClose?: () => void;
   className?: string;
@@ -220,6 +221,7 @@ export function HackathonLaunchEventForm({
         attended: form.attended,
         ready: form.ready,
       });
+      trackLaunchRegistrationSuccessOnce({ source: embeddedInPage ? "page" : "modal", profession: form.profession });
       setStep("success");
     } catch (e) {
       setError(toHackathonError(e, "Could not register. Please try again.").message);
