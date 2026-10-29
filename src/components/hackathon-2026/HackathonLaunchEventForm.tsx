@@ -119,12 +119,15 @@ function RadioCard({
 export function HackathonLaunchEventForm({
   id,
   dialogSemantics = false,
+  showStepChrome = false,
   onClose,
   className,
 }: Readonly<{
   id?: string;
   /** Multi-step launch modal (progress, dialog a11y). */
   dialogSemantics?: boolean;
+  /** Progress bar + back nav on a standalone page (same UX as the modal). */
+  showStepChrome?: boolean;
   onClose?: () => void;
   className?: string;
 }>) {
@@ -495,7 +498,9 @@ export function HackathonLaunchEventForm({
     );
   })();
 
-  if (!dialogSemantics) {
+  const stepChrome = dialogSemantics || showStepChrome;
+
+  if (!stepChrome) {
     return (
       <div id={id} className={className}>
         {body}
