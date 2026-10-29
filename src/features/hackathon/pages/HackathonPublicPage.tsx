@@ -110,15 +110,23 @@ function PublicContent() {
   };
 
   const onCta = () => {
+    if (cta.disabled) return;
     if (ctaResolved.labelKey === "registerForEvent") {
       openLaunchRegistration();
+      return;
+    }
+    if (ctaResolved.labelKey === "seeResults") {
+      if (isSignedIn) {
+        router.push(dashboard);
+      } else {
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(dashboard)}`);
+      }
       return;
     }
     if (ctaResolved.labelKey === "registrationClosed") {
       setClosedOpen(true);
       return;
     }
-    if (cta.disabled) return;
     if (!isSignedIn) {
       // Quick questions, then one-tap Google; a returning browser goes straight to sign-in.
       setQuizOpen(true);

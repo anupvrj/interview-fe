@@ -1,6 +1,7 @@
 import type { HackathonPublic } from "./api";
 import { CTA_LABELS } from "./copy";
 import { isHackathonSignupClosedForNewParticipants } from "./hackathonRegistration";
+import { isLaunchEventRegistrationOpen } from "./launchEventRegistration";
 
 export type HackathonLandingCtaKey = keyof typeof CTA_LABELS;
 
@@ -15,6 +16,21 @@ function spotsHint(pub: HackathonPublic | undefined): string | null {
   return `Only ${pub.spotsLeft} spot${pub.spotsLeft === 1 ? "" : "s"} left`;
 }
 
+/** After the hackathon ends (or signup closes), hero CTA is launch RSVP until 7 PM IST on launch day. */
+function postHackathonLaunchCta(
+  registered: boolean,
+  hint: string | null,
+  nowMs: number,
+): HackathonLandingCta {
+  if (isLaunchEventRegistrationOpen(nowMs)) {
+    return { labelKey: "registerForEvent", disabled: false, hint };
+  }
+  if (registered) {
+    return { labelKey: "seeResults", disabled: false, hint: null };
+  }
+  return { labelKey: "registerForEvent", disabled: true, hint: null };
+}
+
 /**
  * Landing / hero CTA from event phase, capacity, and the user's registration.
  * `returning`: signed out, but this browser has joined before (see returningMember) — they get
@@ -25,6 +41,7 @@ export function resolveHackathonLandingCta(
   isSignedIn: boolean,
   registered: boolean,
   returning = false,
+  nowMs = Date.now(),
 ): HackathonLandingCta {
   const hint = spotsHint(pub);
   /** Signed-out returning browsers only — not the same as an active participant. */
@@ -39,10 +56,7 @@ export function resolveHackathonLandingCta(
   }
 
   if (pub.phase === "ended") {
-    if (registered) {
-      return { labelKey: "seeResults", disabled: false, hint: null };
-    }
-    return { labelKey: "registerForEvent", disabled: false, hint: null };
+    return postHackathonLaunchCta(registered, hint, nowMs);
   }
 
   if (pub.isFull) {
@@ -54,11 +68,7 @@ export function resolveHackathonLandingCta(
   }
 
   if (isHackathonSignupClosedForNewParticipants(pub, registered)) {
-    return {
-      labelKey: "registerForEvent",
-      disabled: false,
-      hint,
-    };
+    return postHackathonLaunchCta(registered, hint, nowMs);
   }
 
   if (registered || browseAsReturning) {

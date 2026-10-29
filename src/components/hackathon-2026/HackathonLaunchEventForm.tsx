@@ -2,17 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { AppSelect } from "@/components/ui/app-select";
-import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";
 import { LaunchEventWelcomePromo } from "@/components/hackathon-2026/LaunchEventWelcomePromo";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { LAUNCH_EVENT_FORM, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
@@ -533,39 +525,49 @@ export function HackathonLaunchEventForm({
 
   const stepChrome = dialogSemantics || showStepChrome;
 
+  const dismissAlreadyParticipant = () => {
+    setAlreadyHackathonParticipantOpen(false);
+    onClose?.();
+  };
+
+  /** Same shell as HackathonLaunchEventModal; stacks above it when nested (dialogSemantics). */
   const alreadyParticipantDialog = (
-    <AlertDialog
+    <Dialog
       open={alreadyHackathonParticipantOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          setAlreadyHackathonParticipantOpen(false);
-          onClose?.();
-        }
+        if (!open) dismissAlreadyParticipant();
       }}
     >
-      <AlertDialogContent className="hk-theme border-[#27547d]/90 bg-[#071426] text-white shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-lg font-bold text-white" style={display}>
-            {c.alreadyHackathonParticipantTitle}
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-[15px] leading-relaxed text-[#b4c6db]">
-            {c.alreadyHackathonParticipantBody}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction
-            className={cn(PRIMARY_BTN, "mt-0 h-11 w-full sm:w-auto")}
-            style={mono}
-            onClick={() => {
-              setAlreadyHackathonParticipantOpen(false);
-              onClose?.();
-            }}
+      <DialogContent
+        overlayClassName={cn(
+          "hk-hackathon-dialog-overlay bg-[#020810]/80 backdrop-blur-sm",
+          dialogSemantics ? "z-[110]" : "z-[100]",
+        )}
+        className={cn(
+          hackathonReelFontVars,
+          "hk-root hk-modal hk-hackathon-dialog fixed left-1/2 top-1/2 max-h-[90svh] w-[calc(100%-1.5rem)] max-w-[26rem] sm:max-w-[31rem] md:max-w-[34rem] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden p-0 text-[#dbe9f8] shadow-none [&>button]:hidden",
+          dialogSemantics ? "z-[111]" : "z-[101]",
+        )}
+      >
+        <div className="relative z-[3] flex flex-col items-center px-5 pb-8 pt-7 text-center sm:px-7 md:px-8">
+          <div
+            className="grid size-16 shrink-0 place-items-center rounded-full bg-[#0d2550] text-[#6fc0ff] shadow-[0_0_32px_rgba(58,166,255,0.25)] ring-4 ring-[#3aa6ff]/15"
+            aria-hidden
           >
+            <Check className="size-8" strokeWidth={2.5} />
+          </div>
+          <DialogTitle className="mt-5 max-w-md text-xl font-bold text-white md:text-[1.35rem]" style={display}>
+            {c.alreadyHackathonParticipantTitle}
+          </DialogTitle>
+          <DialogDescription className="mt-2 max-w-md text-[15px] leading-relaxed text-[#cfdbe8] md:text-base">
+            {c.alreadyHackathonParticipantBody}
+          </DialogDescription>
+          <button type="button" onClick={dismissAlreadyParticipant} className={cn(PRIMARY_BTN, "mt-6 w-full max-w-md")} style={mono}>
             {c.alreadyHackathonParticipantOk}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 
   if (!stepChrome) {
