@@ -10,6 +10,11 @@ export const AUDIENCE_OPTIONS: { value: BroadcastAudience; label: string; hint: 
   { value: "hackathon_not_submitted", label: "Registered, not submitted", hint: "Registered and haven't submitted the hackathon." },
   { value: "hackathon_submitted", label: "Submitted the hackathon", hint: "Finished and submitted." },
   { value: "hackathon_not_registered", label: "Users not registered for the hackathon", hint: "Have an InterviewTrix account, not in the hackathon." },
+  {
+    value: "launch_event_registered",
+    label: "Registered for the 31 Oct live event",
+    hint: "Launch event RSVPs from /event-registration (email list).",
+  },
   { value: "all_except_submitted", label: "All users except those who submitted", hint: "Everyone who can still take part." },
   { value: "all_users", label: "All users", hint: "Every account with an email address." },
 ];
@@ -33,9 +38,20 @@ export const VARIABLES: { key: string; label: string }[] = [
   { key: "hackathon_url", label: "Hackathon page link" },
   { key: "register_url", label: "Join link (landing page)" },
   { key: "whatsapp_url", label: "WhatsApp link" },
+  { key: "add_to_calendar_url", label: "Add to Google Calendar link" },
+  { key: "launch_join_url", label: "Google Meet / join link" },
+  { key: "event_registration_url", label: "Event registration page" },
 ];
 
-export const LINK_VARIABLES = ["{{dashboard_url}}", "{{hackathon_url}}", "{{register_url}}", "{{whatsapp_url}}"];
+export const LINK_VARIABLES = [
+  "{{dashboard_url}}",
+  "{{hackathon_url}}",
+  "{{register_url}}",
+  "{{whatsapp_url}}",
+  "{{add_to_calendar_url}}",
+  "{{launch_join_url}}",
+  "{{event_registration_url}}",
+];
 
 export const STATUS_LABEL: Record<BroadcastStatus, string> = {
   draft: "Draft",
@@ -69,6 +85,8 @@ const emptyContent: BroadcastContent = {
   highlight: "",
   ctaLabel: "",
   ctaUrl: "",
+  secondaryCtaLabel: "",
+  secondaryCtaUrl: "",
   showWhatsapp: false,
   footnote: "",
 };
@@ -192,6 +210,43 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
         "Hi {{first_name}},\n\n{{hackathon_title}} has closed. Thank you to everyone who took part.\n\nWinners are announced at the live launch on **{{launch_date}}, {{launch_time}}**. We'll send the joining link closer to the date.",
       highlight: "Save the date: **{{launch_date}}, {{launch_time}}**.",
       showWhatsapp: true,
+    },
+  }),
+  preset("launch-going-live-soon", "Launch · Going live in a few hours", "To live event RSVPs", {
+    name: "Launch — going live soon",
+    subject: "We're going live soon — {{launch_date}}, {{launch_time}}",
+    preheader: "Add the session to your calendar and keep the join link handy.",
+    audience: "launch_event_registered",
+    content: {
+      eyebrow: "Live event",
+      badgeLabel: "Starting soon",
+      badgeTone: "amber",
+      title: "We're going live",
+      titleAccent: "in a few hours",
+      body:
+        "Hi {{first_name}},\n\nOur **live event and product launch** for {{hackathon_title}} starts at **{{launch_time}}** on **{{launch_date}}**.\n\nWinners, product updates, and expert career advice — all online.",
+      highlight: "Add the session to your calendar, then join from the link below when we go live.",
+      ctaLabel: "Add to calendar",
+      ctaUrl: "{{add_to_calendar_url}}",
+      footnote: "Join here when we're live: [Join the session]({{launch_join_url}})",
+    },
+  }),
+  preset("launch-we-are-live", "Launch · We are live now", "To live event RSVPs — send when the Meet is open", {
+    name: "Launch — we are live",
+    subject: "We're live — join the InterviewTrix launch now",
+    preheader: "The live event and product launch is happening now.",
+    audience: "launch_event_registered",
+    content: {
+      eyebrow: "Live now",
+      badgeLabel: "Join us",
+      badgeTone: "teal",
+      title: "We're",
+      titleAccent: "live",
+      body:
+        "Hi {{first_name}},\n\nWe're on air for the **InterviewTrix live launch** — hackathon winners, product updates, and expert session on hiring in the AI era.",
+      highlight: "Tap below to join on Google Meet.",
+      ctaLabel: "Join here",
+      ctaUrl: "{{launch_join_url}}",
     },
   }),
   preset("whatsapp", "Join our WhatsApp community", "To registered participants", {

@@ -5,7 +5,8 @@ export type BroadcastAudience =
   | "hackathon_registered"
   | "hackathon_not_started"
   | "hackathon_not_submitted"
-  | "hackathon_submitted";
+  | "hackathon_submitted"
+  | "launch_event_registered";
 
 export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "cancelled" | "failed";
 export type RecipientStatus = "queued" | "sending" | "sent" | "skipped" | "failed";
@@ -21,6 +22,8 @@ export interface BroadcastContent {
   highlight: string;
   ctaLabel: string;
   ctaUrl: string;
+  secondaryCtaLabel: string;
+  secondaryCtaUrl: string;
   showWhatsapp: boolean;
   footnote: string;
 }

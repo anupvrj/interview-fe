@@ -581,6 +581,26 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
                   <Input id="bc-cta-url" value={c.ctaUrl} maxLength={500} onChange={(e) => patchContent({ ctaUrl: e.target.value })} placeholder="{{dashboard_url}}" />
                 </FormField>
               </div>
+              <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+                <FormField label="Second button text" htmlFor="bc-cta2-label" hint="Optional (e.g. Add to calendar).">
+                  <Input
+                    id="bc-cta2-label"
+                    value={c.secondaryCtaLabel ?? ""}
+                    maxLength={40}
+                    onChange={(e) => patchContent({ secondaryCtaLabel: e.target.value })}
+                    placeholder="Add to calendar"
+                  />
+                </FormField>
+                <FormField label="Second button link" htmlFor="bc-cta2-url" hint="Optional second CTA URL.">
+                  <Input
+                    id="bc-cta2-url"
+                    value={c.secondaryCtaUrl ?? ""}
+                    maxLength={500}
+                    onChange={(e) => patchContent({ secondaryCtaUrl: e.target.value })}
+                    placeholder="{{add_to_calendar_url}}"
+                  />
+                </FormField>
+              </div>
               <ToggleRow
                 label="Show the WhatsApp community box"
                 hint="QR code + Join button. Set the link and QR on the Email Broadcasts page."
