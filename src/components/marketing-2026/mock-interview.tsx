@@ -371,7 +371,7 @@ export function MiCatches() {
           <div className="relative rounded-[28px] border border-white/10 bg-white/[.04] p-7 text-[#EAF2FF] shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur md:p-9">
             <div className="flex items-center justify-between">
               <Mono className="text-[11px] text-sky-300">Q3 · “WALK ME THROUGH A PROJECT YOU LED”</Mono>
-              <button onClick={() => setRun((r) => r + 1)} className="font-[family-name:var(--font-geist-mono)] text-[11px] text-white/50 hover:text-white">↻ REPLAY</button>
+              <button onClick={() => setRun((r) => r + 1)} className="-my-2 inline-flex min-h-8 items-center px-2 font-[family-name:var(--font-geist-mono)] text-[11px] text-white/50 hover:text-white">↻ REPLAY</button>
             </div>
             <p className="mt-6 min-h-[168px] text-[20px] leading-[1.7] md:text-[23px]">
               {parts}

@@ -131,7 +131,7 @@ export function Nav() {
         </ul>
         <div className="ml-auto flex items-center gap-3">
           <SignedOut>
-            <Link className="hidden whitespace-nowrap text-[14.5px] font-semibold text-foreground/80 hover:text-foreground sm:block" href={MK26_ROUTES.signIn}>Sign in</Link>
+            <Link className="hidden whitespace-nowrap py-2.5 text-[14.5px] font-semibold text-foreground/80 hover:text-foreground sm:block" href={MK26_ROUTES.signIn}>Sign in</Link>
             <Button asChild className="h-10 rounded-xl px-4 hover:bg-primary/90">
               <StartLink href={MK26_ROUTES.startInterview}>Start free</StartLink>
             </Button>

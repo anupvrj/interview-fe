@@ -61,7 +61,7 @@ export function SkillsSection({ n, hubs, initial, live, label = "Skills Graph", 
             </div>
             <div className="relative flex items-center justify-between px-2 pb-1">
               <Mono className="text-[10.5px] text-muted-foreground">CLICK “YOU” TO GATHER IT ALL · CLICK AN AREA TO FOLD IT</Mono>
-              <button onClick={() => { setFolded([]); setHeld(false); setReplay((r) => r + 1); }} className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-primary hover:underline">↻ REPLAY</button>
+              <button onClick={() => { setFolded([]); setHeld(false); setReplay((r) => r + 1); }} className="-my-2 inline-flex min-h-8 items-center px-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-primary hover:underline">↻ REPLAY</button>
             </div>
           </div>
 

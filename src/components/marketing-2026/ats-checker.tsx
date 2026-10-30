@@ -124,9 +124,10 @@ function AtsFlowPlayer() {
       </BrowserFrame>
 
       {/* chapter rail: one segment per step, the current one filling */}
-      <div className="mt-4 grid grid-cols-6 gap-1.5">
+      {/* each segment's button is padded to a 32px-tall tap area; the bar itself stays thin */}
+      <div className="mt-2 grid grid-cols-6 gap-1.5">
         {FLOW.map((x, i) => (
-          <button key={x.k} type="button" onClick={() => { setC(i); setRestart((r) => r + 1); }} className="group text-left" aria-label={`Show step ${i + 1}: ${x.k}`}>
+          <button key={x.k} type="button" onClick={() => { setC(i); setRestart((r) => r + 1); }} className="group min-h-8 py-2 text-left" aria-label={`Show step ${i + 1}: ${x.k}`}>
             <span className="block h-1 overflow-hidden rounded-full bg-[#2E3656]/12">
               {i < c && <span className="block h-full w-full rounded-full bg-primary/45" />}
               {i === c && <motion.span key={`${c}-${on}-${restart}`} className="block h-full rounded-full bg-gradient-to-r from-[#7367F0] to-[#1F8FFF]"
