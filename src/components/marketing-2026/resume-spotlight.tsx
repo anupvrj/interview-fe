@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrowserFrame, Index, LoopVideo, Mono } from "./primitives";
@@ -30,7 +31,7 @@ export function ResumeSpotlight() {
               <StartLink href={MK26_ROUTES.startResume}>Build my resume, free</StartLink>
             </Button>
             <Button asChild variant="outline" className="h-12 rounded-xl px-6">
-              <StartLink href={MK26_ROUTES.ats}>Check my ATS score</StartLink>
+              <Link href={MK26_ROUTES.ats}>Check my ATS score</Link>
             </Button>
           </div>
         </div>

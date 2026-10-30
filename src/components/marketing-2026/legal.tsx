@@ -14,7 +14,7 @@ export type LegalSection = { id: string; title: string; body: React.ReactNode };
 
 /** Prose inside a section: the legacy markup (p, ul, links, the email box) restyled to the 2026 type. */
 const PROSE =
-  "space-y-4 text-[15.5px] leading-[1.75] text-[#4B5275] [&_a]:font-medium [&_a]:text-primary [&_a:hover]:underline [&_li]:pl-1 [&_li::marker]:text-primary/60 [&_p.font-semibold]:mt-6 [&_p.font-semibold]:text-[13px] [&_p.font-semibold]:uppercase [&_p.font-semibold]:tracking-wider [&_p.font-semibold]:text-[#2E3656] [&_p.font-semibold:first-child]:mt-0 [&_strong]:text-[#2E3656] [&_ul]:list-outside [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:ml-0";
+  "space-y-4 text-[15.5px] leading-[1.75] text-[#4B5275] [&_a]:font-medium [&_a]:text-primary [&_a:hover]:underline [&_li]:pl-1 [&_li::marker]:text-primary/60 [&_p.font-semibold]:mt-6 [&_p.font-semibold]:text-[13px] [&_p.font-semibold]:uppercase [&_p.font-semibold]:tracking-wider [&_p.font-semibold]:text-[#2E3656] [&_p.font-semibold:first-child]:mt-0 [&_strong]:text-[#2E3656] [&_ul]:list-outside [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:ml-0 [&_ol]:list-outside [&_ol]:space-y-2 [&_ol]:pl-5 [&_ol]:ml-0 [&_li::marker]:font-semibold [&_h4]:mt-2 [&_h4]:text-[13px] [&_h4]:font-semibold [&_h4]:uppercase [&_h4]:tracking-wider [&_h4]:text-[#2E3656]";
 
 function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { motion, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { ArrowRight, Chrome, Code2, MessageSquare, Sparkle } from "lucide-react";
@@ -84,7 +85,7 @@ export function Hero() {
             <StartLink href={MK26_ROUTES.startInterview}>Start my free mock interview <ArrowRight /></StartLink>
           </Button>
           <Button asChild variant="outline" className="h-12 rounded-xl px-6 text-[15.5px]">
-            <StartLink href={MK26_ROUTES.ats}>Check my resume score</StartLink>
+            <Link href={MK26_ROUTES.ats}>Check my resume score</Link>
           </Button>
         </motion.div>
         <motion.div {...rise(1.02)} className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[13px] text-muted-foreground">

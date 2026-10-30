@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { ConciergeNotice } from "@/components/dashboard-2026/ConciergeNotice";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -502,6 +503,8 @@ export default function PeerInterviewsDirectoryPage() {
           </div>
         </div>
       </section>
+
+      <ConciergeNotice kind="peer" />
 
       <div className="min-w-0 overflow-hidden rounded-[18px] border border-border bg-card p-4 sm:p-5">
         <div className="hidden min-w-0 lg:block">

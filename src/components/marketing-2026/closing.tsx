@@ -129,20 +129,23 @@ export function Footer() {
     ["Get seen", [
       { label: "Resume builder", href: MK26_ROUTES.resume },
       { label: "ATS checker", href: MK26_ROUTES.ats },
-      { label: "Skills Graph", href: MK26_ROUTES.home },
-      { label: "Portfolio", href: MK26_ROUTES.home },
+      { label: "Blog", href: MK26_ROUTES.blogs },
     ]],
     ["Integrations", [
-      { label: "ChatGPT app", href: MK26_ROUTES.chrome },
       { label: "Chrome extension", href: MK26_ROUTES.chrome },
-      { label: "Claude", href: MK26_ROUTES.chrome },
-      { label: "MCP server", href: MK26_ROUTES.chrome },
+      // setup guides on the blog for now; any other MCP client connects from the connectors page
+      { label: "ChatGPT app", href: `${MK26_ROUTES.blogs}/integrate-interviewtrix-chatgpt` },
+      { label: "Claude", href: `${MK26_ROUTES.blogs}/integrate-interviewtrix-claude` },
+      { label: "Gemini", href: `${MK26_ROUTES.blogs}/integrate-interviewtrix-gemini` },
+      { label: "MCP server", href: MK26_ROUTES.connectors },
     ]],
     ["Company", [
       { label: "About", href: MK26_ROUTES.about },
       { label: "Pricing", href: MK26_ROUTES.pricing },
       { label: "Contact", href: MK26_ROUTES.contact },
+      { label: "Terms of service", href: MK26_ROUTES.terms },
       { label: "Privacy", href: MK26_ROUTES.privacy },
+      { label: "Refund policy", href: MK26_ROUTES.refund },
     ]],
   ];
   return (

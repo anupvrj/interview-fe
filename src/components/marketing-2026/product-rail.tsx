@@ -12,8 +12,8 @@ const cards = [
   { icon: ScanSearch, title: "ATS Checker", line: "34 checks. Free score, no sign-up.", media: { v: "agent" }, tint: "from-[#0e4b5a] to-[#06202a]", href: MK26_ROUTES.ats },
   { icon: Code2, title: "Coding Round", line: "Hidden tests. Then defend your logic.", media: { img: "/marketing-2026/shots/Interviewtrix-AI-Interview-History.png" }, tint: "from-[#123a2a] to-[#07160f]", href: MK26_ROUTES.coding },
   { icon: Network, title: "System Design", line: "It reads your diagram and asks what breaks.", media: { img: "/marketing-2026/shots/Interviewtrix-report.png" }, tint: "from-[#2b1b4d] to-[#100a1e]", href: MK26_ROUTES.systemDesign },
-  { icon: Share2, title: "iX Score & Skills Graph", line: "One score. Strong, slipping, hidden.", media: { img: "/marketing-2026/shots/Interview-trix-Report.png" }, tint: "from-[#1b2f5c] to-[#0a1224]", href: MK26_ROUTES.home },
-  { icon: MessageSquare, title: "InterviewTrix for ChatGPT", line: "Build and score a resume in chat.", media: { v: "templates" }, tint: "from-[#0f3d34] to-[#071b17]", href: MK26_ROUTES.chrome },
+  { icon: Share2, title: "iX Score & Skills Graph", line: "One score. Strong, slipping, hidden.", media: { img: "/marketing-2026/shots/Interview-trix-Report.png" }, tint: "from-[#1b2f5c] to-[#0a1224]", href: MK26_ROUTES.ixReport },
+  { icon: MessageSquare, title: "InterviewTrix for ChatGPT", line: "Build and score a resume in chat.", media: { v: "templates" }, tint: "from-[#0f3d34] to-[#071b17]", href: MK26_ROUTES.connectors },
   { icon: Chrome, title: "Chrome extension", line: "Match and tailor your resume to any job post.", media: { img: "/marketing-2026/shots/Interviewtrix-resume-editor.png" }, tint: "from-[#4a2a14] to-[#1d1008]", href: MK26_ROUTES.chrome },
 ];
 
