@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
+  ArrowLeft,
   ArrowUpDown,
   CalendarCheck,
   Loader2,
@@ -14,7 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/app/PageHeader";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { ConciergeNotice } from "@/components/dashboard-2026/ConciergeNotice";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +31,6 @@ import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
 import { JobRoleSelect, shouldClearRoleOnIndustryChange } from "@/components/career/JobRoleSelect";
 import { InterviewerCard } from "@/components/peer/InterviewerCard";
-import { appCard, appFilterBar } from "@/lib/app-theme";
 import { toPeerIndustryList } from "@/lib/career-catalog";
 import {
   peerApi,
@@ -114,7 +115,7 @@ const dialogShell =
 
 /** Centered modal on all breakpoints (search form). */
 const searchDialogShell =
-  "flex w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 fixed left-[50%] top-[50%] max-h-[min(85dvh,32rem)] translate-x-[-50%] translate-y-[-50%] rounded-xl border border-border bg-card shadow-header";
+  "flex w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 fixed left-[50%] top-[50%] max-h-[min(85dvh,32rem)] translate-x-[-50%] translate-y-[-50%] rounded-[22px] border border-border bg-card shadow-header";
 
 function ToolbarIconButton({
   label,
@@ -138,8 +139,8 @@ function ToolbarIconButton({
         onClick={onClick}
         aria-label={label}
         className={cn(
-          "h-10 w-10 border-border/60 bg-card",
-          active && "border-[#7367F0]/40 bg-[#7367F0]/5 text-[#7367F0]",
+          "h-11 w-11 rounded-xl border-border bg-background",
+          active && "border-primary/40 bg-primary/5 text-primary",
         )}
       >
         {children}
@@ -462,44 +463,50 @@ export default function PeerInterviewsDirectoryPage() {
   ]);
 
   return (
-    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 sm:space-y-6">
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl min-w-0 space-y-5 overflow-x-hidden lg:space-y-6")}>
       {roleCtx?.ready && roleCtx.activeRole === "interviewer" ? (
         <div className="flex h-48 items-center justify-center sm:h-64">
           <Loader2 className="h-6 w-6 animate-spin text-[#7367F0]" />
         </div>
       ) : (
         <>
-      <PageHeader
-        title="Book a peer interview"
-        badge="Find an interviewer"
-        description="Browse verified engineers, filter by round type and availability, then pick a slot."
-        className="min-w-0"
-        actions={
-          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-            {entitlements?.plan === "tech_pro" &&
-            entitlements.peerInterviewsRemaining > 0 ? (
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                {entitlements.peerInterviewsRemaining} free interview
-                {entitlements.peerInterviewsRemaining === 1 ? "" : "s"} left
-                this period
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/dashboard/peer-interviews" className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Peer interviews
+            </Link>
+            {entitlements?.plan === "tech_pro" && entitlements.peerInterviewsRemaining > 0 ? (
+              <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-emerald-700 dark:text-emerald-300">
+                {entitlements.peerInterviewsRemaining} FREE LEFT THIS PERIOD
               </span>
             ) : null}
-            <Button asChild variant="outline" className="h-9 shrink-0 px-2.5 text-xs sm:h-10 sm:px-4 sm:text-sm">
-              <Link href="/dashboard/peer-interviews">
-                Overview
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-9 shrink-0 px-2.5 text-xs sm:h-10 sm:px-4 sm:text-sm">
+          </div>
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <Eyebrow>BOOK A PEER INTERVIEW</Eyebrow>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">
+                Find the interviewer you&apos;d want across the table.
+              </h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">
+                Filter verified engineers by round, role and open slots, then pick a time. You only pay once they accept.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="h-11 shrink-0 rounded-xl px-4 text-[14px]">
               <Link href="/dashboard/peer-interviews/bookings">
-                <CalendarCheck className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                <CalendarCheck className="h-4 w-4" />
                 My bookings
               </Link>
             </Button>
           </div>
-        }
-      />
+        </div>
+      </section>
 
-      <div className={cn(appFilterBar, "min-w-0 overflow-hidden p-3 sm:p-4")}>
+      <ConciergeNotice kind="peer" />
+
+      <div className="min-w-0 overflow-hidden rounded-[18px] border border-border bg-card p-4 sm:p-5">
         <div className="hidden min-w-0 lg:block">
           <div className="flex min-w-0 items-end gap-3 overflow-x-auto pb-0.5 scroll-smooth [scrollbar-width:thin]">
             <div className="flex min-w-[12rem] flex-1 flex-col gap-1.5">
@@ -516,7 +523,7 @@ export default function PeerInterviewsDirectoryPage() {
                     if (e.key === "Enter") runSearch();
                   }}
                   placeholder="Search by name"
-                  className="h-11 w-full bg-card !pl-10 pr-4"
+                  className="h-11 w-full rounded-xl bg-background !pl-10 pr-4"
                 />
               </div>
             </div>
@@ -546,7 +553,7 @@ export default function PeerInterviewsDirectoryPage() {
                 onChange={setRole}
                 industry={industry || undefined}
                 placeholder="All roles"
-                inputClassName="h-11 bg-card"
+                inputClassName="h-11 rounded-xl bg-background"
               />
             </div>
 
@@ -589,7 +596,7 @@ export default function PeerInterviewsDirectoryPage() {
               <Button
                 type="button"
                 onClick={runSearch}
-                className="h-11 bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+                className="h-11 rounded-xl px-5 font-semibold shadow-[0_10px_24px_-12px_rgba(115,103,240,.8)] hover:bg-primary/90"
               >
                 <Search className="mr-2 h-4 w-4" />
                 Search
@@ -611,13 +618,13 @@ export default function PeerInterviewsDirectoryPage() {
           </div>
 
           {hasActiveFilters ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
               {activeChips.map((chip) => (
                 <button
                   key={chip.key}
                   type="button"
                   onClick={chip.onRemove}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#7367F0]/25 bg-[#7367F0]/8 px-2.5 py-1 text-xs font-medium text-[#7367F0] transition-colors hover:bg-[#7367F0]/15"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[12.5px] font-medium text-primary transition-colors hover:bg-primary/15"
                 >
                   <span className="max-w-[12rem] truncate">{chip.label}</span>
                   <X className="h-3 w-3 shrink-0 opacity-70" />
@@ -665,7 +672,7 @@ export default function PeerInterviewsDirectoryPage() {
                   key={chip.key}
                   type="button"
                   onClick={chip.onRemove}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#7367F0]/25 bg-[#7367F0]/8 px-2.5 py-1 text-xs font-medium text-[#7367F0] transition-colors hover:bg-[#7367F0]/15"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[12.5px] font-medium text-primary transition-colors hover:bg-primary/15"
                 >
                   <span className="max-w-[8rem] truncate sm:max-w-[10rem]">{chip.label}</span>
                   <X className="h-3 w-3 shrink-0 opacity-70" />
@@ -717,7 +724,7 @@ export default function PeerInterviewsDirectoryPage() {
             <Button
               type="button"
               onClick={applySearch}
-              className="w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] sm:w-auto"
+              className="w-full rounded-xl font-semibold hover:bg-primary/90 sm:w-auto"
             >
               <Search className="mr-2 h-4 w-4" />
               Apply search
@@ -790,7 +797,7 @@ export default function PeerInterviewsDirectoryPage() {
                 onChange={setDraftRole}
                 industry={draftIndustry || undefined}
                 placeholder="All roles"
-                inputClassName="h-11 bg-card"
+                inputClassName="h-11 rounded-xl bg-background"
               />
             </div>
 
@@ -878,7 +885,7 @@ export default function PeerInterviewsDirectoryPage() {
             <Button
               type="button"
               onClick={applyFilters}
-              className="w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] sm:w-auto"
+              className="w-full rounded-xl font-semibold hover:bg-primary/90 sm:w-auto"
             >
               Apply filters
             </Button>
@@ -891,11 +898,11 @@ export default function PeerInterviewsDirectoryPage() {
           <Loader2 className="h-6 w-6 animate-spin text-[#7367F0]" />
         </div>
       ) : items.length === 0 ? (
-        <div className={cn(appCard, "flex flex-col items-center gap-3 px-4 py-12 text-center sm:px-6 sm:py-16")}>
-          <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-muted text-primary sm:h-16 sm:w-16">
+        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-border bg-card px-4 py-14 text-center sm:px-6">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10 sm:h-16 sm:w-16">
             <UsersRound className="h-7 w-7 sm:h-8 sm:w-8" />
           </span>
-          <p className="text-base font-semibold sm:text-lg">No interviewers match your filters</p>
+          <p className="text-[18px] font-bold tracking-tight">No interviewers match those filters.</p>
           <p className="max-w-md text-sm text-muted-foreground">
             {availabilityWindow !== "any"
               ? "No interviewers have open slots in that period. Try a wider window or different filters."
@@ -909,8 +916,8 @@ export default function PeerInterviewsDirectoryPage() {
         </div>
       ) : (
         <>
-          <p className="px-0.5 text-sm text-muted-foreground">
-            {total} interviewer{total === 1 ? "" : "s"}
+          <p className="flex items-center gap-3 px-0.5 font-[family-name:var(--font-geist-mono)] text-[12px] tracking-wider text-primary">
+            — {total} INTERVIEWER{total === 1 ? "" : "S"}
             {availabilityWindow !== "any"
               ? ` with open slots ${
                   availabilityWindow === "today"
@@ -918,10 +925,11 @@ export default function PeerInterviewsDirectoryPage() {
                     : availabilityWindow === "week"
                       ? "this week"
                       : "this month"
-                }`
-              : " available"}
+                }`.toUpperCase()
+              : " AVAILABLE"} —
+            <span className="h-px w-20 border-t-2 border-dotted border-primary/40" />
           </p>
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((i) => (
               <InterviewerCard key={i.id} interviewer={i} typeNames={typeNames} />
             ))}
@@ -933,18 +941,18 @@ export default function PeerInterviewsDirectoryPage() {
                 variant="outline"
                 disabled={page <= 1}
                 onClick={() => void fetchInterviewers(page - 1)}
-                className="w-full sm:w-auto"
+                className="h-10 w-full rounded-xl sm:w-auto"
               >
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+              <span className="font-[family-name:var(--font-geist-mono)] text-[12px] text-muted-foreground">
+                PAGE {page} OF {totalPages}
               </span>
               <Button
                 variant="outline"
                 disabled={page >= totalPages}
                 onClick={() => void fetchInterviewers(page + 1)}
-                className="w-full sm:w-auto"
+                className="h-10 w-full rounded-xl sm:w-auto"
               >
                 Next
               </Button>

@@ -1988,3 +1988,72 @@
 @media (prefers-reduced-motion: reduce) {
   .resume-page .rx-applied-flash { animation-duration: 0.01ms; outline: 1.5px solid rgb(16 185 129); }
 }
+
+/* ── Marketing 2026 (scoped — do not change app tokens) ── */
+:root {
+  --ix-navy: 219 70% 6%;
+  --ix-navy-card: 217 62% 13%;
+  --ix-navy-line: 214 48% 25%;
+  --ix-blue: 211 100% 56%;
+}
+
+.mk26 {
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  overflow-x: clip;
+  scroll-behavior: smooth;
+}
+
+/* One type family across the 2026 pages: the hackathon banner and site popups keep their look but drop
+   Michroma for Geist (and Geist Mono for their small caps) while they sit on a marketing page. */
+.mk26 .ixp-root {
+  --ixp-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --ixp-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+.mk26 .ixp-root .ixp-title { font-weight: 800; letter-spacing: -0.035em; }
+.mk26 .ixp-root :is(.ixp-price-now, .ixp-price-was, .ixp-prize-value, .ixp-cd-num, .ixp-cd-inline-digits, .ixp-brand-win, .ixp-brand-voucher, .ixp-brand-plus, .ixp-brand-claude-text) { font-weight: 800; letter-spacing: -0.02em; }
+
+@layer utilities {
+  .bg-blueprint {
+    background-image: linear-gradient(hsl(var(--primary) / .08) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / .08) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .bg-blueprint-dark {
+    background-image: linear-gradient(rgba(56,184,255,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,184,255,.07) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .bg-dots { background-image: radial-gradient(hsl(var(--foreground) / .12) 1px, transparent 1.2px); background-size: 22px 22px; }
+  .mask-fade { -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 40%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 65% at 50% 40%, #000 30%, transparent 75%); }
+  .mask-x { -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+  .grain::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+}
+
+@layer components {
+  .ix-panel {
+    margin-inline: 8px;
+    border-radius: 28px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 0 0 1px rgba(255, 255, 255, .04), 0 40px 80px -48px rgba(5, 14, 28, .55);
+  }
+  @media (min-width: 768px) { .ix-panel { margin-inline: 12px; border-radius: 40px; } }
+  .ix-sheet {
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 -30px 60px -40px rgba(5, 14, 28, .45);
+  }
+  @media (min-width: 768px) { .ix-sheet { border-top-left-radius: 48px; border-top-right-radius: 48px; } }
+}
+
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes mem-travel { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes thread-shine { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+@keyframes run-x { from { transform: translateX(-200px); } to { transform: translateX(110vw); } }
+@keyframes run-y { from { transform: translateY(-200px); } to { transform: translateY(1100px); } }
+@keyframes grid-drift { from { background-position: 0 0; } to { background-position: 48px 48px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk26 *, .mk26 *::before, .mk26 *::after { animation: none !important; transition: none !important; }
+}

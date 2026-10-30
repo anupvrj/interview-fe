@@ -20,9 +20,7 @@ import {
   FileText,
   Upload,
   X,
-  Coins,
   AlertCircle,
-  Check,
   Code2,
 } from "lucide-react";
 import { codingInterviewApi, paymentApi } from "@/lib/api";
@@ -41,11 +39,12 @@ import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { AppSelect } from "@/components/ui/app-select";
 import { FormField } from "@/components/onboarding/onboarding-form-primitives";
 import {
-  appCard,
-  appCardElevated,
-  appPrimaryButton,
-  appSurfaceMuted,
-} from "@/lib/app-theme";
+  resumeBuilderCard,
+  resumeBuilderFooterActions,
+  resumeBuilderOutlineButton,
+  resumeBuilderPrimaryButton,
+} from "@/components/resume-builder/resumeBuilderStyles";
+import { dash2026Scope, Eyebrow, SegmentedSteps } from "@/components/dashboard-2026/ui";
 import { cn } from "@/lib/utils";
 import {
   mergeInterviewFormDefaults,
@@ -94,27 +93,27 @@ const STEPS = [
     number: 1,
     title: "Role",
     icon: Target,
-    headline: "What role are you preparing for?",
-    description: "We'll match problem difficulty to your target role and company.",
+    headline: "Which coding round are you preparing for?",
+    description: "The role and company set how hard your three problems are.",
   },
   {
     number: 2,
     title: "Background",
     icon: Globe,
-    headline: "Tell us about your background",
-    description: "Experience and background shape the coding problems you receive.",
+    headline: "Where are you coming from?",
+    description: "Experience and background shape which problems you get.",
   },
   {
     number: 3,
     title: "Resume",
     icon: FileText,
-    headline: "Add your resume",
-    description: "Problems are tailored from your resume and experience.",
+    headline: "Which resume should it read?",
+    description: "The discussion after coding asks about your own projects.",
   },
 ] as const;
 
 const controlClass =
-  "h-11 w-full rounded-[0.625rem] border-border/60 bg-card text-sm shadow-sm sm:h-12";
+  "h-12 w-full rounded-xl border-border bg-background text-[14.5px] shadow-none";
 
 function FieldError({ message }: { message: string }) {
   return (
@@ -143,10 +142,10 @@ function ResumeOptionCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-all sm:p-4",
+        "flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition-all",
         selected
-          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] shadow-sm ring-1 ring-[#7367F0]/20"
-          : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-muted/20",
+          ? "border-primary bg-primary/[0.05] shadow-[0_0_0_4px_rgba(115,103,240,0.12)]"
+          : "border-border bg-card hover:border-primary/40",
       )}
     >
       <span
@@ -161,11 +160,11 @@ function ResumeOptionCard({
           <span className="h-2 w-2 rounded-full bg-white" />
         ) : null}
       </span>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10">
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
+        <span className="block truncate text-[14.5px] font-semibold text-foreground">
           {title}
         </span>
         {subtitle ? (
@@ -446,71 +445,22 @@ export default function NewCodingInterviewPage() {
   };
 
   const activeStep = STEPS[currentStep - 1];
+  const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
+  const departmentLabel = DEPARTMENT_OPTIONS.find((o) => o.value === formData.department)?.label;
+  const disciplineLabel = disciplineOptionsByDepartment[formData.department]?.find((o) => o.value === formData.discipline)?.label;
+  const summary: [string, string | null][] = [
+    ["Role", filledForm.role.trim() || null],
+    ["Company", filledForm.targetCompany.trim() || null],
+    ["Experience", experienceLabel ?? null],
+    ["Department", departmentLabel ?? null],
+    ["Discipline", disciplineLabel ?? null],
+    ["Resume", useSavedResume ? activeSavedResume?.title ?? null : uploadedFile?.name ?? null],
+  ];
 
   const codingForm = (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <div className={cn(appCardElevated, "overflow-hidden")}>
-        <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-5 py-5 sm:px-6">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0]">
-            Step {currentStep} of {STEPS.length}
-          </p>
-          <h2 className="mt-2 text-center text-lg font-semibold text-foreground sm:text-xl">
-            {activeStep.headline}
-          </h2>
-          <p className="mx-auto mt-1 max-w-md text-center text-sm text-muted-foreground">
-            {activeStep.description}
-          </p>
-
-          <div className="mt-5 flex items-center gap-2">
-            {STEPS.map((step, index) => {
-              const done = currentStep > step.number;
-              const active = currentStep === step.number;
-              const StepIcon = step.icon;
-              return (
-                <div
-                  key={step.number}
-                  className="flex min-w-0 flex-1 items-center gap-2"
-                >
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
-                      active &&
-                        "border-[#7367F0] bg-[#7367F0] text-white shadow-[0_2px_6px_rgba(115,103,240,0.35)]",
-                      done && "border-emerald-500 bg-emerald-500 text-white",
-                      !active &&
-                        !done &&
-                        "border-border bg-muted/40 text-muted-foreground",
-                    )}
-                  >
-                    {done ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <StepIcon className="h-3.5 w-3.5" />
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "hidden truncate text-xs font-medium sm:block",
-                      active ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
-                  </span>
-                  {index < STEPS.length - 1 ? (
-                    <div
-                      className={cn(
-                        "mx-1 h-px min-w-[1rem] flex-1",
-                        done ? "bg-emerald-400/70" : "bg-border",
-                      )}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-5 py-6 sm:px-6">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className={resumeBuilderCard}>
+        <form onSubmit={handleSubmit} className="p-5 sm:p-7">
           {currentStep === 1 ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Role you're preparing for" htmlFor="role">
@@ -536,7 +486,7 @@ export default function NewCodingInterviewPage() {
                 label="Target company"
                 htmlFor="targetCompany"
                 optional
-                hint="Helps match problem difficulty to company tier."
+                hint="Sets problem difficulty to that company's tier."
               >
                 <Input
                   id="targetCompany"
@@ -593,7 +543,7 @@ export default function NewCodingInterviewPage() {
                 />
               </FormField>
 
-              <FormField label="Discipline" htmlFor="discipline" optional>
+              <FormField label="Discipline" htmlFor="discipline" optional hint={!disciplineOptionsByDepartment[formData.department] ? "Pick Engineering or Management to choose one." : undefined}>
                 <AppSelect
                   id="discipline"
                   value={formData.discipline}
@@ -629,7 +579,7 @@ export default function NewCodingInterviewPage() {
                 />
               ) : !savedResumeKnown ? (
                 <div
-                  className="h-[4.5rem] animate-pulse rounded-xl border border-border/60 bg-muted/20"
+                  className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
                   aria-hidden
                 />
               ) : null}
@@ -638,7 +588,7 @@ export default function NewCodingInterviewPage() {
                 selected={!useSavedResume}
                 onSelect={() => setUseSavedResume(false)}
                 icon={Upload}
-                title="Upload a new resume"
+                title="Upload a different resume"
                 subtitle="PDF only · Max 5 MB"
               />
 
@@ -648,46 +598,46 @@ export default function NewCodingInterviewPage() {
                     <div
                       {...getRootProps()}
                       className={cn(
-                        "cursor-pointer rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all",
+                        "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
                         isDragActive
-                          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06]"
+                          ? "border-primary bg-primary/[0.06]"
                           : errors.resume
                             ? "border-destructive/40 bg-destructive/5"
-                            : "border-border/70 bg-muted/15 hover:border-[#7367F0]/35 hover:bg-[#7367F0]/[0.04]",
+                            : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
                       )}
                     >
                       <input {...getInputProps()} />
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
                         <Upload className="h-6 w-6" />
                       </div>
-                      <p className="text-sm font-medium text-foreground">
-                        {isDragActive
-                          ? "Drop your PDF here"
-                          : "Drag & drop or click to upload"}
+                      <p className="text-[16px] font-bold tracking-tight text-foreground">
+                        {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PDF only · Max 5 MB
+                      <p className="mt-1 text-[13px] text-muted-foreground">
+                        or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
                       </p>
+                      <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3.5">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                    <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                         <FileText className="h-5 w-5" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">
+                        <p className="truncate text-[14.5px] font-semibold text-foreground">
                           {uploadedFile.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        <p className="text-[12.5px] text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
                         </p>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove file"
                         onClick={() => setUploadedFile(null)}
-                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -697,11 +647,6 @@ export default function NewCodingInterviewPage() {
               ) : null}
 
               {errors.resume ? <FieldError message={errors.resume} /> : null}
-
-              <p className="pt-1 text-xs text-muted-foreground">
-                After coding, you&apos;ll discuss your approach with AI — microphone
-                required.
-              </p>
             </div>
           ) : null}
 
@@ -712,15 +657,14 @@ export default function NewCodingInterviewPage() {
             </div>
           ) : null}
 
-          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className={cn(resumeBuilderFooterActions, "mt-7")}>
             {currentStep > 1 ? (
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
                 onClick={goBackStep}
                 disabled={loading}
-                className="w-full sm:w-auto"
+                className={cn(resumeBuilderOutlineButton, "w-full sm:w-auto")}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
@@ -731,26 +675,22 @@ export default function NewCodingInterviewPage() {
 
             <Button
               type="submit"
-              size="lg"
-              className={cn(
-                "h-12 w-full px-8 text-base font-semibold sm:ml-auto sm:w-auto",
-                appPrimaryButton,
-              )}
+              className={cn(resumeBuilderPrimaryButton, "w-full sm:ml-auto sm:w-auto")}
               disabled={loading || (limitCheck && !limitCheck.allowed)}
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating session…
                 </>
               ) : currentStep < STEPS.length ? (
                 <>
                   Continue
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               ) : (
                 <>
-                  <Code2 className="mr-2 h-5 w-5" />
+                  <Code2 className="mr-2 h-4 w-4" />
                   Start coding round
                 </>
               )}
@@ -759,104 +699,119 @@ export default function NewCodingInterviewPage() {
         </form>
       </div>
 
-      <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
-        <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Sessions use{" "}
-          <span className="font-medium text-foreground">5 credits/min</span>.
-          Same credit rules as AI mock interviews — run tests, submit solutions,
-          then discuss with AI.
+      {/* what you're about to start, filled in as you go */}
+      <aside className={cn(resumeBuilderCard, "p-5 lg:sticky lg:top-6")}>
+        <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">YOUR SESSION</p>
+        <dl className="mt-3 divide-y divide-border">
+          {summary.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+              <dt className="text-[13px] text-muted-foreground">{k}</dt>
+              <dd className={cn("min-w-0 truncate text-right text-[13.5px]", v ? "font-medium text-foreground" : "text-muted-foreground/60")}>{v ?? "—"}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-3 rounded-xl bg-muted/50 px-3.5 py-3">
+          <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">HOW IT RUNS</p>
+          <ol className="mt-2 space-y-1.5 text-[13px] text-foreground">
+            {["Solve three problems in the editor", "Run tests, then submit", "Talk through your approach with AI"].map((t, i) => (
+              <li key={t} className="flex gap-2"><span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">{i + 1}</span>{t}</li>
+            ))}
+          </ol>
+        </div>
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">
+          Sessions use <b className="font-semibold text-foreground">5 credits/min</b>, same rules as AI interviews. The discussion needs a microphone.
         </p>
-      </div>
+      </aside>
     </div>
   );
 
   if (!isLoaded) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto w-full max-w-3xl space-y-6">
-      <div className="flex items-center">
-        <Button variant="ghost" asChild className="-ml-2 text-muted-foreground">
-          <Link href="/dashboard/coding-interviews">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to coding interviews
-          </Link>
-        </Button>
-      </div>
+  const creditsReady = !checkingLimit && profileReady && limitCheck && limitCheck.allowed;
 
-      {checkingLimit || !profileReady ? (
-        <div
-          className={cn(
-            appCard,
-            "flex items-center justify-center gap-3 px-6 py-8",
-          )}
-        >
-          <Loader2 className="h-5 w-5 animate-spin text-[#7367F0]" />
-          <p className="text-sm font-medium text-muted-foreground">
-            {checkingLimit ? "Checking your credits…" : "Loading your profile…"}
-          </p>
+  return (
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/dashboard/coding-interviews" className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Coding rounds
+            </Link>
+            <span className="font-[family-name:var(--font-geist-mono)] text-[11.5px] text-muted-foreground">STEP {currentStep} OF {STEPS.length}</span>
+          </div>
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
+              <Eyebrow>NEW CODING ROUND</Eyebrow>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{activeStep.headline}</h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{activeStep.description}</p>
+            </div>
+            {checkingLimit || !profileReady ? (
+              <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2.5 text-[13px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                {checkingLimit ? "Checking your credits…" : "Loading your profile…"}
+              </span>
+            ) : creditsReady ? (
+              <span className="inline-flex w-fit items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] px-3.5 py-2.5 text-[13px] text-foreground">
+                <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>
+                Ready · <b className="font-[family-name:var(--font-geist-mono)] font-medium">{(limitCheck.creditsAvailable || 0).toLocaleString()}</b> credits
+              </span>
+            ) : null}
+          </div>
         </div>
-      ) : limitCheck && !limitCheck.allowed ? (
+        <div className="relative border-t border-border px-6 py-4 md:px-8">
+          <SegmentedSteps labels={STEPS.map((st) => st.title)} current={currentStep - 1} />
+        </div>
+      </section>
+
+      {!checkingLimit && profileReady && limitCheck && !limitCheck.allowed ? (
         showTrialUpsell ? (
-          <div className={cn(appCardElevated, "overflow-hidden border-[#7367F0]/25")}>
-            <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
-              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#7367F0]/10 text-[#7367F0]">
+          <div className={cn(resumeBuilderCard, "relative border-primary/30")}>
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_80%_at_50%_0%,rgba(115,103,240,.10),transparent_70%)]" />
+            <div className="relative flex flex-col items-center gap-4 px-6 py-12 text-center">
+              <span className="grid h-16 w-16 place-items-center rounded-2xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-primary dark:from-primary/20 dark:to-sky-500/10">
                 <Sparkles className="h-8 w-8" />
               </span>
               <div className="max-w-md space-y-2">
-                <h3 className="text-xl font-semibold text-foreground">
-                  Start your free trial to practice
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Unlock coding rounds, AI interviews, system design, and 200
-                  credits for 14 days.
+                <h3 className="text-[22px] font-extrabold tracking-[-0.03em] text-foreground">Start your free trial to practise</h3>
+                <p className="text-[14px] text-muted-foreground">
+                  Unlock coding rounds, AI interviews, system design, and 200 credits for 14 days.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  size="lg"
-                  onClick={() => setTrialUpsellOpen(true)}
-                  className={appPrimaryButton}
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
+                <Button onClick={() => setTrialUpsellOpen(true)} className={resumeBuilderPrimaryButton}>
+                  <Sparkles className="mr-2 h-4 w-4" />
                   Start your free trial
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => setUpgradeUpsellOpen(true)}
-                >
+                <Button variant="outline" onClick={() => setUpgradeUpsellOpen(true)} className={resumeBuilderOutlineButton}>
                   View paid plans
                 </Button>
               </div>
             </div>
           </div>
         ) : (
-          <div
-            className={cn(
-              appCardElevated,
-              "overflow-hidden border-amber-500/25",
-            )}
-          >
-            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+          <div className={cn(resumeBuilderCard, "border-amber-500/30")}>
+            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-7">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                 <Crown className="h-7 w-7" />
               </span>
-              <div className="min-w-0 flex-1 space-y-3">
+              <div className="min-w-0 flex-1 space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground sm:text-xl">
+                  <h3 className="text-[20px] font-bold tracking-tight text-foreground">
                     {limitCheck.isExpired
                       ? "Subscription expired"
                       : limitCheck.gate === "upgrade_required"
                         ? "Upgrade required"
                         : "Not enough credits"}
                   </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-[14px] text-muted-foreground">
                     {limitCheck.reason ||
                       "Coding rounds require Tech Basic or sufficient credits."}
                   </p>
@@ -864,19 +819,14 @@ export default function NewCodingInterviewPage() {
 
                 {limitCheck.creditsAvailable !== undefined &&
                 limitCheck.minimumRequired !== undefined ? (
-                  <div className="flex flex-wrap gap-4 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Coins className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Available</span>
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {limitCheck.creditsAvailable}
-                      </span>
+                  <div className="grid w-fit grid-cols-2 divide-x divide-border rounded-xl border border-border">
+                    <div className="px-4 py-2.5">
+                      <p className="text-[12px] text-muted-foreground">Available</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[20px] text-foreground">{limitCheck.creditsAvailable}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">Required</span>
-                      <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">
-                        {limitCheck.minimumRequired}
-                      </span>
+                    <div className="px-4 py-2.5">
+                      <p className="text-[12px] text-muted-foreground">Required</p>
+                      <p className="font-[family-name:var(--font-geist-mono)] text-[20px] text-amber-600 dark:text-amber-400">{limitCheck.minimumRequired}</p>
                     </div>
                   </div>
                 ) : null}
@@ -884,24 +834,15 @@ export default function NewCodingInterviewPage() {
                 <div className="flex flex-wrap gap-2">
                   {limitCheck.gate === "upgrade_required" ||
                   limitCheck.creditsAvailable === undefined ? (
-                    <Button
-                      onClick={() => setUpgradeUpsellOpen(true)}
-                      className={appPrimaryButton}
-                    >
+                    <Button onClick={() => setUpgradeUpsellOpen(true)} className={resumeBuilderPrimaryButton}>
                       Upgrade to Tech Basic
                     </Button>
                   ) : limitCheck.isExpired ? (
-                    <Button
-                      onClick={() => router.push("/dashboard/plan?renew=1")}
-                      className={appPrimaryButton}
-                    >
+                    <Button onClick={() => router.push("/dashboard/plan?renew=1")} className={resumeBuilderPrimaryButton}>
                       Renew subscription
                     </Button>
                   ) : (
-                    <Button
-                      onClick={() => router.push("/pricing")}
-                      className={appPrimaryButton}
-                    >
+                    <Button onClick={() => router.push("/pricing")} className={resumeBuilderPrimaryButton}>
                       View plans
                     </Button>
                   )}
@@ -910,44 +851,18 @@ export default function NewCodingInterviewPage() {
             </div>
           </div>
         )
-      ) : limitCheck && limitCheck.allowed ? (
-        <div
-          className={cn(
-            appCard,
-            "flex flex-col gap-3 border-emerald-500/25 bg-emerald-500/[0.04] px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Ready to practice
-              </p>
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {limitCheck.creditsAvailable || 0}
-                </span>{" "}
-                credits available · 5 credits/min
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : !limitCheck ? (
-        <div className={cn(appCard, "px-5 py-5")}>
+      ) : !checkingLimit && profileReady && !limitCheck ? (
+        <div className={cn(resumeBuilderCard, "px-5 py-5")}>
           <p className="mb-3 text-sm text-muted-foreground">
             Could not verify your access. Please try again.
           </p>
-          <Button type="button" variant="outline" onClick={() => checkInterviewLimit()}>
+          <Button type="button" variant="outline" className={resumeBuilderOutlineButton} onClick={() => checkInterviewLimit()}>
             Retry
           </Button>
         </div>
       ) : null}
 
-      {!checkingLimit && profileReady && limitCheck?.allowed
-        ? codingForm
-        : null}
+      {creditsReady ? codingForm : null}
 
       <TrialUpsellDialog
         open={trialUpsellOpen}

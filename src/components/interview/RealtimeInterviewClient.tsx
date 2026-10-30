@@ -47,6 +47,7 @@ import {
 } from "@/lib/invalidate-queries";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
 import {
   CLIENT_DEAD_SOCKET_CLOSE_CODE,
   CLIENT_HEARTBEAT_MS,
@@ -3593,8 +3594,8 @@ export function RealtimeInterviewClient({
     <div
       className={cn(
         "relative text-white",
-        !codingDiscussionHost &&
-          "bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)]",
+        dash2026Scope,
+        !codingDiscussionHost && "bg-[#060B16]",
         codingEmbed
           ? codingDiscussionHost
             ? "flex h-auto min-w-0 flex-col overflow-visible"
@@ -3605,6 +3606,14 @@ export function RealtimeInterviewClient({
         className,
       )}
     >
+      {!codingEmbed && !codingDiscussionHost ? (
+        // the marketing "live round" backdrop: a quiet blueprint grid under two soft glows
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+          <div className="bg-blueprint-dark absolute inset-0 [mask-image:radial-gradient(ellipse_80%_70%_at_50%_20%,#000_30%,transparent_80%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_20%_0%,rgba(115,103,240,.22),transparent_70%),radial-gradient(35%_30%_at_85%_10%,rgba(31,143,255,.14),transparent_70%)]" />
+        </div>
+      ) : null}
+
       {openingReport && (
         <JourneyLoader
           variant="overlay"
@@ -3954,7 +3963,7 @@ export function RealtimeInterviewClient({
 
       {/* Coding sidebar embed: no header (End lives on main coding page if needed). */}
       {codingEmbed && isCodingDiscussion ? null : (
-        <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#0b1220]/95">
+        <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#060B16]/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl min-w-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:px-5">
             {!isInterviewActive && (
               <Button
@@ -3970,9 +3979,22 @@ export function RealtimeInterviewClient({
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             )}
-            <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-xl">
-              {interview?.metadata.role || "Interview"}
-            </h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-[15px] font-bold tracking-[-0.02em] sm:text-[19px]">
+                {interview?.metadata.role || "Interview"}
+              </h1>
+              <p className="truncate font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wide text-white/50 sm:text-[11px]">
+                AI INTERVIEW{interview?.metadata.targetCompany ? ` · ${interview.metadata.targetCompany.toUpperCase()}` : ""}
+              </p>
+            </div>
+            {isInterviewActive ? (
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5">
+                <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-rose-500 opacity-70" /><span className="relative inline-flex size-2 rounded-full bg-rose-500" /></span>
+                <span className="font-[family-name:var(--font-geist-mono)] text-[11.5px] tabular-nums text-white/90">
+                  LIVE · {formatDuration(elapsedTime)}<span className="hidden text-white/45 sm:inline"> / {formatDuration(targetDurationSec)}</span>
+                </span>
+              </span>
+            ) : null}
           </div>
         </div>
       )}
@@ -4011,7 +4033,7 @@ export function RealtimeInterviewClient({
             {/* Left: profile + live speaking + start — same row height as camera on lg */}
             <Card
               className={cn(
-                "flex flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20",
+                "flex flex-col overflow-visible rounded-[22px] border-white/10 bg-[#0D1626]/85 shadow-[0_30px_60px_-30px_rgba(0,0,0,.7)] backdrop-blur",
                 codingDiscussionHost &&
                   isCodingDiscussion &&
                   "h-auto w-full shrink-0 rounded-xl border-0 bg-card/[0.04] shadow-none",
@@ -4279,7 +4301,7 @@ export function RealtimeInterviewClient({
             </Card>
 
             {!codingEmbed ? (
-              <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20 lg:h-full">
+              <Card className="flex min-h-0 flex-col overflow-visible rounded-[22px] border-white/10 bg-[#0D1626]/85 shadow-[0_30px_60px_-30px_rgba(0,0,0,.7)] backdrop-blur lg:h-full">
                 <CardContent className="flex min-h-0 flex-1 flex-col p-2.5 sm:p-5">
                   <div className="relative aspect-[4/3] max-h-[34dvh] min-h-[150px] w-full flex-1 overflow-hidden rounded-2xl bg-black sm:aspect-auto sm:max-h-none sm:min-h-[220px] lg:min-h-0">
                     <video
@@ -4311,8 +4333,8 @@ export function RealtimeInterviewClient({
                         )}
                       </div>
                     )}
-                    <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs text-white/90">
-                      Candidate Camera
+                    <div className="absolute left-3 top-3 rounded-md bg-black/55 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10px] tracking-wide text-white/75 backdrop-blur">
+                      YOUR CAMERA
                     </div>
                   </div>
                 </CardContent>
@@ -4343,7 +4365,7 @@ export function RealtimeInterviewClient({
           {!(codingEmbed && isCodingDiscussion) ? (
           <Card
             className={cn(
-              "rounded-xl border border-white/10 bg-[#0b1220]/95 shadow-lg shadow-black/20 backdrop-blur-md",
+              "rounded-[22px] border border-white/10 bg-[#0D1626]/90 shadow-[0_30px_60px_-30px_rgba(0,0,0,.7)] backdrop-blur-xl",
               codingEmbed
                 ? "shrink-0"
                 : "sticky bottom-0 z-20 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:bg-card/[0.04]",
@@ -4359,10 +4381,10 @@ export function RealtimeInterviewClient({
               <div className="text-center">
                 <h2
                   className={cn(
-                    "font-semibold uppercase tracking-wide text-gray-300/90",
+                    "font-[family-name:var(--font-geist-mono)] uppercase tracking-wider text-white/45",
                     codingEmbed
                       ? "mb-2 text-[10px]"
-                      : "hidden text-xs sm:block sm:text-sm [@media(max-height:500px)]:hidden",
+                      : "hidden text-[11px] sm:block [@media(max-height:500px)]:hidden",
                   )}
                 >
                   {codingEmbed ? "Mic & camera" : "Interview Controls"}
@@ -4370,16 +4392,14 @@ export function RealtimeInterviewClient({
               </div>
               {!codingEmbed ? (
                 <div className="space-y-2">
-                  <Progress
-                    value={Math.min(
-                      (elapsedTime / Math.max(targetDurationSec, 1)) * 100,
-                      100,
-                    )}
-                    className="h-2 w-full bg-card/10"
-                  />
-                  <p className="text-center text-xs tabular-nums text-gray-300/80 sm:text-sm">
-                    {formatDuration(elapsedTime)} /{" "}
-                    {formatDuration(targetDurationSec)}
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] transition-[width] duration-1000 ease-linear"
+                      style={{ width: `${Math.min((elapsedTime / Math.max(targetDurationSec, 1)) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-center font-[family-name:var(--font-geist-mono)] text-[11.5px] tabular-nums text-white/55">
+                    {formatDuration(elapsedTime)} / {formatDuration(targetDurationSec)}
                   </p>
                 </div>
               ) : null}
@@ -4396,10 +4416,11 @@ export function RealtimeInterviewClient({
                   variant={isMicOn ? "default" : "destructive"}
                   onClick={toggleMic}
                   className={cn(
+                    isMicOn && !codingEmbed && "bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15",
                     "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
+                      : "h-auto min-h-11 flex-col gap-0.5 rounded-full py-2 sm:h-12 sm:flex-row sm:px-5 sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title={isMicOn ? "Mute microphone" : "Unmute microphone"}
                 >
@@ -4415,10 +4436,11 @@ export function RealtimeInterviewClient({
                   variant={isCameraOn ? "default" : "destructive"}
                   onClick={toggleCamera}
                   className={cn(
+                    isCameraOn && !codingEmbed && "bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15",
                     "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
+                      : "h-auto min-h-11 flex-col gap-0.5 rounded-full py-2 sm:h-12 sm:flex-row sm:px-5 sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title={isCameraOn ? "Turn camera off" : "Turn camera on"}
                 >
@@ -4435,10 +4457,11 @@ export function RealtimeInterviewClient({
                   disabled={!isInterviewActive}
                   onClick={() => setShowEndInterviewConfirm(true)}
                   className={cn(
+                    !codingEmbed && "bg-[#E5484D] shadow-[0_10px_26px_-12px_rgba(229,72,77,.9)] hover:bg-[#d93d42]",
                     "h-11 min-w-0 whitespace-normal rounded-xl px-1.5 text-center text-[11px] leading-tight animate-none transition-none sm:w-auto sm:gap-2 sm:px-4 sm:text-sm sm:whitespace-nowrap",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
+                      : "h-auto min-h-11 flex-col gap-0.5 rounded-full py-2 sm:h-12 sm:flex-row sm:px-5 sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title="End interview"
                 >
@@ -4454,7 +4477,7 @@ export function RealtimeInterviewClient({
           {!(codingEmbed && isCodingDiscussion) ? (
           <Card
             className={cn(
-              "animate-none border border-white/10 bg-card/[0.04] shadow-md",
+              "animate-none rounded-[22px] border border-white/10 bg-[#0D1626]/70 shadow-none backdrop-blur",
               codingEmbed && "min-h-0 flex-1 overflow-hidden",
             )}
           >
@@ -4473,7 +4496,8 @@ export function RealtimeInterviewClient({
                     : "mb-3 text-base sm:text-lg",
                 )}
               >
-                AI questions &amp; responses
+                <span className="mb-1 block font-[family-name:var(--font-geist-mono)] text-[10.5px] font-normal tracking-wider text-sky-300/80">— QUESTIONS SO FAR —</span>
+                What the interviewer asked
               </h3>
               <div
                 className={cn(
@@ -4494,21 +4518,18 @@ export function RealtimeInterviewClient({
                           key={`transcript-${index}-${
                             item.role
                           }-${item.content.slice(0, 10)}`}
-                          className="text-white/90"
+                          className="flex gap-3 text-white/85"
                         >
-                          <span className="font-semibold text-violet-200">
-                            Question {index + 1}:{" "}
+                          <span className="mt-0.5 shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] text-sky-300/80">
+                            Q{index + 1}
                           </span>
                           <span>{item.content}</span>
                         </div>
                       ))}
                     {currentAssistantTranscript ? (
-                      <div className="text-white/90">
-                        <span className="font-semibold text-violet-200">
-                          Question{" "}
-                          {transcript.filter((item) => item.role === "assistant")
-                            .length + 1}
-                          :{" "}
+                      <div className="flex gap-3 text-white">
+                        <span className="mt-0.5 shrink-0 font-[family-name:var(--font-geist-mono)] text-[11px] text-sky-300">
+                          Q{transcript.filter((item) => item.role === "assistant").length + 1}
                         </span>
                         <span>{currentAssistantTranscript}</span>
                       </div>

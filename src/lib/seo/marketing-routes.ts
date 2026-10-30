@@ -48,13 +48,6 @@ export const PRODUCT_MARKETING_ROUTES: MarketingRoute[] = [
     sitemap: { changeFrequency: "weekly", priority: 0.9 },
   },
   {
-    path: "/ai-job-search",
-    name: "AI Job Search",
-    description:
-      "Find role-matched jobs with AI recommendations and application-ready profiles.",
-    sitemap: { changeFrequency: "weekly", priority: 0.9 },
-  },
-  {
     path: "/hire-ix-talent",
     name: "Hire iX Talent",
     description:

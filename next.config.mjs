@@ -40,6 +40,9 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // Job search isn't offered any more; send old links and search results home.
+      { source: "/ai-job-search", destination: "/", permanent: true },
+      { source: "/ai-job-search/:path*", destination: "/", permanent: true },
       {
         source: "/dashboard/super-admin",
         destination: "/super-admin",

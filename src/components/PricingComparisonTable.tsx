@@ -1,16 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Check, Minus } from "lucide-react";
-import {
-  COMPARISON_ROWS,
-  PLAN_COLUMN_LABELS,
-  withLivePlanComparison,
-  type ComparisonCell,
-  type PaidPlanId,
-} from "@/lib/pricingPageContent";
-import { planApi } from "@/lib/api";
-import type { PlanRecord } from "@/lib/planRecord";
+import type { ComparisonCell } from "@/lib/pricingPageContent";
+import { usePlanComparison } from "@/hooks/usePlanComparison";
 import { cn } from "@/lib/utils";
 import { appCard } from "@/lib/app-theme";
 
@@ -42,48 +34,8 @@ function CellValue({ value }: { value: ComparisonCell }) {
   return <span className="text-sm text-foreground">{value}</span>;
 }
 
-type CompareColumn = {
-  planId: string;
-  label: string;
-  popular: boolean;
-};
-
-function columnsFromPlans(plans: PlanRecord[]): CompareColumn[] {
-  return [...plans]
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map((plan) => ({
-      planId: plan.planId,
-      label:
-        plan.displayName ||
-        PLAN_COLUMN_LABELS[plan.planId as PaidPlanId] ||
-        plan.name,
-      popular: Boolean(plan.isPopular),
-    }));
-}
-
 export function PricingComparisonTable() {
-  const [rows, setRows] = useState(COMPARISON_ROWS);
-  const [columns, setColumns] = useState<CompareColumn[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    planApi
-      .getAllPlans()
-      .then((plans) => {
-        if (cancelled) return;
-        setColumns(columnsFromPlans(plans));
-        setRows(withLivePlanComparison(plans));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setColumns([]);
-          setRows(COMPARISON_ROWS);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { rows, columns } = usePlanComparison();
 
   if (columns.length === 0) {
     return null;

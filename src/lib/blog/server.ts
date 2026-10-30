@@ -33,7 +33,12 @@ export async function fetchPublishedBlogs(params?: {
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.category) search.set("category", params.category);
   const qs = search.toString();
-  return fetchJson<PublicBlogListResponse>(`/blogs${qs ? `?${qs}` : ""}`);
+  try {
+    return await fetchJson<PublicBlogListResponse>(`/blogs${qs ? `?${qs}` : ""}`);
+  } catch {
+    // a slow or restarting API shows the empty state instead of a 500 page
+    return { items: [], total: 0, page: params?.page ?? 1, limit: params?.limit ?? 0 };
+  }
 }
 
 export async function fetchBlogBySlug(
@@ -47,8 +52,12 @@ export async function fetchBlogBySlug(
 }
 
 export async function fetchBlogCategories(): Promise<string[]> {
-  const data = await fetchJson<{ categories: string[] }>("/blogs/categories");
-  return data.categories ?? [];
+  try {
+    const data = await fetchJson<{ categories: string[] }>("/blogs/categories");
+    return data.categories ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchBlogSitemapEntries(): Promise<

@@ -1,0 +1,571 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { readStoredRole } from "@/lib/roles";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Plus,
+  CalendarClock,
+  PlayCircle,
+  Loader2,
+  Lock,
+  UsersRound,
+  X,
+  Sparkles,
+} from "lucide-react";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  interviewScheduleApi,
+} from "@/lib/api";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
+import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
+import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
+import { useInterviewSchedulesQuery } from "@/hooks/queries/useInterviewSchedulesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
+import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
+import {
+  buildDashboardRecentSessions,
+  countDashboardSessionsByFilter,
+  filterDashboardSessions,
+  type DashboardSessionFilter,
+} from "@/lib/dashboard-recent-sessions";
+import {
+  cn,
+  getInterviewCreditsUsed,
+  scheduledInterviewCanStartNow,
+} from "@/lib/utils";
+import {
+  instituteScheduleRoundLabel,
+  routeAfterScheduledStart,
+} from "@/lib/institute-schedule-round";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
+import {
+  DashboardInsightTile,
+} from "@/components/dashboard/DashboardStatCard";
+import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { DashboardHackathonBanner } from "@/features/hackathon/components/DashboardHackathonBanner";
+import { DashboardPracticeHubCards } from "@/components/dashboard/DashboardPracticeHubCards";
+import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
+import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
+import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
+import { useDashboardTheme } from "@/components/dashboard-theme";
+import { dashboardChartPrimaryFill } from "@/lib/dashboard-stat-themes";
+
+const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
+
+export default function LegacyDashboardPage() {
+  const { theme } = useDashboardTheme();
+  const chartPrimaryFill = dashboardChartPrimaryFill[theme];
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+  const roleCtx = useActiveRole();
+  const profile = roleCtx?.profile ?? null;
+  const roleReady = roleCtx?.ready ?? false;
+  const { data: interviews = [], isLoading: interviewsLoading } =
+    useInterviewsQuery();
+  const { data: systemDesignSessions = [] } = useSystemDesignSessionsQuery();
+  const { data: peerBookings = [] } = usePeerBookingsQuery();
+  const { data: scheduledInterviews = [] } = useInterviewSchedulesQuery();
+  const { invalidate } = useDashboardInvalidation();
+  const profileCompletion = profile?.profileCompletionPercentage ?? 0;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [interviewTypeFilter, setInterviewTypeFilter] =
+    useState<DashboardSessionFilter>("all");
+  const itemsPerPage = 10;
+
+  const recentSessions = useMemo(
+    () =>
+      buildDashboardRecentSessions({
+        interviews,
+        systemDesignSessions,
+        peerBookings,
+      }),
+    [interviews, systemDesignSessions, peerBookings],
+  );
+  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
+    null,
+  );
+  /** null = not read yet (avoid flash); false = show banner; true = user dismissed */
+  const [onboardingBannerDismissed, setOnboardingBannerDismissed] = useState<
+    boolean | null
+  >(null);
+  const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
+  const {
+    startPracticeSession,
+    checkingSubscription,
+    ...practiceGate
+  } = usePracticeSessionGate();
+  const interviewTypeCounts = useMemo(
+    () => countDashboardSessionsByFilter(recentSessions),
+    [recentSessions],
+  );
+
+  const filteredRecentSessions = useMemo(
+    () => filterDashboardSessions(recentSessions, interviewTypeFilter),
+    [recentSessions, interviewTypeFilter],
+  );
+
+  const stats = useMemo(() => {
+    const completed = interviews.filter((i) => i.status === "completed");
+    const totalScore = completed.reduce(
+      (sum, i) => sum + (i.report?.overallScore || 0),
+      0,
+    );
+    const avgScore =
+      completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
+    const scores = completed.map((i) => i.report?.overallScore || 0);
+
+    let improvement = 0;
+    if (scores.length >= 3) {
+      const recentScores = scores.slice(-3);
+      const initialScores = scores.slice(0, 3);
+      const recentAvg =
+        recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+      const initialAvg =
+        initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
+      improvement = recentAvg - initialAvg;
+      if (Number.isNaN(improvement) || !Number.isFinite(improvement)) {
+        improvement = 0;
+      }
+    }
+
+    return {
+      totalInterviews: interviews.length,
+      averageScore: avgScore,
+      completedInterviews: completed.length,
+      improvement: Math.round(improvement),
+    };
+  }, [interviews]);
+
+  useEffect(() => {
+    try {
+      setOnboardingBannerDismissed(
+        sessionStorage.getItem(ONBOARDING_BANNER_DISMISSED_KEY) === "1",
+      );
+    } catch {
+      setOnboardingBannerDismissed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!roleReady || !user || !profile) return;
+    if (
+      readStoredRole(user.id) === "institution_admin" &&
+      profile.institutionId
+    ) {
+      router.replace(`/dashboard/institute/${String(profile.institutionId)}`);
+    }
+  }, [roleReady, user, profile, router]);
+
+  const waitingForFirstData =
+    roleReady &&
+    interviewsLoading &&
+    interviews.length === 0;
+
+  if (!isLoaded || !roleReady || waitingForFirstData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleStartScheduled = async (scheduleId: string) => {
+    try {
+      setStartingScheduleId(scheduleId);
+      const payload = await interviewScheduleApi.start(scheduleId);
+      await invalidate(["interviewSchedules", "interviews", "entitlements"]);
+      const path = routeAfterScheduledStart(payload);
+      if (!path) {
+        throw new Error("Could not open this scheduled interview.");
+      }
+      router.push(path);
+    } catch (e: any) {
+      alert(
+        e?.response?.data?.message ||
+          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before).",
+      );
+    } finally {
+      setStartingScheduleId(null);
+    }
+  };
+
+  const lastNDays = 14;
+  const now = new Date();
+  const dayKeys = Array.from({ length: lastNDays }, (_, idx) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - (lastNDays - 1 - idx));
+    return d.toISOString().slice(0, 10);
+  });
+  const dailyMap = new Map(
+    dayKeys.map((day) => [
+      day,
+      { day, interviews: 0, scoredCount: 0, scoreTotal: 0, credits: 0 },
+    ]),
+  );
+  for (const interview of interviews) {
+    const day = new Date(interview.createdAt).toISOString().slice(0, 10);
+    const row = dailyMap.get(day);
+    if (!row) continue;
+    row.interviews += 1;
+    const score = interview.report?.overallScore;
+    if (typeof score === "number" && Number.isFinite(score)) {
+      row.scoredCount += 1;
+      row.scoreTotal += score;
+    }
+    const credits = getInterviewCreditsUsed(interview);
+    if (credits != null) row.credits += credits;
+  }
+  const dailyData = dayKeys.map((day) => {
+    const row = dailyMap.get(day)!;
+    const dateObj = new Date(`${day}T00:00:00`);
+    return {
+      ...row,
+      label: dateObj.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      }),
+      avgScore:
+        row.scoredCount > 0 ? Math.round(row.scoreTotal / row.scoredCount) : 0,
+    };
+  });
+  const totalTokensSpent = dailyData.reduce((sum, d) => sum + d.credits, 0);
+  const activeDays = dailyData.filter((d) => d.interviews > 0).length;
+
+  return (
+    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
+      <DashboardWelcomeHero firstName={user?.firstName || "User"} />
+
+      <DashboardHackathonBanner />
+
+      <IxOptInNotice />
+
+      <DashboardPracticeHubCards />
+
+      {scheduledInterviews.length > 0 && (
+        <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-card shadow-lg dark:border-amber-900/40 dark:from-amber-950/30 dark:to-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg text-amber-950 dark:text-amber-100">
+              <CalendarClock className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+              Scheduled interviews
+            </CardTitle>
+            <CardDescription>
+              Your institution scheduled these for you. You can start from 24
+              hours before the scheduled time until the expire deadline (if
+              set). A saved resume is required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {scheduledInterviews.map((s) => {
+              const { canStart, reason } = scheduledInterviewCanStartNow(
+                s.scheduledAt,
+                s.expiresAt,
+              );
+              const startDisabled =
+                startingScheduleId === String(s._id) || !canStart;
+              return (
+                <div
+                  key={s._id}
+                  className="flex flex-col gap-2 rounded-md border border-amber-100 bg-card/90 p-4 dark:border-amber-900/30 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{s.role}</p>
+                    <p className="text-xs font-medium text-primary/90">
+                      {instituteScheduleRoundLabel(s.roundType)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(s.scheduledAt).toLocaleString()}
+                      {s.targetCompany ? ` · ${s.targetCompany}` : ""}
+                    </p>
+                    {s.expiresAt ? (
+                      <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                        Start by {new Date(s.expiresAt).toLocaleString()}
+                      </p>
+                    ) : null}
+                    {s.notes ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{s.notes}</p>
+                    ) : null}
+                    {!canStart && reason === "too_early" ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Opens{" "}
+                        {new Date(
+                          new Date(s.scheduledAt).getTime() -
+                            24 * 60 * 60 * 1000,
+                        ).toLocaleString()}
+                      </p>
+                    ) : null}
+                    {!canStart && reason === "expired" ? (
+                      <p className="mt-1 text-xs text-red-600">
+                        Past expire deadline
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700"
+                    onClick={() => handleStartScheduled(String(s._id))}
+                    disabled={startDisabled}
+                  >
+                    {startingScheduleId === String(s._id) ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-4 w-4" />
+                    )}
+                    Start interview
+                  </Button>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {profileCompletion < 100 && onboardingBannerDismissed === false && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-foreground dark:border-amber-900/50 dark:bg-amber-950/30">
+          <p className="min-w-0 flex-1 leading-snug">
+            <span className="text-foreground">
+              Complete your profile ({profileCompletion}% done) — it unlocks your
+              full loop (resume polish → AI Interview Practice & coding mocks → interviews &
+              offers) —{" "}
+            </span>
+            <Link
+              href="/dashboard/profile"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Finish your profile
+            </Link>
+          </p>
+          <button
+            type="button"
+            aria-label="Dismiss reminder"
+            className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-amber-100/80 hover:text-foreground"
+            onClick={() => {
+              try {
+                sessionStorage.setItem(ONBOARDING_BANNER_DISMISSED_KEY, "1");
+              } catch {
+                /* ignore */
+              }
+              setOnboardingBannerDismissed(true);
+            }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <Card className="rounded-xl border border-border/80 bg-card shadow-card xl:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-foreground">
+              Daily interviews and score trend
+            </CardTitle>
+            <CardDescription>
+              Bars = daily sessions, line = average score.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={dailyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis
+                  yAxisId="left"
+                  allowDecimals={false}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  domain={[0, 100]}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }}
+                  formatter={(value: number, name: string) => {
+                    if (name === "Average score") return [`${value}/100`, name];
+                    return [value, name];
+                  }}
+                />
+                <Legend />
+                <Bar
+                  yAxisId="left"
+                  dataKey="interviews"
+                  name="Interviews"
+                  fill={chartPrimaryFill}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="avgScore"
+                  name="Average score"
+                  stroke="#28c76f"
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                  activeDot={{ r: 4 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl border border-border/80 bg-card shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-foreground">Insights</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <DashboardInsightTile
+              theme="purple"
+              label="Total token spend"
+              value={totalTokensSpent}
+              description="Proxy for billed AI Interview Practice & coding credits"
+            />
+            <DashboardInsightTile
+              theme="emerald"
+              label="Active days"
+              value={`${activeDays}/14`}
+              description="Consistency beats cramming—practice counts the same"
+            />
+            <DashboardInsightTile
+              theme="amber"
+              label="Completed ratio"
+              value={
+                stats.totalInterviews > 0
+                  ? `${Math.round(
+                      (stats.completedInterviews / stats.totalInterviews) * 100,
+                    )}%`
+                  : "0%"
+              }
+              description="Finishing sessions earns full AI discussion feedback & scores"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Interviews */}
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Recent Interviews
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                AI, coding, system design, and peer sessions with scores and reports.
+              </CardDescription>
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <InterviewTypeFilterBar
+                value={interviewTypeFilter}
+                onChange={(next) => {
+                  setInterviewTypeFilter(next);
+                  setCurrentPage(1);
+                }}
+                counts={interviewTypeCounts}
+              />
+              <Link
+                href="/dashboard/interviews"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  instituteSecondaryClass,
+                  "h-9 px-3 text-xs no-underline sm:h-10 sm:px-4 sm:text-sm",
+                )}
+              >
+                View all
+              </Link>
+              <Button
+                type="button"
+                disabled={checkingSubscription}
+                onClick={() =>
+                  startPracticeSession("ai", {
+                    path: "/dashboard/interviews/new",
+                  })
+                }
+                className={institutePrimaryClass}
+              >
+                {checkingSubscription ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Start Interview
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <RecentInterviewsList
+            sessionRows={filteredRecentSessions}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onVideoUnavailable={() => setVideoUnavailableOpen(true)}
+            emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
+          />
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={videoUnavailableOpen}
+        onOpenChange={setVideoUnavailableOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>No video available</DialogTitle>
+            <DialogDescription>
+              This interview does not have a recording, or the video could not
+              be loaded. If you just finished the interview, try again in a few
+              minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setVideoUnavailableOpen(false)}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PracticeSessionGateDialogs {...practiceGate} />
+    </div>
+  );
+}

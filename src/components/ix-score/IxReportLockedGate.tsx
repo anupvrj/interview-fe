@@ -12,7 +12,7 @@ import { IX_CATEGORY_META } from "@/lib/ix-score-constants";
 import { ixScoreColorClass } from "@/lib/ix-score-colors";
 import { cn, formatDate } from "@/lib/utils";
 
-const MOCK_SNAPSHOT: IxScoreSnapshot = {
+export const MOCK_SNAPSHOT: IxScoreSnapshot = {
   clerkId: "preview",
   userId: "preview",
   computedAt: new Date().toISOString(),

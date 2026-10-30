@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
+import { ConciergeNotice } from "@/components/dashboard-2026/ConciergeNotice";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -510,6 +511,8 @@ export default function HireTalentPage() {
           </div>
         }
       />
+
+      <ConciergeNotice kind="talent" />
 
       <div
         className={cn(

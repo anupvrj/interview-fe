@@ -1,5 +1,7 @@
 "use client";
 
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
+
 import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -98,7 +100,7 @@ export function RescheduleBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className={cn(dash2026Scope, "max-h-[90vh] max-w-3xl overflow-y-auto rounded-[22px]")}>
         <DialogHeader>
           <DialogTitle>Reschedule interview</DialogTitle>
           <DialogDescription>
@@ -160,7 +162,7 @@ export function RescheduleBookingDialog({
           <Button
             onClick={() => void confirmReschedule()}
             disabled={!selectedSlot || submitting}
-            className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+            className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
           >
             {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Confirm reschedule

@@ -5,6 +5,8 @@ import {
   createFAQSchema,
 } from "@/components/StructuredData";
 import { ABOUT_US_FAQ } from "@/lib/aboutUsContent";
+import { isMarketing2026Enabled } from "@/components/marketing-2026/flag";
+import { AB_FAQ } from "@/components/marketing-2026/about-faq";
 import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
@@ -48,7 +50,12 @@ const breadcrumbSchema = createBreadcrumbSchema([
   { name: "About Us", url: `${siteUrl}/about-us` },
 ]);
 
-const faqSchema = createFAQSchema([...ABOUT_US_FAQ]);
+// FAQ markup follows whichever page is showing, so it always matches the visible FAQ
+const faqSchema = createFAQSchema(
+  isMarketing2026Enabled()
+    ? AB_FAQ.map(([question, answer]) => ({ question, answer }))
+    : [...ABOUT_US_FAQ],
+);
 
 export default function AboutUsLayout({
   children,

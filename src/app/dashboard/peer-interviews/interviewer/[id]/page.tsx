@@ -34,7 +34,7 @@ import { PeerCalendarGrid } from "@/components/peer/PeerCalendarGrid";
 import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTimezoneSelect";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule, formatPeerTimezoneLabel, isSlotStartInPast } from "@/components/peer/peerSlotTime";
-import { appCard } from "@/lib/app-theme";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
 import { cn } from "@/lib/utils";
 import {
   peerApi,
@@ -110,8 +110,8 @@ function MetaChip({
   children: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-[#7367F0]/80" />
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/70 px-2.5 py-1.5 text-[12.5px] font-medium text-foreground/80">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
       {children}
     </span>
   );
@@ -131,14 +131,14 @@ function StatTile({
   return (
     <div
       className={cn(
-        "min-w-0 flex-1 rounded-xl border px-2.5 py-2.5 sm:min-w-[7.5rem] sm:px-4 sm:py-3",
-        accent === "rating" && "border-amber-200/80 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/30",
-        accent === "primary" && "border-[#7367F0]/20 bg-[#7367F0]/[0.06]",
-        accent === "default" && "border-border/60 bg-card",
+        "min-w-0 flex-1 rounded-2xl border px-3 py-3 sm:min-w-[8rem] sm:px-4",
+        accent === "rating" && "border-amber-500/25 bg-amber-500/[0.07]",
+        accent === "primary" && "border-primary/25 bg-primary/[0.06]",
+        accent === "default" && "border-border bg-background/70",
       )}
     >
-      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[11px]">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground sm:mt-1 sm:text-xl">{value}</p>
+      <p className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[22px] font-extrabold tracking-tight tabular-nums text-foreground">{value}</p>
       {sub ? <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{sub}</p> : null}
     </div>
   );
@@ -239,7 +239,7 @@ export default function InterviewerDetailPage() {
 
   if (loading) {
     return (
-      <div className={cn(appCard, "flex h-72 items-center justify-center")}>
+      <div className="flex h-72 items-center justify-center rounded-[22px] border border-border bg-card">
         <Loader2 className="h-7 w-7 animate-spin text-[#7367F0]" />
       </div>
     );
@@ -247,7 +247,7 @@ export default function InterviewerDetailPage() {
 
   if (!interviewer) {
     return (
-      <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
+      <div className={cn(dash2026Scope, "flex flex-col items-center gap-3 rounded-[22px] border border-border bg-card px-6 py-16 text-center")}>
         <p className="text-lg font-semibold">Interviewer not found</p>
         <Link href="/dashboard/peer-interviews/book">
           <Button variant="outline">Back to directory</Button>
@@ -268,7 +268,7 @@ export default function InterviewerDetailPage() {
           <div
             key={roundKey}
             className={cn(
-              "group relative flex flex-col rounded-xl border border-border/60 bg-gradient-to-br from-card via-card to-muted/30 p-4 ring-1 ring-transparent transition-all duration-200 hover:border-[#7367F0]/25",
+              "group relative flex flex-col rounded-[18px] border border-border bg-card p-4 ring-1 ring-transparent transition-all duration-200 hover:border-primary/35",
               style.ring,
             )}
           >
@@ -295,18 +295,18 @@ export default function InterviewerDetailPage() {
 
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/50 pt-3">
               {meta?.defaultDurationMins ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  {meta.defaultDurationMins} min
+                  {meta.defaultDurationMins} MIN
                 </span>
               ) : (
                 <span />
               )}
               <div className="text-right">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-wider text-muted-foreground">
                   per session
                 </p>
-                <p className="text-xl font-bold tabular-nums text-[#7367F0]">₹{price ?? "—"}</p>
+                <p className="text-[22px] font-extrabold tracking-tight tabular-nums text-foreground">₹{price ?? "—"}</p>
               </div>
             </div>
           </div>
@@ -321,25 +321,25 @@ export default function InterviewerDetailPage() {
       : { text: "Available", className: "bg-emerald-500" };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="-ml-2 h-9 w-fit text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to interviewers
-        </Button>
-        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-          <span className={cn("h-2 w-2 rounded-full", availabilityLabel.className)} />
-          {availabilityLabel.text} for bookings
-        </span>
-      </div>
-
-      <div className={cn(appCard, "relative overflow-hidden p-0")}>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-[#7367F0]/20 via-[#7367F0]/8 to-transparent" />
-        <div className="relative px-4 pb-5 pt-5 sm:px-6 sm:pb-6">
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      <div className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative flex items-center justify-between gap-3 px-5 pt-5 sm:px-8 sm:pt-7">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            All interviewers
+          </button>
+          <span className="inline-flex items-center gap-2 rounded-md border border-border bg-background/70 px-2.5 py-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">
+            <span className={cn("h-2 w-2 rounded-full", availabilityLabel.className)} />
+            {availabilityLabel.text.toUpperCase()} FOR BOOKINGS
+          </span>
+        </div>
+        <div className="relative px-5 pb-6 pt-5 sm:px-8 sm:pb-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
             <div className="flex min-w-0 flex-1 flex-col gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
@@ -348,22 +348,20 @@ export default function InterviewerDetailPage() {
                   <img
                     src={interviewer.profilePictureUrl}
                     alt=""
-                    className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg ring-4 ring-card sm:h-24 sm:w-24"
+                    className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-border sm:h-24 sm:w-24"
                   />
                 ) : (
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#7367F0] to-[#9e95f5] text-lg font-bold text-white shadow-lg ring-4 ring-card sm:h-24 sm:w-24 sm:text-2xl">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-gradient-to-br from-[#F1EEFF] to-[#E3EEFF] text-lg font-black text-primary dark:from-primary/20 dark:to-sky-500/10 sm:h-24 sm:w-24 sm:text-3xl">
                     {initials(interviewer.name)}
                   </span>
                 )}
 
                 <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-[#7367F0] sm:text-xs">
-                    Peer interviewer
-                  </p>
-                  <h1 className="mt-0.5 text-lg font-semibold leading-tight tracking-tight sm:mt-1 sm:text-2xl lg:text-3xl">
+                  <Eyebrow>PEER INTERVIEWER</Eyebrow>
+                  <h1 className="mt-3 text-[28px] font-black leading-[1.05] tracking-[-0.045em] text-foreground sm:text-[38px]">
                     {interviewer.name}
                   </h1>
-                  <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1 sm:text-base">
+                  <p className="mt-1 text-[15px] text-muted-foreground sm:text-[16px]">
                     {interviewer.jobRole}
                   </p>
                 </div>
@@ -387,10 +385,10 @@ export default function InterviewerDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPricingOpen(true)}
-                className="h-9 w-fit gap-2 border-[#7367F0]/30 bg-card/80 text-[#7367F0] shadow-sm backdrop-blur-sm hover:bg-[#7367F0]/5 hover:text-[#7367F0]"
+                className="h-10 w-fit gap-2 rounded-xl border-primary/30 bg-card/80 px-4 text-[13.5px] text-primary backdrop-blur-sm hover:bg-primary/5 hover:text-primary"
               >
                 <IndianRupee className="h-4 w-4" />
-                View Pricing
+                See prices by round
               </Button>
             </div>
 
@@ -422,22 +420,19 @@ export default function InterviewerDetailPage() {
         </div>
       </div>
 
-      <div className={cn(appCard, "overflow-hidden p-0")}>
-        <div className="flex flex-col gap-1 border-b border-border/60 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
-              <CalendarDays className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Pick an available slot</h2>
-              <p className="text-sm text-muted-foreground">
-                Green slots are open · Orange slots are already booked
-              </p>
-            </div>
+      <div className="overflow-hidden rounded-[22px] border border-border bg-card">
+        <div className="flex flex-col gap-3 border-b border-border p-5 md:p-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Eyebrow>PICK A SLOT</Eyebrow>
+            <h2 className="mt-3 text-[22px] font-extrabold tracking-[-0.035em] text-foreground">When do you want to sit down?</h2>
+            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" />Open</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-500" />Already booked</span>
+            </p>
           </div>
-          <p className="text-sm font-medium text-muted-foreground sm:text-right">
-            {openSlotCount} slot{openSlotCount === 1 ? "" : "s"} available
-          </p>
+          <span className="font-[family-name:var(--font-geist-mono)] text-[12px] text-muted-foreground sm:text-right">
+            {openSlotCount} SLOT{openSlotCount === 1 ? "" : "S"} OPEN
+          </span>
         </div>
         <div className="p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -459,9 +454,10 @@ export default function InterviewerDetailPage() {
       </div>
 
       <Dialog open={pricingOpen} onOpenChange={setPricingOpen}>
-        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogContent className={cn(dash2026Scope, "max-h-[85vh] max-w-2xl overflow-y-auto rounded-[22px] p-6 sm:p-7")}>
           <DialogHeader>
-            <DialogTitle>View Pricing</DialogTitle>
+            <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">— PRICES BY ROUND —</p>
+            <DialogTitle className="text-[22px] font-extrabold tracking-[-0.03em]">{interviewer.name.split(" ")[0]}&apos;s rounds</DialogTitle>
             <DialogDescription>
               Interview types this engineer offers. You pay only after they accept your slot request.
             </DialogDescription>
@@ -471,10 +467,12 @@ export default function InterviewerDetailPage() {
       </Dialog>
 
       <Dialog open={!!selectedSlot} onOpenChange={(o) => !o && setSelectedSlot(null)}>
-        <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
-          <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 to-transparent px-6 py-5">
-            <DialogHeader className="space-y-1 text-left">
-              <DialogTitle>Book this slot</DialogTitle>
+        <DialogContent className={cn(dash2026Scope, "max-w-md gap-0 overflow-hidden rounded-[22px] p-0")}>
+          <div className="relative border-b border-border px-6 py-5">
+            <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-60" />
+            <DialogHeader className="relative space-y-1 text-left">
+              <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">— BOOK WITH {interviewer.name.split(" ")[0].toUpperCase()} —</p>
+              <DialogTitle className="text-[22px] font-extrabold tracking-[-0.03em]">Book this slot</DialogTitle>
               <DialogDescription className="text-sm">
                 {selectedSlot
                   ? formatPeerSchedule(selectedSlot.start, timezone, { dateStyle: "full" })
@@ -488,7 +486,7 @@ export default function InterviewerDetailPage() {
 
           <div className="space-y-4 px-6 py-5">
             <div>
-              <p className="mb-2.5 text-sm font-medium">Choose interview round</p>
+              <p className="mb-2.5 font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-muted-foreground">CHOOSE A ROUND</p>
               <div className="space-y-2">
                 {selectedSlot?.availableForTypes.map((t) => {
                   const active = chosenType === t;
@@ -497,15 +495,19 @@ export default function InterviewerDetailPage() {
                       key={t}
                       type="button"
                       onClick={() => setChosenType(t)}
+                      aria-pressed={active}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",
+                        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
                         active
-                          ? "border-[#7367F0] bg-[#7367F0]/[0.06] ring-1 ring-[#7367F0]/30"
-                          : "border-border/60 hover:border-[#7367F0]/30 hover:bg-muted/30",
+                          ? "border-primary bg-primary/[0.06] shadow-[0_0_0_4px_rgba(115,103,240,0.12)]"
+                          : "border-border hover:border-primary/40",
                       )}
                     >
-                      <span className="text-sm font-medium">{typeNames[t] || t}</span>
-                      <span className="text-sm font-semibold tabular-nums text-[#7367F0]">
+                      <span className={cn("grid size-4 shrink-0 place-items-center rounded-full border-2", active ? "border-primary bg-primary" : "border-border")}>
+                        {active ? <span className="size-1.5 rounded-full bg-white" /> : null}
+                      </span>
+                      <span className="flex-1 text-[14px] font-medium">{typeNames[t] || t}</span>
+                      <span className="text-[15px] font-extrabold tabular-nums text-foreground">
                         ₹{selectedSlot?.prices[t]}
                       </span>
                     </button>
@@ -514,7 +516,7 @@ export default function InterviewerDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 px-3.5 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-3.5 py-3">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p className="text-xs leading-relaxed text-muted-foreground">
                 No payment now. You&apos;ll be charged only after {interviewer.name.split(" ")[0]}{" "}
@@ -523,15 +525,15 @@ export default function InterviewerDetailPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-border/60 bg-muted/20 px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => setSelectedSlot(null)}>
+          <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+            <Button type="button" variant="outline" className="h-11 rounded-xl px-4" onClick={() => setSelectedSlot(null)}>
               Cancel
             </Button>
             <Button
               type="button"
               onClick={() => void confirmBooking()}
               disabled={booking || !chosenType}
-              className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+              className="h-11 rounded-xl px-5 font-semibold shadow-[0_10px_24px_-12px_rgba(115,103,240,.8)] hover:bg-primary/90"
             >
               {booking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Send booking request

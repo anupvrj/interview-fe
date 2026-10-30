@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
+import { ConciergeNotice } from "@/components/dashboard-2026/ConciergeNotice";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
@@ -165,6 +166,8 @@ export default function RecruiterDashboardPage() {
           </div>
         }
       />
+
+      <ConciergeNotice kind="talent" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <DashboardStatCard

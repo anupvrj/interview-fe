@@ -49,6 +49,7 @@ import {
 import { useMediaMinWidth } from "@/hooks/useMediaMinWidth";
 import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 import { cn } from "@/lib/utils";
+import { dash2026Scope } from "@/components/dashboard-2026/ui";
 import {
   CodingRunResultsPanel,
   type CodingRunPayload,
@@ -62,6 +63,7 @@ import {
   Play,
   Send,
   Video,
+  PhoneOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealtimeInterviewClient } from "@/components/interview/RealtimeInterviewClient";
@@ -136,28 +138,32 @@ type RunPanelState =
   | { type: "structured"; payload: CodingRunPayload }
   | { type: "text"; message: string };
 
+function difficultyTone(d: string) {
+  const v = d.toLowerCase();
+  if (v === "easy") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+  if (v === "hard") return "border-rose-400/30 bg-rose-400/10 text-rose-300";
+  return "border-amber-400/30 bg-amber-400/10 text-amber-300";
+}
+
 function ProblemDescriptionDark({
   problem,
 }: Readonly<{ problem: CodingProblemPublic }>) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <FileText className="h-4 w-4 shrink-0 text-primary/70/80" aria-hidden />
-          <h2 className="truncate text-base font-semibold tracking-tight text-white">
-            {problem.title}
-          </h2>
-        </div>
-        <span className="shrink-0 rounded-full border border-white/15 bg-card/[0.06] px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-gray-300">
+        <h2 className="min-w-0 text-[20px] font-extrabold leading-tight tracking-[-0.03em] text-white">
+          {problem.title}
+        </h2>
+        <span className={cn("shrink-0 rounded-md border px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] uppercase", difficultyTone(problem.difficulty))}>
           {problem.difficulty}
         </span>
       </div>
 
       <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-300/90">
-          Problem description
+        <h3 className="mb-2 font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-sky-300/80">
+          — THE PROBLEM —
         </h3>
-        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 shadow-lg shadow-black/20">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5">
           <CodingProblemStatement
             statement={problem.statement}
             variant="dark"
@@ -172,23 +178,23 @@ function ProblemDescriptionDark({
 
       {problem.publicTests.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300/90">
-            Examples (sample I/O)
+          <h3 className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-sky-300/80">
+            — EXAMPLES —
           </h3>
           <div className="space-y-3">
             {problem.publicTests.map((t, i) => (
               <div
                 key={`${i}-${t.input.slice(0, 20)}`}
-                className="space-y-2 rounded-xl border border-white/10 bg-card/[0.04] p-3 shadow-lg shadow-black/20"
+                className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5"
               >
-                <div className="text-xs font-semibold text-gray-300">
-                  Example {i + 1}
+                <div className="font-[family-name:var(--font-geist-mono)] text-[11px] text-white/60">
+                  EXAMPLE {String(i + 1).padStart(2, "0")}
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-gray-400">
                     Input:
                   </span>
-                  <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-gray-100 sm:text-sm">
+                  <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-[family-name:var(--font-geist-mono)] text-xs text-gray-100 sm:text-[13px]">
                     {t.input || "(empty)"}
                   </pre>
                 </div>
@@ -196,7 +202,7 @@ function ProblemDescriptionDark({
                   <span className="text-xs font-semibold text-gray-400">
                     Output:
                   </span>
-                  <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-gray-100 sm:text-sm">
+                  <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-[family-name:var(--font-geist-mono)] text-xs text-gray-100 sm:text-[13px]">
                     {t.expectedOutput || "(empty)"}
                   </pre>
                 </div>
@@ -213,55 +219,32 @@ function CodingPhaseStepper({
   codingActive,
   allSubmitted,
 }: Readonly<{ codingActive: boolean; allSubmitted: boolean }>) {
+  const steps = [
+    { label: "Setup", done: codingActive, active: !codingActive },
+    { label: "Code & test", done: allSubmitted, active: codingActive && !allSubmitted },
+    { label: "Discuss", done: false, active: allSubmitted },
+  ];
   return (
-    <ol className="m-0 hidden list-none items-center gap-2 p-0 text-[11px] font-medium md:flex">
-      <li
-        className={cn(
-          "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-          codingActive
-            ? "border-primary/40 bg-primary/15 text-primary/50"
-            : "border-white/10 text-gray-500",
-        )}
-      >
-        {codingActive ? (
-          <Check className="h-3 w-3 shrink-0 text-primary/70" aria-hidden />
-        ) : (
-          <span
-            className="h-3 w-3 shrink-0 rounded-full border border-white/20"
-            aria-hidden
-          />
-        )}
-        Live session
-      </li>
-      <li className="select-none text-gray-500" aria-hidden>
-        →
-      </li>
-      <li
-        className={cn(
-          "rounded-full border px-2.5 py-1",
-          codingActive && !allSubmitted
-            ? "border-violet-400/40 bg-violet-600/20 text-violet-100 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
-            : "border-white/10 text-gray-500",
-        )}
-      >
-        Code & test
-      </li>
-      <li className="select-none text-gray-500" aria-hidden>
-        →
-      </li>
-      <li
-        className={cn(
-          "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-          allSubmitted
-            ? "border-white/20 bg-card/[0.08] text-gray-100"
-            : "border-white/10 text-gray-500",
-        )}
-      >
-        {allSubmitted ? (
-          <Check className="h-3 w-3 shrink-0 text-primary/70" aria-hidden />
-        ) : null}
-        All submitted
-      </li>
+    <ol className="m-0 hidden list-none items-center gap-1.5 p-0 md:flex">
+      {steps.map((st, i) => (
+        <li
+          key={st.label}
+          aria-current={st.active ? "step" : undefined}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-medium",
+            st.active
+              ? "border-primary/50 bg-primary/20 text-white"
+              : st.done
+                ? "border-white/10 text-white/60"
+                : "border-white/10 text-white/35",
+          )}
+        >
+          <span className={cn("font-[family-name:var(--font-geist-mono)] text-[10px]", st.active ? "text-sky-300" : "text-white/40")}>
+            {st.done ? <Check className="h-3 w-3 text-emerald-400" aria-hidden /> : String(i + 1).padStart(2, "0")}
+          </span>
+          {st.label}
+        </li>
+      ))}
     </ol>
   );
 }
@@ -984,10 +967,10 @@ export default function CodingInterviewSessionPage() {
         if (!exitBusy) setExitConfirmOpen(open);
       }}
     >
-      <AlertDialogContent className="z-[200] border-amber-500/40 bg-[#0f172a] text-white sm:max-w-md">
+      <AlertDialogContent className={cn(dash2026Scope, "z-[200] rounded-[22px] border-white/10 bg-[#0D1626] text-white sm:max-w-md")}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-base text-white">
-            End this practice session?
+          <AlertDialogTitle className="text-[20px] font-bold tracking-tight text-white">
+            End this coding round?
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-left text-sm text-gray-300">
@@ -1052,19 +1035,13 @@ export default function CodingInterviewSessionPage() {
 
   if (codingStarted) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)] text-white antialiased">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="absolute right-0 top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
-            aria-hidden
-          />
+      <div className={cn("fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#060B16] text-white antialiased", dash2026Scope)}>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="bg-blueprint-dark absolute inset-0 [mask-image:radial-gradient(ellipse_80%_70%_at_50%_10%,#000_30%,transparent_80%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_15%_0%,rgba(115,103,240,.22),transparent_70%),radial-gradient(35%_30%_at_90%_5%,rgba(31,143,255,.12),transparent_70%)]" />
         </div>
 
-        <header className="relative z-20 shrink-0 border-b border-white/10 bg-[#0b1220]/95">
+        <header className="relative z-20 shrink-0 border-b border-white/10 bg-[#060B16]/80 backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
               <button
@@ -1078,8 +1055,11 @@ export default function CodingInterviewSessionPage() {
                 className="hidden h-4 w-px bg-card/15 sm:block"
                 aria-hidden
               />
-              <span className="truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
-                InterviewTrix · Coding
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-bold tracking-[-0.02em] text-white">{interview?.metadata.role || "Coding round"}</span>
+                <span className="block truncate font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wide text-white/45">
+                  CODING ROUND{interview?.metadata.targetCompany ? ` · ${interview.metadata.targetCompany.toUpperCase()}` : ""}
+                </span>
               </span>
               <CodingPhaseStepper
                 codingActive={codingStarted}
@@ -1093,14 +1073,23 @@ export default function CodingInterviewSessionPage() {
                   Recording
                 </span>
               ) : null}
-              <span className="font-mono text-sm tabular-nums text-gray-300/90 sm:text-sm">
-                {Math.floor(remainingSec / 60)}:
-                {(remainingSec % 60).toString().padStart(2, "0")}
+{/* end the round from here too; same confirm as Exit, so it is never one stray click */}
+              <Button
+                type="button"
+                onClick={() => setExitConfirmOpen(true)}
+                aria-label="End coding round"
+                className="h-9 gap-1.5 rounded-full bg-[#E5484D] px-3.5 text-[13px] font-semibold text-white shadow-[0_10px_26px_-12px_rgba(229,72,77,.9)] hover:bg-[#d93d42]"
+              >
+                <PhoneOff className="h-4 w-4" />
+                <span className="hidden sm:inline">End Call</span>
+              </Button>
+              <span className={cn("rounded-full border px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[12.5px] tabular-nums", remainingSec <= 120 ? "border-rose-400/40 bg-rose-500/15 text-rose-200" : "border-white/15 bg-white/[0.05] text-white/85")}>
+                {Math.floor(remainingSec / 60)}:{(remainingSec % 60).toString().padStart(2, "0")} left
               </span>
               {allSubmitted ? (
                 <Button
                   type="button"
-                  className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
+                  className="h-10 rounded-xl bg-primary px-4 text-[13.5px] font-semibold text-white shadow-[0_10px_26px_-12px_rgba(115,103,240,.9)] hover:bg-primary/90"
                   onClick={() => setDiscussionPromptOpen(true)}
                   disabled={voiceEmbedOpen}
                 >
@@ -1125,7 +1114,7 @@ export default function CodingInterviewSessionPage() {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden xl:flex-row xl:overflow-hidden">
           <aside
             className={cn(
-              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto",
+              "flex shrink-0 flex-col border-white/10 bg-[#0B1322]/80 backdrop-blur xl:h-auto",
               isXlWorkspaceRow
                 ? "min-h-0 xl:h-full xl:max-h-none xl:self-stretch xl:shrink-0 xl:border-r-0"
                 : voiceEmbedOpen
@@ -1137,13 +1126,12 @@ export default function CodingInterviewSessionPage() {
             }
           >
             <div className="shrink-0 border-b border-white/10 p-3">
-              <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                <Video className="h-4 w-4 text-primary/70/90" aria-hidden />
-                Your camera
+              <h3 className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-white/50">
+                YOUR CAMERA
               </h3>
               <video
                 ref={videoRef}
-                className="mt-2 aspect-video w-full rounded-2xl border border-white/10 bg-black object-cover shadow-lg shadow-black/30"
+                className="mt-2 aspect-video w-full rounded-xl border border-white/10 bg-black object-cover"
                 playsInline
                 muted
               />
@@ -1155,12 +1143,8 @@ export default function CodingInterviewSessionPage() {
             </div>
             {voiceEmbedOpen ? (
               <div className="flex shrink-0 flex-col border-b border-white/10 p-3">
-                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                  <MessageCircle
-                    className="h-4 w-4 text-violet-400/90"
-                    aria-hidden
-                  />
-                  AI Interviewer
+                <h3 className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-sky-300/80">
+                  AI INTERVIEWER · DISCUSSION
                 </h3>
                 <div className="mt-2 min-w-0">
                   <RealtimeInterviewClient
@@ -1189,11 +1173,12 @@ export default function CodingInterviewSessionPage() {
               </div>
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                Problems
+              <h3 className="flex items-baseline justify-between font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-white/50">
+                PROBLEMS
+                <span className="text-white/40">{submissions.length}/{problems.length} SUBMITTED</span>
               </h3>
               <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
-                {problems.map((p) => {
+                {problems.map((p, idx) => {
                   const sub = submissions.find(
                     (s) => s.problemId === p.problemId,
                   );
@@ -1204,34 +1189,36 @@ export default function CodingInterviewSessionPage() {
                         type="button"
                         onClick={() => setActiveId(p.problemId)}
                         className={cn(
-                          "flex w-full flex-col rounded-xl border px-2.5 py-2 text-left text-xs transition-colors",
+                          "flex w-full gap-2.5 rounded-xl border px-2.5 py-2.5 text-left text-xs transition-colors",
                           active
-                            ? "border-violet-400/45 bg-violet-600/20 text-white shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
-                            : "border-white/10 bg-card/[0.04] text-gray-300 hover:border-white/20 hover:bg-card/[0.07]",
+                            ? "border-primary/50 bg-primary/15 text-white"
+                            : "border-white/10 bg-white/[0.02] text-gray-300 hover:border-white/20 hover:bg-white/[0.05]",
                         )}
                       >
-                        <span className="line-clamp-2 font-medium text-white">
-                          {p.title}
+                        <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-md font-[family-name:var(--font-geist-mono)] text-[10px]", sub ? "bg-emerald-400/15 text-emerald-300" : active ? "bg-primary/30 text-white" : "bg-white/[0.06] text-white/50")}>
+                          {sub ? <Check className="h-3 w-3" /> : String(idx + 1).padStart(2, "0")}
                         </span>
-                        <span className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">
-                          {p.difficulty}
-                        </span>
-                        {sub ? (
-                          <span className="mt-1 text-[11px] text-primary/70/95 sm:text-xs">
-                            Done · {sub.finalScore}% ({sub.testsPassed}/
-                            {sub.testsTotal})
+                        <span className="min-w-0 flex-1">
+                          <span className="line-clamp-2 text-[13px] font-medium text-white">{p.title}</span>
+                          <span className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={cn("rounded px-1.5 py-px font-[family-name:var(--font-geist-mono)] text-[9.5px] uppercase", difficultyTone(p.difficulty))}>{p.difficulty}</span>
+                            {sub ? (
+                              <span className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-emerald-300">
+                                {sub.finalScore}% · {sub.testsPassed}/{sub.testsTotal} TESTS
+                              </span>
+                            ) : null}
                           </span>
-                        ) : null}
+                        </span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
-              <div className="rounded-xl border border-white/10 bg-card/[0.04] p-2.5 text-[11px] leading-relaxed text-gray-400 shadow-md shadow-black/20 sm:text-xs">
-                <p className="font-medium text-gray-300">Tips</p>
-                <ul className="mt-1.5 list-disc space-y-1 pl-3.5">
-                  <li>Run checks public samples only.</li>
-                  <li>Submit runs hidden tests too.</li>
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-[11.5px] leading-relaxed text-white/55">
+                <p className="font-[family-name:var(--font-geist-mono)] text-[10px] tracking-wider text-white/40">GOOD TO KNOW</p>
+                <ul className="mt-1.5 space-y-1">
+                  <li><b className="font-medium text-white/80">Run</b> checks the public samples only.</li>
+                  <li><b className="font-medium text-white/80">Submit</b> runs the hidden tests too.</li>
                 </ul>
               </div>
             </div>
@@ -1247,7 +1234,7 @@ export default function CodingInterviewSessionPage() {
           <main
             ref={setProblemEl}
             className={cn(
-              "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
+              "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-[#0B1322]/60 backdrop-blur",
               isXlWorkspaceRow
                 ? "xl:w-auto xl:max-w-none xl:flex-none xl:shrink-0 xl:border-r"
                 : "xl:flex-1 xl:border-r",
@@ -1257,8 +1244,8 @@ export default function CodingInterviewSessionPage() {
             }
           >
             <div className="shrink-0 border-b border-white/10 px-3 py-2 sm:px-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                Active problem
+              <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-white/50">
+                ACTIVE PROBLEM
               </p>
               <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
                 {problems.map((p) => (
@@ -1267,10 +1254,10 @@ export default function CodingInterviewSessionPage() {
                     type="button"
                     onClick={() => setActiveId(p.problemId)}
                     className={cn(
-                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      "shrink-0 rounded-lg border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
                       activeId === p.problemId
-                        ? "border-violet-400/45 bg-violet-600/20 text-white shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
-                        : "border-white/10 bg-card/[0.04] text-gray-400 hover:border-white/20 hover:text-gray-200",
+                        ? "border-primary/50 bg-primary/20 text-white"
+                        : "border-white/10 bg-white/[0.02] text-white/55 hover:border-white/20 hover:text-white",
                     )}
                   >
                     {p.title}
@@ -1294,12 +1281,11 @@ export default function CodingInterviewSessionPage() {
             />
           ) : null}
 
-          <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
+          <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-[#0B1322]/80 backdrop-blur xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                  <Braces className="h-4 w-4 text-primary/70/90" aria-hidden />
-                  Code editor
+                <h3 className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-white/50">
+                  EDITOR
                 </h3>
                 <Select
                   value={language}
@@ -1311,7 +1297,7 @@ export default function CodingInterviewSessionPage() {
                     setLanguage(v);
                   }}
                 >
-                  <SelectTrigger className="h-9 w-[150px] rounded-xl border-white/15 bg-card/[0.06] text-xs text-white shadow-md shadow-black/20 focus:ring-primary/40 sm:text-sm">
+                  <SelectTrigger className="h-9 w-[150px] rounded-lg border-white/15 bg-white/[0.05] text-[13px] text-white focus:ring-primary/40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="z-[200] rounded-xl border-white/10 bg-[#0b1220] text-white shadow-xl">
@@ -1329,7 +1315,7 @@ export default function CodingInterviewSessionPage() {
               </div>
               <div
                 ref={setEditorEl}
-                className="h-[min(58vh,680px)] min-h-[400px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-inner shadow-black/40"
+                className="h-[min(58vh,680px)] min-h-[400px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#1e1e1e]"
               >
                 <MonacoEditor
                   height="100%"
@@ -1355,7 +1341,7 @@ export default function CodingInterviewSessionPage() {
                   variant="outline"
                   onClick={handleRun}
                   disabled={running}
-                  className="rounded-xl border-white/20 bg-card/[0.06] text-xs text-white shadow-md shadow-black/15 hover:bg-card/10 hover:text-white sm:h-10 sm:text-sm"
+                  className="h-10 rounded-xl border-white/15 bg-white/[0.05] px-4 text-[13.5px] text-white hover:bg-white/10 hover:text-white"
                 >
                   {running ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -1367,7 +1353,7 @@ export default function CodingInterviewSessionPage() {
                 <Button
                   type="button"
                   onClick={handleSubmitProblem}
-                  className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
+                  className="h-10 rounded-xl bg-primary px-4 text-[13.5px] font-semibold text-white shadow-[0_10px_26px_-12px_rgba(115,103,240,.9)] hover:bg-primary/90"
                 >
                   <Send className="mr-1 h-4 w-4" />
                   Submit all
@@ -1409,10 +1395,10 @@ export default function CodingInterviewSessionPage() {
             if (!discussBusy) setDiscussionPromptOpen(open);
           }}
         >
-          <AlertDialogContent className="z-[220] border-white/10 bg-[#0f172a] text-white sm:max-w-lg">
+          <AlertDialogContent className={cn(dash2026Scope, "z-[220] rounded-[22px] border-white/10 bg-[#0D1626] text-white sm:max-w-lg")}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-base text-white">
-                Let&apos;s discuss and analyze your problem-solving
+              <AlertDialogTitle className="text-[20px] font-bold tracking-tight text-white">
+                Now talk it through
               </AlertDialogTitle>
               <AlertDialogDescription className="space-y-3 text-left text-sm text-gray-300">
                 <span className="block">
@@ -1436,7 +1422,7 @@ export default function CodingInterviewSessionPage() {
               <Button
                 type="button"
                 disabled={discussBusy}
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900"
+                className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
                 onClick={() => void launchDiscussionVoice()}
               >
                 {discussBusy ? (
@@ -1454,19 +1440,13 @@ export default function CodingInterviewSessionPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)] text-white antialiased">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="absolute right-0 top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
-          aria-hidden
-        />
+    <div className={cn("fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#060B16] text-white antialiased", dash2026Scope)}>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="bg-blueprint-dark absolute inset-0 [mask-image:radial-gradient(ellipse_80%_70%_at_50%_10%,#000_30%,transparent_80%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_15%_0%,rgba(115,103,240,.22),transparent_70%),radial-gradient(35%_30%_at_90%_5%,rgba(31,143,255,.12),transparent_70%)]" />
       </div>
 
-      <header className="relative z-20 shrink-0 border-b border-white/10 bg-[#0b1220]/95">
+      <header className="relative z-20 shrink-0 border-b border-white/10 bg-[#060B16]/80 backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
             <button
@@ -1477,8 +1457,11 @@ export default function CodingInterviewSessionPage() {
               ← Exit
             </button>
             <span className="hidden h-4 w-px bg-card/15 sm:block" aria-hidden />
-            <span className="truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
-              InterviewTrix · Coding
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] font-bold tracking-[-0.02em] text-white">{interview?.metadata.role || "Coding round"}</span>
+              <span className="block truncate font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wide text-white/45">
+                CODING ROUND{interview?.metadata.targetCompany ? ` · ${interview.metadata.targetCompany.toUpperCase()}` : ""}
+              </span>
             </span>
             <CodingPhaseStepper
               codingActive={codingStarted}
@@ -1488,7 +1471,7 @@ export default function CodingInterviewSessionPage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
-              className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
+              className="h-10 rounded-xl bg-primary px-4 text-[13.5px] font-semibold text-white shadow-[0_10px_26px_-12px_rgba(115,103,240,.9)] hover:bg-primary/90"
               onClick={() => setStartSessionOpen(true)}
               disabled={starting}
             >
@@ -1503,10 +1486,10 @@ export default function CodingInterviewSessionPage() {
                 if (!starting) setStartSessionOpen(open);
               }}
             >
-              <AlertDialogContent className="border-white/10 bg-[#0f172a] text-white sm:max-w-lg">
+              <AlertDialogContent className={cn(dash2026Scope, "rounded-[22px] border-white/10 bg-[#0D1626] text-white sm:max-w-lg")}>
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-base text-white">
-                    Start your session
+                  <AlertDialogTitle className="text-[20px] font-bold tracking-tight text-white">
+                    Start your coding round
                   </AlertDialogTitle>
                   <AlertDialogDescription className="space-y-2 text-left text-sm text-gray-300">
                     <span className="block">
@@ -1530,7 +1513,7 @@ export default function CodingInterviewSessionPage() {
                   <Button
                     type="button"
                     disabled={starting}
-                    className="rounded-xl bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900"
+                    className="rounded-xl bg-primary font-semibold text-white hover:bg-primary/90"
                     onClick={() => void handleStartCoding()}
                   >
                     {starting ? (
@@ -1555,32 +1538,64 @@ export default function CodingInterviewSessionPage() {
         </div>
       ) : null}
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10">
-        <div className="w-full max-w-md space-y-5 text-center">
-          <div className="space-y-2 text-left">
-            <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-              <Video className="h-4 w-4 text-primary/70/90" aria-hidden />
-              Camera &amp; mic
-            </h3>
+      <div className="relative z-10 flex min-h-0 flex-1 overflow-y-auto px-4 py-10">
+        <div className="m-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div>
+            <p className="font-[family-name:var(--font-geist-mono)] text-[12px] tracking-wider text-sky-300/90">— READY WHEN YOU ARE —</p>
+            <h1 className="text-balance mt-4 text-[34px] font-black leading-[1.03] tracking-[-0.045em] text-white md:text-[46px]">
+              {problems.length || 3} problems. Then you{" "}
+              <span className="bg-gradient-to-r from-[#A99CFF] to-[#5CD3FF] bg-clip-text text-transparent">defend them out loud.</span>
+            </h1>
+            <ol className="mt-7 space-y-3">
+              {[
+                ["Solve", "Write code in the editor, run it against the sample tests."],
+                ["Submit", "Each submit also runs hidden tests and locks your score for that problem."],
+                ["Discuss", "Talk through your approach and trade-offs with the AI interviewer."],
+              ].map(([t, d], i) => (
+                <li key={t} className="flex gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <span className="font-[family-name:var(--font-geist-mono)] text-[12px] text-sky-300">{String(i + 1).padStart(2, "0")}</span>
+                  <span>
+                    <span className="block text-[15px] font-semibold text-white">{t}</span>
+                    <span className="block text-[13.5px] leading-relaxed text-white/60">{d}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {problems.length ? (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {problems.map((p) => (
+                  <span key={p.problemId} className={cn("rounded-md border px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] uppercase", difficultyTone(p.difficulty))}>{p.difficulty}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-[22px] border border-white/10 bg-[#0D1626]/85 p-5 shadow-[0_30px_60px_-30px_rgba(0,0,0,.7)] backdrop-blur">
+            <div className="flex items-center justify-between">
+              <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wider text-white/50">CAMERA &amp; MIC CHECK</p>
+              {cameraReady ? <span className="inline-flex items-center gap-1.5 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-emerald-300"><span className="size-1.5 rounded-full bg-emerald-400" />ON</span> : null}
+            </div>
             <video
               ref={videoRef}
-              className="aspect-video w-full rounded-2xl border border-white/10 bg-black object-cover shadow-lg shadow-black/30"
+              className="mt-3 aspect-video w-full rounded-xl border border-white/10 bg-black object-cover"
               playsInline
               muted
             />
-            <p className="text-xs text-gray-500">
-              We need this preview so your browser can attach the camera stream
-              before recording starts.
+            <p className="mt-3 text-[12.5px] leading-relaxed text-white/55">
+              {starting
+                ? "Allow camera, microphone and screen capture when your browser asks."
+                : "When you start, your browser asks for camera and mic, then which screen to share. Recording begins once both are allowed."}
             </p>
+            <Button
+              type="button"
+              className="mt-4 h-12 w-full rounded-xl bg-primary text-[15px] font-semibold text-white shadow-[0_14px_30px_-12px_rgba(115,103,240,.9)] hover:bg-primary/90"
+              onClick={() => setStartSessionOpen(true)}
+              disabled={starting}
+            >
+              {starting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              {starting ? "Starting…" : "Start solving"}
+            </Button>
           </div>
-          {starting ? (
-            <Loader2 className="mx-auto h-9 w-9 animate-spin text-violet-400" />
-          ) : null}
-          <p className="text-sm text-gray-300">
-            {starting
-              ? "Allow camera, microphone, and screen capture when your browser prompts you."
-              : "When you’re ready, choose Start Solving Problems in the header. Your browser will ask for camera, microphone, and screen capture."}
-          </p>
         </div>
       </div>
       {exitConfirmDialog}

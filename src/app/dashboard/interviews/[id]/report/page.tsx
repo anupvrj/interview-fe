@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowRight,
   Copy,
   Download,
   Mail,
@@ -30,7 +31,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
-import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
+import { InterviewReportView } from "@/components/dashboard-2026/InterviewReportView";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
 import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import {
   buildInterviewReportPdfHtml,
@@ -68,7 +70,9 @@ export default function ReportPage() {
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
-  const [shareBusy, setShareBusy] = useState(false);
+  /** Which share action is preparing the link; the other button just waits. */
+  const [shareAction, setShareAction] = useState<"copy" | "email" | null>(null);
+  const shareBusy = shareAction !== null;
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const { canUse } = useEntitlements();
   const isHackathonReport = Boolean(
@@ -709,7 +713,7 @@ export default function ReportPage() {
   };
 
   const copyReportLink = async () => {
-    setShareBusy(true);
+    setShareAction("copy");
     try {
       const url = await resolveShareUrl();
       await navigator.clipboard.writeText(url);
@@ -720,13 +724,13 @@ export default function ReportPage() {
         e instanceof Error ? e.message : "Could not prepare share link";
       toast.error(message);
     } finally {
-      setShareBusy(false);
+      setShareAction(null);
     }
   };
 
   const openEmailShare = async () => {
     if (!interview) return;
-    setShareBusy(true);
+    setShareAction("email");
     try {
       const shareUrl = await resolveShareUrl();
       const subjectPlain = `Interview report: ${interview.metadata.role}`;
@@ -761,7 +765,7 @@ export default function ReportPage() {
         e instanceof Error ? e.message : "Could not prepare share link";
       toast.error(message);
     } finally {
-      setShareBusy(false);
+      setShareAction(null);
     }
   };
 
@@ -819,149 +823,140 @@ export default function ReportPage() {
       );
     }
 
+    const back = reportBackHref(interview);
+    const codingRound = interview?.metadata.interviewKind === "coding_practice";
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-4">
-        <JourneyCard
-          className="w-full max-w-md"
-          icon={
-            <JourneyIconTile tone="danger" size="lg">
-              <AlertCircle className="h-7 w-7" aria-hidden />
-            </JourneyIconTile>
-          }
-          eyebrow="Interview report"
-          title="Report not available"
-          description={error || "The interview report is not ready yet or doesn't exist."}
-          footer={
-            <Button className={journey.primaryButton} asChild>
-              <Link href={reportBackHref(interview).href}>{reportBackHref(interview).label}</Link>
-            </Button>
-          }
-        />
+      <div className={cn(dash2026Scope, "mx-auto w-full max-w-3xl pt-6")}>
+        <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+          <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+          <div className="relative p-6 md:p-9">
+            <Link href={back.href} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> {back.label}
+            </Link>
+            <div className="mt-7 flex items-start gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-6 w-6" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <Eyebrow>{codingRound ? "CODING ROUND REPORT" : "INTERVIEW REPORT"}</Eyebrow>
+                <h1 className="mt-3 text-[26px] font-black leading-tight tracking-[-0.04em] text-foreground md:text-[32px]">No report for this round.</h1>
+                <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                  {error || "The report isn't ready yet, or this round doesn't have one."}
+                </p>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+                  {codingRound
+                    ? "A report needs the AI discussion after coding. Rounds that end before it don't get scored."
+                    : "Rounds that end before any answers are given don't get scored."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-7 flex flex-wrap gap-2.5 border-t border-border pt-5">
+              <Button asChild className="h-11 rounded-xl px-5 text-[14.5px] shadow-[0_10px_30px_-12px_rgba(115,103,240,.75)] hover:bg-primary/90">
+                <Link href={codingRound ? "/dashboard/coding-interviews/new" : "/dashboard/interviews/new"}>Start another round <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 rounded-xl px-5 text-[14.5px]">
+                <Link href={back.href}>{back.label}</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
 
-  const reportTitle =
-    interview.metadata.interviewKind === "coding_practice"
-      ? "Practice coding round report"
-      : "Interview report";
+  const isCoding = interview.metadata.interviewKind === "coding_practice";
+  const back = reportBackHref(interview);
+  const duration = interview.metadata.interviewDuration;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
-      <div className="flex flex-col gap-4">
-        <Link
-          href={reportBackHref(interview).href}
-          className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>{reportBackHref(interview).label}</span>
-        </Link>
-
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <h1 className="mb-1 break-words text-2xl font-bold text-foreground sm:text-3xl">
-              {reportTitle}
-            </h1>
-            {interview.session?.terminationReason === "server_error" ? (
-              <p className="mb-2 text-sm font-medium text-amber-800">
-                This interview was terminated due to a server error.
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      {/* header: which round this was, and what you can do with the report */}
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(31,143,255,.09),transparent_70%)]" />
+        <div className="relative p-6 md:p-8">
+          <Link href={back.href} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> {back.label}
+          </Link>
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <Eyebrow>{isCoding ? "CODING ROUND REPORT" : "INTERVIEW REPORT"}</Eyebrow>
+              <h1 className="text-balance mt-4 break-words text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">
+                {interview.metadata.role}
+              </h1>
+              <p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[12px] text-muted-foreground">
+                {[interview.metadata.targetCompany, formatDate(interview.createdAt), duration ? `${duration} MIN` : null].filter(Boolean).join(" · ").toUpperCase()}
               </p>
-            ) : null}
-            <p className="break-words text-sm text-muted-foreground">
-              {interview.metadata.role} · {formatDate(interview.createdAt)}
-            </p>
-          </div>
-          <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[min(100%,24rem)]">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(instituteSecondaryClass, "w-full justify-center gap-2")}
-                >
-                  <Share2 className="h-4 w-4 shrink-0" /> Share
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Share interview report</DialogTitle>
-                  <DialogDescription>
-                    Shares a PDF download link from cloud storage. If this
-                    interview has not been uploaded yet, the PDF is generated
-                    and stored once; later shares reuse the same file. Links
-                    expire after 7 days. On desktop, Email opens Gmail in your
-                    browser; on phones, it opens your mail app.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(instituteSecondaryClass, "w-full gap-2 sm:flex-1")}
-                    disabled={shareBusy}
-                    onClick={() => void copyReportLink()}
-                  >
-                    {shareBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                    Copy link
+              {interview.session?.terminationReason === "server_error" ? (
+                <p className="mt-3 inline-flex rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[13px] text-amber-700 dark:text-amber-300">
+                  This interview was cut short by a server error.
+                </p>
+              ) : null}
+            </div>
+            <div className="grid w-full shrink-0 grid-cols-2 gap-2.5 sm:w-auto sm:flex">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="h-11 gap-2 rounded-xl px-4 text-[14px]">
+                    <Share2 className="h-4 w-4 shrink-0" /> Share
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(instituteSecondaryClass, "w-full gap-2 sm:flex-1")}
-                    disabled={shareBusy}
-                    onClick={() => void openEmailShare()}
-                  >
-                    {shareBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mail className="h-4 w-4" />
-                    )}
-                    Email
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button
-              variant="outline"
-              className={cn(instituteSecondaryClass, "w-full justify-center gap-2")}
-              disabled={pdfDownloading}
-              onClick={() => void downloadPDF()}
-            >
-              {pdfDownloading ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 shrink-0" />
-              )}
-              <span className="truncate">
-                {pdfDownloading ? "Generating…" : "Download PDF"}
-              </span>
-            </Button>
+                </DialogTrigger>
+                <DialogContent className={cn(dash2026Scope, "rounded-[22px] sm:max-w-md")}>
+                  <DialogHeader>
+                    <DialogTitle className="text-[20px] font-bold tracking-tight">Share this report</DialogTitle>
+                    <DialogDescription>
+                      Shares a PDF link that expires after 7 days. The PDF is made once and reused for later shares. On desktop, Email opens Gmail in your browser; on phones, your mail app.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button type="button" variant="outline" className="h-11 w-full gap-2 rounded-xl sm:flex-1" disabled={shareBusy} onClick={() => void copyReportLink()}>
+                      {shareAction === "copy" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                      Copy link
+                    </Button>
+                    <Button type="button" variant="outline" className="h-11 w-full gap-2 rounded-xl sm:flex-1" disabled={shareBusy} onClick={() => void openEmailShare()}>
+                      {shareAction === "email" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                      Email
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                className="h-11 gap-2 rounded-xl px-4 text-[14px] shadow-[0_10px_30px_-12px_rgba(115,103,240,.75)] hover:bg-primary/90"
+                disabled={pdfDownloading}
+                onClick={() => void downloadPDF()}
+              >
+                {pdfDownloading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Download className="h-4 w-4 shrink-0" />}
+                <span className="truncate">{pdfDownloading ? "Generating…" : "Download PDF"}</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <ReportSectionTabs
         audience="candidate"
         integrityReport={report.integrityReport}
-        performance={<InterviewReportAnalysis report={report} />}
+        performance={<InterviewReportView report={report} />}
       />
 
-      <Card className="overflow-hidden rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] shadow-card">
-        <CardContent className="p-6 text-center sm:p-8">
-          <h2 className="mb-3 text-xl font-bold text-foreground sm:text-2xl">
-            Ready for your next interview?
-          </h2>
-          <p className="mb-6 text-muted-foreground">
-            Keep practicing to improve your scores and build confidence.
-          </p>
-          <Button className={institutePrimaryClass} size="lg" asChild>
-            <Link href="/dashboard/interviews/new">Start new interview</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      {/* next round */}
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-60" />
+        <div className="relative flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between md:p-8">
+          <div>
+            <Eyebrow>NEXT ROUND</Eyebrow>
+            <h2 className="mt-3 text-[24px] font-extrabold tracking-[-0.035em] text-foreground md:text-[28px]">Run it again while the feedback is fresh.</h2>
+            <p className="mt-1.5 text-[14.5px] text-muted-foreground">Your next interviewer will pick up where this one left off.</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2.5">
+            <Button asChild className="h-11 rounded-xl px-5 text-[14.5px] shadow-[0_10px_30px_-12px_rgba(115,103,240,.75)] hover:bg-primary/90">
+              <Link href={isCoding ? "/dashboard/coding-interviews/new" : "/dashboard/interviews/new"}>Start another round <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11 rounded-xl px-5 text-[14.5px]">
+              <Link href={back.href}>All rounds</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveAvailableRoles, roleHome, roleRequiredForPath } from "../roles";
+import { deriveAvailableRoles, isPathAllowedForRole, roleHome, roleRequiredForPath } from "../roles";
 import type { User } from "@/lib/api";
 
 function profile(
@@ -54,5 +54,22 @@ describe("roleRequiredForPath", () => {
     expect(roleRequiredForPath("/dashboard/extension/connected", null)).toBe(
       "candidate",
     );
+  });
+});
+
+describe("isPathAllowedForRole · job search", () => {
+  it("keeps candidates out of the job board and job tracker", () => {
+    for (const path of ["/dashboard/job-board", "/dashboard/job-tracker", "/dashboard/job-tracker/abc"]) {
+      expect(isPathAllowedForRole("candidate", path, profile({}))).toBe(false);
+    }
+  });
+
+  it("still lets candidates use the rest of their workspace", () => {
+    expect(isPathAllowedForRole("candidate", "/dashboard/interviews", profile({}))).toBe(true);
+    expect(isPathAllowedForRole("candidate", "/dashboard/resumes", profile({}))).toBe(true);
+  });
+
+  it("leaves job search open to super admins", () => {
+    expect(isPathAllowedForRole("super_admin", "/dashboard/job-board", profile({ accessRole: "super_admin" }))).toBe(true);
   });
 });

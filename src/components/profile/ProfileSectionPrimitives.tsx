@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { cn } from "@/lib/utils";
 import {
   profileCardClass,
@@ -43,26 +42,14 @@ export function ProfileField({
 
 export function SectionIcon({
   icon: Icon,
-  tone = "violet",
 }: {
   icon: LucideIcon;
+  /** Kept for existing callers; every section now shares the brand gradient. */
   tone?: "violet" | "cyan" | "emerald" | "amber";
 }) {
-  const toneClass = {
-    violet: "border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]",
-    cyan: "border-cyan-500/20 bg-cyan-500/10 text-cyan-600",
-    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
-    amber: "border-amber-500/20 bg-amber-500/10 text-amber-600",
-  }[tone];
-
   return (
-    <div
-      className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-        toneClass,
-      )}
-    >
-      <Icon className="h-5 w-5" />
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white shadow-[0_8px_20px_-10px_rgba(115,103,240,.8)]">
+      <Icon className="h-[18px] w-[18px]" />
     </div>
   );
 }
@@ -77,12 +64,11 @@ export function ProfileEditActions({
   onCancel: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
       <Button
-        size="sm"
         onClick={onSave}
         disabled={saving}
-        className={`gap-1.5 ${institutePrimaryClass}`}
+        className="h-10 gap-1.5 rounded-xl px-4"
       >
         {saving ? (
           <>
@@ -96,7 +82,7 @@ export function ProfileEditActions({
           </>
         )}
       </Button>
-      <Button size="sm" variant="outline" disabled={saving} onClick={onCancel}>
+      <Button variant="outline" disabled={saving} onClick={onCancel} className="h-10 rounded-xl px-4">
         Cancel
       </Button>
     </div>
@@ -122,12 +108,12 @@ export function ProfileApplicationSectionCard({
 }) {
   return (
     <Card className={profileCardClass}>
-      <CardHeader className="border-b border-border/60 px-5 py-4">
+      <CardHeader className="border-b border-border px-5 py-5 md:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <SectionIcon icon={icon} tone={tone} />
             <div>
-              <CardTitle className="text-lg font-semibold text-foreground">
+              <CardTitle className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">
                 {title}
               </CardTitle>
               <CardDescription className="mt-0.5 text-sm">
@@ -139,7 +125,7 @@ export function ProfileApplicationSectionCard({
             <Button
               variant="outline"
               size="sm"
-              className="shrink-0 gap-1.5"
+              className="h-9 shrink-0 gap-1.5 rounded-xl"
               onClick={onEdit}
             >
               <Edit2 className="h-4 w-4" />
@@ -148,7 +134,7 @@ export function ProfileApplicationSectionCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-5">{children}</CardContent>
+      <CardContent className="p-5 md:p-6">{children}</CardContent>
     </Card>
   );
 }

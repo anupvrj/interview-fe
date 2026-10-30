@@ -144,7 +144,8 @@ function isResumeActive(pathname: string) {
   );
 }
 
-function useVisibleMarketingNav() {
+/** Which marketing nav entries the platform feature flags allow; shared with the 2026 marketing nav. */
+export function useVisibleMarketingNav() {
   const { isNavHrefVisible } = usePlatformFeatures();
   return {
     mockItems: mockInterviewNavItems.filter((item) =>
@@ -384,7 +385,8 @@ export function PublicDesktopNav() {
 }
 
 /** Portaled above SiteHeader (`z-50`) — must be literal Tailwind classes for JIT. */
-export function PublicMobileNav() {
+/** `mockItems` lets the 2026 nav point Peer Interviews at its landing page; the rest is shared. */
+export function PublicMobileNav({ mockItems: mockItemsOverride }: { mockItems?: { href: string; label: string; description: string }[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -392,12 +394,9 @@ export function PublicMobileNav() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, isLoaded } = useUser();
-  const {
-    mockItems,
-    resumeItems,
-    showBecomeInterviewer,
-    showHackathon,
-  } = useVisibleMarketingNav();
+  const visible = useVisibleMarketingNav();
+  const { resumeItems, showBecomeInterviewer, showHackathon } = visible;
+  const mockItems = mockItemsOverride ?? visible.mockItems;
 
   useEffect(() => {
     setMounted(true);

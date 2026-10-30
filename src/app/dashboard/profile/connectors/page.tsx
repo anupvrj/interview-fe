@@ -8,7 +8,6 @@ import {
   Link2,
   Loader2,
   Plug,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,18 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { connectorApi, type ConnectorTokenRow } from "@/lib/api";
-import {
-  appBadgeNeutral,
-  appCard,
-  appOutlineButton,
-  appPrimaryButton,
-} from "@/lib/app-theme";
+import { Mono } from "@/components/marketing-2026/primitives";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { ListHeader } from "@/components/dashboard-2026/PracticeHero";
 import { cn, formatDate } from "@/lib/utils";
 
 const fieldLabelClass = "block text-sm font-medium text-foreground";
-const fieldHintClass = "text-xs leading-relaxed text-muted-foreground";
-const sectionEyebrowClass =
-  "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground";
+const fieldHintClass = "text-[12.5px] leading-relaxed text-muted-foreground";
 
 function defaultMcpUrl() {
   if (typeof window === "undefined") return "https://mcp.interviewtrix.com/mcp";
@@ -111,100 +105,79 @@ export default function ConnectorSettingsPage() {
     toast.success(`${copiedLabel} copied`);
   }
 
+  const lastUsed = tokens
+    .map((t) => t.lastUsedAt)
+    .filter((d): d is string => Boolean(d))
+    .sort((x, y) => +new Date(y) - +new Date(x))[0];
+
   return (
-    <section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="container mx-auto max-w-3xl space-y-6">
-        <header className="space-y-2">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            <Plug className="size-6 shrink-0 text-[#7367F0]" />
-            AI connectors
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
+        <div className="relative p-6 md:p-9">
+          <Eyebrow>AI CONNECTORS</Eyebrow>
+          <h1 className="text-balance mt-5 max-w-[22ch] text-[32px] font-black leading-[1.03] tracking-[-0.05em] text-foreground sm:text-[42px] xl:text-[50px]">
+            Practise from{" "}
+            <span className="bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] bg-clip-text text-transparent">the AI you already use.</span>
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Let ChatGPT, Claude, Gemini, or Cursor import your resumes and start
-            mock interviews as you. Generate a token, paste it into the AI app,
-            then take the interview on Interview Trix.
+          <p className="text-balance mt-4 max-w-[60ch] text-[15.5px] leading-relaxed text-muted-foreground md:text-[17px]">
+            Let ChatGPT, Claude, Gemini or Cursor import your resumes and start mock interviews as you. Generate a token, paste it into the AI app, then take the interview on Interview Trix.
           </p>
-        </header>
-
-        <div className={cn(appCard, "space-y-5 p-4 sm:p-6")}>
-          <div className="space-y-1">
-            <p className={sectionEyebrowClass}>Connection</p>
-            <h2 className="text-base font-semibold sm:text-lg">Server URLs</h2>
-            <p className={fieldHintClass}>
-              Copy the URL that matches the app you are connecting. You will
-              also need an access token from the section below.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <UrlRow
-              label="MCP server URL"
-              hint="Use this in ChatGPT, Claude, and Cursor (remote MCP / plugin)."
-              value={mcpUrl}
-              copyLabel="MCP server URL"
-              onCopy={copy}
-            />
-            <UrlRow
-              label="OpenAPI schema URL"
-              hint="Use this in ChatGPT Custom GPT Actions and Gemini Gems."
-              value={openapiUrl}
-              copyLabel="OpenAPI schema URL"
-              onCopy={copy}
-            />
+          <div className="mt-5 flex flex-wrap gap-2">
+            {["ChatGPT", "Claude", "Gemini", "Cursor"].map((t) => (
+              <Mono key={t} className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground">{t.toUpperCase()}</Mono>
+            ))}
           </div>
         </div>
+        <div className="relative grid grid-cols-3 divide-x divide-border border-t border-border">
+          {([
+            ["Active tokens", loading ? "…" : String(tokens.length), "one per AI app"],
+            ["Last used", lastUsed ? formatDate(lastUsed) : "—", lastUsed ? "by any token" : "no calls yet"],
+            ["Connection types", "2", "MCP and OpenAPI"],
+          ] as const).map(([k, v, d]) => (
+            <div key={k} className="min-w-0 px-5 py-4 md:px-6">
+              <p className="text-[12.5px] text-muted-foreground">{k}</p>
+              <Mono className="mt-1 block truncate text-[20px] tracking-tight text-foreground md:text-[24px]">{v}</Mono>
+              <p className="truncate text-[11.5px] text-muted-foreground/80">{d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <div className={cn(appCard, "space-y-5 p-4 sm:p-6")}>
-          <div className="space-y-1">
-            <p className={sectionEyebrowClass}>Setup</p>
-            <h2 className="text-base font-semibold sm:text-lg">
-              How to connect
-            </h2>
+      <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card">
+          <ListHeader eyebrow="01 · CONNECTION" title="Server URLs." description="Copy the URL that matches the app you're connecting. You'll also need an access token." />
+          <div className="space-y-5 p-5 md:p-6">
+            <UrlRow label="MCP server URL" hint="Use this in ChatGPT, Claude and Cursor (remote MCP / plugin)." value={mcpUrl} copyLabel="MCP server URL" onCopy={copy} />
+            <UrlRow label="OpenAPI schema URL" hint="Use this in ChatGPT Custom GPT Actions and Gemini Gems." value={openapiUrl} copyLabel="OpenAPI schema URL" onCopy={copy} />
           </div>
-          <ol className="grid gap-3 sm:grid-cols-3">
-            <SetupStep
-              step="1"
-              title="ChatGPT, Claude, Cursor"
-              body="Add a remote MCP server with the MCP server URL. Auth header: Authorization, value Bearer plus your token."
-            />
-            <SetupStep
-              step="2"
-              title="ChatGPT Custom GPT"
-              body="Import the OpenAPI schema URL as an Action. Auth type: API Key. Header: Authorization. Value: Bearer plus your token."
-            />
-            <SetupStep
-              step="3"
-              title="Gemini Gems"
-              body="Import the same OpenAPI schema URL and use Bearer plus your token as the API key."
-            />
+        </section>
+
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card">
+          <ListHeader eyebrow="02 · SETUP" title="How to connect." description="Every app sends your token as Authorization: Bearer <token>." />
+          <ol className="divide-y divide-border">
+            <SetupStep step="01" title="ChatGPT, Claude, Cursor" body="Add a remote MCP server with the MCP server URL. Auth header: Authorization, value Bearer plus your token." />
+            <SetupStep step="02" title="ChatGPT Custom GPT" body="Import the OpenAPI schema URL as an Action. Auth type: API Key. Header: Authorization. Value: Bearer plus your token." />
+            <SetupStep step="03" title="Gemini Gems" body="Import the same OpenAPI schema URL and use Bearer plus your token as the API key." />
           </ol>
-        </div>
+        </section>
 
-        <div className={cn(appCard, "space-y-5 p-4 sm:p-6")}>
-          <div className="space-y-1">
-            <p className={sectionEyebrowClass}>Access</p>
-            <h2 className="text-base font-semibold sm:text-lg">
-              Create an access token
-            </h2>
-            <p className={fieldHintClass}>
-              Each AI app should get its own token. You can revoke a token at
-              any time without affecting the others.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="token-name" className={fieldLabelClass}>
-              Token name
-            </Label>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card">
+          <ListHeader eyebrow="03 · ACCESS" title="Create an access token." description="Give each AI app its own token. Revoking one doesn't affect the others." />
+          <div className="space-y-3 p-5 md:p-6">
+            <Label htmlFor="token-name" className={fieldLabelClass}>Token name</Label>
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <Input
                 id="token-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. ChatGPT on my laptop"
                 autoComplete="off"
-                className="h-11 min-w-0 flex-1"
+                className="h-11 min-w-0 flex-1 rounded-xl"
               />
               <Button
-                className={cn(appPrimaryButton, "h-11 w-full shrink-0 sm:w-auto")}
+                className="h-11 w-full shrink-0 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] sm:w-auto"
                 onClick={() => void handleCreate()}
                 disabled={creating || loading}
               >
@@ -212,92 +185,67 @@ export default function ConnectorSettingsPage() {
                 Generate token
               </Button>
             </div>
-            <p className={fieldHintClass}>
-              A name you will recognize later. This is not the secret itself.
-            </p>
-          </div>
-          {secret ? (
-            <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
-              <p className="text-sm font-medium text-foreground">
-                Copy this access token now
-              </p>
-              <p className={fieldHintClass}>
-                Interview Trix will not show the full token again. Store it in
-                the AI app, then treat it like a password.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <code className="min-w-0 flex-1 break-all rounded-lg bg-background px-3 py-2.5 text-xs sm:text-sm">
-                  {secret}
-                </code>
-                <Button
-                  variant="outline"
-                  className={cn(appOutlineButton, "h-11 shrink-0")}
-                  onClick={() => copy(secret, "Access token")}
-                >
-                  <Copy />
-                  Copy token
-                </Button>
+            <p className={fieldHintClass}>A name you&apos;ll recognise later. This is not the secret itself.</p>
+            {secret ? (
+              <div className="mt-2 space-y-2.5 rounded-2xl border border-amber-500/40 bg-amber-500/[0.08] p-4">
+                <Mono className="block text-[11px] text-amber-700 dark:text-amber-300">COPY THIS TOKEN NOW</Mono>
+                <p className={fieldHintClass}>Interview Trix won&apos;t show the full token again. Store it in the AI app and treat it like a password.</p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <code className="min-w-0 flex-1 break-all rounded-xl border border-border bg-background px-3 py-2.5 font-[family-name:var(--font-geist-mono)] text-xs sm:text-[13px]">
+                    {secret}
+                  </code>
+                  <Button variant="outline" className="h-11 shrink-0 rounded-xl" onClick={() => copy(secret, "Access token")}>
+                    <Copy />
+                    Copy token
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className={cn(appCard, "space-y-5 p-4 sm:p-6")}>
-          <div className="space-y-1">
-            <p className={sectionEyebrowClass}>Manage</p>
-            <h2 className="text-base font-semibold sm:text-lg">Your tokens</h2>
+            ) : null}
           </div>
+        </section>
+
+        <section className="overflow-hidden rounded-[22px] border border-border bg-card">
+          <ListHeader eyebrow="04 · MANAGE" title="Your tokens." description={tokens.length ? `${tokens.length} active. Revoke any you no longer use.` : "Tokens you create show up here."} />
           {loading ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
               <Loader2 className="animate-spin" /> Loading tokens…
             </p>
           ) : tokens.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center">
-              <Sparkles className="mx-auto mb-3 size-6 text-[#7367F0]" />
-              <p className="text-sm font-medium">No tokens yet</p>
-              <p className={cn(fieldHintClass, "mx-auto mt-1 max-w-sm")}>
-                Generate a token above, then paste it into ChatGPT, Claude,
-                Cursor, or Gemini.
-              </p>
+            <div className="px-6 py-10 text-center">
+              <span className="mx-auto grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white"><Plug className="h-5 w-5" /></span>
+              <p className="mt-3 text-[15px] font-semibold text-foreground">No tokens yet</p>
+              <p className={cn(fieldHintClass, "mx-auto mt-1 max-w-sm")}>Generate one, then paste it into ChatGPT, Claude, Cursor or Gemini.</p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {tokens.map((token) => {
-                const usedLabel = token.lastUsedAt
-                  ? `Last used ${formatDate(token.lastUsedAt)}`
-                  : "Not used yet";
-                return (
-                <li
-                  key={token.tokenId}
-                  className="flex flex-col gap-3 rounded-xl border border-border/80 bg-muted/10 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0 space-y-1.5">
+            <ul className="divide-y divide-border">
+              {tokens.map((token) => (
+                <li key={token.tokenId} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+                  <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p className="truncate font-medium">{token.name}</p>
-                      <span className={appBadgeNeutral}>
-                        {token.prefix === "itx_live_" ? "Live" : "Test"}
-                      </span>
+                      <p className="truncate text-[15px] font-semibold text-foreground">{token.name}</p>
+                      <Mono className={cn("rounded-md border px-1.5 py-0.5 text-[10px]", token.prefix === "itx_live_" ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "border-border text-muted-foreground")}>
+                        {token.prefix === "itx_live_" ? "LIVE" : "TEST"}
+                      </Mono>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Created {formatDate(token.createdAt)} · {usedLabel}
-                    </p>
+                    <Mono className="mt-1 block text-[11px] text-muted-foreground">
+                      CREATED {formatDate(token.createdAt).toUpperCase()} · {token.lastUsedAt ? `LAST USED ${formatDate(token.lastUsedAt).toUpperCase()}` : "NOT USED YET"}
+                    </Mono>
                   </div>
                   <Button
                     variant="outline"
-                    className={cn(appOutlineButton, "h-11 w-full sm:w-auto")}
+                    className="h-10 w-full shrink-0 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
                     onClick={() => void handleRevoke(token.tokenId)}
                   >
                     <Trash2 />
-                    Revoke token
+                    Revoke
                   </Button>
                 </li>
-                );
-              })}
+              ))}
             </ul>
           )}
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -321,15 +269,15 @@ function UrlRow({
         <p className={fieldHintClass}>{hint}</p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="flex min-w-0 flex-1 items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
+        <div className="flex min-w-0 flex-1 items-start gap-2 rounded-xl border border-border bg-background/60 px-3 py-2.5">
           <Link2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <code className="min-w-0 flex-1 break-all text-xs sm:text-sm">
+          <code className="min-w-0 flex-1 break-all font-[family-name:var(--font-geist-mono)] text-xs sm:text-[13px]">
             {value}
           </code>
         </div>
         <Button
           variant="outline"
-          className={cn(appOutlineButton, "h-11 shrink-0")}
+          className="h-11 shrink-0 rounded-xl"
           onClick={() => onCopy(value, copyLabel)}
         >
           <Copy />
@@ -350,12 +298,14 @@ function SetupStep({
   body: string;
 }) {
   return (
-    <li className="flex min-w-0 flex-col gap-2 rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7367F0]/10 text-xs font-semibold text-[#7367F0]">
+    <li className="flex min-w-0 gap-4 px-5 py-4 md:px-6">
+      <Mono className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-border text-[11px] text-primary">
         {step}
-      </span>
-      <p className="text-sm font-medium leading-snug">{title}</p>
-      <p className={fieldHintClass}>{body}</p>
+      </Mono>
+      <div className="min-w-0">
+        <p className="text-[14.5px] font-semibold leading-snug text-foreground">{title}</p>
+        <p className={cn(fieldHintClass, "mt-1")}>{body}</p>
+      </div>
     </li>
   );
 }

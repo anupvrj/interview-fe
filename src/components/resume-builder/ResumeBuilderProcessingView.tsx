@@ -19,15 +19,19 @@ export function ResumeBuilderProcessingView({
   return (
     <div
       className={cn(
-        "min-w-0 overflow-hidden px-1 py-2 sm:px-0 sm:py-4",
+        "relative min-w-0 overflow-hidden rounded-[22px] border border-border bg-card px-4 py-8 sm:px-8 sm:py-12",
         className,
       )}
     >
+      <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-60" />
+      <div className="relative">
       <ResumeImportProcessingView
         fileName={label}
         messageIndex={messageIndex}
         messages={messages}
+        headerLabel="Building your resume"
       />
+      </div>
     </div>
   );
 }

@@ -3,22 +3,19 @@
 import React, { Suspense, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { SiteHeader } from "@/components/SiteHeader";
-import { MarketingFooter } from "@/components/MarketingFooter";
 import { ATSUploadHero } from "@/components/ats-checker/ATSUploadHero";
-import {
-  ATSChecksGrid,
-  ATSHowItWorks,
-  ATSSeeItInAction,
-  ATSLandingCTA,
-  ATSFAQ,
-} from "@/components/ats-checker/landing/ATSLandingSections";
-import { ATSReadySection } from "@/components/ats-checker/landing/ATSReadySection";
-import { ATSHeroAnimation } from "@/components/ats-checker/landing/ATSHeroAnimation";
-import { ATSHeroContent } from "@/components/ats-checker/landing/ATSHeroContent";
+import { isMarketing2026Enabled } from "@/components/marketing-2026/flag";
+import { Marketing2026Shell } from "@/components/marketing-2026/Marketing2026Shell";
+import { Nav } from "@/components/marketing-2026/nav";
+import { Faq, FinalCta, Footer } from "@/components/marketing-2026/closing";
+import { MK26_ROUTES } from "@/components/marketing-2026/cta";
+import { ATS_FAQ } from "@/components/marketing-2026/ats-checker-faq";
+import { AtsAfter, AtsChecks, AtsDemo, AtsHero, AtsStepsSection, AtsStickyCta, AtsTicker } from "@/components/marketing-2026/ats-checker";
+import LegacyATSCheckerPage from "./legacy-page";
 import { savePendingATSUpload } from "@/lib/atsCheckFlow";
 
 export default function ATSCheckerPage() {
+  if (!isMarketing2026Enabled()) return <LegacyATSCheckerPage />;
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <ATSCheckerPageContent />
@@ -57,48 +54,29 @@ function ATSCheckerPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
-      <SiteHeader />
-
-      <section className="relative min-h-[640px] overflow-hidden px-4 pb-16 pt-28 sm:min-h-[720px] sm:px-6 sm:pb-20 sm:pt-36">
-        <div className="absolute inset-0 bg-muted" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_70%_20%,rgba(115,103,240,0.12),transparent)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_10%_80%,rgba(115,103,240,0.08),transparent)]" />
-        <div
-          className="absolute inset-0 opacity-[0.35]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(115,103,240,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(115,103,240,0.04) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
+    <Marketing2026Shell>
+      <Nav />
+      <main>
+        <AtsHero
+          upload={
+            <ATSUploadHero
+              onStart={handleStartAnalysis}
+              uploading={uploading}
+              error={uploadError}
+              showSignInHint={!user}
+            />
+          }
         />
-
-        <div className="container relative z-10 mx-auto max-w-6xl">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-16">
-            <ATSHeroContent>
-              <ATSUploadHero
-                onStart={handleStartAnalysis}
-                uploading={uploading}
-                error={uploadError}
-                showSignInHint={!user}
-              />
-            </ATSHeroContent>
-
-            <div className="order-last lg:order-none lg:pl-4">
-              <ATSHeroAnimation />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <ATSReadySection />
-      <ATSChecksGrid />
-      <ATSHowItWorks />
-      <ATSSeeItInAction />
-      <ATSLandingCTA />
-      <ATSFAQ />
-
-      <MarketingFooter />
-    </div>
+        <AtsTicker />
+        <AtsStepsSection />
+        <AtsDemo />
+        <AtsChecks />
+        <AtsAfter />
+        <Faq items={ATS_FAQ} title="ATS checker, answered." className="border-[#E7E6F2] bg-[#F8F8FB] py-24 md:py-32" />
+        <FinalCta primary="Build my resume, free" secondary="Start my free mock interview" primaryHref={MK26_ROUTES.startResume} secondaryHref={MK26_ROUTES.startInterview} />
+      </main>
+      <Footer />
+      <AtsStickyCta />
+    </Marketing2026Shell>
   );
 }
