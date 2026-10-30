@@ -47,6 +47,8 @@ const isPublicRoute = createRouteMatcher([
   "/peer-interviews(.*)",
   "/blogs(.*)",
   "/hiring-games-hackathon-2026(.*)",
+  "/product-launch(.*)",
+  "/event-registration(.*)",
   "/hackathon-2026(.*)",
   "/hackathon(.*)",
   "/robots.txt",

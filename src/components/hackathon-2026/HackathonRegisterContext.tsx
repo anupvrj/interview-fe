@@ -62,6 +62,7 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   useMarkHackathonMember(slug, isSignedIn, registered);
 
   const openRegister = useCallback((ctaLocation: HackathonCtaLocation = "other") => {
+    if (cta.disabled) return;
     if (cta.labelKey === "registerForEvent") {
       trackRegisterClick({
         ctaLocation,
@@ -76,7 +77,20 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
       }
       return;
     }
-    if (cta.disabled) return;
+    if (cta.labelKey === "seeResults") {
+      trackRegisterClick({
+        ctaLocation,
+        ctaState: cta.labelKey,
+        signedIn: Boolean(isSignedIn),
+        destination: "dashboard",
+      });
+      if (isSignedIn) {
+        router.push(dashboardPath);
+      } else {
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(dashboardPath)}`);
+      }
+      return;
+    }
     const track = (destination: "sign_up" | "profile" | "dashboard") =>
       trackRegisterClick({ ctaLocation, ctaState: cta.labelKey, signedIn: Boolean(isSignedIn), destination });
     if (!isSignedIn) {

@@ -2,13 +2,17 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
-import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { AppSelect } from "@/components/ui/app-select";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";
+import { LaunchEventWelcomePromo } from "@/components/hackathon-2026/LaunchEventWelcomePromo";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { LAUNCH_EVENT_FORM, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phone-country-codes";
 import { emailValidationMessage, normalizeEmailForStorage } from "@/lib/email-validation";
 import { formatPhoneForStorage, isValidPhoneForStorage } from "@/lib/phone-utils";
 import { cn } from "@/lib/utils";
+import { trackLaunchRegistrationSuccessOnce } from "@/features/hackathon/analytics";
 import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { useHackathonSlug } from "@/features/hackathon/hooks";
 import { HACKATHON_WHATSAPP_COMMUNITY_URL } from "@/features/hackathon/whatsapp-links";
@@ -42,6 +46,15 @@ const PRIMARY_BTN =
 
 const inputClass =
   "mt-1.5 w-full min-h-11 rounded-xl border border-[#27547d]/80 bg-[#081a33]/90 px-3.5 text-[15px] text-white placeholder:text-[#6a849e] focus:border-[#3aa6ff] focus:outline-none focus:ring-2 focus:ring-[#3aa6ff]/30";
+
+const launchSelectTriggerClass = (hasError?: boolean) =>
+  cn(
+    inputClass,
+    "h-11 py-0 text-left font-normal shadow-none focus:ring-2",
+    "!bg-[#081a33]/90 !text-white [&_svg]:text-[#9eb2ca]",
+    "[&_[data-placeholder]]:text-[#6a849e]",
+    hasError && inputErrorClass,
+  );
 
 const inputErrorClass =
   "border-[#ff8fab]/80 focus:border-[#ff8fab] focus:ring-[#ff8fab]/30";
@@ -119,12 +132,18 @@ function RadioCard({
 export function HackathonLaunchEventForm({
   id,
   dialogSemantics = false,
+  showStepChrome = false,
+  embeddedInPage = false,
   onClose,
   className,
 }: Readonly<{
   id?: string;
   /** Multi-step launch modal (progress, dialog a11y). */
   dialogSemantics?: boolean;
+  /** Progress bar + back nav on a standalone page (same UX as the modal). */
+  showStepChrome?: boolean;
+  /** Standalone /product-launch — avoid clipping native selects and dropdowns. */
+  embeddedInPage?: boolean;
   onClose?: () => void;
   className?: string;
 }>) {
@@ -139,6 +158,7 @@ export function HackathonLaunchEventForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [successReveal, setSuccessReveal] = useState(false);
+  const [alreadyHackathonParticipantOpen, setAlreadyHackathonParticipantOpen] = useState(false);
 
   useEffect(() => {
     if (step !== "success") {
@@ -203,9 +223,15 @@ export function HackathonLaunchEventForm({
         attended: form.attended,
         ready: form.ready,
       });
+      trackLaunchRegistrationSuccessOnce({ source: embeddedInPage ? "page" : "modal", profession: form.profession });
       setStep("success");
     } catch (e) {
-      setError(toHackathonError(e, "Could not register. Please try again.").message);
+      const apiErr = toHackathonError(e, "Could not register. Please try again.");
+      if (apiErr.code === "ALREADY_HACKATHON_PARTICIPANT") {
+        setAlreadyHackathonParticipantOpen(true);
+        return;
+      }
+      setError(apiErr.message);
     } finally {
       setBusy(false);
     }
@@ -224,6 +250,7 @@ export function HackathonLaunchEventForm({
 
   const TitleEl = dialogSemantics ? DialogTitle : "h2";
   const SubtitleEl = dialogSemantics ? DialogDescription : "p";
+  const ScreenReaderHintEl = dialogSemantics ? DialogDescription : "p";
 
   const body = (() => {
     if (step === "success") {
@@ -272,13 +299,22 @@ export function HackathonLaunchEventForm({
             {HACKATHON_LAUNCH.summaryLabel}
           </p>
           <TitleEl
-            className="mt-3 text-[clamp(1.25rem,4.5vw,1.55rem)] font-extrabold leading-tight tracking-[-0.02em]"
+            className="mt-3 text-[clamp(1.25rem,4.5vw,1.55rem)] font-extrabold leading-[1.15] tracking-[-0.02em]"
             style={display}
+            {...(dialogSemantics ? {} : { "aria-label": c.title })}
           >
-            <span className="bg-gradient-to-br from-white via-[#e8f4ff] to-[#5eb8ff] bg-clip-text text-transparent">{c.title}</span>
+            {c.titleLines.map((line) => (
+              <span
+                key={line}
+                className="block bg-gradient-to-br from-white via-[#e8f4ff] to-[#5eb8ff] bg-clip-text text-transparent"
+              >
+                {line}
+              </span>
+            ))}
           </TitleEl>
+          <LaunchEventWelcomePromo />
           <div
-            className="mt-5 rounded-2xl border border-[#3aa6ff]/45 bg-[linear-gradient(145deg,rgba(13,37,80,0.95)_0%,rgba(8,26,51,0.88)_100%)] p-4 shadow-[0_0_0_1px_rgba(58,166,255,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-5"
+            className="mt-4 rounded-2xl border border-[#3aa6ff]/45 bg-[linear-gradient(145deg,rgba(13,37,80,0.95)_0%,rgba(8,26,51,0.88)_100%)] p-4 shadow-[0_0_0_1px_rgba(58,166,255,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-5"
             role="group"
             aria-label="Event details"
           >
@@ -312,7 +348,7 @@ export function HackathonLaunchEventForm({
               {c.qAttended}
             </TitleEl>
           </legend>
-          <DialogDescription className="sr-only">Choose yes or no.</DialogDescription>
+          <ScreenReaderHintEl className="sr-only">Choose yes or no.</ScreenReaderHintEl>
           <div className="mt-5 space-y-3">
             {c.attendedOptions.map((o) => (
               <RadioCard
@@ -338,7 +374,7 @@ export function HackathonLaunchEventForm({
               {c.qReady}
             </TitleEl>
           </legend>
-          <DialogDescription className="sr-only">Choose an answer.</DialogDescription>
+          <ScreenReaderHintEl className="sr-only">Choose an answer.</ScreenReaderHintEl>
           <div className="mt-5 space-y-3">
             {c.readyOptions.map((o) => (
               <RadioCard
@@ -394,7 +430,9 @@ export function HackathonLaunchEventForm({
               <ProfilePhoneFields
                 countryCode={LAUNCH_PHONE_COUNTRY}
                 fixedCountryCode={LAUNCH_PHONE_COUNTRY}
+                hideFixedDialCode
                 compact
+                fullWidth
                 localNumber={phoneLocal}
                 savedPhone={null}
                 disabled={busy}
@@ -437,21 +475,16 @@ export function HackathonLaunchEventForm({
           </div>
           <div>
             <FieldLabel>{c.fields.profession}</FieldLabel>
-            <select
-              className={cn(inputClass, professionFieldError && inputErrorClass)}
+            <AppSelect
+              id="launch-profession"
+              variant="hackathon"
+              allowEmpty
+              emptyLabel="Select…"
               value={form.profession}
-              required
-              aria-invalid={professionFieldError ? true : undefined}
-              aria-describedby={professionFieldError ? "launch-profession-error" : undefined}
-              onChange={(e) => patch({ profession: e.target.value as FormState["profession"] })}
-            >
-              <option value="">Select…</option>
-              {c.professionOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={c.professionOptions.map((o) => ({ value: o.value, label: o.label }))}
+              className={launchSelectTriggerClass(!!professionFieldError)}
+              onChange={(value) => patch({ profession: value as FormState["profession"] })}
+            />
             {professionFieldError ? (
               <p id="launch-profession-error" role="alert" className="mt-1.5 text-xs font-medium text-[#ff8fab]">
                 {professionFieldError}
@@ -460,21 +493,16 @@ export function HackathonLaunchEventForm({
           </div>
           <div>
             <FieldLabel>{c.fields.whyAttend}</FieldLabel>
-            <select
-              className={cn(inputClass, whyAttendFieldError && inputErrorClass)}
+            <AppSelect
+              id="launch-why-attend"
+              variant="hackathon"
+              allowEmpty
+              emptyLabel="Select…"
               value={form.whyAttend}
-              required
-              aria-invalid={whyAttendFieldError ? true : undefined}
-              aria-describedby={whyAttendFieldError ? "launch-why-error" : undefined}
-              onChange={(e) => patch({ whyAttend: e.target.value as FormState["whyAttend"] })}
-            >
-              <option value="">Select…</option>
-              {c.whyAttendOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={c.whyAttendOptions.map((o) => ({ value: o.value, label: o.label }))}
+              className={launchSelectTriggerClass(!!whyAttendFieldError)}
+              onChange={(value) => patch({ whyAttend: value as FormState["whyAttend"] })}
+            />
             {whyAttendFieldError ? (
               <p id="launch-why-error" role="alert" className="mt-1.5 text-xs font-medium text-[#ff8fab]">
                 {whyAttendFieldError}
@@ -495,10 +523,58 @@ export function HackathonLaunchEventForm({
     );
   })();
 
-  if (!dialogSemantics) {
+  const stepChrome = dialogSemantics || showStepChrome;
+
+  const dismissAlreadyParticipant = () => {
+    setAlreadyHackathonParticipantOpen(false);
+    onClose?.();
+  };
+
+  /** Same shell as HackathonLaunchEventModal; stacks above it when nested (dialogSemantics). */
+  const alreadyParticipantDialog = (
+    <Dialog
+      open={alreadyHackathonParticipantOpen}
+      onOpenChange={(open) => {
+        if (!open) dismissAlreadyParticipant();
+      }}
+    >
+      <DialogContent
+        overlayClassName={cn(
+          "hk-hackathon-dialog-overlay bg-[#020810]/80 backdrop-blur-sm",
+          dialogSemantics ? "z-[110]" : "z-[100]",
+        )}
+        className={cn(
+          hackathonReelFontVars,
+          "hk-root hk-modal hk-hackathon-dialog fixed left-1/2 top-1/2 max-h-[90svh] w-[calc(100%-1.5rem)] max-w-[26rem] sm:max-w-[31rem] md:max-w-[34rem] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden p-0 text-[#dbe9f8] shadow-none [&>button]:hidden",
+          dialogSemantics ? "z-[111]" : "z-[101]",
+        )}
+      >
+        <div className="relative z-[3] flex flex-col items-center px-5 pb-8 pt-7 text-center sm:px-7 md:px-8">
+          <div
+            className="grid size-16 shrink-0 place-items-center rounded-full bg-[#0d2550] text-[#6fc0ff] shadow-[0_0_32px_rgba(58,166,255,0.25)] ring-4 ring-[#3aa6ff]/15"
+            aria-hidden
+          >
+            <Check className="size-8" strokeWidth={2.5} />
+          </div>
+          <DialogTitle className="mt-5 max-w-md text-xl font-bold text-white md:text-[1.35rem]" style={display}>
+            {c.alreadyHackathonParticipantTitle}
+          </DialogTitle>
+          <DialogDescription className="mt-2 max-w-md text-[15px] leading-relaxed text-[#cfdbe8] md:text-base">
+            {c.alreadyHackathonParticipantBody}
+          </DialogDescription>
+          <button type="button" onClick={dismissAlreadyParticipant} className={cn(PRIMARY_BTN, "mt-6 w-full max-w-md")} style={mono}>
+            {c.alreadyHackathonParticipantOk}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (!stepChrome) {
     return (
       <div id={id} className={className}>
         {body}
+        {alreadyParticipantDialog}
       </div>
     );
   }
@@ -536,7 +612,13 @@ export function HackathonLaunchEventForm({
         </div>
       ) : null}
 
-      <div key={step} className="relative z-[3] max-h-[calc(90svh-4rem)] overflow-y-auto px-5 pb-6 pt-4 sm:px-7 md:px-8 md:pb-8">
+      <div
+        key={step}
+        className={cn(
+          "relative z-[3] px-5 pb-6 pt-4 sm:px-7 md:px-8 md:pb-8",
+          embeddedInPage ? "overflow-visible" : "max-h-[calc(90svh-4rem)] overflow-y-auto",
+        )}
+      >
         {body}
         {back[step] && !busy ? (
           <button
@@ -548,6 +630,7 @@ export function HackathonLaunchEventForm({
           </button>
         ) : null}
       </div>
+      {alreadyParticipantDialog}
     </div>
   );
 }

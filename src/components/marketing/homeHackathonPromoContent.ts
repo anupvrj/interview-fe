@@ -1,4 +1,4 @@
-import { HACKATHON_LANDING_PATH, HACKATHON_SLUG } from "@/features/hackathon/config";
+import { EVENT_REGISTRATION_PATH, HACKATHON_LANDING_PATH, HACKATHON_SLUG } from "@/features/hackathon/config";
 import { HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 
 /** Matches the default Hiring Games site popup (super-admin seed / spotlight promo). */
@@ -21,6 +21,6 @@ export const HOME_HACKATHON_PROMO = {
   primaryLabel: "Register for free",
   secondaryLabel: "See how it works",
   secondaryChallengeLabel: "Finish your challenge",
-  launchPath: `${HACKATHON_LANDING_PATH}?launch=1`,
+  launchPath: EVENT_REGISTRATION_PATH,
   launchAt: HACKATHON_LAUNCH.startISO,
 } as const;

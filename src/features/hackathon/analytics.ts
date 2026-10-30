@@ -35,6 +35,8 @@ export const HK_EVENTS = {
   stuckLoading: "hackathon_stuck_loading",
   /** Signed-out Register: each step of the pre-sign-up questions (and the answers). */
   preQuizStep: "hackathon_prequiz_step",
+  /** 31 Oct launch event RSVP confirmed by the API (/product-launch page or the hackathon modal). */
+  launchRegistrationSuccess: "launch_registration_success",
 } as const;
 
 export type HackathonCtaLocation =
@@ -148,6 +150,26 @@ export function trackRegistrationSuccessOnce(opts: { userKey: string | null | un
     cta_location: funnel?.ctaLocation,
   });
   trackMetaEvent("CompleteRegistration", { content_name: META_CONTENT_NAME, status: true });
+}
+
+/**
+ * Launch event RSVP: GA4 `launch_registration_success` plus Meta `CompleteRegistration`
+ * (what the launch ads optimise for), once per browser.
+ */
+export function trackLaunchRegistrationSuccessOnce(opts: { source: "page" | "modal"; profession?: string }) {
+  const key = "ix.launch.registered";
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, String(Date.now()));
+  } catch {
+    /* storage blocked — still send once per page via the Set below */
+  }
+  if (firedThisPage.has(key)) return;
+  trackHackathonOnce(key, HK_EVENTS.launchRegistrationSuccess, {
+    source: opts.source,
+    profession: opts.profession,
+  });
+  trackMetaEvent("CompleteRegistration", { content_name: "product_launch_2026", status: true });
 }
 
 /**
