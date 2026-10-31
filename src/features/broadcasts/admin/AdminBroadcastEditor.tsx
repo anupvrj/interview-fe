@@ -550,7 +550,7 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
                 label="Message"
                 htmlFor="bc-body"
                 required
-                hint="Blank line = new paragraph. “- ” starts a list item, “## ” a small section label. **bold** and [link text](https://…) work. On a line of its own: [[steps]], [[prizes]] or [[guests]] add the picture blocks from the hackathon page."
+                hint="Blank line = new paragraph. “- ” starts a list item, “## ” a small section label. **bold** and [link text](https://…) work. On a line of its own: [[steps]], [[prizes]] or [[guests]] add the picture blocks from the hackathon page, and [[askwin]] the “ask a question, win Claude Pro or an Amazon voucher” box."
               >
                 <Textarea id="bc-body" ref={bodyRef} rows={9} value={c.body} maxLength={5000} onChange={(e) => patchContent({ body: e.target.value })} />
               </FormField>
