@@ -29,7 +29,6 @@ import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { useDashboardTheme } from "@/components/dashboard-theme";
 import { dashboardChartPrimaryFill } from "@/lib/dashboard-stat-themes";
-import { DashboardHackathonBanner } from "@/features/hackathon/components/DashboardHackathonBanner";
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
@@ -289,7 +288,6 @@ export function CandidateHome() {
         </motion.div>
       </section>
 
-      <DashboardHackathonBanner />
       <IxOptInNotice />
 
       {/* ── Scheduled by an institution */}
