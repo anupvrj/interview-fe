@@ -1,5 +1,5 @@
 import { HACKATHON_SLUG } from "@/features/hackathon/config";
-import type { BadgeTone, BroadcastAudience, BroadcastContent, BroadcastInput, BroadcastStatus } from "./types";
+import type { BadgeTone, BroadcastAudience, BroadcastContent, BroadcastEvent, BroadcastInput, BroadcastStatus } from "./types";
 
 export const BROADCASTS_ADMIN_PATH = "/super-admin/broadcasts";
 export const DEFAULT_COOLDOWN_HOURS = 20;
@@ -46,6 +46,12 @@ export const VARIABLES: { key: string; label: string }[] = [
   { key: "add_to_calendar_url", label: "Add to Google Calendar link" },
   { key: "launch_join_url", label: "Google Meet / join link" },
   { key: "event_registration_url", label: "Event registration page" },
+  { key: "event_title", label: "Event title" },
+  { key: "event_date", label: "Event date" },
+  { key: "event_time", label: "Event time" },
+  { key: "event_duration", label: "Event length" },
+  { key: "event_join_url", label: "Event join link" },
+  { key: "event_calendar_url", label: "Event Google Calendar link" },
 ];
 
 export const LINK_VARIABLES = [
@@ -56,7 +62,14 @@ export const LINK_VARIABLES = [
   "{{add_to_calendar_url}}",
   "{{launch_join_url}}",
   "{{event_registration_url}}",
+  "{{event_join_url}}",
+  "{{event_calendar_url}}",
 ];
+
+export const EVENT_DURATION_OPTIONS = [30, 45, 60, 90, 120, 150, 180].map((m) => ({
+  value: String(m),
+  label: m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : `${m} minutes`,
+}));
 
 export const STATUS_LABEL: Record<BroadcastStatus, string> = {
   draft: "Draft",
@@ -96,6 +109,14 @@ const emptyContent: BroadcastContent = {
   footnote: "",
 };
 
+export const emptyEvent: BroadcastEvent = { title: "", startsAt: null, durationMinutes: 60, joinUrl: "" };
+
+/** True when the email uses any {{event_*}} variable (the event fields are then required). */
+export function usesEventVariables(input: Pick<BroadcastInput, "subject" | "preheader" | "content">): boolean {
+  const texts = [input.subject, input.preheader, ...Object.values(input.content).filter((v): v is string => typeof v === "string")];
+  return texts.some((t) => /\{\{\s*event_[a-z_]+\s*\}\}/i.test(t));
+}
+
 export interface BroadcastPreset {
   key: string;
   label: string;
@@ -107,9 +128,10 @@ const preset = (
   key: string,
   label: string,
   when: string,
-  input: Omit<BroadcastInput, "content" | "audience" | "cooldownHours"> & {
+  input: Omit<BroadcastInput, "content" | "audience" | "cooldownHours" | "event"> & {
     content: Partial<BroadcastContent>;
     audience: BroadcastAudience;
+    event?: Partial<BroadcastEvent>;
   },
 ): BroadcastPreset => ({
   key,
@@ -119,6 +141,7 @@ const preset = (
     ...input,
     content: { ...emptyContent, ...input.content },
     audience: { type: input.audience, hackathonSlug: HACKATHON_SLUG },
+    event: { ...emptyEvent, ...input.event },
     cooldownHours: DEFAULT_COOLDOWN_HOURS,
   },
 });
@@ -236,11 +259,12 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       footnote: "Join here when we're live: [Join the session]({{launch_join_url}})",
     },
   }),
-  preset("launch-event-reminder", "Launch · Event reminder", "To live event RSVPs and hackathon participants — the day before or the morning of", {
+  preset("launch-event-reminder", "Launch · Event reminder", "To live event RSVPs and hackathon participants — fill in the event details, then send", {
     name: "Launch — event reminder",
-    subject: "Don't miss it: InterviewTrix live, {{launch_date}} at {{launch_time}}",
-    preheader: "2 hours with people who hire, live Q&A, and the best question wins Claude Pro or an Amazon voucher.",
+    subject: "Don't miss it: {{event_title}}, {{event_date}} at {{event_time}}",
+    preheader: "{{event_duration}} with people who hire, live Q&A, and the best question wins Claude Pro or an Amazon voucher.",
     audience: "engaged_or_launch_registered",
+    event: { title: "InterviewTrix Live Launch & Hiring Games", startsAt: "2026-10-31T13:30:00.000Z", durationMinutes: 120 },
     content: {
       eyebrow: "Live event",
       badgeLabel: "Reminder",
@@ -248,21 +272,22 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       title: "See you live,",
       titleAccent: "{{first_name}}",
       body:
-        "Give us **2 hours** and walk into your next interview knowing how hiring really works in the age of AI.\n\n## Why you shouldn't miss it\n- **Hear it from people who hire** — what gets candidates shortlisted now, and what quietly gets them rejected\n- **Live Q&A** — your toughest question about interviews, resumes or AI, answered on the spot\n- **Hiring Games winners revealed** — and what their entries got right\n- **First look at what's new in InterviewTrix** — ready to use for your next interview the same evening\n\n[[askwin]]\n\n## Your guests\n[[guests]]\n\n## Before you join\n- A laptop or phone with a stable connection, and Google Meet\n- One real question you want answered\n- Join 5 minutes early so you don't miss the start\n\n**Join here** (Google Meet):\n[{{launch_join_url}}]({{launch_join_url}})",
-      highlight: "**{{launch_date}}, {{launch_time}}** · 2 hours · online on Google Meet",
+        "Give us **{{event_duration}}** at **{{event_title}}** and walk into your next interview knowing how hiring really works in the age of AI.\n\n## Why you shouldn't miss it\n- **Hear it from people who hire** — what gets candidates shortlisted now, and what quietly gets them rejected\n- **Live Q&A** — your toughest question about interviews, resumes or AI, answered on the spot\n- **Hiring Games winners revealed** — and what their entries got right\n- **First look at what's new in InterviewTrix** — ready to use for your next interview the same evening\n\n[[askwin]]\n\n## Your guests\n[[guests]]\n\n## Before you join\n- A laptop or phone with a stable connection, and Google Meet\n- One real question you want answered\n- Join 5 minutes early so you don't miss the start\n\n**Join here:**\n[{{event_join_url}}]({{event_join_url}})",
+      highlight: "**{{event_date}}, {{event_time}}** · {{event_duration}} · online",
       ctaLabel: "Add to Google Calendar",
-      ctaUrl: "{{add_to_calendar_url}}",
+      ctaUrl: "{{event_calendar_url}}",
       secondaryCtaLabel: "Join on Google Meet",
-      secondaryCtaUrl: "{{launch_join_url}}",
+      secondaryCtaUrl: "{{event_join_url}}",
       footnote:
         "The best question is picked by the hosts during the session. Claude is a trademark of Anthropic and Amazon is a trademark of Amazon.com, Inc.; neither sponsors this event.",
     },
   }),
-  preset("launch-we-are-live", "Launch · We are live now", "To live event RSVPs and hackathon participants — send when the Meet is open", {
+  preset("launch-we-are-live", "Launch · We are live now", "To live event RSVPs and hackathon participants — send when the meeting is open", {
     name: "Launch — we are live",
-    subject: "We're live — join the InterviewTrix launch now",
+    subject: "We're live — join {{event_title}} now",
     preheader: "Join now and bring a question: the best one wins Claude Pro or an Amazon gift voucher.",
     audience: "engaged_or_launch_registered",
+    event: { title: "InterviewTrix Live Launch & Hiring Games", startsAt: "2026-10-31T13:30:00.000Z", durationMinutes: 120 },
     content: {
       eyebrow: "Live event",
       badgeLabel: "Live now",
@@ -270,10 +295,10 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       title: "We're live,",
       titleAccent: "{{first_name}}",
       body:
-        "The **InterviewTrix live launch** has started — Hiring Games winners, product updates, and an expert session on hiring in the AI era.\n\n[[askwin]]",
-      highlight: "**On air now** · Google Meet · tap below to join.",
+        "**{{event_title}}** has started — Hiring Games winners, product updates, and an expert session on hiring in the AI era.\n\n[[askwin]]",
+      highlight: "**On air now** · tap below to join.",
       ctaLabel: "Join Live",
-      ctaUrl: "{{launch_join_url}}",
+      ctaUrl: "{{event_join_url}}",
     },
   }),
   preset("whatsapp", "Join our WhatsApp community", "To registered participants", {
@@ -301,6 +326,7 @@ export function blankBroadcast(): BroadcastInput {
     preheader: "",
     content: { ...emptyContent },
     audience: { type: "hackathon_registered", hackathonSlug: HACKATHON_SLUG },
+    event: { ...emptyEvent },
     cooldownHours: DEFAULT_COOLDOWN_HOURS,
   };
 }
@@ -312,6 +338,7 @@ export function toInput(b: BroadcastInput): BroadcastInput {
     preheader: b.preheader ?? "",
     content: { ...emptyContent, ...b.content },
     audience: { type: b.audience.type, hackathonSlug: b.audience.hackathonSlug ?? "" },
+    event: { ...emptyEvent, ...b.event, startsAt: b.event?.startsAt ?? null, joinUrl: b.event?.joinUrl ?? "", title: b.event?.title ?? "" },
     cooldownHours: b.cooldownHours ?? DEFAULT_COOLDOWN_HOURS,
   };
 }
