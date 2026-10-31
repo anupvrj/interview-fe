@@ -6,7 +6,8 @@ export type BroadcastAudience =
   | "hackathon_not_started"
   | "hackathon_not_submitted"
   | "hackathon_submitted"
-  | "launch_event_registered";
+  | "launch_event_registered"
+  | "engaged_or_launch_registered";
 
 export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "cancelled" | "failed";
 export type RecipientStatus = "queued" | "sending" | "sent" | "skipped" | "failed";

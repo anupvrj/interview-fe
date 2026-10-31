@@ -15,6 +15,11 @@ export const AUDIENCE_OPTIONS: { value: BroadcastAudience; label: string; hint: 
     label: "Registered for the 31 Oct live event",
     hint: "Launch event RSVPs from /product-launch (email list).",
   },
+  {
+    value: "engaged_or_launch_registered",
+    label: "Did 1+ hackathon challenge, or registered for the live event",
+    hint: "Your warmest audience: anyone who completed at least one challenge, plus every live event RSVP. Each address gets one email.",
+  },
   { value: "all_except_submitted", label: "All users except those who submitted", hint: "Everyone who can still take part." },
   { value: "all_users", label: "All users", hint: "Every account with an email address." },
 ];
@@ -231,11 +236,11 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       footnote: "Join here when we're live: [Join the session]({{launch_join_url}})",
     },
   }),
-  preset("launch-event-reminder", "Launch · Event reminder", "To live event RSVPs — the day before or the morning of", {
+  preset("launch-event-reminder", "Launch · Event reminder", "To live event RSVPs and hackathon participants — the day before or the morning of", {
     name: "Launch — event reminder",
-    subject: "Reminder: InterviewTrix live launch, {{launch_date}} at {{launch_time}}",
-    preheader: "Join live, ask a real question, and the best one wins Claude Pro or an Amazon gift voucher.",
-    audience: "launch_event_registered",
+    subject: "Don't miss it: InterviewTrix live, {{launch_date}} at {{launch_time}}",
+    preheader: "2 hours with people who hire, live Q&A, and the best question wins Claude Pro or an Amazon voucher.",
+    audience: "engaged_or_launch_registered",
     content: {
       eyebrow: "Live event",
       badgeLabel: "Reminder",
@@ -243,8 +248,8 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       title: "See you live,",
       titleAccent: "{{first_name}}",
       body:
-        "You're registered for the **InterviewTrix live launch** — Hiring Games winners, product updates, and an expert session on hiring in the AI era.\n\n[[askwin]]\n\n## Your guests at the launch\n[[guests]]\n\n## Before you join\n- A laptop or phone with a stable internet connection\n- Google Meet in your browser or the app\n- One real question about interviews, hiring or your career\n- Join 5 minutes early so you don't miss the start\n\n**Join here** (Google Meet):\n[{{launch_join_url}}]({{launch_join_url}})",
-      highlight: "**{{launch_date}}, {{launch_time}}** · online · add it to your calendar and keep the Meet link handy.",
+        "Give us **2 hours** and walk into your next interview knowing how hiring really works in the age of AI.\n\n## Why you shouldn't miss it\n- **Hear it from people who hire** — what gets candidates shortlisted now, and what quietly gets them rejected\n- **Live Q&A** — your toughest question about interviews, resumes or AI, answered on the spot\n- **Hiring Games winners revealed** — and what their entries got right\n- **First look at what's new in InterviewTrix** — ready to use for your next interview the same evening\n\n[[askwin]]\n\n## Your guests\n[[guests]]\n\n## Before you join\n- A laptop or phone with a stable connection, and Google Meet\n- One real question you want answered\n- Join 5 minutes early so you don't miss the start\n\n**Join here** (Google Meet):\n[{{launch_join_url}}]({{launch_join_url}})",
+      highlight: "**{{launch_date}}, {{launch_time}}** · 2 hours · online on Google Meet",
       ctaLabel: "Add to Google Calendar",
       ctaUrl: "{{add_to_calendar_url}}",
       secondaryCtaLabel: "Join on Google Meet",
@@ -253,11 +258,11 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
         "The best question is picked by the hosts during the session. Claude is a trademark of Anthropic and Amazon is a trademark of Amazon.com, Inc.; neither sponsors this event.",
     },
   }),
-  preset("launch-we-are-live", "Launch · We are live now", "To live event RSVPs — send when the Meet is open", {
+  preset("launch-we-are-live", "Launch · We are live now", "To live event RSVPs and hackathon participants — send when the Meet is open", {
     name: "Launch — we are live",
     subject: "We're live — join the InterviewTrix launch now",
     preheader: "Join now and bring a question: the best one wins Claude Pro or an Amazon gift voucher.",
-    audience: "launch_event_registered",
+    audience: "engaged_or_launch_registered",
     content: {
       eyebrow: "Live event",
       badgeLabel: "Live now",
