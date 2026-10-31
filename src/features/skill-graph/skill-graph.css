@@ -1,0 +1,41 @@
+/* Skill Graph canvas tokens. Dark matches the homepage Skills Graph panel; light is its daytime twin. */
+.sg-root {
+  --sg-canvas: #ffffff;
+  --sg-canvas-2: #f6f7fb;
+  --sg-border: rgba(47, 43, 61, 0.1);
+  --sg-line: rgba(47, 43, 61, 0.14);
+  --sg-line-strong: rgba(47, 43, 61, 0.5);
+  --sg-hub-fill: #eef0fb;
+  --sg-hub-stroke: rgba(115, 103, 240, 0.6);
+  --sg-text: #2f2b3d;
+  --sg-muted: #6d6b77;
+  --sg-accent: #7367f0;
+  --sg-accent-soft: #9b8cff;
+  --sg-strong: #168a55;
+  --sg-gap: #c26a12;
+  --sg-claimed: #7367f0;
+  --sg-untested: #a5abb8;
+  --sg-dots: rgba(47, 43, 61, 0.09);
+}
+.dark .sg-root {
+  --sg-canvas: #0a1628;
+  --sg-canvas-2: #0d1f36;
+  --sg-border: rgba(255, 255, 255, 0.1);
+  --sg-line: rgba(159, 179, 207, 0.2);
+  --sg-line-strong: rgba(234, 242, 255, 0.55);
+  --sg-hub-fill: #132a48;
+  --sg-hub-stroke: rgba(234, 242, 255, 0.5);
+  --sg-text: #eaf2ff;
+  --sg-muted: #9fb3cf;
+  --sg-accent: #7367f0;
+  --sg-accent-soft: #9b8cff;
+  --sg-strong: #1e9e64;
+  --sg-gap: #d27a1f;
+  --sg-claimed: #9b8cff;
+  --sg-untested: #4a5d7a;
+  --sg-dots: rgba(234, 242, 255, 0.07);
+}
+.sg-dots {
+  background-image: radial-gradient(var(--sg-dots) 1px, transparent 1px);
+  background-size: 18px 18px;
+}

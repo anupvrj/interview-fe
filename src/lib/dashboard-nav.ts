@@ -24,6 +24,7 @@ import {
   Shield,
   Share2,
   Trophy,
+  Waypoints,
 } from "lucide-react";
 import { HACKATHON_LANDING_PATH } from "@/features/hackathon/config";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
@@ -165,6 +166,13 @@ const baseMenuItems: DashboardNavItem[] = [
     icon: Award,
     accent: accent.purple,
     featureKey: "ix_report",
+  },
+  {
+    title: "Skill Graph",
+    href: "/dashboard/skill-graph",
+    icon: Waypoints,
+    accent: accent.indigo,
+    featureKey: "skill_graph",
   },
   {
     title: "Interviewer Dashboard",

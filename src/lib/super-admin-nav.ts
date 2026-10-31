@@ -22,6 +22,7 @@ import {
   Megaphone,
   Send,
   LayoutTemplate,
+  Waypoints,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -197,6 +198,13 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         icon: Code2,
         accent: accent.violet,
         description: "Manage the coding bank, test cases, and starter code.",
+      },
+      {
+        title: "Skill Graph",
+        href: `${SUPER_ADMIN_HOME}/skill-graph`,
+        icon: Waypoints,
+        accent: accent.indigo,
+        description: "Review unmapped skills from resumes and interviews, and edit a candidate's skills.",
       },
       {
         title: "Blog CMS",
