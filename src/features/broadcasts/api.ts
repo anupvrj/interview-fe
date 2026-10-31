@@ -33,7 +33,7 @@ export const broadcastsAdminApi = {
     cooldownHours: number;
     broadcastId?: string;
   }): Promise<AudiencePreview> => (await apiClient.post<Envelope<AudiencePreview>>(`${base}/audience`, input)).data.data,
-  preview: async (input: Pick<BroadcastInput, "subject" | "preheader" | "content" | "audience">): Promise<{ subject: string; html: string }> =>
+  preview: async (input: Pick<BroadcastInput, "subject" | "preheader" | "content" | "audience" | "event">): Promise<{ subject: string; html: string }> =>
     (await apiClient.post<Envelope<{ subject: string; html: string }>>(`${base}/preview`, input)).data.data,
   test: async (id: string, to?: string[]): Promise<EmailBroadcast> =>
     (await apiClient.post<Envelope<EmailBroadcast>>(`${one(id)}/test`, to?.length ? { to } : {})).data.data,

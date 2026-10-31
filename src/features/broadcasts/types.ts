@@ -38,12 +38,21 @@ export interface BroadcastExclusions {
   duplicate: number;
 }
 
+/** Optional live event behind the {{event_*}} variables. startsAt is an ISO time. */
+export interface BroadcastEvent {
+  title: string;
+  startsAt: string | null;
+  durationMinutes: number;
+  joinUrl: string;
+}
+
 export interface BroadcastInput {
   name: string;
   subject: string;
   preheader: string;
   content: BroadcastContent;
   audience: { type: BroadcastAudience; hackathonSlug: string };
+  event: BroadcastEvent;
   cooldownHours: number;
 }
 

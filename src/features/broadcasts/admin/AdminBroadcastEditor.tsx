@@ -25,6 +25,7 @@ import {
   BADGE_TONE_OPTIONS,
   BROADCAST_PRESETS,
   BROADCASTS_ADMIN_PATH,
+  EVENT_DURATION_OPTIONS,
   EXCLUSION_LABELS,
   LINK_VARIABLES,
   STATUS_LABEL,
@@ -33,8 +34,9 @@ import {
   audienceLabel,
   blankBroadcast,
   toInput,
+  usesEventVariables,
 } from "../presets";
-import type { AudiencePreview, BroadcastContent, BroadcastInput, EmailBroadcast } from "../types";
+import type { AudiencePreview, BroadcastContent, BroadcastEvent, BroadcastInput, EmailBroadcast } from "../types";
 import { BroadcastRecipientsCard } from "./BroadcastRecipientsCard";
 import { BroadcastSendDialog } from "./BroadcastSendDialog";
 
@@ -47,10 +49,23 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
+/** ISO time ⇄ the "YYYY-MM-DDTHH:mm" value of a datetime-local input, always in IST. */
+function isoToIstInput(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() + 330 * 60_000).toISOString().slice(0, 16);
+}
+function istInputToIso(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(`${value}:00+05:30`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function EmailPreview({ form }: Readonly<{ form: BroadcastInput }>) {
   const payload = useMemo(
-    () => JSON.stringify({ subject: form.subject, preheader: form.preheader, content: form.content, audience: form.audience }),
-    [form.audience, form.content, form.preheader, form.subject],
+    () => JSON.stringify({ subject: form.subject, preheader: form.preheader, content: form.content, audience: form.audience, event: form.event }),
+    [form.audience, form.content, form.event, form.preheader, form.subject],
   );
   const debounced = useDebounced(payload, 700);
   const [out, setOut] = useState<{ subject: string; html: string } | null>(null);
@@ -58,7 +73,7 @@ function EmailPreview({ form }: Readonly<{ form: BroadcastInput }>) {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
 
   useEffect(() => {
-    const body = JSON.parse(debounced) as Pick<BroadcastInput, "subject" | "preheader" | "content" | "audience">;
+    const body = JSON.parse(debounced) as Pick<BroadcastInput, "subject" | "preheader" | "content" | "audience" | "event">;
     if (!body.content.title && !body.content.body) {
       setOut(null);
       return;
@@ -268,6 +283,7 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
   }, [broadcastId, isNew, liveStatus]);
 
   const readOnly = !isNew && doc !== null && doc.status !== "draft";
+  const eventNeeded = form ? usesEventVariables(form) : false;
   const dirty = form ? JSON.stringify(form) !== saved : false;
 
   // Audience count (debounced).
@@ -307,6 +323,7 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
 
   const patch = <K extends keyof BroadcastInput>(key: K, value: BroadcastInput[K]) => setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   const patchContent = (value: Partial<BroadcastContent>) => setForm((prev) => (prev ? { ...prev, content: { ...prev.content, ...value } } : prev));
+  const patchEvent = (value: Partial<BroadcastEvent>) => setForm((prev) => (prev ? { ...prev, event: { ...prev.event, ...value } } : prev));
 
   const insertVariable = (key: string) => {
     if (!form) return;
@@ -526,6 +543,32 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
               </FormField>
             </FormSection>
 
+            <FormSection
+              title="Event details"
+              description={
+                eventNeeded
+                  ? "This email uses event placeholders, so fill these in. The Google Calendar link is made from the title, start and length."
+                  : "Only for live event emails. Insert {{event_title}}, {{event_date}}, {{event_time}}, {{event_join_url}} or {{event_calendar_url}} and they're filled from here."
+              }
+            >
+              <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+                <FormField label="Event title" htmlFor="bc-event-title" required={eventNeeded} hint="{{event_title}} · also the calendar entry name.">
+                  <Input id="bc-event-title" value={form.event.title} maxLength={120} onChange={(e) => patchEvent({ title: e.target.value })} placeholder="InterviewTrix Live Launch & Hiring Games" />
+                </FormField>
+                <FormField label="Join link" htmlFor="bc-event-join" required={eventNeeded} hint="{{event_join_url}} · the Google Meet (or Zoom) link.">
+                  <Input id="bc-event-join" type="url" value={form.event.joinUrl} maxLength={500} onChange={(e) => patchEvent({ joinUrl: e.target.value.trim() })} placeholder="https://meet.google.com/abc-defg-hij" />
+                </FormField>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px] [&>*]:min-w-0">
+                <FormField label="Starts (IST)" htmlFor="bc-event-start" required={eventNeeded} hint="{{event_date}} and {{event_time}}, e.g. 31 October 2026 · 7 PM IST.">
+                  <Input id="bc-event-start" type="datetime-local" value={isoToIstInput(form.event.startsAt)} onChange={(e) => patchEvent({ startsAt: istInputToIso(e.target.value) })} />
+                </FormField>
+                <FormField label="Length" htmlFor="bc-event-duration" hint="{{event_duration}}">
+                  <AppSelect id="bc-event-duration" value={String(form.event.durationMinutes)} onChange={(v) => patchEvent({ durationMinutes: Number(v) })} options={EVENT_DURATION_OPTIONS} />
+                </FormField>
+              </div>
+            </FormSection>
+
             <FormSection title="Message">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px] [&>*]:min-w-0">
                 <FormField label="Small label" htmlFor="bc-eyebrow" hint="Top-left pill.">
@@ -597,7 +640,7 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
                     value={c.secondaryCtaUrl ?? ""}
                     maxLength={500}
                     onChange={(e) => patchContent({ secondaryCtaUrl: e.target.value })}
-                    placeholder="{{add_to_calendar_url}}"
+                    placeholder="{{event_calendar_url}}"
                   />
                 </FormField>
               </div>
