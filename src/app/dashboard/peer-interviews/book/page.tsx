@@ -214,6 +214,8 @@ export default function PeerInterviewsDirectoryPage() {
   }, [extraFilterCount, type, minExperience, industry, role]);
 
   const hasActiveFilters = hasActiveSearch || filterCount > 0;
+  // nothing to book at all (not just nothing matching): hide the filters and show the "email us" card instead
+  const [directoryEmpty, setDirectoryEmpty] = useState(false);
 
   const typeNames = useMemo(() => {
     const m: Record<string, string> = {};
@@ -267,6 +269,9 @@ export default function PeerInterviewsDirectoryPage() {
           pageSize: PAGE_SIZE,
         });
         setItems(res.items);
+        if (!appliedName && !company && !type && !minExperience && !industry && !role && availabilityWindow === "any") {
+          setDirectoryEmpty(res.total === 0);
+        }
         setTotalPages(res.totalPages || 1);
         setTotal(res.total);
         setPage(res.page);
@@ -504,9 +509,7 @@ export default function PeerInterviewsDirectoryPage() {
         </div>
       </section>
 
-      <ConciergeNotice kind="peer" />
-
-      <div className="min-w-0 overflow-hidden rounded-[18px] border border-border bg-card p-4 sm:p-5">
+      <div className={cn("min-w-0 overflow-hidden rounded-[18px] border border-border bg-card p-4 sm:p-5", directoryEmpty && "hidden")}>
         <div className="hidden min-w-0 lg:block">
           <div className="flex min-w-0 items-end gap-3 overflow-x-auto pb-0.5 scroll-smooth [scrollbar-width:thin]">
             <div className="flex min-w-[12rem] flex-1 flex-col gap-1.5">
@@ -896,6 +899,10 @@ export default function PeerInterviewsDirectoryPage() {
       {loading ? (
         <div className="flex h-48 items-center justify-center sm:h-64">
           <Loader2 className="h-6 w-6 animate-spin text-[#7367F0]" />
+        </div>
+      ) : directoryEmpty ? (
+        <div className="flex min-h-[46vh] items-center justify-center py-6">
+          <ConciergeNotice kind="peer" centered />
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[22px] border border-border bg-card px-4 py-14 text-center sm:px-6">

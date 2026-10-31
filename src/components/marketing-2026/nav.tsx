@@ -8,21 +8,19 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   navLinkBecomeInterviewer,
-  navLinkHackathon,
   navLinkPricing,
   navLinksHome,
   PublicMobileNav,
   useVisibleMarketingNav,
 } from "@/components/NavigationMenu";
 import { cn } from "@/lib/utils";
-import { LiveChip } from "@/components/LiveChip";
 import { MK26_ROUTES } from "./cta";
 import { StartLink } from "./StartLink";
 import { mk26Path } from "./assets";
 
 type Item = { href: string; label: string; description: string };
 
-/** Same entries, order and feature-flag visibility as the production header (minus Hackathon); only the styling is new. */
+/** Same entries, order and feature-flag visibility as the production header; only the styling is new. */
 function Dropdown({ label, items, active }: { label: string; items: readonly Item[]; active: boolean }) {
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
@@ -73,7 +71,7 @@ function tintBehind(nav: HTMLElement | null): string | undefined {
 export function Nav() {
   const pathname = usePathname() ?? "";
   const visible = useVisibleMarketingNav();
-  const { resumeItems, showBecomeInterviewer, showHackathon } = visible;
+  const { resumeItems, showBecomeInterviewer } = visible;
   // the new design has a landing page for peer interviews, so send people there before the booking screen
   const mockItems = visible.mockItems.map((i) => (i.href === MK26_ROUTES.startPeerBooking ? { ...i, href: MK26_ROUTES.peerInterviews } : i));
   const [scrolled, setScrolled] = useState(false);
@@ -114,14 +112,6 @@ export function Nav() {
           {navLinksHome.map((l) => (
             <li key={l.href}><Link href={l.href} className={linkCls(l.match(pathname))}>{l.label}</Link></li>
           ))}
-          {/* shown while the hackathon feature is on in admin, same switch as the old header */}
-          {showHackathon && (
-            <li>
-              <Link href={navLinkHackathon.href} className={cn(linkCls(navLinkHackathon.match(pathname)), "inline-flex items-center gap-1.5")}>
-                {navLinkHackathon.label}<LiveChip />
-              </Link>
-            </li>
-          )}
           <Dropdown label="Resume" items={resumeItems} active={resumeActive} />
           <Dropdown label="Mock Interviews" items={mockItems} active={mockActive} />
           {showBecomeInterviewer && (
