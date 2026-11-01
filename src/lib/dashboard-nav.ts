@@ -23,10 +23,8 @@ import {
   Plug,
   Shield,
   Share2,
-  Trophy,
   Waypoints,
 } from "lucide-react";
-import { HACKATHON_LANDING_PATH } from "@/features/hackathon/config";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
 
@@ -108,15 +106,6 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
     accent: accent.purple,
-  },
-  {
-    title: "Hackathon",
-    href: HACKATHON_LANDING_PATH,
-    icon: Trophy,
-    accent: accent.rose,
-    featureKey: "hackathon",
-    badge: "Live",
-    badgeTone: "live",
   },
   {
     title: "AI Resume Builder",
