@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { HACKATHON_SLUG, hackathonLeaderboardPath } from "@/features/hackathon/config";
 
 const navLinkClass =
   "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[13px] xl:text-[0.9375rem]";
@@ -84,6 +85,14 @@ export const navLinkPricing = {
   href: "/pricing",
   label: "Pricing",
   match: (path: string) => path.startsWith("/pricing"),
+} as const;
+
+const LEADERBOARD_HREF = hackathonLeaderboardPath(HACKATHON_SLUG);
+
+export const navLinkLeaderboard = {
+  href: LEADERBOARD_HREF,
+  label: "Leaderboard",
+  match: (path: string) => path === LEADERBOARD_HREF || path.startsWith(`${LEADERBOARD_HREF}/`),
 } as const;
 
 /** @deprecated Use navLinksHome */
@@ -351,6 +360,12 @@ export function PublicDesktopNav() {
       ) : null}
 
       <NavLink
+        href={navLinkLeaderboard.href}
+        label={navLinkLeaderboard.label}
+        active={navLinkLeaderboard.match(pathname)}
+      />
+
+      <NavLink
         href={navLinkPricing.href}
         label={navLinkPricing.label}
         active={navLinkPricing.match(pathname)}
@@ -612,6 +627,14 @@ export function PublicMobileNav({ mockItems: mockItemsOverride }: { mockItems?: 
             {navLinkBecomeInterviewer.label}
           </Link>
           ) : null}
+
+          <Link
+            href={navLinkLeaderboard.href}
+            onClick={navigateFromMobileDrawer(navLinkLeaderboard.href)}
+            className={mobileLinkClass(navLinkLeaderboard.match(pathname))}
+          >
+            {navLinkLeaderboard.label}
+          </Link>
 
           <Link
             href={navLinkPricing.href}

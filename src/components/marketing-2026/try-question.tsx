@@ -64,11 +64,13 @@ export function TryQuestion() {
         </div>
 
         <div className="relative min-w-0 rounded-[28px] border border-border bg-card p-5 shadow-[0_40px_80px_-40px_rgba(47,43,61,.4)] md:p-7">
-          <div className="flex flex-wrap gap-2">
-            {roles.map((r) => (
-              <button key={r} onClick={() => { setRole(r); setPhase("idle"); }} aria-pressed={role === r}
-                className={cn("rounded-full border px-3.5 py-1.5 text-[13.5px] transition-colors", role === r ? "border-foreground bg-foreground text-white" : "border-border hover:border-foreground/40")}>{r}</button>
-            ))}
+          <div className="-mx-5 overflow-x-auto overscroll-x-contain px-5 [scrollbar-width:none] md:-mx-7 md:px-7 [&::-webkit-scrollbar]:hidden">
+            <div className="flex w-max gap-2">
+              {roles.map((r) => (
+                <button key={r} onClick={() => { setRole(r); setPhase("idle"); }} aria-pressed={role === r}
+                  className={cn("shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13.5px] transition-colors", role === r ? "border-foreground bg-foreground text-white" : "border-border hover:border-foreground/40")}>{r}</button>
+              ))}
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
             at
