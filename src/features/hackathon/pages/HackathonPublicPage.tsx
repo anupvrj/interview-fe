@@ -11,7 +11,7 @@ import { Flag, Loader2, Users } from "lucide-react";
 import { formatIst, PHASE_COPY } from "../copy";
 import { REGISTRATION_CLOSED_NOTE } from "../copy";
 import { hackathonLandingCtaLabel, resolveHackathonLandingCta } from "../hackathonLandingCta";
-import { hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
+import { hackathonDashboardPath, hackathonLandingPath, hackathonLeaderboardPath, hackathonProfilePath } from "../config";
 import { hackathonAdminApi, toHackathonError, type HackathonPublic } from "../api";
 import { hackathonEntryPath } from "../hackathonEntry";
 import { isHackathonRegistered, isHackathonSignupClosedForNewParticipants } from "../hackathonRegistration";
@@ -31,6 +31,7 @@ function PublicContent() {
   const pub = useHackathonPublic(slug);
   const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) && !preview });
   const dashboard = hackathonDashboardPath(slug);
+  const leaderboard = hackathonLeaderboardPath(slug);
   const profile = hackathonProfilePath(slug);
   const [quizOpen, setQuizOpen] = useState(false);
   const [closedOpen, setClosedOpen] = useState(false);
@@ -117,9 +118,9 @@ function PublicContent() {
     }
     if (ctaResolved.labelKey === "seeResults") {
       if (isSignedIn) {
-        router.push(dashboard);
+        router.push(leaderboard);
       } else {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(dashboard)}`);
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(leaderboard)}`);
       }
       return;
     }

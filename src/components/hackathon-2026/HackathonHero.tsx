@@ -8,7 +8,6 @@ import {
   HackathonFloatCard,
 } from "@/components/hackathon-2026/HackathonFloatCard";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
-import { HackathonSubmitButton } from "@/components/hackathon-2026/HackathonSubmitButton";
 import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
 import { HackathonRegisterHint, HackathonRegistrationClosedNote } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
@@ -130,11 +129,6 @@ export function HackathonHero() {
                   ctaLocation="hero"
                   size="lg"
                   idle={!registrationClosed && pub.data?.phase !== "ended"}
-                  className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
-                />
-                <HackathonSubmitButton
-                  ctaLocation="hero"
-                  size="lg"
                   className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
                 />
               </div>

@@ -37,9 +37,12 @@ const KIND_LABEL = {
   social: "Social",
 } as const;
 
-function StateBadge({ state }: Readonly<{ state: StepState }>) {
+function StateBadge({ state, notCompleted }: Readonly<{ state: StepState; notCompleted?: boolean }>) {
   const map: Record<StepState, { label: string; className: string }> = {
-    locked: { label: "Locked", className: "border-white/20 text-[#9eb2ca] bg-[#06122a]/80" },
+    locked: {
+      label: notCompleted ? "Not Completed" : "Locked",
+      className: "border-white/20 text-[#9eb2ca] bg-[#06122a]/80",
+    },
     available: { label: "Active", className: "border-[#3a8dff] text-[#6fc0ff] bg-[#0d2550]/60" },
     in_progress: { label: "In progress", className: "border-[#ffc44d]/70 text-[#ffc44d] bg-[#2e2410]/50" },
     processing: { label: "Scoring", className: "border-[#2bd2ff]/70 text-[#2bd2ff] bg-[#082f45]/50" },
@@ -185,6 +188,7 @@ export function ChallengeCard({
   score,
   minScore,
   resubmitMessage,
+  completedAction,
   children,
 }: Readonly<{
   number: number;
@@ -198,11 +202,14 @@ export function ChallengeCard({
   score?: number | null;
   minScore?: number | null;
   resubmitMessage?: string | null;
+  /** Shown under the Completed label, for example a link to the resume or interview report. */
+  completedAction?: ReactNode;
   children?: ReactNode;
 }>) {
   const a = ACCENTS[accent];
   const locked = state === "locked";
   const completed = state === "completed";
+  const notCompleted = locked && lockReason === "ended";
   const faded = locked || completed;
   const current = state === "available" || state === "in_progress" || state === "processing";
   const hasScore = typeof score === "number" && minScore != null;
@@ -262,12 +269,12 @@ export function ChallengeCard({
               </h2>
             </div>
             <div className="hidden shrink-0 flex-col items-end gap-2 sm:flex">
-              <StateBadge state={state} />
+              <StateBadge state={state} notCompleted={notCompleted} />
               {hasScore && !locked ? <ScoreBadge passed={passed} score={score!} minScore={minScore!} /> : null}
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-2 sm:hidden">
-            <StateBadge state={state} />
+            <StateBadge state={state} notCompleted={notCompleted} />
             {hasScore && !locked ? <ScoreBadge passed={passed} score={score!} minScore={minScore!} /> : null}
           </div>
           <p className="mt-2 max-w-5xl text-[15px] leading-relaxed text-[#dbe6f3]">{description}</p>
@@ -328,15 +335,18 @@ export function ChallengeCard({
                     : "border-white/15 bg-white/[0.06] text-[#cfdbe8]",
                 )}
               >
-                {completed ? "Completed" : "Locked"}
+                {completed ? "Completed" : notCompleted ? "Not Completed" : "Locked"}
               </span>
+              {completed ? completedAction : null}
               <h3 className="max-w-md text-xl font-bold text-white sm:text-2xl">
-                {completed ? "Challenge complete" : "This challenge is locked"}
+                {completed ? "Challenge complete" : notCompleted ? "This challenge was not completed" : "This challenge is locked"}
               </h3>
               <p className="mt-2 max-w-lg text-sm leading-relaxed text-[#9eb2ca]">
                 {completed
                   ? "Nice work. This challenge is finished."
-                  : lockedDetail(lockReason, number)}
+                  : notCompleted
+                    ? "The hackathon has ended, so this challenge can no longer be submitted."
+                    : lockedDetail(lockReason, number)}
               </p>
             </div>
           </div>

@@ -95,6 +95,36 @@ function roundReportHref(
   return dashboardPath;
 }
 
+export function CompletedInterviewReportLink({
+  challenge,
+}: Readonly<{ challenge: Pick<ChallengeProgress, "kind" | "slots"> }>) {
+  const slug = useHackathonSlug();
+  const dashboardPath = hackathonDashboardPath(slug);
+  const slots = (challenge.slots ?? []).filter(
+    (slot) => slot.state === "completed" && (slot.interviewId || slot.sessionId),
+  );
+  if (!slots.length) return null;
+  return (
+    <div className="mt-4 flex flex-wrap justify-center gap-2">
+      {slots.map((slot) => (
+        <Link
+          key={slot.slot}
+          href={roundReportHref(
+            challenge.kind,
+            { interviewId: slot.interviewId, sessionId: slot.sessionId },
+            slot.slot,
+            dashboardPath,
+          )}
+          className={cn(hkSecondaryButton, "min-h-10 px-4 text-sm")}
+        >
+          <FileBarChart2 className="size-4" aria-hidden />
+          {slots.length > 1 ? `View report ${slot.slot}` : "View report"}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function roundNoun(kind?: HackathonChallengeKind) {
   if (kind === "coding") return "round";
   if (kind === "system_design") return "session";

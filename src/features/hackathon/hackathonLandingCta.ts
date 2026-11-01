@@ -16,19 +16,12 @@ function spotsHint(pub: HackathonPublic | undefined): string | null {
   return `Only ${pub.spotsLeft} spot${pub.spotsLeft === 1 ? "" : "s"} left`;
 }
 
-/** After the hackathon ends (or signup closes), hero CTA is launch RSVP until 7 PM IST on launch day. */
-function postHackathonLaunchCta(
-  registered: boolean,
-  hint: string | null,
-  nowMs: number,
-): HackathonLandingCta {
+/** After signup closes, the hero CTA is launch RSVP until 7 PM IST, then See Result. */
+function postHackathonLaunchCta(hint: string | null, nowMs: number): HackathonLandingCta {
   if (isLaunchEventRegistrationOpen(nowMs)) {
     return { labelKey: "registerForEvent", disabled: false, hint };
   }
-  if (registered) {
-    return { labelKey: "seeResults", disabled: false, hint: null };
-  }
-  return { labelKey: "registerForEvent", disabled: true, hint: null };
+  return { labelKey: "seeResults", disabled: false, hint: null };
 }
 
 /**
@@ -56,7 +49,7 @@ export function resolveHackathonLandingCta(
   }
 
   if (pub.phase === "ended") {
-    return postHackathonLaunchCta(registered, hint, nowMs);
+    return postHackathonLaunchCta(hint, nowMs);
   }
 
   if (pub.isFull) {
@@ -68,7 +61,7 @@ export function resolveHackathonLandingCta(
   }
 
   if (isHackathonSignupClosedForNewParticipants(pub, registered)) {
-    return postHackathonLaunchCta(registered, hint, nowMs);
+    return postHackathonLaunchCta(hint, nowMs);
   }
 
   if (registered || browseAsReturning) {

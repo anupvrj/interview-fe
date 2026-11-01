@@ -2,7 +2,7 @@
 
 import { createContext, createElement, useContext, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hackathonApi, type HackathonMe } from "./api";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { HACKATHON_FEATURE_KEY, HACKATHON_SLUG } from "./config";
@@ -47,6 +47,7 @@ export const hackathonKeys = {
   published: ["hackathon", "published"] as const,
   public: (slug: string) => ["hackathon", slug, "public"] as const,
   me: (slug: string) => ["hackathon", slug, "me"] as const,
+  leaderboard: (slug: string, page: number, q: string) => ["hackathon", slug, "leaderboard", page, q] as const,
   resumes: (slug: string) => ["hackathon", slug, "resumes"] as const,
   adminList: ["admin", "hackathons"] as const,
   adminOne: (id: string) => ["admin", "hackathons", id] as const,
@@ -139,6 +140,19 @@ export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
       (Boolean(isSignedIn) && !query.isError) ||
       query.isFetching);
   return { ...query, waitingForMe };
+}
+
+export function useHackathonLeaderboard(page: number, q: string) {
+  const slug = useHackathonSlug();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { isAccessible, isLoading: featuresLoading } = usePlatformFeatures();
+  return useQuery({
+    queryKey: hackathonKeys.leaderboard(slug, page, q),
+    queryFn: () => hackathonApi.leaderboard(slug, () => getToken(), { page, q }),
+    enabled: !featuresLoading && isAccessible(HACKATHON_FEATURE_KEY) && isLoaded && Boolean(isSignedIn),
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
 }
 
 export function useEligibleResumes(enabled: boolean) {

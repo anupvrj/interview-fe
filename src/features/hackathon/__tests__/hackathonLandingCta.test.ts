@@ -69,12 +69,13 @@ describe("resolveHackathonLandingCta", () => {
     expect(resolveHackathonLandingCta(ended, true, true, false, beforeLaunchRsvpClose).labelKey).toBe("registerForEvent");
   });
 
-  it("disables Register for Event after launch start; registered users see results", () => {
+  it("shows See Result after launch registration closes", () => {
     const ended = { ...basePub, phase: "ended" as const, slug: "hiring-games-hackathon-2026" } as HackathonPublic;
     expect(resolveHackathonLandingCta(ended, true, false, false, afterLaunchRsvpClose)).toMatchObject({
-      labelKey: "registerForEvent",
-      disabled: true,
+      labelKey: "seeResults",
+      disabled: false,
     });
+    expect(resolveHackathonLandingCta(ended, false, false, false, afterLaunchRsvpClose).labelKey).toBe("seeResults");
     expect(resolveHackathonLandingCta(ended, true, true, false, afterLaunchRsvpClose).labelKey).toBe("seeResults");
   });
 
@@ -83,11 +84,14 @@ describe("resolveHackathonLandingCta", () => {
     expect(resolveHackathonLandingCta(undefined, false, false).labelKey).toBe("register");
   });
 
-  it("shows Register for Event for returning browsers when hackathon signup is closed", () => {
+  it("shows Register for Event for returning browsers while launch RSVP is open, then See Result", () => {
     const closed = {
       ...basePub,
       registrationOpen: false,
     } as HackathonPublic;
-    expect(resolveHackathonLandingCta(closed, false, false, true).labelKey).toBe("registerForEvent");
+    expect(resolveHackathonLandingCta(closed, false, false, true, beforeLaunchRsvpClose).labelKey).toBe(
+      "registerForEvent",
+    );
+    expect(resolveHackathonLandingCta(closed, false, false, true, afterLaunchRsvpClose).labelKey).toBe("seeResults");
   });
 });

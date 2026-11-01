@@ -23,6 +23,13 @@ export function hackathonProfilePath(slug: string): string {
   return `/hackathon/${slug}/profile`;
 }
 
+export function hackathonLeaderboardPath(slug: string): string {
+  return `/hackathon/${slug}/leaderboard`;
+}
+
+/** Rows requested per leaderboard page. The API caps the response at this size. */
+export const HACKATHON_LEADERBOARD_PAGE_SIZE = 50;
+
 export function hackathonLandingPath(slug: string): string {
   return slug === HACKATHON_SLUG ? HACKATHON_LANDING_PATH : hackathonPublicPath(slug);
 }

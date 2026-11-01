@@ -7,6 +7,7 @@ import "@/components/hackathon-2026/hackathon.css";
 import "@/components/hackathon-2026/hackathon-reel.css";
 import "./hackathon-dashboard-reel.css";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SignedIn, useAuth } from "@clerk/nextjs";
 import { useMarkHackathonMember } from "../returningMember";
 import { claimSavedPreSurvey } from "../preSurvey";
@@ -14,7 +15,7 @@ import { ArrowLeft } from "lucide-react";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
-import { hackathonDashboardPath, hackathonLandingPath } from "../config";
+import { hackathonDashboardPath, hackathonLandingPath, hackathonLeaderboardPath, hackathonProfilePath, hackathonPublicPath } from "../config";
 import { useHackathonSlug } from "../hooks";
 import { cn } from "@/lib/utils";
 
@@ -32,12 +33,22 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
   useEffect(() => {
     if (isSignedIn) void claimSavedPreSurvey(slug, () => getToken());
   }, [isSignedIn, slug, getToken]);
+  const pathname = usePathname();
   const landingPath = hackathonLandingPath(slug);
-  // Leaderboard and Resources have no pages yet, so they render as disabled "Soon" items.
+  const dashboardPath = hackathonDashboardPath(slug);
+  const leaderboardPath = hackathonLeaderboardPath(slug);
+  const profilePath = hackathonProfilePath(slug);
+  const publicPath = hackathonPublicPath(slug);
+  const matches = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
+  // Resources has no page yet, so it stays a disabled "Soon" item.
   const nav: NavItem[] = [
-    { label: "Hackathon", href: landingPath },
-    { label: "Challenges", href: hackathonDashboardPath(slug), active: true },
-    { label: "Leaderboard" },
+    {
+      label: "Hackathon",
+      href: landingPath,
+      active: pathname === landingPath || pathname === publicPath,
+    },
+    { label: "Challenges", href: dashboardPath, active: matches(dashboardPath) || matches(profilePath) },
+    { label: "Leaderboard", href: leaderboardPath, active: matches(leaderboardPath) },
     { label: "Resources" },
   ];
 
