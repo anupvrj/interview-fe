@@ -76,6 +76,25 @@ function devClearStaleHandshakeCookies(request: NextRequest): NextResponse | nul
   return withSearchHeaders(res, url.pathname);
 }
 
+const BROKEN_LEADERBOARD_PREFIX =
+  "/hackathon/hiring-games-hackathon-2026/leaderboardttps";
+const LEADERBOARD_PATH = "/hackathon/hiring-games-hackathon-2026/leaderboard";
+
+/** The launch email glued the leaderboard path to the site URL. Send that address to the real page. */
+function brokenLeaderboardRedirect(request: NextRequest): NextResponse | null {
+  let pathname = request.nextUrl.pathname;
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    /* keep the pathname Next already decoded */
+  }
+  if (!pathname.startsWith(BROKEN_LEADERBOARD_PREFIX)) return null;
+  const url = request.nextUrl.clone();
+  url.pathname = LEADERBOARD_PATH;
+  url.search = "";
+  return NextResponse.redirect(url, 308);
+}
+
 function canonicalHostRedirect(request: Request): NextResponse | null {
   if (process.env.NODE_ENV !== "production") return null;
 
@@ -145,6 +164,9 @@ const clerkHandler = clerkMiddleware(
 );
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  const leaderboardRedirect = brokenLeaderboardRedirect(request);
+  if (leaderboardRedirect) return leaderboardRedirect;
+
   const handshakeReset = devClearStaleHandshakeCookies(request);
   if (handshakeReset) {
     return handshakeReset;

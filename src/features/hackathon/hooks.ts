@@ -144,12 +144,12 @@ export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
 
 export function useHackathonLeaderboard(page: number, q: string) {
   const slug = useHackathonSlug();
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded } = useAuth();
   const { isAccessible, isLoading: featuresLoading } = usePlatformFeatures();
   return useQuery({
     queryKey: hackathonKeys.leaderboard(slug, page, q),
     queryFn: () => hackathonApi.leaderboard(slug, () => getToken(), { page, q }),
-    enabled: !featuresLoading && isAccessible(HACKATHON_FEATURE_KEY) && isLoaded && Boolean(isSignedIn),
+    enabled: !featuresLoading && isAccessible(HACKATHON_FEATURE_KEY) && isLoaded,
     placeholderData: keepPreviousData,
     retry: false,
   });
