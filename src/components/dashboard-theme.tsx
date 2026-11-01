@@ -59,10 +59,10 @@ export function useAdoptHackathonDarkTheme(): void {
 }
 
 /**
- * Inline <head>/<body> script for the dashboard layout: applies the saved dark theme
- * before first paint, so there is no flash of the light theme on a full page load.
+ * Inline script for logged-in layouts. Dark is the default; only an explicit
+ * light choice stays light. Runs before first paint so the page does not flash light.
  */
-export const DASHBOARD_THEME_BOOT_SCRIPT = `try{if(localStorage.getItem(${JSON.stringify(STORAGE_KEY)})==="dark"){document.documentElement.classList.add("dark")}}catch(e){}`;
+export const DASHBOARD_THEME_BOOT_SCRIPT = `try{if(localStorage.getItem(${JSON.stringify(STORAGE_KEY)})!=="light"){document.documentElement.classList.add("dark")}}catch(e){}`;
 
 type DashboardThemeContextValue = {
   theme: DashboardTheme;
@@ -87,9 +87,12 @@ export function DashboardThemeProvider({
   /** Pin a theme for a route whose own design is one mode (the live interview room is dark). */
   forcedTheme?: DashboardTheme;
 }>) {
-  // Start "light" to match the server render (no hydration mismatch); the effect below
-  // applies the saved theme right after mount, and the boot script avoids a flash on full loads.
-  const [storedTheme, setThemeState] = useState<DashboardTheme>("light");
+  // Dark unless this browser has an explicit light/dark choice. The server has no
+  // storage, so it renders dark (the logged-in default). The boot script matches that
+  // before paint; a saved "light" choice is applied on the client.
+  const [storedTheme, setThemeState] = useState<DashboardTheme>(
+    () => readStoredTheme() ?? "dark",
+  );
   const theme = forcedTheme ?? storedTheme;
 
   useEffect(() => {

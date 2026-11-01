@@ -86,11 +86,7 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
         signedIn: Boolean(isSignedIn),
         destination: "leaderboard",
       });
-      if (isSignedIn) {
-        router.push(leaderboardPath);
-      } else {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(leaderboardPath)}`);
-      }
+      router.push(leaderboardPath);
       return;
     }
     const track = (destination: "sign_up" | "profile" | "dashboard") =>

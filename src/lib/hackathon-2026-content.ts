@@ -34,8 +34,8 @@ export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 /** Link previews + document metadata for /product-launch. */
 export const LAUNCH_EVENT_META = {
   title: "InterviewTrix Product Launch · Learn from Industry Leaders",
-  description: `Free live online session — ${HACKATHON_LAUNCH.dateLabel}, ${HACKATHON_LAUNCH.timeLabel}. Winners, product updates, and career advice from ex-MNC leaders. Register free.`,
-  ogAlt: "InterviewTrix Product Launch — Learn from Industry Leaders · 31 Oct, 7 PM IST",
+  description: `The InterviewTrix product launch on ${HACKATHON_LAUNCH.dateLabel} was completed successfully. Watch the live stream.`,
+  ogAlt: "InterviewTrix Product Launch — completed successfully",
 } as const;
 
 /** 31 Oct live launch RSVP modal (Learn from Industry Leaders). */

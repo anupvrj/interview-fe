@@ -85,7 +85,7 @@ export default async function OpenGraphImage() {
             Industry Leaders
           </div>
           <div style={{ display: "flex", marginTop: 22, fontSize: 28, fontWeight: 500, color: "#cfdbe8", maxWidth: 920, lineHeight: 1.35 }}>
-            Winners, product updates & career advice — free registration.
+            The launch was completed successfully. Watch the live stream.
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export default async function OpenGraphImage() {
           {[
             HACKATHON_LAUNCH.dateLabel.replace(/ \d{4}$/, ""),
             HACKATHON_LAUNCH.timeLabel,
-            "Free · Register now",
+            "Watch the launch",
           ].map((label) => (
             <div
               key={label}

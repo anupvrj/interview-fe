@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className={hackathonHand.variable}>
-      {/* Applies the saved dark theme before paint (no light flash after visiting the hackathon). */}
+      {/* Dark by default for logged-in users; a saved light choice stays light. */}
       <script dangerouslySetInnerHTML={{ __html: DASHBOARD_THEME_BOOT_SCRIPT }} />
       <DashboardClientLayout>{children}</DashboardClientLayout>
     </div>

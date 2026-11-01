@@ -716,10 +716,13 @@ export function AdminBroadcastEditor({ broadcastId }: Readonly<{ broadcastId: st
                   <Input
                     value={testTo}
                     onChange={(e) => setTestTo(e.target.value)}
-                    placeholder="Your admin email (or up to 5, comma separated)"
+                    placeholder="Email to test (up to 5, comma separated)"
                     aria-label="Test recipients"
                     className="w-full"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    The greeting uses the name on each address you enter.
+                  </p>
                   <Button variant="outline" className="w-full" onClick={() => void sendTest()} disabled={testing || saving}>
                     {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
                     {dirty || isNew ? "Save and send test" : "Send test"}

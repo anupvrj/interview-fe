@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { AlertCircle, ChevronLeft, ChevronRight, Medal, Search, Trophy } from "lucide-react";
 import { useLoadingTimeout } from "@/lib/stuck-loading";
-import { consumePostSignInReturnUrl, getSignInUrlWithRedirect, peekPostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import { consumePostSignInReturnUrl, peekPostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import { cn } from "@/lib/utils";
 import { toHackathonError } from "../api";
-import { HACKATHON_LEADERBOARD_PAGE_SIZE, hackathonLandingPath, hackathonLeaderboardPath } from "../config";
+import { HACKATHON_LEADERBOARD_PAGE_SIZE, hackathonLandingPath } from "../config";
 import { formatIst } from "../copy";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { HackathonPageLoader } from "../components/HackathonPageLoader";
@@ -17,7 +16,6 @@ import { hkSecondaryButton } from "../components/ResumeChallenge";
 import { useHackathonLeaderboard, useHackathonSlug } from "../hooks";
 import { formatLeaderboardScore, maskLeaderboardEmail } from "../leaderboard";
 import { useNoMotion } from "../useNoMotion";
-import { useRouter } from "next/navigation";
 
 const RANK_TONE = [
   "text-[#ffc44d]",
@@ -27,10 +25,7 @@ const RANK_TONE = [
 
 function LeaderboardContent() {
   const slug = useHackathonSlug();
-  const router = useRouter();
   const landingPath = hackathonLandingPath(slug);
-  const boardPath = hackathonLeaderboardPath(slug);
-  const { isLoaded, isSignedIn } = useAuth();
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -45,12 +40,6 @@ function LeaderboardContent() {
     const pending = peekPostSignInReturnUrl();
     if (pending?.startsWith(landingPath) || pending?.startsWith(`/hackathon/${slug}`)) consumePostSignInReturnUrl();
   }, [landingPath, slug]);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace(getSignInUrlWithRedirect(boardPath));
-    }
-  }, [boardPath, isLoaded, isSignedIn, router]);
 
   const board = query.data;
   const entries = board?.entries ?? [];
@@ -69,7 +58,7 @@ function LeaderboardContent() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const loading = !isLoaded || !isSignedIn || query.isPending;
+  const loading = query.isPending;
   useLoadingTimeout(loading, "hackathon leaderboard");
   if (loading) return <HackathonPageLoader message="Loading the leaderboard…" />;
 

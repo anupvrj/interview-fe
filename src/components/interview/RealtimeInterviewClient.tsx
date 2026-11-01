@@ -67,7 +67,7 @@ import { selectInterviewerPersona } from "@/lib/aiInterviewers";
 import { useAiInterviewers } from "@/hooks/useAiInterviewers";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceStatus";
-import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
+import { DashboardCanvasBackdrop, JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { CAMERA_MIC_DENIED_MESSAGE, PermissionGuide } from "@/components/interview/PermissionGuide";
 import { useLoadingTimeout } from "@/lib/stuck-loading";
@@ -3461,11 +3461,14 @@ export function RealtimeInterviewClient({
 
   if (loading && !codingDiscussionHost && !codingEmbed) {
     return (
-      <JourneyLoader
-        title="Getting your interview room ready…"
-        description="Loading your interviewer, questions and voice."
-        className={cn("min-h-screen", className)}
-      />
+      <div className={cn("relative min-h-screen bg-background", className)}>
+        <DashboardCanvasBackdrop />
+        <JourneyLoader
+          title="Getting your interview room ready…"
+          description="Loading your interviewer, questions and voice."
+          className="relative z-10 min-h-screen"
+        />
+      </div>
     );
   }
 
@@ -3512,10 +3515,11 @@ export function RealtimeInterviewClient({
             ? "h-full min-h-0 bg-transparent"
             : "bg-background",
           codingEmbed && !codingDiscussionHost ? "h-full min-h-0" : "",
-          !codingEmbed && !codingDiscussionHost ? "min-h-screen" : "",
+          !codingEmbed && !codingDiscussionHost ? "relative min-h-screen" : "",
           className,
         )}
       >
+        {!codingEmbed && !codingDiscussionHost ? <DashboardCanvasBackdrop /> : null}
         {codingDiscussionHost ? (
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-card/[0.06] p-4 text-center">
             <AlertCircle className="mx-auto mb-3 h-10 w-10 text-red-400" />
@@ -3532,7 +3536,7 @@ export function RealtimeInterviewClient({
             </Button>
           </div>
         ) : (
-          <div className={cn(journey.card, "w-full", error === CAMERA_MIC_DENIED_MESSAGE ? "max-w-xl" : "max-w-md")}>
+          <div className={cn(journey.card, "relative z-10 w-full", error === CAMERA_MIC_DENIED_MESSAGE ? "max-w-xl" : "max-w-md")}>
             <div className={journey.headerBand}>
               <JourneyIconTile tone="danger" size="lg" className="mb-3">
                 <AlertCircle className="h-7 w-7" aria-hidden />
@@ -3595,7 +3599,7 @@ export function RealtimeInterviewClient({
       className={cn(
         "relative text-white",
         dash2026Scope,
-        !codingDiscussionHost && "bg-[#060B16]",
+        !codingDiscussionHost && "bg-background",
         codingEmbed
           ? codingDiscussionHost
             ? "flex h-auto min-w-0 flex-col overflow-visible"
@@ -3606,13 +3610,7 @@ export function RealtimeInterviewClient({
         className,
       )}
     >
-      {!codingEmbed && !codingDiscussionHost ? (
-        // the marketing "live round" backdrop: a quiet blueprint grid under two soft glows
-        <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
-          <div className="bg-blueprint-dark absolute inset-0 [mask-image:radial-gradient(ellipse_80%_70%_at_50%_20%,#000_30%,transparent_80%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_20%_0%,rgba(115,103,240,.22),transparent_70%),radial-gradient(35%_30%_at_85%_10%,rgba(31,143,255,.14),transparent_70%)]" />
-        </div>
-      ) : null}
+      {!codingEmbed && !codingDiscussionHost ? <DashboardCanvasBackdrop /> : null}
 
       {openingReport && (
         <JourneyLoader
@@ -3916,13 +3914,6 @@ export function RealtimeInterviewClient({
           ) : null}
         </AlertDialogContent>
       </AlertDialog>
-      {!codingDiscussionHost ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
-          <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        </div>
-      ) : null}
-
       {/* Non-blocking reconnect banner — shown during reconnect before escalation to dialog */}
       {isReconnecting && !connectionFailed && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
@@ -3963,7 +3954,7 @@ export function RealtimeInterviewClient({
 
       {/* Coding sidebar embed: no header (End lives on main coding page if needed). */}
       {codingEmbed && isCodingDiscussion ? null : (
-        <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#060B16]/80 backdrop-blur-xl">
+        <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl min-w-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:px-5">
             {!isInterviewActive && (
               <Button

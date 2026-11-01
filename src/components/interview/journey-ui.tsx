@@ -118,6 +118,20 @@ export function JourneyCard({
 }
 
 /**
+ * The logged-in dashboard canvas: navy field, the two soft blue washes, and the
+ * blueprint grid used on dashboard pages.
+ */
+export function DashboardCanvasBackdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+      <div className="bg-blueprint mask-fade absolute inset-0 opacity-70" />
+      <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_85%_-5%,rgba(0,119,255,0.10),transparent_60%),radial-gradient(900px_600px_at_-10%_45%,rgba(0,68,170,0.08),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(40%_60%_at_15%_10%,rgba(115,103,240,.14),transparent_70%),radial-gradient(35%_55%_at_90%_20%,rgba(31,143,255,.10),transparent_70%)]" />
+    </div>
+  );
+}
+
+/**
  * The journey loader. `page` centres a small card in the content area,
  * `overlay` covers the screen (e.g. between "View report" and the next page),
  * `inline` is just the spinner and text for use inside an existing card.

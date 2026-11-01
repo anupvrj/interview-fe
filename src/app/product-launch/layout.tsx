@@ -1,6 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { hackathonHand } from "@/lib/fonts/hackathon-hand";
-import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hackathon-reel";
 import { EVENT_REGISTRATION_PATH } from "@/features/hackathon/config";
 import { LAUNCH_EVENT_META } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
@@ -10,8 +8,8 @@ const siteUrl = getSiteUrl();
 const pageUrl = `${siteUrl}${EVENT_REGISTRATION_PATH}`;
 
 export const viewport: Viewport = {
-  themeColor: "#040b17",
-  colorScheme: "dark",
+  themeColor: "#ffffff",
+  colorScheme: "light",
 };
 
 export const metadata: Metadata = {
@@ -42,11 +40,9 @@ export const metadata: Metadata = {
 
 export default function ProductLaunchLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={`${hackathonHand.variable} ${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`}
-    >
+    <>
       {children}
       <StuckLoadingWatchdog />
-    </div>
+    </>
   );
 }

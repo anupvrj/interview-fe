@@ -1,50 +1,65 @@
-"use client";
-
 import Link from "next/link";
-import { useAdoptHackathonDarkTheme } from "@/components/dashboard-theme";
-import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
-import { HackathonLaunchEventForm } from "@/components/hackathon-2026/HackathonLaunchEventForm";
-import { HackathonFeatureGate } from "@/features/hackathon/components/HackathonFeatureGate";
-import { HACKATHON_LANDING_PATH, HACKATHON_SLUG } from "@/features/hackathon/config";
-import { HackathonSlugProvider } from "@/features/hackathon/hooks";
-import { LAUNCH_EVENT_FORM } from "@/lib/hackathon-2026-content";
-import "./hackathon.css";
-import "./hackathon-reel.css";
-import "@/features/hackathon/components/hackathon-dashboard-reel.css";
+import { Footer } from "@/components/marketing-2026/closing";
+import { GridRunners } from "@/components/marketing-2026/graphics";
+import { HL } from "@/components/marketing-2026/landing-kit";
+import { Marketing2026Shell } from "@/components/marketing-2026/Marketing2026Shell";
+import { Nav } from "@/components/marketing-2026/nav";
+import { BrowserFrame } from "@/components/marketing-2026/primitives";
+
+const LAUNCH_VIDEO_ID = "3zw7NrCmx8Y";
+const LAUNCH_VIDEO_URL = `https://www.youtube.com/watch?v=${LAUNCH_VIDEO_ID}`;
 
 export function EventRegistrationPage() {
-  useAdoptHackathonDarkTheme();
-
   return (
-    <HackathonSlugProvider slug={HACKATHON_SLUG}>
-      <HackathonFeatureGate showWhileLoading backHref={HACKATHON_LANDING_PATH} backLabel="Back to Hiring Games">
-        {/* Static layout for Instagram in-app browser (see .hk-static on full hackathon landing). */}
-        <div className="hk-root hk-static min-h-[100dvh] antialiased">
-          <header className="border-b border-[#1b3c62]/80 bg-[#040b17]/95 px-4 py-3">
-            <div className="mx-auto flex max-w-lg justify-center">
-              <Link href="/" className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3aa6ff]/50" aria-label="InterviewTrix home">
-                <HackathonBrand size="sm" priority />
-              </Link>
-            </div>
-          </header>
+    <Marketing2026Shell>
+      <Nav />
+      <main>
+        <section className="relative overflow-clip pb-24 pt-32 md:pt-40">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(42%_34%_at_50%_30%,rgba(115,103,240,.16),transparent_72%),radial-gradient(38%_30%_at_22%_14%,rgba(31,143,255,.10),transparent_70%),radial-gradient(36%_28%_at_80%_16%,rgba(155,140,255,.14),transparent_70%),linear-gradient(180deg,#FFFFFF_0%,#F8F8FB_60%)]"
+          />
+          <GridRunners />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
 
-          <main className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-8">
-            <p className="sr-only">{LAUNCH_EVENT_FORM.subtitle}</p>
-            <div
-              className="overflow-visible rounded-2xl border border-[#27547d]/90 bg-[#071426] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
-              id="launch-form"
-            >
-              <HackathonLaunchEventForm showStepChrome embeddedInPage className="pb-2" />
-            </div>
-            <p className="mt-6 text-center text-xs leading-relaxed text-[#7189a6]">
-              Free online event · same registration as the Hiring Games page.{" "}
-              <Link href={HACKATHON_LANDING_PATH} className="font-semibold text-[#6fc0ff] hover:underline">
-                Learn more
+          <div className="relative mx-auto max-w-[1120px] px-5 text-center">
+            <h1 className="mx-auto text-[clamp(28px,7.2vw,64px)] font-black leading-[1.02] tracking-[-0.055em] text-[#2E3656]">
+              <span className="block whitespace-nowrap">The launch was</span>
+              <span className="block whitespace-nowrap">
+                completed <span className={HL}>successfully</span>
+              </span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-[46ch] text-[16px] leading-relaxed text-[#4B5275] sm:text-[17px] md:text-[18.5px]">
+              Thank you for joining. Watch the live stream from the launch below.
+            </p>
+          </div>
+
+          <div className="relative mx-auto mt-12 max-w-[980px] px-4 md:mt-16">
+            <BrowserFrame url="youtube.com/watch">
+              <div className="aspect-video bg-black" id="launch-video">
+                <iframe
+                  className="h-full w-full"
+                  src={`https://www.youtube-nocookie.com/embed/${LAUNCH_VIDEO_ID}`}
+                  title="InterviewTrix product launch live stream"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </BrowserFrame>
+            <p className="mt-6 text-center">
+              <Link
+                href={LAUNCH_VIDEO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-white px-6 text-[15.5px] font-semibold text-[#2E3656] hover:border-primary/40"
+              >
+                Watch on YouTube
               </Link>
             </p>
-          </main>
-        </div>
-      </HackathonFeatureGate>
-    </HackathonSlugProvider>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </Marketing2026Shell>
   );
 }

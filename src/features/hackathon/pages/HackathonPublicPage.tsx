@@ -117,11 +117,7 @@ function PublicContent() {
       return;
     }
     if (ctaResolved.labelKey === "seeResults") {
-      if (isSignedIn) {
-        router.push(leaderboard);
-      } else {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(leaderboard)}`);
-      }
+      router.push(leaderboard);
       return;
     }
     if (ctaResolved.labelKey === "registrationClosed") {
