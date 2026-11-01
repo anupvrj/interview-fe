@@ -23,14 +23,6 @@
   line-height: 1.12 !important;
 }
 .hk-root h1 { font-size: clamp(2.05rem, 4.15vw, 3.55rem) !important; }
-/* Launch recap: two short lines. Michroma is wide, so phones use a smaller size. */
-.hk-root h1.hk-launch-title {
-  font-size: clamp(1.28rem, 5.4vw, 1.65rem) !important;
-  line-height: 1.22 !important;
-}
-@media (min-width: 640px) {
-  .hk-root h1.hk-launch-title { font-size: clamp(2.05rem, 4vw, 3.05rem) !important; }
-}
 .hk-root main h2 { font-size: clamp(1.55rem, 3.2vw, 2.5rem) !important; }
 .hk-root h3 {
   font-family: var(--hk-display);
