@@ -146,8 +146,23 @@ const preset = (
   },
 });
 
-/** Ready-made hackathon updates. Everything stays editable. */
+/** Ready-made updates. Everything stays editable. */
 export const BROADCAST_PRESETS: BroadcastPreset[] = [
+  preset("general", "General message", "Any update to all users — greeting, message, and two buttons", {
+    name: "General message",
+    subject: "An update from InterviewTrix",
+    preheader: "A short note from the InterviewTrix team.",
+    audience: "all_users",
+    content: {
+      eyebrow: "InterviewTrix",
+      title: "Hello {{first_name}}",
+      body: "Hello {{first_name}},\n\nWrite your message here.\n\nThank you,\nTeam InterviewTrix",
+      ctaLabel: "Open InterviewTrix",
+      ctaUrl: "https://interviewtrix.com",
+      secondaryCtaLabel: "Go to dashboard",
+      secondaryCtaUrl: "https://interviewtrix.com/dashboard",
+    },
+  }),
   preset("day1-live", "Day 1 · Hackathon is live", "To users who haven't registered yet", {
     name: "Day 1 — hackathon is live (not registered)",
     // Plain subject: no FREE / ₹ / emoji / ALL CAPS — those push mail into spam or promotions.

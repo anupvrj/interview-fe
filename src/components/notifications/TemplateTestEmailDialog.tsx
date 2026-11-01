@@ -97,12 +97,13 @@ export function TemplateTestEmailDialog({
             Send test email
           </DialogTitle>
           <DialogDescription>
-            Sends the current template with your preview sample data
+            Sends the current template with sample data
             {variableCount > 0
               ? ` (${variableCount} variable${variableCount === 1 ? "" : "s"})`
               : ""}
-            . Unsaved HTML and style changes are included. Subject is prefixed
-            with <code className="text-xs">[Interview Trix Test]</code>.
+            . The greeting uses the name on this email address. Unsaved HTML and
+            style changes are included. Subject is prefixed with{" "}
+            <code className="text-xs">[Interview Trix Test]</code>.
           </DialogDescription>
         </DialogHeader>
 
