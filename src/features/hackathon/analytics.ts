@@ -103,7 +103,7 @@ export function trackRegisterClick(opts: {
   ctaLocation: HackathonCtaLocation;
   ctaState: string;
   signedIn: boolean;
-  destination: "sign_up" | "profile" | "dashboard";
+  destination: "sign_up" | "profile" | "dashboard" | "leaderboard";
 }) {
   rememberHackathonFunnel(opts.ctaLocation);
   markHackathonEngaged("cta_click");

@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { Trophy } from "lucide-react";
 import type { HackathonMe } from "../api";
+import { hackathonLeaderboardPath } from "../config";
 import { formatIst } from "../copy";
+import { useHackathonSlug } from "../hooks";
+import { hkSecondaryButton } from "./ResumeChallenge";
 import { WhatsAppCommunityCard } from "./WhatsAppCommunityCard";
 
 export function CompleteSection({ me }: Readonly<{ me: HackathonMe }>) {
+  const slug = useHackathonSlug();
   if (!me.progress.completed) return null;
 
   return (
@@ -19,9 +24,12 @@ export function CompleteSection({ me }: Readonly<{ me: HackathonMe }>) {
         You&apos;ve completed the hackathon!
       </h2>
       <p className="relative mx-auto mt-2 max-w-lg text-[15px] text-[#cfdbe8]">
-        Your submission is in{me.participant?.completedAt ? ` (${formatIst(me.participant.completedAt)})` : ""}. We&apos;ll
-        announce the winners after judging. Good luck!
+        Your submission is in{me.participant?.completedAt ? ` (${formatIst(me.participant.completedAt)})` : ""}. Final
+        scores are on the leaderboard. The top entries are verified, and the top 3 win.
       </p>
+      <Link href={hackathonLeaderboardPath(slug)} className={`${hkSecondaryButton} relative mt-6`}>
+        View leaderboard
+      </Link>
       <WhatsAppCommunityCard variant="qr" className="mt-6" />
     </section>
   );

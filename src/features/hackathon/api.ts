@@ -158,6 +158,29 @@ export interface HackathonMe {
   } | null;
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  email: string;
+  avgScore: number;
+  resumeScore: number;
+  interviewScore: number;
+  interviewSubmittedAt: string | null;
+  isYou: boolean;
+}
+
+export interface HackathonLeaderboard {
+  published: boolean;
+  revealsAt: string | null;
+  title: string;
+  formula: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  entries: LeaderboardEntry[];
+  you: LeaderboardEntry | null;
+}
+
 export interface EligibleResume {
   resumeId: string;
   title: string;
@@ -408,6 +431,18 @@ export const hackathonApi = {
       { enabled },
       { headers: await authHeaders(getToken) },
     );
+    return res.data.data;
+  },
+
+  leaderboard: async (
+    slug: string,
+    getToken: TokenGetter,
+    query: { page: number; q?: string },
+  ): Promise<HackathonLeaderboard> => {
+    const res = await apiClient.get<{ data: HackathonLeaderboard }>(`${hackathonBase(slug)}/leaderboard`, {
+      headers: await authHeaders(getToken),
+      params: { page: query.page, q: query.q || undefined },
+    });
     return res.data.data;
   },
 

@@ -8,8 +8,11 @@ import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRe
 import { SectionLink } from "@/components/hackathon-2026/HackathonMotion";
 import { HackathonSubmissionExtendedMeta } from "@/components/hackathon-2026/HackathonSubmissionExtendedMeta";
 import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
+import { HACKATHON_SLUG, hackathonLeaderboardPath } from "@/features/hackathon/config";
 import { HACKATHON_2026_PATH, HACKATHON_LAUNCH, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
+
+const LEADERBOARD_HREF = hackathonLeaderboardPath(HACKATHON_SLUG);
 
 export function HackathonHeader() {
   const challenge = useLandingChallengeWindow();
@@ -116,6 +119,9 @@ export function HackathonHeader() {
                 {item.label}
               </SectionLink>
             ))}
+            <Link href={LEADERBOARD_HREF} className="hk-nav-link text-[#dbe6f3] transition-colors duration-200 hover:text-white">
+              Leaderboard
+            </Link>
           </nav>
 
           {/* Register (right) */}
@@ -197,6 +203,14 @@ export function HackathonHeader() {
                 <ChevronRight className="size-4 text-[#4f8fd0] transition-transform duration-300" aria-hidden />
               </SectionLink>
             ))}
+            <Link
+              href={LEADERBOARD_HREF}
+              onClick={closeMenu}
+              className="flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-semibold text-[#c3d3e4] hover:bg-white/5 hover:text-white"
+            >
+              Leaderboard
+              <ChevronRight className="size-4 text-[#4f8fd0]" aria-hidden />
+            </Link>
           </nav>
 
           <div className="mt-auto border-t border-[#132c48] p-5">

@@ -27,6 +27,31 @@ export const hkInputClass =
 export const hkSecondaryButton =
   "hk-btn-ghost inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/70 bg-transparent px-5 text-[15px] font-semibold text-white transition-[background-color,border-color,transform] duration-200 hover:border-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-60";
 
+export function CompletedResumeLink() {
+  const openPdf = useOpenSubmittedResume();
+  const viewSubmitted = async () => {
+    const tab = window.open("", "_blank");
+    try {
+      const { url } = await openPdf.mutateAsync();
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } catch {
+      tab?.close();
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void viewSubmitted()}
+      className={cn(hkSecondaryButton, "mt-4 min-h-10 px-4 text-sm")}
+      disabled={openPdf.isPending}
+    >
+      {openPdf.isPending ? <Loader2 className="size-4 animate-spin" /> : <ExternalLink className="size-4" />}
+      View resume
+    </button>
+  );
+}
+
 export function AtsScorePill({ score, target }: Readonly<{ score: number | null; target: number }>) {
   if (score === null) {
     return <span className="text-sm text-[#7189a6]">ATS score pending</span>;

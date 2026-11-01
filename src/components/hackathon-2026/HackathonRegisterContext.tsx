@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   hackathonDashboardPath,
   hackathonLandingPath,
+  hackathonLeaderboardPath,
   hackathonProfilePath,
   HACKATHON_FEATURE_KEY,
 } from "@/features/hackathon/config";
@@ -78,16 +79,17 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
       return;
     }
     if (cta.labelKey === "seeResults") {
+      const leaderboardPath = hackathonLeaderboardPath(slug);
       trackRegisterClick({
         ctaLocation,
         ctaState: cta.labelKey,
         signedIn: Boolean(isSignedIn),
-        destination: "dashboard",
+        destination: "leaderboard",
       });
       if (isSignedIn) {
-        router.push(dashboardPath);
+        router.push(leaderboardPath);
       } else {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(dashboardPath)}`);
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(leaderboardPath)}`);
       }
       return;
     }

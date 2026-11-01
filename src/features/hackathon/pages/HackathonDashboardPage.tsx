@@ -13,7 +13,7 @@ import {
   peekPostSignInReturnUrl,
 } from "@/lib/post-sign-in-redirect";
 import { eventTargets, toHackathonError, type HackathonMe } from "../api";
-import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
+import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonLeaderboardPath, hackathonProfilePath } from "../config";
 import { CTA_LABELS, DASHBOARD_NOT_REGISTERED, formatIst, PHASE_COPY } from "../copy";
 import { HackathonLaunchEventProvider, useHackathonLaunchEventOptional } from "@/components/hackathon-2026/HackathonLaunchEventContext";
 import { HackathonRegisterProvider, useHackathonRegister } from "@/components/hackathon-2026/HackathonRegisterContext";
@@ -21,6 +21,8 @@ import { isHackathonSignupClosedForNewParticipants } from "../hackathonRegistrat
 import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
+import { CompletedInterviewReportLink } from "../components/InterviewChallenge";
+import { CompletedResumeLink } from "../components/ResumeChallenge";
 import { HK_EVENTS, trackAtsQualifiedOnce, trackHackathonOnce, trackParticipationProgress } from "../analytics";
 import { CompleteSection } from "../components/CompleteSection";
 import { WhatsAppCommunityCard } from "../components/WhatsAppCommunityCard";
@@ -78,6 +80,14 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
               score={progress.score}
               minScore={progress.minScore}
               resubmitMessage={"resubmitMessage" in progress ? progress.resubmitMessage : undefined}
+              completedAction={
+                progress.state === "completed" && kind === "resume" ? (
+                  <CompletedResumeLink />
+                ) : progress.state === "completed" &&
+                  (kind === "screening" || kind === "coding" || kind === "system_design") ? (
+                  <CompletedInterviewReportLink challenge={progress} />
+                ) : null
+              }
             >
               {kind === "resume" ? <ResumeChallenge me={me} number={index + 1} /> : null}
               {kind === "social" ? <SocialChallenge me={me} /> : null}
@@ -168,7 +178,7 @@ function ReadinessChecklist({ me }: Readonly<{ me: HackathonMe }>) {
 }
 
 function endedMessage(me: HackathonMe): string {
-  if (me.progress.completed) return "Your submission is in. Winners will be announced after judging.";
+  if (me.progress.completed) return "Your submission is in. Final scores are on the leaderboard.";
   if (me.progress.interviews.state === "completed" && me.progress.social.state !== "completed") {
     return "Challenge 3 is closed. Interviews that finished in the grace window still count, but social links can't be submitted after the end.";
   }
@@ -179,6 +189,7 @@ function DashboardContent() {
   const slug = useHackathonSlug();
   const landingPath = hackathonLandingPath(slug);
   const profilePath = hackathonProfilePath(slug);
+  const leaderboardPath = hackathonLeaderboardPath(slug);
   const router = useRouter();
   const { isLoaded, isSignedIn, userId } = useAuth();
   const queryClient = useQueryClient();
@@ -295,7 +306,13 @@ function DashboardContent() {
 
   if (!me.registered) {
     if (phase === "ended") {
-      return <PhaseNotice icon={Flag} tone="amber" title={PHASE_COPY.ended} message="Thanks for your interest. Watch out for the next one!" />;
+      return (
+        <PhaseNotice icon={Flag} tone="amber" title={PHASE_COPY.ended} message="Thanks for your interest. Final scores are on the leaderboard.">
+          <Link href={leaderboardPath} className={cn(hkSecondaryButton, "mt-6")}>
+            View leaderboard
+          </Link>
+        </PhaseNotice>
+      );
     }
     if (isHackathonSignupClosedForNewParticipants(me.hackathon, false)) {
       return <UnregisteredDashboardNotice />;
@@ -379,7 +396,11 @@ function DashboardContent() {
           tone="amber"
           title={PHASE_COPY.ended}
           message={endedMessage(me)}
-        />
+        >
+          <Link href={leaderboardPath} className={cn(hkSecondaryButton, "mt-6")}>
+            View leaderboard
+          </Link>
+        </PhaseNotice>
       ) : null}
       {blockedByFull ? (
         <PhaseNotice
