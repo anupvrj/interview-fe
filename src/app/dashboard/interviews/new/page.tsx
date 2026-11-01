@@ -64,6 +64,8 @@ import {
 } from "@/lib/extension-job-handoff";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { voiceApi } from "@/lib/voiceApi";
+import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
+import { visibleInterviewCategories, type InterviewCategoryId } from "@/lib/interviewCategories";
 import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect";
 import {
   DEFAULT_VOICE_PROVIDER_OPTIONS,
@@ -288,6 +290,12 @@ export default function NewInterviewPage() {
   const [jobDescription, setJobDescription] = useState("");
   const jobCaptureRef = useRef<PendingJobCapture | null>(null);
   const formEdits = useRef<InterviewFormEdits>({});
+  // Category round from the "What do you want to rehearse?" cards (?category=); "" = classic interview.
+  const [categoryId, setCategoryId] = useState<InterviewCategoryId | "">("");
+  const requestedCategory = useRef<string | null>(null);
+  const { data: categoryCatalog, isFetched: categoriesFetched } = useInterviewCategoriesQuery();
+  const categories = useMemo(() => visibleInterviewCategories(categoryCatalog), [categoryCatalog]);
+  const category = categories.find((c) => c.id === categoryId) ?? null;
   const {
     canUse,
     showTrialUpsell,
@@ -415,6 +423,30 @@ export default function NewInterviewPage() {
         /* keep local defaults if API unavailable */
       });
   }, []);
+
+  useEffect(() => {
+    requestedCategory.current = new URLSearchParams(window.location.search).get("category");
+  }, []);
+
+  const chooseCategory = (id: string) => {
+    const next = categories.find((c) => c.id === id) ?? null;
+    setCategoryId(next?.id ?? "");
+    const duration = String(next ? next.defaultDurationMinutes : 15);
+    setFormData((prev) => ({
+      ...prev,
+      duration,
+      voiceProvider: resolveVoiceProviderForDuration(prev.voiceProvider, voiceProviderOptions, Number(duration), prev.voiceProvider),
+    }));
+  };
+
+  // Preselect the round from the URL once we know which rounds this user may start.
+  useEffect(() => {
+    if (!categoriesFetched || requestedCategory.current == null) return;
+    const wanted = requestedCategory.current;
+    requestedCategory.current = null;
+    if (categories.some((c) => c.id === wanted)) chooseCategory(wanted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesFetched, categories]);
 
   useEffect(() => {
     const apply = (next: PendingJobCapture | null) => {
@@ -553,7 +585,7 @@ export default function NewInterviewPage() {
         role: filledForm.role,
         experience: parseInt(filledForm.experience),
         language: "en",
-        department: formData.department
+        department: !category && formData.department
           ? (formData.department as
               | "engineering"
               | "management"
@@ -568,6 +600,7 @@ export default function NewInterviewPage() {
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
         duration: parseInt(formData.duration),
+        interviewCategory: category?.id,
         jobDescription: (() => {
           const jd = trimJobDescriptionForSend(jobDescription);
           return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
@@ -612,7 +645,9 @@ export default function NewInterviewPage() {
   const voiceOption = voiceProviderOptions.find((o) => o.id === formData.voiceProvider);
   const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
   const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
+  const durationChoices = category ? category.allowedDurations.map(String) : ["15", "30"];
   const summary: [string, string | null][] = [
+    ["Round", category?.name ?? null],
     ["Role", filledForm.role.trim() || null],
     ["Company", filledForm.targetCompany.trim() || null],
     ["Experience", experienceLabel ?? null],
@@ -634,6 +669,23 @@ export default function NewInterviewPage() {
           ) : null}
           {currentStep === 1 ? (
             <div className="space-y-5">
+            {categories.length > 0 ? (
+              <FormField
+                label="Round"
+                htmlFor="interviewCategory"
+                hint={category ? category.shortDescription : "Covers screening, behavioural and technical questions in one interview."}
+              >
+                <AppSelect
+                  id="interviewCategory"
+                  value={categoryId}
+                  onChange={chooseCategory}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  allowEmpty
+                  emptyLabel="Classic interview (all-round)"
+                  className={controlClass}
+                />
+              </FormField>
+            ) : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
@@ -688,6 +740,7 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+              {category ? null : (
               <FormField label="Department" htmlFor="department" optional>
                 <AppSelect
                   id="department"
@@ -702,6 +755,7 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+              )}
             </div>
             <FormField label="Job description" htmlFor="jobDescription" optional>
               <div className="overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
@@ -729,7 +783,7 @@ export default function NewInterviewPage() {
               <div>
                 <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
                 <div className="grid grid-cols-2 gap-3">
-                {(["15", "30"] as const).map((duration) => {
+                {durationChoices.map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
                 const selected = formData.duration === duration;
@@ -764,7 +818,9 @@ export default function NewInterviewPage() {
                       <span className="text-[14px] font-medium text-muted-foreground">min</span>
                     </span>
                     <span className="mt-2 text-[13px] text-muted-foreground">
-                      {duration === "15" ? "A focused screening round" : "More depth and more follow-ups"}
+                      {category
+                        ? duration === String(category.defaultDurationMinutes) ? `A focused ${category.name.toLowerCase()} round` : "More time for follow-ups"
+                        : duration === "15" ? "A focused screening round" : "More depth and more follow-ups"}
                     </span>
                     {is30 && !canUse30Min ? (
                       <span className="mt-3 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10px] text-amber-700 dark:text-amber-300">
@@ -982,7 +1038,7 @@ export default function NewInterviewPage() {
           </div>
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
-              <Eyebrow>NEW INTERVIEW</Eyebrow>
+              <Eyebrow>{category ? `NEW INTERVIEW · ${category.name.toUpperCase()}` : "NEW INTERVIEW"}</Eyebrow>
               <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{activeStep.headline}</h1>
               <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{activeStep.description}</p>
             </div>

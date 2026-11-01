@@ -189,7 +189,7 @@ export function buildInterviewReportPdfHtml(
     },
     {
       label: "Filler words",
-      value: Number(report.behavioral.fillersPerMinute.toFixed(1)),
+      value: Number((report.behavioral.fillersPerMinute ?? 0).toFixed(1)),
       unit: "fpm" as const,
       color: "#f97316",
     },
@@ -512,8 +512,8 @@ export function buildInterviewReportPdfHtml(
       <div>
         <div style="border:1px solid #e9d5ff;border-radius:8px;padding:12px;background:#faf5ff;margin-bottom:10px;">
           <div style="font-weight:600;color:#5b21b6;font-size:10pt;">Filler words</div>
-          <div style="font-size:20pt;font-weight:700;color:#7c3aed;">${report.behavioral.fillersPerMinute.toFixed(1)} <span style="font-size:11pt;font-weight:500;">/ min</span></div>
-          <div style="font-size:8.5pt;color:#6b21a8;margin-top:4px;">${escapeHtml(fillerHint(report.behavioral.fillersPerMinute))}</div>
+          <div style="font-size:20pt;font-weight:700;color:#7c3aed;">${(report.behavioral.fillersPerMinute ?? 0).toFixed(1)} <span style="font-size:11pt;font-weight:500;">/ min</span></div>
+          <div style="font-size:8.5pt;color:#6b21a8;margin-top:4px;">${escapeHtml(fillerHint(report.behavioral.fillersPerMinute ?? 0))}</div>
         </div>
       </div>
     </div>

@@ -486,9 +486,11 @@ export interface Interview {
     resumeS3Key?: string;
     targetCompany?: string;
     createdAt: string;
-    /** Interview duration in minutes (15 or 30). */
+    /** Interview duration in minutes (10, 15 or 30). */
     interviewDuration?: number;
     interviewKind?: "general" | "coding_practice";
+    /** Category round (General Screening, Salary Negotiation, …); absent for the classic interview. */
+    interviewCategory?: import("@/lib/interviewCategories").InterviewCategoryId;
     /** Labels such as event tags, shown as badges in interview lists. */
     tags?: string[];
     codingPhaseDurationMinutes?: number;
@@ -623,6 +625,12 @@ export interface InterviewReport {
     averageWordCount?: number;
     pauseFrequency?: string;
   };
+  /** Category rounds only: competencies scored against that round's rubric. */
+  categoryRubric?: {
+    category: string;
+    overall: number;
+    competencies: Array<{ key: string; label: string; weight: number; score: number; reason: string }>;
+  };
   llmMetadata: {
     model: string;
     promptVersion: string;
@@ -697,8 +705,10 @@ export interface CreateInterviewRequest {
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
-  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
+  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise); 10 or 15 for a category round. */
   duration?: number;
+  /** Category round; the backend checks the round is enabled for this user. */
+  interviewCategory?: import("@/lib/interviewCategories").InterviewCategoryId;
   /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
@@ -935,6 +945,9 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.interviewCategory) {
+      formData.append("interviewCategory", data.interviewCategory);
     }
     if (data.jobDescription?.trim()) {
       formData.append(
@@ -6222,6 +6235,16 @@ export const configApi = {
       success: boolean;
       data: import("@/lib/integrity/settings").IntegritySettings;
     }>("/config/integrity");
+    return response.data.data;
+  },
+
+  getInterviewCategories: async (): Promise<
+    import("@/lib/interviewCategories").InterviewCategoryCatalog
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/interviewCategories").InterviewCategoryCatalog;
+    }>("/config/interview-categories");
     return response.data.data;
   },
 

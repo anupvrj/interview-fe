@@ -62,6 +62,8 @@ type FeatureFormState = {
   pathText: string;
   unavailableTitle: string;
   unavailableMessage: string;
+  /** Allowlisted Clerk user ids or emails, one per line. */
+  allowText: string;
 };
 
 const EMPTY_CREATE: FeatureFormState = {
@@ -72,6 +74,7 @@ const EMPTY_CREATE: FeatureFormState = {
   pathText: "",
   unavailableTitle: "",
   unavailableMessage: "",
+  allowText: "",
 };
 
 function statusBadge(status: PlatformFeatureStatus) {
@@ -90,6 +93,7 @@ function toForm(feature: PlatformFeature): FeatureFormState {
     pathText: uniqueFeaturePaths(feature).join("\n"),
     unavailableTitle: feature.unavailableTitle,
     unavailableMessage: feature.unavailableMessage,
+    allowText: (feature.allowUserIds ?? []).join("\n"),
   };
 }
 
@@ -135,12 +139,14 @@ function FeatureFields({
   keyLocked,
   syncKeyFromName,
   idPrefix,
+  showAllowlist,
 }: Readonly<{
   form: FeatureFormState;
   onChange: (next: FeatureFormState) => void;
   keyLocked?: boolean;
   syncKeyFromName?: boolean;
   idPrefix: string;
+  showAllowlist?: boolean;
 }>) {
   return (
     <div className="grid gap-4 py-2">
@@ -259,6 +265,24 @@ function FeatureFields({
           placeholder="This feature is currently turned off on InterviewTrix."
         />
       </FormField>
+
+      {showAllowlist ? (
+        <FormField
+          label="Allowed users"
+          htmlFor={`${idPrefix}-allow`}
+          hint="Clerk user ids or emails, one per line. These users get the feature even while it is disabled, for testing before launch."
+        >
+          <Textarea
+            id={`${idPrefix}-allow`}
+            value={form.allowText}
+            onChange={(event) =>
+              onChange({ ...form, allowText: event.target.value })
+            }
+            rows={3}
+            placeholder={"user_2abc…\nname@example.com"}
+          />
+        </FormField>
+      ) : null}
     </div>
   );
 }
@@ -364,6 +388,7 @@ export default function SuperAdminFeaturesPage() {
         description: editForm.description,
         unavailableTitle: editForm.unavailableTitle,
         unavailableMessage: editForm.unavailableMessage,
+        allowUserIds: editForm.allowText,
         ...paths,
       });
       applyUpdated(updated);
@@ -493,7 +518,12 @@ export default function SuperAdminFeaturesPage() {
                           <Badge variant="info">Custom</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{statusBadge(feature.status)}</TableCell>
+                      <TableCell>
+                        {statusBadge(feature.status)}
+                        {feature.allowUserIds?.length ? (
+                          <span className="ml-2 text-xs text-muted-foreground">+{feature.allowUserIds.length} allowed</span>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <FeatureLiveSwitch
                           on={feature.status !== "disabled"}
@@ -593,6 +623,7 @@ export default function SuperAdminFeaturesPage() {
             <FeatureFields
               form={editForm}
               keyLocked
+              showAllowlist
               idPrefix="edit-feature"
               onChange={setEditForm}
             />

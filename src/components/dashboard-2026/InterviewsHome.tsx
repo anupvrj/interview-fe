@@ -22,6 +22,7 @@ import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGa
 import { Mono } from "@/components/marketing-2026/primitives";
 import { dash2026Scope } from "./ui";
 import { ListHeader, PracticeHero } from "./PracticeHero";
+import { InterviewCategoryPicker } from "./InterviewCategoryPicker";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -128,6 +129,13 @@ export function InterviewsHome() {
           ["Credits used", String(credits), "from billed sessions"],
         ]}
       />
+
+      {locked ? null : (
+        <InterviewCategoryPicker
+          disabled={checkingSubscription}
+          onPick={(id) => startPracticeSession("ai", { path: `/dashboard/interviews/new?category=${id}` })}
+        />
+      )}
 
       {locked ? (
         <PracticeLockedGate type="ai" showTrialUpsell={showTrialUpsell} />

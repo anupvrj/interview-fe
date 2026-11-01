@@ -33,6 +33,7 @@ import {
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
 import { InterviewReportView } from "@/components/dashboard-2026/InterviewReportView";
 import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { interviewCategoryLabel } from "@/lib/interviewCategories";
 import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import {
   buildInterviewReportPdfHtml,
@@ -546,7 +547,7 @@ export default function ReportPage() {
       },
       {
         label: "Filler Words",
-        value: Number(report.behavioral.fillersPerMinute.toFixed(1)),
+        value: Number((report.behavioral.fillersPerMinute ?? 0).toFixed(1)),
         unit: "per min",
         color: [251, 146, 60] as [number, number, number],
       },
@@ -867,6 +868,7 @@ export default function ReportPage() {
   const isCoding = interview.metadata.interviewKind === "coding_practice";
   const back = reportBackHref(interview);
   const duration = interview.metadata.interviewDuration;
+  const categoryName = interviewCategoryLabel(interview.metadata.interviewCategory);
 
   return (
     <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
@@ -880,7 +882,7 @@ export default function ReportPage() {
           </Link>
           <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <Eyebrow>{isCoding ? "CODING ROUND REPORT" : "INTERVIEW REPORT"}</Eyebrow>
+              <Eyebrow>{isCoding ? "CODING ROUND REPORT" : categoryName ? `${categoryName.toUpperCase()} REPORT` : "INTERVIEW REPORT"}</Eyebrow>
               <h1 className="text-balance mt-4 break-words text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">
                 {interview.metadata.role}
               </h1>
