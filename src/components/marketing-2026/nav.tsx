@@ -8,6 +8,7 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   navLinkBecomeInterviewer,
+  navLinkLeaderboard,
   navLinkPricing,
   navLinksHome,
   PublicMobileNav,
@@ -94,19 +95,19 @@ export function Nav() {
   const mockActive = mockItems.some((i) => pathname.startsWith(i.href));
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-4 pt-3">
+    <header className="fixed inset-x-0 top-0 z-50 pt-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
       <nav
         ref={bar}
         style={scrolled ? { backgroundColor: tint } : undefined}
         className={cn(
-          "mx-auto flex h-16 max-w-[1180px] items-center gap-6 rounded-2xl border px-4 transition-all xl:gap-8",
+          "mx-auto flex h-16 max-w-[1180px] min-w-0 items-center gap-2 rounded-2xl border px-3 transition-all sm:gap-6 sm:px-4 xl:gap-8",
           scrolled ? "border-border bg-white/85 shadow-[0_8px_30px_-12px_rgba(47,43,61,.25)] backdrop-blur-xl" : "border-transparent bg-transparent",
         )}
       >
         {/* phones and tablets get the production drawer: hamburger on the left, menu slides in from the left */}
-        <div className="-ml-1 -mr-3 lg:hidden"><PublicMobileNav mockItems={mockItems} /></div>
-        <Link href={MK26_ROUTES.home} className="shrink-0">
-          <Image src={mk26Path("/shots/interviewtrix-logo.png")} alt="InterviewTrix" width={164} height={36} priority className="h-9 w-auto" />
+        <div className="shrink-0 lg:hidden"><PublicMobileNav mockItems={mockItems} /></div>
+        <Link href={MK26_ROUTES.home} className="min-w-0 shrink">
+          <Image src={mk26Path("/shots/interviewtrix-logo.png")} alt="InterviewTrix" width={164} height={36} priority className="h-8 w-auto max-w-[7.5rem] min-[400px]:max-w-[9.5rem] sm:h-9 sm:max-w-none" />
         </Link>
         <ul className="hidden items-center gap-4 whitespace-nowrap text-[14px] font-semibold text-foreground/80 lg:flex xl:gap-6 xl:text-[14.5px]">
           {navLinksHome.map((l) => (
@@ -117,17 +118,18 @@ export function Nav() {
           {showBecomeInterviewer && (
             <li><Link href={navLinkBecomeInterviewer.href} className={linkCls(navLinkBecomeInterviewer.match(pathname))}>{navLinkBecomeInterviewer.label}</Link></li>
           )}
+          <li><Link href={navLinkLeaderboard.href} className={linkCls(navLinkLeaderboard.match(pathname))}>{navLinkLeaderboard.label}</Link></li>
           <li><Link href={navLinkPricing.href} className={linkCls(navLinkPricing.match(pathname))}>{navLinkPricing.label}</Link></li>
         </ul>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 pl-2 sm:gap-3 sm:pl-0">
           <SignedOut>
             <Link className="hidden whitespace-nowrap py-2.5 text-[14.5px] font-semibold text-foreground/80 hover:text-foreground sm:block" href={MK26_ROUTES.signIn}>Sign in</Link>
-            <Button asChild className="h-10 rounded-xl px-4 hover:bg-primary/90">
+            <Button asChild className="h-10 rounded-xl px-3.5 hover:bg-primary/90 sm:px-4">
               <StartLink href={MK26_ROUTES.startInterview}>Start free</StartLink>
             </Button>
           </SignedOut>
           <SignedIn>
-            <Button asChild className="h-10 rounded-xl px-4 hover:bg-primary/90">
+            <Button asChild className="h-10 rounded-xl px-3.5 hover:bg-primary/90 sm:px-4">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
           </SignedIn>

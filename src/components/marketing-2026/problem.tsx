@@ -148,21 +148,48 @@ const tools = [
   { i: Youtube, l: "YouTube" }, { i: Sheet, l: "Sheets" }, { i: MessageCircle, l: "AI chat" }, { i: Mic, l: "Mock app" },
   { i: BookMarked, l: "Bookmarks" }, { i: CalendarDays, l: "Planner" },
 ];
-function Forget() {
+function PrepTool({ icon: I, label, delay }: { icon: typeof NotebookPen; label: string; delay: number }) {
   const reduce = useReducedMotion();
   return (
-    <div className="flex h-[230px] flex-col justify-between">
-      <div className="grid grid-cols-5 gap-2.5">
-        {tools.map(({ i: I, l }, k) => (
-          <motion.div key={l} className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[.04] py-3"
-            animate={reduce ? { opacity: 0.4 } : { opacity: [0.25, 1, 1, 0.25], filter: ["blur(1.5px) grayscale(1)", "blur(0px) grayscale(0)", "blur(0px) grayscale(0)", "blur(1.5px) grayscale(1)"] }}
-            transition={{ duration: 4.5, repeat: Infinity, delay: k * 0.22, times: [0, 0.15, 0.55, 1] }}>
-            <I className="size-5 text-sky-300" />
-            <Mono className="text-[10.5px] text-[#9FB3CF]">{l}</Mono>
-          </motion.div>
+    <motion.div
+      className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[.04] py-3"
+      animate={reduce ? { opacity: 0.4 } : { opacity: [0.25, 1, 1, 0.25], filter: ["blur(1.5px) grayscale(1)", "blur(0px) grayscale(0)", "blur(0px) grayscale(0)", "blur(1.5px) grayscale(1)"] }}
+      transition={{ duration: 4.5, repeat: Infinity, delay, times: [0, 0.15, 0.55, 1] }}
+    >
+      <I className="size-5 text-sky-300" />
+      <Mono className="text-[10.5px] text-[#9FB3CF]">{label}</Mono>
+    </motion.div>
+  );
+}
+
+function Forget() {
+  const reduce = useReducedMotion();
+  const loop = [...tools, ...tools];
+  return (
+    <div className="flex flex-col justify-between gap-8 md:h-[230px] md:gap-0">
+      <div className="hidden grid-cols-5 gap-2.5 md:grid">
+        {tools.map(({ i, l }, k) => (
+          <PrepTool key={l} icon={i} label={l} delay={k * 0.22} />
         ))}
       </div>
-      <p className="text-[22px] font-bold tracking-tight md:text-[26px]">Ten tools. Every one of them <span className="text-[#FFC44D]">forgets</span> you when you close the tab.</p>
+      {reduce ? (
+        <div className="grid grid-cols-4 gap-2.5 md:hidden">
+          {tools.map(({ i, l }, k) => (
+            <PrepTool key={l} icon={i} label={l} delay={k * 0.22} />
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-hidden md:hidden" style={{ containerType: "inline-size" }}>
+          <div className="flex w-max gap-2.5 [animation:marquee_22s_linear_infinite]">
+            {loop.map(({ i, l }, k) => (
+              <div key={`${l}-${k}`} className="shrink-0" style={{ width: "calc((100cqi - 1.875rem) / 4)" }}>
+                <PrepTool icon={i} label={l} delay={(k % tools.length) * 0.22} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="pb-3 text-[22px] font-bold leading-snug tracking-tight md:pb-0 md:text-[26px]">Ten tools. Every one of them <span className="text-[#FFC44D]">forgets</span> you when you close the tab.</p>
     </div>
   );
 }
