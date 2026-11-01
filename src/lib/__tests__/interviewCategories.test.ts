@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  interviewerTitleForCategory,
   interviewCategoryEmblem,
   interviewCategoryLabel,
   visibleInterviewCategories,
@@ -40,6 +41,8 @@ describe("interview categories", () => {
     expect(interviewCategoryLabel(undefined)).toBeNull();
     expect(interviewCategoryEmblem({ emblem: "spark" })).toBe("spark");
     expect(interviewCategoryEmblem({ emblem: "rocket" })).toBe("voice");
+    expect(interviewerTitleForCategory("salary_negotiation")).toBe("Recruiter");
+    expect(interviewerTitleForCategory("managerial")).toBeNull();
   });
 
   it("names the round in history rows", () => {

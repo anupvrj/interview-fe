@@ -50,6 +50,11 @@ export function interviewCategoryLabel(id: unknown): string | null {
   return isInterviewCategoryId(id) ? NAMES[id] : null;
 }
 
+/** The salary call is with a recruiter, whatever the interviewer persona's usual title. */
+export function interviewerTitleForCategory(id: unknown): string | null {
+  return id === "salary_negotiation" ? "Recruiter" : null;
+}
+
 /** The emblem the backend names, or a neutral one if it names something unknown. */
 export function interviewCategoryEmblem(c: Pick<InterviewCategory, "emblem">): EmblemKind {
   return (EMBLEMS as readonly string[]).includes(c.emblem) ? (c.emblem as EmblemKind) : "voice";
