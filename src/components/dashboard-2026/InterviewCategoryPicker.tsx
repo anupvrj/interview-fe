@@ -12,6 +12,17 @@ import { cn } from "@/lib/utils";
 import { EASE, Eyebrow } from "./ui";
 
 /**
+ * Rows of three wide cards, like the peer-interview grid; a short last row stretches to fill
+ * the width instead of leaving an empty slot.
+ */
+function cardSpan(index: number, count: number): string {
+  const rest = count % 3;
+  const inLastRow = index >= count - rest;
+  const xl = !inLastRow || rest === 0 ? "xl:col-span-2" : rest === 2 ? "xl:col-span-3" : "xl:col-span-6";
+  return cn(xl, count % 2 === 1 && index === count - 1 && "sm:col-span-2");
+}
+
+/**
  * "PICK A ROUND / What do you want to rehearse?" — the category rounds of the AI
  * interview, laid out like the peer-interview round picker. Renders nothing unless
  * the rounds are enabled for this user.
@@ -43,9 +54,9 @@ export function InterviewCategoryPicker({ onPick, disabled }: { onPick: (id: Int
         <Eyebrow>PICK A ROUND</Eyebrow>
         <h2 className="mt-3 text-[22px] font-extrabold tracking-[-0.035em] text-foreground md:text-[26px]">What do you want to rehearse?</h2>
       </div>
-      <div className={cn("mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2", rounds.length % 3 === 0 ? "xl:grid-cols-3" : rounds.length === 5 ? "lg:grid-cols-3 xl:grid-cols-5" : "xl:grid-cols-4")}>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {rounds.map((r, i) => (
-          <motion.div key={r.id} {...rise(0.1 + i * 0.05)}>
+          <motion.div key={r.id} {...rise(0.1 + i * 0.05)} className={cardSpan(i, rounds.length)}>
             <button
               type="button"
               disabled={disabled}

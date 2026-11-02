@@ -643,13 +643,16 @@ export default function NewInterviewPage() {
   };
 
   const activeStep = STEPS[currentStep - 1];
+  // The round was picked on the dashboard card, so its steps don't ask for it again.
   const stepCopy =
-    category && activeStep.number === 2
-      ? {
-          headline: "Which interviewer voice?",
-          description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Credits follow the voice model.`,
-        }
-      : activeStep;
+    category && activeStep.number === 1
+      ? { headline: "Which role is this round for?", description: activeStep.description }
+      : category && activeStep.number === 2
+        ? {
+            headline: "Which interviewer voice?",
+            description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Credits follow the voice model.`,
+          }
+        : activeStep;
   const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
   const voiceOption = voiceProviderOptions.find((o) => o.id === formData.voiceProvider);
   const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
@@ -677,23 +680,6 @@ export default function NewInterviewPage() {
           ) : null}
           {currentStep === 1 ? (
             <div className="space-y-5">
-            {categories.length > 0 ? (
-              <FormField
-                label="Round"
-                htmlFor="interviewCategory"
-                hint={category ? category.shortDescription : "Covers screening, behavioural and technical questions in one interview."}
-              >
-                <AppSelect
-                  id="interviewCategory"
-                  value={categoryId}
-                  onChange={chooseCategory}
-                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                  allowEmpty
-                  emptyLabel="Classic interview (all-round)"
-                  className={controlClass}
-                />
-              </FormField>
-            ) : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
