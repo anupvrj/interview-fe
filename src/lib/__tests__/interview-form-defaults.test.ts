@@ -52,4 +52,13 @@ describe("interview-form-defaults", () => {
     expect(applied.role).toBe("Backend Engineer");
     expect(applied.targetCompany).toBe("TCS");
   });
+
+  it("uses the last interview's choices before the profile, and the profile to fill gaps", () => {
+    const last = { kind: "coding_round" as const, role: "Lead Software Engineer", experience: 5, at: "2026-11-01T10:00:00Z" };
+    const merged = mergeInterviewFormDefaults(emptyForm, profile, undefined, last);
+    expect(merged.role).toBe("Lead Software Engineer");
+    expect(merged.targetCompany).toBe("TCS");
+    expect(merged.experience).toBe("5");
+    expect(mergeInterviewFormDefaults(emptyForm, profile, undefined, null).role).toBe("Backend Engineer");
+  });
 });

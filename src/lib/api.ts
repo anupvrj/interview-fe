@@ -727,6 +727,43 @@ export interface CreateInterviewResponse {
 }
 
 // API Methods
+/** A job post the user practised against; each user keeps their five most recent. */
+export interface SavedJobDescription {
+  id: string;
+  text: string;
+  role?: string;
+  company?: string;
+  lastUsedAt: string;
+}
+
+/** What the user chose the last time they set up a practice interview of any kind. */
+export interface LastInterviewSetup {
+  kind: "ai_interview" | "coding_round" | "system_design";
+  role?: string;
+  targetCompany?: string;
+  experience?: number;
+  department?: string;
+  discipline?: string;
+  voiceProvider?: string;
+  /** Id (in `jobDescriptions`) of the job post that interview used, when it had one. */
+  jobDescriptionId?: string;
+  at: string;
+}
+
+export interface InterviewSetupDefaults {
+  last: LastInterviewSetup | null;
+  jobDescriptions: SavedJobDescription[];
+}
+
+/** Who a system design session is for (all optional; the problem stays the same). */
+export interface SystemDesignCandidateInput {
+  role?: string;
+  targetCompany?: string;
+  experience?: number;
+  jobDescription?: string;
+  useSavedResume?: boolean;
+}
+
 export const userApi = {
   createOrGetUser: async (
     clerkId: string,
@@ -757,6 +794,12 @@ export const userApi = {
 
   getMyProfile: async (): Promise<User> => {
     const response = await apiClient.get<{ data: User }>("/users/me/profile");
+    return response.data.data;
+  },
+
+  /** Last interview setup choices and the five saved job posts, to pre-fill setup forms. */
+  getInterviewSetup: async (): Promise<InterviewSetupDefaults> => {
+    const response = await apiClient.get<{ data: InterviewSetupDefaults }>("/users/me/interview-setup");
     return response.data.data;
   },
 
@@ -1239,6 +1282,7 @@ export const codingInterviewApi = {
     if (data.discipline) formData.append("discipline", data.discipline);
     if (data.targetCompany) formData.append("targetCompany", data.targetCompany);
     if (data.useSavedResume) formData.append("useSavedResume", "true");
+    if (data.jobDescription) formData.append("jobDescription", data.jobDescription);
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
       formData.append("resume", resumeBlob, data.resume.name);
@@ -4315,11 +4359,11 @@ export const systemDesignApi = {
     return r.data.data.problem;
   },
 
-  createSession: async (problemId?: string): Promise<SystemDesignSession> => {
+  createSession: async (problemId?: string, candidate?: SystemDesignCandidateInput): Promise<SystemDesignSession> => {
     const r = await apiClient.post<{
       success: boolean;
       data: { session: SystemDesignSession };
-    }>("/system-design/sessions", { problemId });
+    }>("/system-design/sessions", { problemId, ...(candidate ? { candidate } : {}) });
     return r.data.data.session;
   },
 

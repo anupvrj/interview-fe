@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Upload,
   FileText,
@@ -25,6 +24,9 @@ import {
 } from "lucide-react";
 import { interviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
+import { useInterviewSetupQuery } from "@/hooks/queries/useInterviewSetupQuery";
+import { JobDescriptionPicker } from "@/components/dashboard-2026/JobDescriptionPicker";
+import { defaultJobDescription } from "@/lib/saved-job-descriptions";
 import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
 import {
   getActiveSavedResumeDisplay,
@@ -258,6 +260,8 @@ export default function NewInterviewPage() {
     );
   const defaultDesignedResume =
     userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const { data: setupDefaults } = useInterviewSetupQuery();
+  const lastSetup = setupDefaults?.last ?? null;
   const savedResumeKnown = Boolean(
     userProfile?.resume?.s3Key ||
       userProfile?.defaultDesignedResume ||
@@ -283,6 +287,8 @@ export default function NewInterviewPage() {
   const [voiceProviderOptions, setVoiceProviderOptions] = useState<
     VoiceProviderOption[]
   >(DEFAULT_VOICE_PROVIDER_OPTIONS);
+  const [voiceListLoaded, setVoiceListLoaded] = useState(false);
+  const voicePicked = useRef(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
@@ -310,7 +316,7 @@ export default function NewInterviewPage() {
   const filledForm = useMemo(() => {
     const edits = formEdits.current;
     if (!userProfile) return formData;
-    const merged = mergeInterviewFormDefaults(formData, userProfile, edits);
+    const merged = mergeInterviewFormDefaults(formData, userProfile, edits, lastSetup);
     if (!jobCapture) return merged;
     const captured = applyJobCaptureToInterviewForm(merged, jobCapture);
     return {
@@ -320,7 +326,7 @@ export default function NewInterviewPage() {
         ? merged.targetCompany
         : captured.targetCompany,
     };
-  }, [formData, userProfile, jobCapture]);
+  }, [formData, userProfile, jobCapture, lastSetup]);
 
   useEffect(() => {
     if (!savedResumeKnown) return;
@@ -410,6 +416,7 @@ export default function NewInterviewPage() {
             decisionHint: p.decisionHint,
           }));
           setVoiceProviderOptions(nextOptions);
+          setVoiceListLoaded(true);
           setFormData((prev) => ({
             ...prev,
             voiceProvider: resolveVoiceProviderForDuration(
@@ -425,6 +432,18 @@ export default function NewInterviewPage() {
         /* keep local defaults if API unavailable */
       });
   }, []);
+
+  // The voice used last time, once the live voice list is known (unless they already picked one).
+  useEffect(() => {
+    const preferred = lastSetup?.voiceProvider;
+    if (!voiceListLoaded || !preferred || voicePicked.current) return;
+    if (!voiceProviderOptions.some((o) => o.id === preferred)) return;
+    voicePicked.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      voiceProvider: resolveVoiceProviderForDuration(preferred, voiceProviderOptions, Number(prev.duration), prev.voiceProvider),
+    }));
+  }, [lastSetup?.voiceProvider, voiceListLoaded, voiceProviderOptions]);
 
   useEffect(() => {
     requestedCategory.current = new URLSearchParams(window.location.search).get("category");
@@ -614,7 +633,7 @@ export default function NewInterviewPage() {
       clearPendingJobCapture();
       jobCaptureRef.current = null;
       setJobCapture(null);
-      await invalidate(["interviews", "entitlements"]);
+      await invalidate(["interviews", "entitlements", "interviewSetup"]);
       router.push(`/interview/${response.data.interviewId}/realtime`);
     } catch (error: any) {
       console.error("Error creating interview:", error);
@@ -752,22 +771,21 @@ export default function NewInterviewPage() {
               )}
             </div>
             <FormField label="Job description" htmlFor="jobDescription" optional>
-              <div className="overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-                <Textarea
-                  id="jobDescription"
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  rows={6}
-                  placeholder="Paste the job post so the questions match this role"
-                  className="min-h-[150px] resize-y !rounded-none !border-0 !bg-transparent px-4 py-3 text-[14px] leading-relaxed !shadow-none !ring-0"
-                />
-                <div className="flex items-center justify-between border-t border-border px-4 py-2">
-                  <span className="text-[12px] text-muted-foreground">At least {MIN_JOB_DESCRIPTION_CHARS} characters</span>
-                  <span className={cn("font-[family-name:var(--font-geist-mono)] text-[11px]", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
-                    {jobDescription.trim().length.toLocaleString()} CHARS
-                  </span>
-                </div>
-              </div>
+              <JobDescriptionPicker
+                id="jobDescription"
+                saved={setupDefaults?.jobDescriptions ?? []}
+                value={jobDescription}
+                onChange={setJobDescription}
+                preselectId={
+                  jobCapture
+                    ? null
+                    : defaultJobDescription(setupDefaults?.jobDescriptions ?? [], {
+                        lastUsedId: lastSetup?.jobDescriptionId,
+                        company: filledForm.targetCompany,
+                        role: filledForm.role,
+                      })?.id
+                }
+              />
             </FormField>
             </div>
           ) : null}
@@ -834,12 +852,13 @@ export default function NewInterviewPage() {
                 <VoiceProviderSelect
                   id="voiceProvider"
                   value={formData.voiceProvider}
-                  onChange={(value) =>
+                  onChange={(value) => {
+                    voicePicked.current = true;
                     setFormData({
                       ...formData,
                       voiceProvider: value,
-                    })
-                  }
+                    });
+                  }}
                   options={voiceProviderOptions}
                   durationMinutes={Number(formData.duration)}
                   className={cn(controlClass, "h-auto min-h-12 py-1.5")}

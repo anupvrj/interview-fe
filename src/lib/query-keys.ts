@@ -11,4 +11,5 @@ export const queryKeys = {
   jobTracker: (userId: string, scope: string) =>
     ["jobTracker", userId, scope] as const,
   profile: (userId: string) => ["profile", userId] as const,
+  interviewSetup: (userId: string) => ["interviewSetup", userId] as const,
 };

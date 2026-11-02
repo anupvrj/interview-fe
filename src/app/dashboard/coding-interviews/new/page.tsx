@@ -26,6 +26,11 @@ import {
 import { codingInterviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
+import { useInterviewSetupQuery } from "@/hooks/queries/useInterviewSetupQuery";
+import { JobDescriptionPicker } from "@/components/dashboard-2026/JobDescriptionPicker";
+import { defaultJobDescription } from "@/lib/saved-job-descriptions";
+import { MIN_JOB_DESCRIPTION_CHARS } from "@/lib/extension-job-handoff";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -194,6 +199,10 @@ export default function NewCodingInterviewPage() {
     );
   const defaultDesignedResume =
     userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const { data: setupDefaults } = useInterviewSetupQuery();
+  const lastSetup = setupDefaults?.last ?? null;
+  const [jobDescription, setJobDescription] = useState("");
+  const backgroundEdited = useRef(false);
   const savedResumeKnown = Boolean(
     userProfile?.resume?.s3Key ||
       userProfile?.defaultDesignedResume ||
@@ -231,10 +240,22 @@ export default function NewCodingInterviewPage() {
             formData,
             userProfile,
             formEdits.current,
+            lastSetup,
           )
         : formData,
-    [formData, userProfile],
+    [formData, userProfile, lastSetup],
   );
+
+  // Department and discipline from the last interview, unless already chosen here.
+  useEffect(() => {
+    if (backgroundEdited.current || !lastSetup?.department) return;
+    const department = DEPARTMENT_OPTIONS.some((o) => o.value === lastSetup.department) ? lastSetup.department : "";
+    if (!department) return;
+    const discipline = disciplineOptionsByDepartment[department]?.some((o) => o.value === lastSetup.discipline)
+      ? (lastSetup.discipline ?? "")
+      : "";
+    setFormData((prev) => (prev.department ? prev : { ...prev, department, discipline }));
+  }, [lastSetup?.department, lastSetup?.discipline]);
 
   useEffect(() => {
     if (!savedResumeKnown) return;
@@ -412,8 +433,12 @@ export default function NewCodingInterviewPage() {
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
+        jobDescription: (() => {
+          const jd = trimJobDescriptionForSend(jobDescription);
+          return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
+        })(),
       });
-      await invalidate(["codingInterviews", "entitlements"]);
+      await invalidate(["codingInterviews", "entitlements", "interviewSetup"]);
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
       );
@@ -454,6 +479,7 @@ export default function NewCodingInterviewPage() {
     ["Experience", experienceLabel ?? null],
     ["Department", departmentLabel ?? null],
     ["Discipline", disciplineLabel ?? null],
+    ["Job post", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? `${jobDescription.trim().length.toLocaleString()} characters` : null],
     ["Resume", useSavedResume ? activeSavedResume?.title ?? null : uploadedFile?.name ?? null],
   ];
 
@@ -502,6 +528,23 @@ export default function NewCodingInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+              <div className="sm:col-span-2">
+                <FormField label="Job description" htmlFor="jobDescription" optional hint="The discussion after coding is pitched at this job.">
+                  <JobDescriptionPicker
+                    id="jobDescription"
+                    saved={setupDefaults?.jobDescriptions ?? []}
+                    value={jobDescription}
+                    onChange={setJobDescription}
+                    preselectId={
+                      defaultJobDescription(setupDefaults?.jobDescriptions ?? [], {
+                        lastUsedId: lastSetup?.jobDescriptionId,
+                        company: filledForm.targetCompany,
+                        role: filledForm.role,
+                      })?.id
+                    }
+                  />
+                </FormField>
+              </div>
             </div>
           ) : null}
 
@@ -525,6 +568,7 @@ export default function NewCodingInterviewPage() {
                   id="department"
                   value={formData.department}
                   onChange={(value) => {
+                    backgroundEdited.current = true;
                     setFormData((prev) => ({
                       ...prev,
                       department: value,
@@ -547,9 +591,10 @@ export default function NewCodingInterviewPage() {
                 <AppSelect
                   id="discipline"
                   value={formData.discipline}
-                  onChange={(value) =>
-                    setFormData((prev) => ({ ...prev, discipline: value }))
-                  }
+                  onChange={(value) => {
+                    backgroundEdited.current = true;
+                    setFormData((prev) => ({ ...prev, discipline: value }));
+                  }}
                   options={
                     disciplineOptionsByDepartment[formData.department] ?? []
                   }
