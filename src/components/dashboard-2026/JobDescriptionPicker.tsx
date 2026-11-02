@@ -57,7 +57,7 @@ export function JobDescriptionPicker({
   const chars = value.trim().length;
   const cardClass = (active: boolean) =>
     cn(
-      "flex items-start gap-3 rounded-xl border p-3 text-left transition-colors",
+      "flex min-w-0 items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
       active ? "border-primary bg-primary/[0.06] ring-2 ring-primary/15" : "border-border bg-background hover:border-primary/40",
     );
 
@@ -75,7 +75,7 @@ export function JobDescriptionPicker({
                     <span className="truncate text-[13px] font-semibold text-foreground">{savedJobDescriptionTitle(s)}</span>
                     <span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">{shortDate(s.lastUsedAt)}</span>
                   </span>
-                  <span className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-muted-foreground">{savedJobDescriptionPreview(s)}</span>
+                  <span className="mt-0.5 block truncate text-[12px] leading-snug text-muted-foreground">{savedJobDescriptionPreview(s)}</span>
                 </span>
               </button>
             );
@@ -93,7 +93,7 @@ export function JobDescriptionPicker({
             <FilePlus2 className={cn("mt-0.5 h-4 w-4 shrink-0", !selected ? "text-primary" : "text-muted-foreground")} />
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-semibold text-foreground">New job post</span>
-              <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
+              <span className="mt-0.5 block truncate text-[12px] leading-snug text-muted-foreground">
                 {saved.length >= MAX_SAVED ? "Paste a different one. It replaces your oldest saved post." : "Paste a different one. It's saved for next time."}
               </span>
             </span>
@@ -106,9 +106,9 @@ export function JobDescriptionPicker({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          rows={6}
+          rows={5}
           placeholder={placeholder}
-          className="min-h-[150px] resize-y !rounded-none !border-0 !bg-transparent px-4 py-3 text-[14px] leading-relaxed !shadow-none !ring-0"
+          className="min-h-[124px] resize-y !rounded-none !border-0 !bg-transparent px-4 py-3 text-[14px] leading-relaxed !shadow-none !ring-0"
         />
         <div className="flex items-center justify-between border-t border-border px-4 py-2">
           <span className="text-[12px] text-muted-foreground">

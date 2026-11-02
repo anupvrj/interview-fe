@@ -16,7 +16,6 @@ import {
   CheckCircle,
   Crown,
   Target,
-  Clock,
   ArrowLeft,
   ArrowRight,
   AlertCircle,
@@ -67,7 +66,14 @@ import {
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { voiceApi } from "@/lib/voiceApi";
 import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
-import { visibleInterviewCategories, type InterviewCategoryId } from "@/lib/interviewCategories";
+import {
+  interviewCategoryEmblem,
+  visibleInterviewCategories,
+  type InterviewCategory,
+  type InterviewCategoryId,
+} from "@/lib/interviewCategories";
+import { Emblem, Mono } from "@/components/marketing-2026/primitives";
+import { useDashboardTheme } from "@/components/dashboard-theme";
 import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect";
 import {
   DEFAULT_VOICE_PROVIDER_OPTIONS,
@@ -99,7 +105,7 @@ const CLASSIC_DURATIONS = ["15", "30"];
 const STEPS = [
   {
     number: 1,
-    title: "Role & Background",
+    title: "Role & Job Post",
     icon: Target,
     headline: "Which round are you rehearsing?",
     description:
@@ -107,22 +113,35 @@ const STEPS = [
   },
   {
     number: 2,
-    title: "Session",
-    icon: Clock,
-    headline: "How long, and which voice?",
-    description: "Pick the length and the interviewer's voice. Credits follow the voice model.",
-  },
-  {
-    number: 3,
-    title: "Resume",
+    title: "Voice & Resume",
     icon: FileText,
-    headline: "Which resume should it read?",
-    description: "Follow-ups come straight from your own projects and numbers.",
+    headline: "Who interviews you, and on which resume?",
+    description: "Pick the length and the interviewer's voice. Follow-ups come from your own resume. Credits follow the voice model.",
   },
 ] as const;
 
 const controlClass =
   "h-12 w-full rounded-xl border-border bg-background text-[14.5px] shadow-none";
+
+/** The chosen round, shown where the classic interview has its length picker (rounds have a fixed length). */
+function RoundBanner({ category }: { category: InterviewCategory }) {
+  const { theme } = useDashboardTheme();
+  return (
+    <div className="flex items-center gap-4 rounded-[18px] border border-border bg-background/60 p-4">
+      <Emblem kind={interviewCategoryEmblem(category)} tone={theme === "dark" ? "dark" : "light"} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-bold tracking-tight text-foreground">
+          {category.name}
+          <span className="font-medium text-muted-foreground sm:hidden"> · {category.defaultDurationMinutes} min</span>
+        </p>
+        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{category.shortDescription}</p>
+      </div>
+      <Mono className="hidden shrink-0 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground sm:inline-flex">
+        {category.defaultDurationMinutes} MIN
+      </Mono>
+    </div>
+  );
+}
 
 function FieldError({ message }: { message: string }) {
   return (
@@ -559,7 +578,7 @@ export default function NewInterviewPage() {
       newErrors.role = "Role is required";
     }
 
-    if (step === 3) {
+    if (step === 2) {
       if (!useSavedResume && !uploadedFile) {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
@@ -588,9 +607,9 @@ export default function NewInterviewPage() {
       return;
     }
 
-    if (!validateStep(1) || !validateStep(4)) {
+    if (!validateStep(1) || !validateStep(2)) {
       if (!filledForm.role.trim()) setCurrentStep(1);
-      else setCurrentStep(3);
+      else setCurrentStep(2);
       return;
     }
 
@@ -668,8 +687,8 @@ export default function NewInterviewPage() {
       ? { headline: "Which role is this round for?", description: activeStep.description }
       : category && activeStep.number === 2
         ? {
-            headline: "Which interviewer voice?",
-            description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Credits follow the voice model.`,
+            headline: activeStep.headline,
+            description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Follow-ups come from your own resume. Credits follow the voice model.`,
           }
         : activeStep;
   const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
@@ -677,7 +696,7 @@ export default function NewInterviewPage() {
   const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
   const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
   const summary: [string, string | null][] = [
-    ["Round", category?.name ?? null],
+    ["Round", category?.name ?? "All-round"],
     ["Role", filledForm.role.trim() || null],
     ["Company", filledForm.targetCompany.trim() || null],
     ["Experience", experienceLabel ?? null],
@@ -688,9 +707,9 @@ export default function NewInterviewPage() {
   ];
 
   const interviewForm = (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-      <div className={cn(resumeBuilderCard, "relative")}>
-        <form onSubmit={handleSubmit} className="p-5 sm:p-7">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-stretch">
+      <div className={cn(resumeBuilderCard, "relative flex flex-col")}>
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col p-5 sm:p-7">
           {jobCapture && currentStep === 1 ? (
             <JobCaptureBanner
               capture={jobCapture}
@@ -699,7 +718,7 @@ export default function NewInterviewPage() {
           ) : null}
           {currentStep === 1 ? (
             <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+            <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start", category && "min-[1400px]:grid-cols-3")}>
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
                   id="role"
@@ -739,8 +758,6 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Years of experience" htmlFor="experience">
                 <AppSelect
                   id="experience"
@@ -792,8 +809,10 @@ export default function NewInterviewPage() {
 
           {currentStep === 2 ? (
             <div className="space-y-6">
-              {/* A category round has a fixed length, so only the classic interview asks for one. */}
-              {category ? null : (
+              {/* A category round has a fixed length: show the round instead of a length picker. */}
+              {category ? (
+                <RoundBanner category={category} />
+              ) : (
               <div>
                 <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -864,93 +883,94 @@ export default function NewInterviewPage() {
                   className={cn(controlClass, "h-auto min-h-12 py-1.5")}
                 />
               </FormField>
-            </div>
-          ) : null}
 
-          {currentStep === 3 ? (
-            <div className="space-y-3">
-              {savedResumeAvailable && activeSavedResume ? (
-                <ResumeOptionCard
-                  selected={useSavedResume}
-                  onSelect={() => {
-                    setUseSavedResume(true);
-                    setUploadedFile(null);
-                    setErrors((prev) => ({ ...prev, resume: "" }));
-                  }}
-                  icon={FileText}
-                  title={activeSavedResume.title}
-                  subtitle={activeSavedResume.subtitle}
-                />
-              ) : !savedResumeKnown ? (
-                <div
-                  className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
-                  aria-hidden
-                />
-              ) : null}
-
-              <ResumeOptionCard
-                selected={!useSavedResume}
-                onSelect={() => setUseSavedResume(false)}
-                icon={Upload}
-                title="Upload a different resume"
-                subtitle="PDF only · Max 5 MB"
-              />
-
-              {!useSavedResume ? (
-                <div className="pt-1">
-                  {!uploadedFile ? (
+              <div>
+                <p className="mb-2.5 text-xs font-medium text-muted-foreground">Resume</p>
+                <div className="space-y-3">
+                  {savedResumeAvailable && activeSavedResume ? (
+                    <ResumeOptionCard
+                      selected={useSavedResume}
+                      onSelect={() => {
+                        setUseSavedResume(true);
+                        setUploadedFile(null);
+                        setErrors((prev) => ({ ...prev, resume: "" }));
+                      }}
+                      icon={FileText}
+                      title={activeSavedResume.title}
+                      subtitle={activeSavedResume.subtitle}
+                    />
+                  ) : !savedResumeKnown ? (
                     <div
-                      {...getRootProps()}
-                      className={cn(
-                        "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
-                        isDragActive
-                          ? "border-primary bg-primary/[0.06]"
-                          : errors.resume
-                            ? "border-destructive/40 bg-destructive/5"
-                            : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
-                      )}
-                    >
-                      <input {...getInputProps()} />
-                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
-                        <Upload className="h-6 w-6" />
-                      </div>
-                      <p className="text-[16px] font-bold tracking-tight text-foreground">
-                        {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
-                      </p>
-                      <p className="mt-1 text-[13px] text-muted-foreground">
-                        or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
-                      </p>
-                      <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        <FileText className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold text-foreground">
-                          {uploadedFile.name}
-                        </p>
-                        <p className="text-[12.5px] text-muted-foreground">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove file"
-                        onClick={() => setUploadedFile(null)}
-                        className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
+                      className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
+                      aria-hidden
+                    />
+                  ) : null}
 
-              {errors.resume ? <FieldError message={errors.resume} /> : null}
+                  <ResumeOptionCard
+                    selected={!useSavedResume}
+                    onSelect={() => setUseSavedResume(false)}
+                    icon={Upload}
+                    title="Upload a different resume"
+                    subtitle="PDF only · Max 5 MB"
+                  />
+
+                  {!useSavedResume ? (
+                    <div className="pt-1">
+                      {!uploadedFile ? (
+                        <div
+                          {...getRootProps()}
+                          className={cn(
+                            "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
+                            isDragActive
+                              ? "border-primary bg-primary/[0.06]"
+                              : errors.resume
+                                ? "border-destructive/40 bg-destructive/5"
+                                : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
+                          )}
+                        >
+                          <input {...getInputProps()} />
+                          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
+                            <Upload className="h-6 w-6" />
+                          </div>
+                          <p className="text-[16px] font-bold tracking-tight text-foreground">
+                            {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
+                          </p>
+                          <p className="mt-1 text-[13px] text-muted-foreground">
+                            or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
+                          </p>
+                          <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14.5px] font-semibold text-foreground">
+                              {uploadedFile.name}
+                            </p>
+                            <p className="text-[12.5px] text-muted-foreground">
+                              {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remove file"
+                            onClick={() => setUploadedFile(null)}
+                            className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {errors.resume ? <FieldError message={errors.resume} /> : null}
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -961,7 +981,9 @@ export default function NewInterviewPage() {
             </div>
           ) : null}
 
-          <div className={cn(resumeBuilderFooterActions, "mt-7")}>
+          {/* keeps the buttons at the bottom when the summary card is taller */}
+          <div aria-hidden className="min-h-7 flex-1" />
+          <div className={resumeBuilderFooterActions}>
             {currentStep > 1 ? (
               <Button
                 type="button"
@@ -1004,18 +1026,20 @@ export default function NewInterviewPage() {
       </div>
 
       {/* what you're about to start, filled in as you go */}
-      <aside className={cn(resumeBuilderCard, "p-5 lg:sticky lg:top-6")}>
+      <aside className={cn(resumeBuilderCard, "flex flex-col p-5")}>
         <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">YOUR SESSION</p>
-        <dl className="mt-3 divide-y divide-border">
+        {/* two columns while the card sits under the form, one beside it */}
+        <dl className="mt-3 divide-y divide-border md:grid md:grid-cols-2 md:gap-x-10 md:divide-y-0 xl:block xl:divide-y">
           {summary.map(([k, v]) => (
-            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5 md:border-b md:border-border xl:border-b-0">
               <dt className="text-[13px] text-muted-foreground">{k}</dt>
               <dd className={cn("min-w-0 truncate text-right text-[13.5px]", v ? "font-medium text-foreground" : "text-muted-foreground/60")}>{v ?? "—"}</dd>
             </div>
           ))}
         </dl>
+        <div aria-hidden className="min-h-3 flex-1" />
         {estimatedCredits != null ? (
-          <div className="mt-3 flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
+          <div className="flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
             <span className="text-[13px] text-muted-foreground">About</span>
             <span className="text-[13px] text-muted-foreground"><b className="font-[family-name:var(--font-geist-mono)] text-[18px] font-medium text-foreground">{estimatedCredits}</b> credits</span>
           </div>
