@@ -92,6 +92,8 @@ const DEPARTMENT_OPTIONS = [
   { value: "sales", label: "Sales" },
 ] as const;
 
+const CLASSIC_DURATIONS = ["15", "30"];
+
 const STEPS = [
   {
     number: 1,
@@ -599,7 +601,7 @@ export default function NewInterviewPage() {
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
-        duration: parseInt(formData.duration),
+        duration: category ? category.defaultDurationMinutes : parseInt(formData.duration),
         interviewCategory: category?.id,
         jobDescription: (() => {
           const jd = trimJobDescriptionForSend(jobDescription);
@@ -641,11 +643,17 @@ export default function NewInterviewPage() {
   };
 
   const activeStep = STEPS[currentStep - 1];
+  const stepCopy =
+    category && activeStep.number === 2
+      ? {
+          headline: "Which interviewer voice?",
+          description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Credits follow the voice model.`,
+        }
+      : activeStep;
   const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
   const voiceOption = voiceProviderOptions.find((o) => o.id === formData.voiceProvider);
   const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
   const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
-  const durationChoices = category ? category.allowedDurations.map(String) : ["15", "30"];
   const summary: [string, string | null][] = [
     ["Round", category?.name ?? null],
     ["Role", filledForm.role.trim() || null],
@@ -780,10 +788,12 @@ export default function NewInterviewPage() {
 
           {currentStep === 2 ? (
             <div className="space-y-6">
+              {/* A category round has a fixed length, so only the classic interview asks for one. */}
+              {category ? null : (
               <div>
                 <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
                 <div className="grid grid-cols-2 gap-3">
-                {durationChoices.map((duration) => {
+                {CLASSIC_DURATIONS.map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
                 const selected = formData.duration === duration;
@@ -818,9 +828,7 @@ export default function NewInterviewPage() {
                       <span className="text-[14px] font-medium text-muted-foreground">min</span>
                     </span>
                     <span className="mt-2 text-[13px] text-muted-foreground">
-                      {category
-                        ? duration === String(category.defaultDurationMinutes) ? `A focused ${category.name.toLowerCase()} round` : "More time for follow-ups"
-                        : duration === "15" ? "A focused screening round" : "More depth and more follow-ups"}
+                      {duration === "15" ? "A focused screening round" : "More depth and more follow-ups"}
                     </span>
                     {is30 && !canUse30Min ? (
                       <span className="mt-3 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[10px] text-amber-700 dark:text-amber-300">
@@ -834,6 +842,7 @@ export default function NewInterviewPage() {
               })}
                 </div>
               </div>
+              )}
 
               <FormField label="Interviewer voice" htmlFor="voiceProvider">
                 <VoiceProviderSelect
@@ -1039,8 +1048,8 @@ export default function NewInterviewPage() {
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <Eyebrow>{category ? `NEW INTERVIEW · ${category.name.toUpperCase()}` : "NEW INTERVIEW"}</Eyebrow>
-              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{activeStep.headline}</h1>
-              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{activeStep.description}</p>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{stepCopy.headline}</h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{stepCopy.description}</p>
             </div>
             {checkingLimit || !profileReady ? (
               <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2.5 text-[13px] text-muted-foreground">

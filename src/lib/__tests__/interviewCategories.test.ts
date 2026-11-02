@@ -17,7 +17,7 @@ const round = (id: InterviewCategory["id"], order: number, accessible = true): I
   emblem: "voice",
   order,
   defaultDurationMinutes: 10,
-  allowedDurations: [10, 15],
+  allowedDurations: [10],
   accessible,
 });
 
