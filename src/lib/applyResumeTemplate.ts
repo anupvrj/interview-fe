@@ -203,7 +203,7 @@ function mergeSectionOrderWithContent(
   return merged;
 }
 
-function buildLayoutFromTemplate(
+export function buildLayoutFromTemplate(
   extended: ExtendedResumeTemplate,
 ): ResumeLayoutConfig {
   const renderingLayout = extended.rendering?.layout;

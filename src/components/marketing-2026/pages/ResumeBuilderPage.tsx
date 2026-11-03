@@ -1,3 +1,4 @@
+import type { ResumeTemplateAvailability } from "@/lib/api";
 import { Marketing2026Shell } from "../Marketing2026Shell";
 import { Nav } from "../nav";
 import { Faq, FinalCta, Footer } from "../closing";
@@ -15,7 +16,7 @@ import {
   RbTicker,
 } from "../resume-builder";
 
-export function ResumeBuilderPage() {
+export function ResumeBuilderPage({ templateAvailability }: { templateAvailability?: ResumeTemplateAvailability | null } = {}) {
   return (
     <Marketing2026Shell>
       <Nav />
@@ -24,7 +25,7 @@ export function ResumeBuilderPage() {
         <RbTicker />
         <RbSteps />
         <RbRewrite />
-        <RbTemplates />
+        <RbTemplates initialAvailability={templateAvailability} />
         <RbAva />
         <RbAts />
         <RbAfter />

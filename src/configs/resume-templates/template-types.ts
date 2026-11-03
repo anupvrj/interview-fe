@@ -184,6 +184,8 @@ export interface ExtendedResumeTemplate extends ResumeTemplate {
   style?: TemplateStyleConfig;
   rendering?: TemplateRenderingRules;
   defaultSectionOrder?: SectionDefinition[];
+  /** Super Admin's edits already applied to this config (lib/resume-template-overrides). */
+  appliedOverrides?: import("@/lib/resume-template-overrides").ResumeTemplateOverrides;
 }
 
 /**

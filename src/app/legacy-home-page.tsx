@@ -54,6 +54,15 @@ import { usePublicPlatformStats } from "@/hooks/usePublicPlatformStats";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { arrangeResumeTemplates, useResumeTemplateAvailability } from "@/lib/resume-template-availability";
+
+/** Hero carousel; Super Admin's switched-off templates drop out. */
+const HERO_TEMPLATES = [
+  { id: "atlantic-blue", src: "/resume-template-images/atlantic-blue-template-design.webp" },
+  { id: "mercury", src: "/resume-template-images/Mercury-template-design.webp" },
+  { id: "saffron-line", src: "/resume-template-images/saffron-line-template-design.webp" },
+  { id: "clean-slate", src: "/resume-template-images/clean-slate-preview.webp" },
+];
 
 const stackedFeatureCtaRowClass =
   "flex flex-row items-stretch gap-2 pt-4 sm:items-start sm:gap-4";
@@ -181,12 +190,9 @@ export default function LandingPage() {
   const resumesCount = useCountUp(stats?.resumes ?? 0, 2000, "+", "", 200);
   const interviewsCount = useCountUp(stats?.interviews ?? 0, 2200, "+", "", 400);
 
-  const resumeTemplates = [
-    "/resume-template-images/atlantic-blue-template-design.webp",
-    "/resume-template-images/Mercury-template-design.webp",
-    "/resume-template-images/saffron-line-template-design.webp",
-    "/resume-template-images/clean-slate-preview.webp",
-  ];
+  const templateAvailability = useResumeTemplateAvailability();
+  const shownTemplates = arrangeResumeTemplates(HERO_TEMPLATES, templateAvailability);
+  const resumeTemplates = (shownTemplates.length ? shownTemplates : HERO_TEMPLATES).map((t) => t.src);
 
   const firstLine = "Master Your Interview with AI";
   const secondLine = "Before Real one happens";
@@ -198,13 +204,15 @@ export default function LandingPage() {
   const happensStart = firstLine.length + 1 + allyLocalStart;
   const happensEnd = happensStart + 8;
 
+  const slideCount = resumeTemplates.length;
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % resumeTemplates.length);
+      setCurrentSlide((prev) => (prev + 1) % slideCount);
     }, 4000); // Change slide every 4 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [slideCount]);
+  const activeSlide = currentSlide % slideCount;
 
   // Cursor blink animation
   useEffect(() => {
@@ -714,11 +722,11 @@ export default function LandingPage() {
                     <div
                       key={index}
                       className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                        currentSlide === index
+                        activeSlide === index
                           ? "opacity-100 pointer-events-auto"
                           : "opacity-0 pointer-events-none"
                       }`}
-                      aria-hidden={currentSlide !== index}
+                      aria-hidden={activeSlide !== index}
                     >
                       <Image
                         src={template}
@@ -739,7 +747,7 @@ export default function LandingPage() {
                       key={index}
                       onClick={() => setCurrentSlide(index)}
                       className={`h-1.5 rounded-full transition-all duration-300 ${
-                        currentSlide === index
+                        activeSlide === index
                           ? "w-6 bg-white"
                           : "w-1.5 bg-white/50"
                       }`}

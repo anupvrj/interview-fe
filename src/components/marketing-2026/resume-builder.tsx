@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight, FileText, Gauge, Linkedin, Mic, PenLine, Target, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { CircuitTraces, GridRunners } from "./graphics";
 import { CountUp, DARK, Dots, ease, Head, HL, INK, LAVENDER, LIGHT, Stepper, StickyCta, Wiring, WRAP, type Step } from "./landing-kit";
 import { cn } from "@/lib/utils";
 import { MK26_ROUTES } from "./cta";
+import type { ResumeTemplateAvailability } from "@/lib/api";
+import { arrangeResumeTemplates, useResumeTemplateAvailability } from "@/lib/resume-template-availability";
 import { StartLink } from "./StartLink";
 
 /**
@@ -229,47 +231,60 @@ export function RbRewrite() {
 const TEMPLATES = ["meridian", "harvard", "clean-slate", "saffron-line", "atlantic-blue", "executive", "classic", "corporate", "amber-edge", "cobalt-stream", "condensed-rule", "confident-grid", "ember-timeline", "mercury", "navy-frame", "royal-indigo", "true-blue"];
 const label = (id: string) => id.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 
-export function RbTemplates() {
+/** Enabled templates in Super Admin's order (TEMPLATES order until one is saved). */
+function useShowcaseTemplates(initial?: ResumeTemplateAvailability | null): { ids: string[]; name: (id: string) => string } {
+  const { disabledTemplateIds, templateOrder, overrides } = useResumeTemplateAvailability(initial);
+  return useMemo(() => {
+    const ids = arrangeResumeTemplates(TEMPLATES.map((id) => ({ id })), { disabledTemplateIds, templateOrder }).map((t) => t.id);
+    return { ids: ids.length ? ids : TEMPLATES, name: (id: string) => overrides[id]?.name || label(id) };
+  }, [disabledTemplateIds, templateOrder, overrides]);
+}
+
+export function RbTemplates({ initialAvailability }: { initialAvailability?: ResumeTemplateAvailability | null } = {}) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const on = useInView(ref, { amount: 0.35 });
+  const { ids: templates, name: templateName } = useShowcaseTemplates(initialAvailability);
   const [k, setK] = useState(0);
   const [held, setHeld] = useState(false);
   useEffect(() => {
     if (!on || held || reduce) return;
-    const id = setTimeout(() => setK((x) => (x + 1) % TEMPLATES.length), 2600);
+    const id = setTimeout(() => setK((x) => (x + 1) % templates.length), 2600);
     return () => clearTimeout(id);
-  }, [k, on, held, reduce]);
-  const t = TEMPLATES[k];
+  }, [k, on, held, reduce, templates.length]);
+  const at = k % templates.length;
+  const t = templates[at];
 
   return (
     <section className={LAVENDER}>
       <div ref={ref} className={WRAP}>
-        <Head n="03" label="17 templates" title={<>Same resume. <span className={HL}>17 layouts.</span> One click.</>}
+        <Head n="03" label={`${templates.length} templates`} title={<>Same resume. <span className={HL}>{templates.length} layouts.</span> One click.</>}
           sub="Every template is tested for clean parsing. Switch at 2 a.m., switch again at 9. Your content never moves." />
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" onMouseEnter={() => setHeld(true)} onMouseLeave={() => setHeld(false)}>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5">
-            {TEMPLATES.map((id, i) => (
+            {templates.map((id, i) => (
               <button key={id} onClick={() => setK(i)} className={cn("group relative overflow-hidden rounded-xl border bg-white p-1.5 text-left transition-all duration-300", i >= 5 && "max-md:hidden",
-                i === k ? "border-primary shadow-[0_14px_30px_-16px_rgba(115,103,240,.8)] ring-2 ring-primary/25" : "border-border hover:border-primary/40")}>
+                i === at ? "border-primary shadow-[0_14px_30px_-16px_rgba(115,103,240,.8)] ring-2 ring-primary/25" : "border-border hover:border-primary/40")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/marketing-2026/templates/${id}-preview.webp`} alt="" loading="lazy" className="aspect-[1/1.32] w-full rounded-md object-cover object-top" />
-                <span className={cn("mt-1 block truncate px-0.5 text-[11px] font-medium", i === k ? "text-primary" : "text-[#4B5275]")}>{label(id)}</span>
+                <span className={cn("mt-1 block truncate px-0.5 text-[11px] font-medium", i === at ? "text-primary" : "text-[#4B5275]")}>{templateName(id)}</span>
               </button>
             ))}
-            <span className="grid place-items-center rounded-xl border border-dashed border-primary/30 bg-white/60 text-center text-[12px] font-semibold text-primary md:hidden">+{TEMPLATES.length - 5}<br />more</span>
+            {templates.length > 5 && (
+              <span className="grid place-items-center rounded-xl border border-dashed border-primary/30 bg-white/60 text-center text-[12px] font-semibold text-primary md:hidden">+{templates.length - 5}<br />more</span>
+            )}
           </div>
           <div className="relative mx-auto w-full max-w-[440px]">
             <div aria-hidden className="absolute -inset-6 rounded-[36px] bg-[radial-gradient(closest-side,rgba(115,103,240,.22),transparent)] blur-xl" />
             <div className="relative overflow-hidden rounded-[18px] border border-white bg-white p-2 shadow-[0_50px_100px_-40px_rgba(40,30,140,.55)]">
               <AnimatePresence mode="popLayout" initial={false}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <motion.img key={t} src={`/marketing-2026/templates/${t}-preview.webp`} alt={`${label(t)} resume template`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+                <motion.img key={t} src={`/marketing-2026/templates/${t}-preview.webp`} alt={`${templateName(t)} resume template`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
                   className="aspect-[1/1.32] w-full rounded-xl object-cover object-top" />
               </AnimatePresence>
             </div>
             <div className="relative mt-4 flex items-center justify-between">
-              <p className={cn("text-[17px] font-bold", INK)}>{label(t)}</p>
+              <p className={cn("text-[17px] font-bold", INK)}>{templateName(t)}</p>
               <Mono className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-700">✓ ATS-SAFE</Mono>
             </div>
           </div>

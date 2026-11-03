@@ -11,6 +11,7 @@
 
 import { ExtendedResumeTemplate } from "./templateRenderer";
 import { TemplateLoader } from "./templateLoader";
+import { applyConfigOverrides } from "./resume-template-overrides";
 
 /**
  * Template Registry (Lazy-loaded)
@@ -62,8 +63,17 @@ export async function initializeTemplateRegistry(): Promise<void> {
  * @returns Extended template with style and rendering configuration
  */
 export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
-  // Try to get from cache first
-  let config = cachedRegistry?.[baseTemplate.id];
+  // Admin preview: the template's code with unsaved edits.
+  if (baseTemplate?.previewOverrides !== undefined) {
+    const code = TemplateLoader.peekCode(baseTemplate.id);
+    if (code) {
+      const previewed = applyConfigOverrides(code, baseTemplate.previewOverrides);
+      return { ...previewed.template, ...previewed.extended } as ExtendedResumeTemplate;
+    }
+  }
+
+  // Latest loaded config (carries Super Admin's published edits), then the warm-up registry
+  let config = TemplateLoader.peek(baseTemplate.id)?.extended ?? cachedRegistry?.[baseTemplate.id];
 
   // If not in cache, try to load synchronously
   if (!config) {
@@ -122,6 +132,7 @@ export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
     style: config?.style,
     rendering: config?.rendering,
     defaultSectionOrder: config?.defaultSectionOrder,
+    appliedOverrides: (config as { appliedOverrides?: unknown } | undefined)?.appliedOverrides,
   };
 
   return result;

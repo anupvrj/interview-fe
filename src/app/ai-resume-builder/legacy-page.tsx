@@ -31,8 +31,8 @@ import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
 import { resumeBuilderDemoVideo } from "@/lib/seo/marketing-video-content";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import {
-  filterSelectableTemplates,
-  useDisabledResumeTemplateIds,
+  arrangeResumeTemplates,
+  useResumeTemplateAvailability,
 } from "@/lib/resume-template-availability";
 import {
   appMarketingSection,
@@ -133,10 +133,10 @@ const howItWorksSteps: { title: string; body: string; icon: LucideIcon }[] = [
 ];
 
 export default function ResumeBuilderPage() {
-  const disabledTemplateIds = useDisabledResumeTemplateIds();
+  const { disabledTemplateIds, templateOrder } = useResumeTemplateAvailability();
   const templateCatalog = useMemo(
-    () => filterSelectableTemplates(TEMPLATES_CATALOG, disabledTemplateIds),
-    [disabledTemplateIds],
+    () => arrangeResumeTemplates(TEMPLATES_CATALOG, { disabledTemplateIds, templateOrder }),
+    [disabledTemplateIds, templateOrder],
   );
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const howItWorksRef = useRef<HTMLDivElement>(null);

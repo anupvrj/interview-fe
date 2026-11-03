@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Resume } from "@/lib/api";
 import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { useTemplateDisplayName } from "@/lib/resume-template-availability";
 import { cn, formatDate, getScoreColor } from "@/lib/utils";
 import { institutePrimaryClass, instituteSecondaryClass } from "@/components/institute/InstituteChrome";
 
@@ -115,6 +116,7 @@ export function DashboardResumesList({
   onCreateClick?: () => void;
   createLoading?: boolean;
 }) {
+  const templateName = useTemplateDisplayName();
   const sortedResumes = [...resumes].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
@@ -216,7 +218,7 @@ export function DashboardResumesList({
 
                   <td className="px-5 py-3.5 align-top">
                     <p className="truncate text-sm font-medium text-foreground">
-                      {resumeTemplateLabel(resume.templateId)}
+                      {templateName(resume.templateId, resumeTemplateLabel(resume.templateId))}
                     </p>
                   </td>
 

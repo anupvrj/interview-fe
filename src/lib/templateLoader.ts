@@ -16,6 +16,12 @@ import { ensureResumeSharedStyles } from "@/lib/resume-fonts";
 
 import React from "react";
 import { ResumeTemplate, ExtendedResumeTemplate, TemplateStyleConfig } from "../configs/resume-templates/template-types";
+import {
+  applyConfigOverrides,
+  applyCssOverrides,
+  type PublishedTemplateOverrides,
+  type ResumeTemplateOverrides,
+} from "./resume-template-overrides";
 
 export interface TemplateConfig {
   template: ResumeTemplate;
@@ -58,17 +64,73 @@ class CSSRegistry {
   private styleElements = new Map<string, HTMLStyleElement>();
   private activeTemplateId: string | null = null;
 
+  /** Stylesheets as fetched, so a new set of edits doesn't refetch them. */
+  private rawCss = new Map<string, string>();
+  /** Latest load per template: an older load that finishes later must not overwrite it. */
+  private loadSeq = new Map<string, number>();
+
+  private async fetchRawCss(templateId: string): Promise<string> {
+    const cached = this.rawCss.get(templateId);
+    if (cached !== undefined) return cached;
+    const origin = window.location.origin;
+    const response = await fetch(
+      `${origin}/resume-templates/${templateId}/style.css`,
+      { cache: "no-store" },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Template CSS not found (${response.status})`);
+    }
+
+    let css = await response.text();
+
+    css += `\n/* Template parity: page gutters from config.style.padding (ResumeRenderer inline mm) */\n.${templateId}-template { box-sizing: border-box; }\n`;
+
+    if (templateId === "mercury") {
+      try {
+        const overrides = await fetch(
+          `${origin}/resume-templates/mercury/mercury-overrides.css`,
+          { cache: "no-store" },
+        );
+        if (overrides.ok) {
+          css += `\n${await overrides.text()}`;
+        }
+      } catch {
+        /* optional */
+      }
+    }
+    this.rawCss.set(templateId, css);
+    return css;
+  }
+
   /**
    * Load CSS for a specific template via public URL so it can be removed on switch.
-   * Returns true if CSS was loaded, false if already active for this template.
+   * Super Admin's published edits (colours, font) are applied; pass `overrides` to show
+   * other edits instead (the admin preview). Returns true if CSS was (re)loaded.
    */
-  async loadTemplateCSS(templateId: string): Promise<boolean> {
+  async loadTemplateCSS(
+    templateId: string,
+    options?: { overrides?: ResumeTemplateOverrides | null },
+  ): Promise<boolean> {
     if (typeof window === "undefined") {
       return false;
     }
     ensureResumeSharedStyles();
 
-    if (this.activeTemplateId === templateId && this.loadedStyles.has(templateId)) {
+    const seq = (this.loadSeq.get(templateId) ?? 0) + 1;
+    this.loadSeq.set(templateId, seq);
+    const stale = () => this.loadSeq.get(templateId) !== seq;
+
+    const explicit = options?.overrides !== undefined;
+    const overrides = explicit ? options?.overrides ?? null : await publishedTemplateOverrides(templateId);
+    if (stale()) return false;
+    const editsKey = explicit
+      ? `draft:${JSON.stringify(overrides)}`
+      : `rev:${(overrides as PublishedTemplateOverrides | null)?.revision ?? 0}`;
+    const existing = this.styleElements.get(templateId);
+    const sameEdits = existing?.getAttribute("data-edits") === editsKey;
+
+    if (this.activeTemplateId === templateId && this.loadedStyles.has(templateId) && sameEdits) {
       return false;
     }
 
@@ -76,45 +138,23 @@ class CSSRegistry {
       this.unloadTemplateCSS(this.activeTemplateId);
     }
 
-    if (this.styleElements.has(templateId)) {
+    if (existing && sameEdits) {
       this.activeTemplateId = templateId;
       this.loadedStyles.add(templateId);
       return false;
     }
 
     try {
-      const origin = window.location.origin;
-      const response = await fetch(
-        `${origin}/resume-templates/${templateId}/style.css`,
-        { cache: "no-store" },
-      );
+      const raw = await this.fetchRawCss(templateId);
+      const baseFont = overrides?.fontFamily ? (await TemplateLoader.loadCodeTemplate(templateId)).extended.style?.fontFamily : undefined;
+      if (stale()) return false;
+      const css = applyCssOverrides(raw, overrides, baseFont);
 
-      if (!response.ok) {
-        throw new Error(`Template CSS not found (${response.status})`);
-      }
-
-      let css = await response.text();
-
-      css += `\n/* Template parity: page gutters from config.style.padding (ResumeRenderer inline mm) */\n.${templateId}-template { box-sizing: border-box; }\n`;
-
-      if (templateId === "mercury") {
-        try {
-          const overrides = await fetch(
-            `${origin}/resume-templates/mercury/mercury-overrides.css`,
-            { cache: "no-store" },
-          );
-          if (overrides.ok) {
-            css += `\n${await overrides.text()}`;
-          }
-        } catch {
-          /* optional */
-        }
-      }
-
-      const styleElement = document.createElement("style");
+      const styleElement = this.styleElements.get(templateId) ?? document.createElement("style");
       styleElement.setAttribute("data-template", templateId);
+      styleElement.setAttribute("data-edits", editsKey);
       styleElement.textContent = css;
-      document.head.appendChild(styleElement);
+      if (!styleElement.isConnected) document.head.appendChild(styleElement);
 
       this.styleElements.set(templateId, styleElement);
       this.loadedStyles.add(templateId);
@@ -216,8 +256,30 @@ class TemplateCache {
   }
 }
 
-// Global template cache
+// Global template cache (with Super Admin's edits applied)
 const templateCache = new TemplateCache();
+/** Template configs exactly as the template files export them. */
+const codeCache = new Map<string, TemplateConfig>();
+/** Edit revision each cached config was built with. */
+const cachedRevision = new Map<string, number>();
+
+/**
+ * Super Admin's published edits for one template. Waits at most a moment for the API; the
+ * template then renders as coded rather than holding up the page.
+ */
+export async function publishedTemplateOverrides(templateId: string): Promise<PublishedTemplateOverrides | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const { fetchResumeTemplateAvailability } = await import("./resume-template-availability");
+    const settings = await Promise.race([
+      fetchResumeTemplateAvailability(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]);
+    return settings?.overrides?.[templateId] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Template Loader Class
@@ -232,31 +294,21 @@ export class TemplateLoader {
     templateId: string,
     options?: { loadCSS?: boolean },
   ): Promise<TemplateConfig> {
+    const overrides = await publishedTemplateOverrides(templateId);
+    const revision = overrides?.revision ?? 0;
+
     // Check cache first
-    if (templateCache.has(templateId)) {
+    if (templateCache.has(templateId) && cachedRevision.get(templateId) === revision) {
       return templateCache.get(templateId)!;
     }
 
     try {
-      // Dynamically import template config
-      const configModule = await import(
-        `../configs/resume-templates/${templateId}/config`
-      );
-
-      // Get the config object (handle different export formats)
-      const config =
-        configModule.default ||
-        configModule[`${templateId.replace(/-/g, "")}Config`] ||
-        configModule[`${templateId}Config`];
-
-      if (!config) {
-        throw new Error(
-          `Template config not found for ${templateId}. Please ensure the template exports a config object.`
-        );
-      }
+      const code = await this.loadCodeTemplate(templateId);
+      const config = applyConfigOverrides(code, overrides);
 
       // Cache the template
       templateCache.set(templateId, config);
+      cachedRevision.set(templateId, revision);
 
       // Load CSS on demand (browser only) — skip during bulk registry warmup
       if (typeof window !== "undefined" && options?.loadCSS !== false) {
@@ -270,25 +322,59 @@ export class TemplateLoader {
     }
   }
 
+  /** The template as its files export it, before Super Admin's edits. */
+  static async loadCodeTemplate(templateId: string): Promise<TemplateConfig> {
+    const cached = codeCache.get(templateId);
+    if (cached) return cached;
+    // Dynamically import template config
+    const configModule = await import(
+      `../configs/resume-templates/${templateId}/config`
+    );
+
+    // Get the config object (handle different export formats)
+    const config =
+      configModule.default ||
+      configModule[`${templateId.replace(/-/g, "")}Config`] ||
+      configModule[`${templateId}Config`];
+
+    if (!config) {
+      throw new Error(
+        `Template config not found for ${templateId}. Please ensure the template exports a config object.`
+      );
+    }
+    codeCache.set(templateId, config);
+    return config;
+  }
+
+  /** Already-loaded config (with edits) for the renderer's synchronous lookups. */
+  static peek(templateId: string): TemplateConfig | undefined {
+    return templateCache.get(templateId);
+  }
+
+  /** Already-loaded code config (no edits). */
+  static peekCode(templateId: string): TemplateConfig | undefined {
+    return codeCache.get(templateId);
+  }
+
   /**
    * Load all available templates
    * Returns array of base template objects (without extended config)
    */
   static async loadAllTemplates(): Promise<ResumeTemplate[]> {
-    const templates: ResumeTemplate[] = [];
-
-    await Promise.all(
+    // Manifest order, whichever import finishes first.
+    const loaded = await Promise.all(
       TEMPLATE_MANIFEST.map(async (templateId) => {
         try {
           const config = await this.loadTemplate(templateId);
-          templates.push(config.template);
+          return config.template;
         } catch (error) {
           console.error(`Failed to load template ${templateId}:`, error);
+          return null;
         }
       })
     );
 
-    return templates;
+    return loaded.filter((template): template is ResumeTemplate => template !== null);
   }
 
   /**
@@ -371,6 +457,7 @@ export class TemplateLoader {
    */
   static clearCache(): void {
     templateCache.clear();
+    cachedRevision.clear();
   }
 
   /**
