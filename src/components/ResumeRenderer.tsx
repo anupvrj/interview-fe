@@ -7,7 +7,7 @@
 
 import { organizeSectionColumns } from "@/lib/sectionLayout";
 import { ensureResumeSharedStyles } from "@/lib/resume-fonts";
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
 import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
@@ -526,6 +526,11 @@ export function ResumeRenderer({
   const photoSlot = canvas ? (
     <span data-rx-photo-slot="" aria-hidden style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }} />
   ) : null;
+  /**
+   * A photo whose link no longer loads (expired, deleted) counts as no photo: no broken image on
+   * the page or in the PDF, and the editor offers "Add photo" again. A new photo is a new link.
+   */
+  const [brokenPhoto, setBrokenPhoto] = useState<string | null>(null);
   // Empty optional slots (a missing date, description, contact) only appear for what is
   // selected — otherwise the page shows exactly what will be exported.
   const revealEntry = (sectionId: string, index: number) =>
@@ -784,6 +789,9 @@ export function ResumeRenderer({
     () => normalizePersonalInfoRecord(resume.content?.personalInfo),
     [resume.content?.personalInfo],
   );
+  const photo = personalInfo?.profilePicture || undefined;
+  const photoSrc = photo && photo !== brokenPhoto ? photo : undefined;
+  const onPhotoError = () => setBrokenPhoto(photo ?? null);
 
   // Get template-specific default sections or use generic defaults
   const getDefaultSections = (): Section[] => {
@@ -1630,7 +1638,7 @@ export function ResumeRenderer({
                 )}
               </div>
 
-              {personalInfo?.profilePicture ? (
+              {photoSrc ? (
                 <div
                   className={
                     template.id === "atlantic-blue"
@@ -1644,7 +1652,8 @@ export function ResumeRenderer({
                   }
                 >
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     className={
@@ -2160,10 +2169,11 @@ export function ResumeRenderer({
               }}
             >
               {/* Profile Picture on Left (none, and no space for it, without a photo) */}
-              {personalInfo?.profilePicture ? (
+              {photoSrc ? (
                 <div style={{ flexShrink: 0 }}>
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     className={`${template.id}-profile-picture`}
@@ -2339,10 +2349,11 @@ export function ResumeRenderer({
               }}
             >
               {/* Profile Picture Fallback for Standard Layout */}
-              {personalInfo?.profilePicture && (
+              {photoSrc && (
                 <div style={{ flexShrink: 0, marginBottom: "10px" }}>
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     style={{
