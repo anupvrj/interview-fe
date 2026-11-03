@@ -23,6 +23,8 @@ export type PlatformFeature = {
   highlightStyle?: "popular" | "trending" | "flash" | "new" | "hot";
   allowedDurations?: number[];
   decisionHint?: string;
+  /** Super-admin list only: users who get the feature whatever its status. */
+  allowUserIds?: string[];
   updatedAt?: string;
   updatedBy?: string;
 };
@@ -42,6 +44,8 @@ export type PlatformFeaturePatch = {
   highlightStyle?: string;
   allowedDurations?: number[];
   decisionHint?: string;
+  /** Clerk user ids or emails (one per line or comma-separated) that get the feature whatever its status. */
+  allowUserIds?: string[] | string;
 };
 
 export type CreatePlatformFeatureInput = {

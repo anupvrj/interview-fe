@@ -8,6 +8,7 @@ import {
   invalidateEntitlements,
   invalidateInterviews,
   invalidateInterviewSchedules,
+  invalidateInterviewSetup,
   invalidatePeerBookings,
   invalidateProfile,
   invalidateResumes,
@@ -30,6 +31,7 @@ export function useDashboardInvalidation() {
         | "systemDesignSessions"
         | "peerBookings"
         | "profile"
+        | "interviewSetup"
       >,
     ) => {
       if (!userId) return;
@@ -52,6 +54,8 @@ export function useDashboardInvalidation() {
               return invalidatePeerBookings(queryClient, userId);
             case "profile":
               return invalidateProfile(queryClient, userId);
+            case "interviewSetup":
+              return invalidateInterviewSetup(queryClient, userId);
             default:
               return Promise.resolve();
           }

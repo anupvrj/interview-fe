@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -29,6 +29,15 @@ import {
 import { fetchSubscriptionExpired } from "@/lib/subscriptionAccess";
 import { cn } from "@/lib/utils";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
+import { useInterviewSetupQuery } from "@/hooks/queries/useInterviewSetupQuery";
+import { SystemDesignCandidatePanel } from "@/components/system-design/SystemDesignCandidatePanel";
+import { getActiveSavedResumeDisplay, hasActiveSavedResume } from "@/lib/active-saved-resume";
+import { MIN_JOB_DESCRIPTION_CHARS } from "@/lib/extension-job-handoff";
+import { defaultJobDescription } from "@/lib/saved-job-descriptions";
+import { mergeInterviewFormDefaults, type InterviewFormEdits } from "@/lib/interview-form-defaults";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 
 export default function SystemDesignNewSessionPage() {
   const router = useRouter();
@@ -49,6 +58,39 @@ export default function SystemDesignNewSessionPage() {
     null,
   );
   const [viewLoading, setViewLoading] = useState(false);
+
+  // Who the session is for: last interview first, then the profile; all editable.
+  const userProfile = useActiveRole()?.profile ?? null;
+  const { data: setupDefaults } = useInterviewSetupQuery();
+  const { data: queriedDefaultResume } = useDefaultResumeQuery(
+    !userProfile?.resume?.s3Key && userProfile?.defaultDesignedResume === undefined,
+  );
+  const defaultDesignedResume = userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const savedResume = getActiveSavedResumeDisplay(userProfile, defaultDesignedResume);
+  const savedResumeAvailable = hasActiveSavedResume(userProfile, defaultDesignedResume);
+  const [candidateForm, setCandidateForm] = useState({ role: "", targetCompany: "", experience: "0" });
+  const candidateEdits = useRef<InterviewFormEdits>({});
+  const candidate = userProfile
+    ? mergeInterviewFormDefaults(candidateForm, userProfile, candidateEdits.current, setupDefaults?.last)
+    : candidateForm;
+  const [jobDescription, setJobDescription] = useState("");
+  const jdTouched = useRef(false);
+  const [useSavedResume, setUseSavedResume] = useState(true);
+  const savedJobDescriptions = setupDefaults?.jobDescriptions;
+
+  // The job post from last time (or one for the same company/role), until the user picks or clears one.
+  useEffect(() => {
+    if (jdTouched.current || !savedJobDescriptions?.length) return;
+    jdTouched.current = true;
+    const pick = defaultJobDescription(savedJobDescriptions, {
+      lastUsedId: setupDefaults?.last?.jobDescriptionId,
+      company: candidate.targetCompany,
+      role: candidate.role,
+    });
+    if (pick) setJobDescription((prev) => prev || pick.text);
+    // Once, when the list arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedJobDescriptions]);
 
   const practiceGate = usePracticeSessionGate();
   const {
@@ -107,8 +149,16 @@ export default function SystemDesignNewSessionPage() {
       else setCreateRandomBusy(true);
 
       try {
-        const session = await systemDesignApi.createSession(problemId);
-        await invalidate(["systemDesignSessions", "entitlements"]);
+        const jd = trimJobDescriptionForSend(jobDescription);
+        const years = Number.parseInt(candidate.experience, 10);
+        const session = await systemDesignApi.createSession(problemId, {
+          role: candidate.role.trim() || undefined,
+          targetCompany: candidate.targetCompany.trim() || undefined,
+          experience: Number.isFinite(years) ? years : undefined,
+          jobDescription: jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined,
+          useSavedResume: useSavedResume && savedResumeAvailable ? true : undefined,
+        });
+        await invalidate(["systemDesignSessions", "entitlements", "interviewSetup"]);
         router.push(`/dashboard/system-design/${session.sessionId}`);
       } catch (e: unknown) {
         const data = (e as { response?: { data?: { code?: string; message?: string } } })
@@ -124,7 +174,7 @@ export default function SystemDesignNewSessionPage() {
         setCreateRandomBusy(false);
       }
     },
-    [router, setSubscriptionExpiredOpen],
+    [router, setSubscriptionExpiredOpen, candidate.role, candidate.targetCompany, candidate.experience, jobDescription, useSavedResume, savedResumeAvailable, invalidate],
   );
 
   const handleSurpriseMe = useCallback(() => {
@@ -239,6 +289,32 @@ export default function SystemDesignNewSessionPage() {
         />
       ) : (
         <>
+          <SystemDesignCandidatePanel
+            role={candidate.role}
+            targetCompany={candidate.targetCompany}
+            experience={candidate.experience}
+            onRoleChange={(role) => {
+              candidateEdits.current.role = true;
+              setCandidateForm((prev) => ({ ...prev, role }));
+            }}
+            onCompanyChange={(targetCompany) => {
+              candidateEdits.current.targetCompany = true;
+              setCandidateForm((prev) => ({ ...prev, targetCompany }));
+            }}
+            onExperienceChange={(experience) => {
+              candidateEdits.current.experience = true;
+              setCandidateForm((prev) => ({ ...prev, experience }));
+            }}
+            jobDescription={jobDescription}
+            onJobDescriptionChange={(text) => {
+              jdTouched.current = true;
+              setJobDescription(text);
+            }}
+            savedJobDescriptions={savedJobDescriptions ?? []}
+            resume={savedResume}
+            useSavedResume={useSavedResume && savedResumeAvailable}
+            onUseSavedResumeChange={setUseSavedResume}
+          />
           <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <SystemDesignDifficultyFilterBar
               value={difficultyFilter}

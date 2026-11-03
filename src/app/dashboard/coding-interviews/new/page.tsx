@@ -16,7 +16,6 @@ import {
   Crown,
   CheckCircle,
   Target,
-  Globe,
   FileText,
   Upload,
   X,
@@ -26,6 +25,11 @@ import {
 import { codingInterviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
+import { useInterviewSetupQuery } from "@/hooks/queries/useInterviewSetupQuery";
+import { JobDescriptionPicker } from "@/components/dashboard-2026/JobDescriptionPicker";
+import { defaultJobDescription } from "@/lib/saved-job-descriptions";
+import { MIN_JOB_DESCRIPTION_CHARS } from "@/lib/extension-job-handoff";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -91,24 +95,17 @@ const DEPARTMENT_OPTIONS = [
 const STEPS = [
   {
     number: 1,
-    title: "Role",
+    title: "Role & Job Post",
     icon: Target,
     headline: "Which coding round are you preparing for?",
-    description: "The role and company set how hard your three problems are.",
+    description: "The role, company and experience set how hard your three problems are.",
   },
   {
     number: 2,
-    title: "Background",
-    icon: Globe,
-    headline: "Where are you coming from?",
-    description: "Experience and background shape which problems you get.",
-  },
-  {
-    number: 3,
-    title: "Resume",
+    title: "Background & Resume",
     icon: FileText,
-    headline: "Which resume should it read?",
-    description: "The discussion after coding asks about your own projects.",
+    headline: "Your background and resume",
+    description: "They shape which problems you get, and the discussion after coding asks about your own projects.",
   },
 ] as const;
 
@@ -194,6 +191,10 @@ export default function NewCodingInterviewPage() {
     );
   const defaultDesignedResume =
     userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const { data: setupDefaults } = useInterviewSetupQuery();
+  const lastSetup = setupDefaults?.last ?? null;
+  const [jobDescription, setJobDescription] = useState("");
+  const backgroundEdited = useRef(false);
   const savedResumeKnown = Boolean(
     userProfile?.resume?.s3Key ||
       userProfile?.defaultDesignedResume ||
@@ -231,10 +232,22 @@ export default function NewCodingInterviewPage() {
             formData,
             userProfile,
             formEdits.current,
+            lastSetup,
           )
         : formData,
-    [formData, userProfile],
+    [formData, userProfile, lastSetup],
   );
+
+  // Department and discipline from the last interview, unless already chosen here.
+  useEffect(() => {
+    if (backgroundEdited.current || !lastSetup?.department) return;
+    const department = DEPARTMENT_OPTIONS.some((o) => o.value === lastSetup.department) ? lastSetup.department : "";
+    if (!department) return;
+    const discipline = disciplineOptionsByDepartment[department]?.some((o) => o.value === lastSetup.discipline)
+      ? (lastSetup.discipline ?? "")
+      : "";
+    setFormData((prev) => (prev.department ? prev : { ...prev, department, discipline }));
+  }, [lastSetup?.department, lastSetup?.discipline]);
 
   useEffect(() => {
     if (!savedResumeKnown) return;
@@ -337,7 +350,7 @@ export default function NewCodingInterviewPage() {
       newErrors.role = "Role is required";
     }
 
-    if (step === 3) {
+    if (step === 2) {
       if (!useSavedResume && !uploadedFile) {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
@@ -370,9 +383,9 @@ export default function NewCodingInterviewPage() {
       return;
     }
 
-    if (!validateStep(1) || !validateStep(3)) {
+    if (!validateStep(1) || !validateStep(2)) {
       if (!filledForm.role.trim()) setCurrentStep(1);
-      else setCurrentStep(3);
+      else setCurrentStep(2);
       return;
     }
 
@@ -412,8 +425,12 @@ export default function NewCodingInterviewPage() {
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
+        jobDescription: (() => {
+          const jd = trimJobDescriptionForSend(jobDescription);
+          return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
+        })(),
       });
-      await invalidate(["codingInterviews", "entitlements"]);
+      await invalidate(["codingInterviews", "entitlements", "interviewSetup"]);
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
       );
@@ -454,15 +471,16 @@ export default function NewCodingInterviewPage() {
     ["Experience", experienceLabel ?? null],
     ["Department", departmentLabel ?? null],
     ["Discipline", disciplineLabel ?? null],
+    ["Job post", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? `${jobDescription.trim().length.toLocaleString()} characters` : null],
     ["Resume", useSavedResume ? activeSavedResume?.title ?? null : uploadedFile?.name ?? null],
   ];
 
   const codingForm = (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-      <div className={resumeBuilderCard}>
-        <form onSubmit={handleSubmit} className="p-5 sm:p-7">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-stretch">
+      <div className={cn(resumeBuilderCard, "flex flex-col")}>
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col p-5 sm:p-7">
           {currentStep === 1 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start min-[1400px]:grid-cols-3">
               <FormField label="Role you're preparing for" htmlFor="role">
                 <JobRoleSelect
                   id="role"
@@ -502,11 +520,6 @@ export default function NewCodingInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-            </div>
-          ) : null}
-
-          {currentStep === 2 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Years of experience" htmlFor="experience">
                 <AppSelect
                   id="experience"
@@ -519,134 +532,169 @@ export default function NewCodingInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-
-              <FormField label="Department" htmlFor="department" optional>
-                <AppSelect
-                  id="department"
-                  value={formData.department}
-                  onChange={(value) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      department: value,
-                      discipline: disciplineOptionsByDepartment[value]?.some(
-                        (option) => option.value === prev.discipline,
-                      )
-                        ? prev.discipline
-                        : "",
-                    }));
-                  }}
-                  options={DEPARTMENT_OPTIONS}
-                  allowEmpty
-                  emptyLabel="Not specified"
-                  placeholder="Select department"
-                  className={controlClass}
-                />
-              </FormField>
-
-              <FormField label="Discipline" htmlFor="discipline" optional hint={!disciplineOptionsByDepartment[formData.department] ? "Pick Engineering or Management to choose one." : undefined}>
-                <AppSelect
-                  id="discipline"
-                  value={formData.discipline}
-                  onChange={(value) =>
-                    setFormData((prev) => ({ ...prev, discipline: value }))
-                  }
-                  options={
-                    disciplineOptionsByDepartment[formData.department] ?? []
-                  }
-                  disabled={!disciplineOptionsByDepartment[formData.department]}
-                  allowEmpty
-                  emptyLabel="Not specified"
-                  placeholder="Select discipline"
-                  className={controlClass}
-                />
-              </FormField>
+              <div className="sm:col-span-2 min-[1400px]:col-span-3">
+                <FormField label="Job description" htmlFor="jobDescription" optional hint="The discussion after coding is pitched at this job.">
+                  <JobDescriptionPicker
+                    id="jobDescription"
+                    saved={setupDefaults?.jobDescriptions ?? []}
+                    value={jobDescription}
+                    onChange={setJobDescription}
+                    preselectId={
+                      defaultJobDescription(setupDefaults?.jobDescriptions ?? [], {
+                        lastUsedId: lastSetup?.jobDescriptionId,
+                        company: filledForm.targetCompany,
+                        role: filledForm.role,
+                      })?.id
+                    }
+                  />
+                </FormField>
+              </div>
             </div>
           ) : null}
 
-          {currentStep === 3 ? (
-            <div className="space-y-3">
-              {savedResumeAvailable && activeSavedResume ? (
-                <ResumeOptionCard
-                  selected={useSavedResume}
-                  onSelect={() => {
-                    setUseSavedResume(true);
-                    setUploadedFile(null);
-                    setErrors((prev) => ({ ...prev, resume: "" }));
-                  }}
-                  icon={FileText}
-                  title={activeSavedResume.title}
-                  subtitle={activeSavedResume.subtitle}
-                />
-              ) : !savedResumeKnown ? (
-                <div
-                  className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
-                  aria-hidden
-                />
-              ) : null}
+          {currentStep === 2 ? (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Department" htmlFor="department" optional>
+                  <AppSelect
+                    id="department"
+                    value={formData.department}
+                    onChange={(value) => {
+                      backgroundEdited.current = true;
+                      setFormData((prev) => ({
+                        ...prev,
+                        department: value,
+                        discipline: disciplineOptionsByDepartment[value]?.some(
+                          (option) => option.value === prev.discipline,
+                        )
+                          ? prev.discipline
+                          : "",
+                      }));
+                    }}
+                    options={DEPARTMENT_OPTIONS}
+                    allowEmpty
+                    emptyLabel="Not specified"
+                    placeholder="Select department"
+                    className={controlClass}
+                  />
+                </FormField>
 
-              <ResumeOptionCard
-                selected={!useSavedResume}
-                onSelect={() => setUseSavedResume(false)}
-                icon={Upload}
-                title="Upload a different resume"
-                subtitle="PDF only · Max 5 MB"
-              />
+                <FormField label="Discipline" htmlFor="discipline" optional hint={!disciplineOptionsByDepartment[formData.department] ? "Pick Engineering or Management to choose one." : undefined}>
+                  <AppSelect
+                    id="discipline"
+                    value={formData.discipline}
+                    onChange={(value) => {
+                      backgroundEdited.current = true;
+                      setFormData((prev) => ({ ...prev, discipline: value }));
+                    }}
+                    options={
+                      disciplineOptionsByDepartment[formData.department] ?? []
+                    }
+                    disabled={!disciplineOptionsByDepartment[formData.department]}
+                    allowEmpty
+                    emptyLabel="Not specified"
+                    placeholder="Select discipline"
+                    className={controlClass}
+                  />
+                </FormField>
+              </div>
 
-              {!useSavedResume ? (
-                <div className="pt-1">
-                  {!uploadedFile ? (
+              <div>
+                <p className="mb-2.5 text-xs font-medium text-muted-foreground">Resume</p>
+                <div className="space-y-3">
+                  {savedResumeAvailable && activeSavedResume ? (
+                    <ResumeOptionCard
+                      selected={useSavedResume}
+                      onSelect={() => {
+                        setUseSavedResume(true);
+                        setUploadedFile(null);
+                        setErrors((prev) => ({ ...prev, resume: "" }));
+                      }}
+                      icon={FileText}
+                      title={activeSavedResume.title}
+                      subtitle={activeSavedResume.subtitle}
+                    />
+                  ) : !savedResumeKnown ? (
                     <div
-                      {...getRootProps()}
-                      className={cn(
-                        "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
-                        isDragActive
-                          ? "border-primary bg-primary/[0.06]"
-                          : errors.resume
-                            ? "border-destructive/40 bg-destructive/5"
-                            : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
-                      )}
-                    >
-                      <input {...getInputProps()} />
-                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
-                        <Upload className="h-6 w-6" />
-                      </div>
-                      <p className="text-[16px] font-bold tracking-tight text-foreground">
-                        {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
-                      </p>
-                      <p className="mt-1 text-[13px] text-muted-foreground">
-                        or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
-                      </p>
-                      <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        <FileText className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold text-foreground">
-                          {uploadedFile.name}
-                        </p>
-                        <p className="text-[12.5px] text-muted-foreground">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove file"
-                        onClick={() => setUploadedFile(null)}
-                        className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
+                      className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
+                      aria-hidden
+                    />
+                  ) : null}
 
-              {errors.resume ? <FieldError message={errors.resume} /> : null}
+                  <ResumeOptionCard
+                    selected={!useSavedResume}
+                    onSelect={() => setUseSavedResume(false)}
+                    icon={Upload}
+                    title="Upload a different resume"
+                    subtitle="PDF only · Max 5 MB"
+                  />
+
+                  {!useSavedResume ? (
+                    <div className="pt-1">
+                      {!uploadedFile ? (
+                        <div
+                          {...getRootProps()}
+                          className={cn(
+                            "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
+                            isDragActive
+                              ? "border-primary bg-primary/[0.06]"
+                              : errors.resume
+                                ? "border-destructive/40 bg-destructive/5"
+                                : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
+                          )}
+                        >
+                          <input {...getInputProps()} />
+                          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
+                            <Upload className="h-6 w-6" />
+                          </div>
+                          <p className="text-[16px] font-bold tracking-tight text-foreground">
+                            {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
+                          </p>
+                          <p className="mt-1 text-[13px] text-muted-foreground">
+                            or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
+                          </p>
+                          <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14.5px] font-semibold text-foreground">
+                              {uploadedFile.name}
+                            </p>
+                            <p className="text-[12.5px] text-muted-foreground">
+                              {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remove file"
+                            onClick={() => setUploadedFile(null)}
+                            className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {errors.resume ? <FieldError message={errors.resume} /> : null}
+                </div>
+              </div>
+
+              <div className="rounded-[18px] border border-border bg-background/60 px-4 py-3.5">
+                <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">HOW IT RUNS</p>
+                <ol className="mt-2 grid gap-2 text-[13px] text-foreground sm:grid-cols-3">
+                  {["Solve three problems in the editor", "Run tests, then submit", "Talk through your approach with AI"].map((t, i) => (
+                    <li key={t} className="flex gap-2"><span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">{i + 1}</span>{t}</li>
+                  ))}
+                </ol>
+              </div>
             </div>
           ) : null}
 
@@ -657,7 +705,9 @@ export default function NewCodingInterviewPage() {
             </div>
           ) : null}
 
-          <div className={cn(resumeBuilderFooterActions, "mt-7")}>
+          {/* keeps the buttons at the bottom when the summary card is taller */}
+          <div aria-hidden className="min-h-7 flex-1" />
+          <div className={resumeBuilderFooterActions}>
             {currentStep > 1 ? (
               <Button
                 type="button"
@@ -700,25 +750,19 @@ export default function NewCodingInterviewPage() {
       </div>
 
       {/* what you're about to start, filled in as you go */}
-      <aside className={cn(resumeBuilderCard, "p-5 lg:sticky lg:top-6")}>
+      <aside className={cn(resumeBuilderCard, "flex flex-col p-5")}>
         <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">YOUR SESSION</p>
-        <dl className="mt-3 divide-y divide-border">
+        {/* two columns while the card sits under the form, one beside it */}
+        <dl className="mt-3 divide-y divide-border md:grid md:grid-cols-2 md:gap-x-10 md:divide-y-0 xl:block xl:divide-y">
           {summary.map(([k, v]) => (
-            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5 md:border-b md:border-border xl:border-b-0">
               <dt className="text-[13px] text-muted-foreground">{k}</dt>
               <dd className={cn("min-w-0 truncate text-right text-[13.5px]", v ? "font-medium text-foreground" : "text-muted-foreground/60")}>{v ?? "—"}</dd>
             </div>
           ))}
         </dl>
-        <div className="mt-3 rounded-xl bg-muted/50 px-3.5 py-3">
-          <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">HOW IT RUNS</p>
-          <ol className="mt-2 space-y-1.5 text-[13px] text-foreground">
-            {["Solve three problems in the editor", "Run tests, then submit", "Talk through your approach with AI"].map((t, i) => (
-              <li key={t} className="flex gap-2"><span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">{i + 1}</span>{t}</li>
-            ))}
-          </ol>
-        </div>
-        <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">
+        <div aria-hidden className="min-h-3 flex-1" />
+        <p className="rounded-xl bg-muted/50 px-3.5 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
           Sessions use <b className="font-semibold text-foreground">5 credits/min</b>, same rules as AI interviews. The discussion needs a microphone.
         </p>
       </aside>

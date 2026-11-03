@@ -127,6 +127,7 @@ import {
   downloadPdfFromUrl,
   fetchPdfBlobFromUrl,
   resumePdfFilenameFromResume,
+  sanitizeDownloadFilename,
   sanitizePdfFilename,
   triggerBlobDownload,
 } from "@/lib/download-pdf";
@@ -171,6 +172,7 @@ import { VersionHistoryDialog } from "@/components/resume-canvas/VersionHistoryD
 import { DownloadDialog } from "@/components/resume-canvas/DownloadDialog";
 import { TemplateTryOn } from "@/components/resume-canvas/TemplateTryOn";
 import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
+import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-content";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
@@ -197,7 +199,7 @@ import {
 } from "@/lib/resume-review-reminder";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
-import { applySuggestion, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
+import { applySuggestion, lineContaining, textAtLocation, type SuggestionAt } from "@/lib/suggestionApply";
 import { moveSectionWithinColumn, organizeSectionColumns, sectionMoveBounds } from "@/lib/sectionLayout";
 import { fetchTemplateCssForPdf, serializeResumePagesHtml } from "@/lib/resume-pdf-export";
 import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
@@ -309,6 +311,13 @@ function descriptionToEditorHtml(description: unknown): string {
 /** Plain text of a stored rich-text field (for AI rewrites). */
 function htmlToPlainText(html: string): string {
   return html.replace(/<\/(p|li|div)>|<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+}
+
+/** A short key for a long text (which full check a stored list belongs to). */
+function textHash(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }
 
 
@@ -2031,9 +2040,10 @@ export default function EditResumePage() {
   }, [continueAfterCleanup, resume]);
 
   // Keep the sample-text check live as they edit (panel list, page marks, notice, guide).
+  // Only sections on the page count: sample data in a switched-off section can't be seen or fixed.
   useEffect(() => {
     if (!resume?.content) return;
-    const content = resume.content;
+    const content = visibleResumeContent(resume.content, sections, resume.templateId);
     let cancelled = false;
     const t = window.setTimeout(() => {
       void fetchResumePlaceholderIssues(content).then((issues) => {
@@ -2044,7 +2054,7 @@ export default function EditResumePage() {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [resume?.content]);
+  }, [resume?.content, resume?.templateId, sections]);
 
   useEffect(() => {
     const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
@@ -2536,6 +2546,23 @@ export default function EditResumePage() {
     [],
   );
 
+  /**
+   * A suggestion from this finding went in: that wording is settled for the AI's line checks,
+   * so the next full check doesn't flag it all over again (editing it later lifts that).
+   */
+  const recordFixedLine = useCallback(
+    (check: import("@/types/atsReport").ATSCheckResult, issue: import("@/types/atsReport").ATSIssue, text: string) => {
+      const line = text.trim();
+      if (!resumeId || !line) return;
+      void resumeApi
+        .ignoreATSIssue(resumeId, { checkId: check.id, issue, reason: "fixed", line })
+        // Only the list: the report and score follow from the save's re-score.
+        .then((updated) => setResumeState((prev) => (prev ? { ...prev, atsIgnoredIssues: updated.atsIgnoredIssues } : prev)))
+        .catch((error) => console.warn("Couldn't record the fix:", error));
+    },
+    [resumeId],
+  );
+
   const handleIgnoreATSIssue = useCallback(
     async (
       check: import("@/types/atsReport").ATSCheckResult,
@@ -2624,7 +2651,8 @@ export default function EditResumePage() {
     // clean ones get a soft reminder to review AI-written content (until dismissed).
     if (downloading) return;
     setDownloading(true); // button shows busy while the server check runs
-    const issues = await fetchResumePlaceholderIssues(resume?.content);
+    // Only what the PDF will show: sample data left in a switched-off section isn't printed.
+    const issues = await fetchResumePlaceholderIssues(resume ? visibleResumeContent(resume.content, sections, resume.templateId) : undefined);
     if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
       setDownloading(false);
       openPreflight(issues, "download");
@@ -3209,16 +3237,48 @@ export default function EditResumePage() {
   }, [sections, resume?.content]);
 
   const atsReportV3 = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
-  // A fresh report replaces the session's fixed/ignored list.
+  // A fresh AI read replaces the session's fixed/done list. Not the re-score after every save
+  // (it keeps analyzedText): that brought cards marked done back a few seconds later.
+  const atsReadText = atsReportV3?.analyzedText;
+  // …and survives a reload until then (cards marked done came back on every refresh).
+  const doneKey = resumeId && atsReadText ? `rx-ats-done:${resumeId}:${textHash(atsReadText)}` : null;
+  const doneLoading = useRef(false);
   useEffect(() => {
-    setFixResolved(new Set());
+    let saved: unknown = [];
+    try {
+      saved = doneKey ? JSON.parse(window.sessionStorage.getItem(doneKey) || "[]") : [];
+    } catch {
+      /* private mode */
+    }
+    doneLoading.current = true; // the save below still sees the old list this time round
+    setFixResolved(new Set(Array.isArray(saved) ? (saved as string[]) : []));
     setActiveMarkId(null);
-  }, [atsReportV3]);
+  }, [doneKey]);
+  useEffect(() => {
+    if (doneLoading.current) {
+      doneLoading.current = false;
+      return;
+    }
+    if (!doneKey) return;
+    try {
+      window.sessionStorage.setItem(doneKey, JSON.stringify([...fixResolved]));
+    } catch {
+      /* private mode */
+    }
+  }, [doneKey, fixResolved]);
+  // The text the page shows (switched-off sections left out), so findings match what is on it.
   const resumeRawText = useMemo(
-    () => resumePlainText([resume?.content, resume?.profileSummary]),
-    [resume?.content, resume?.profileSummary],
+    () =>
+      resumePlainText([
+        visibleResumeContent(resume?.content, sections, resume?.templateId),
+        summaryVisible(sections) ? resume?.profileSummary : "",
+      ]),
+    [resume?.content, resume?.profileSummary, resume?.templateId, sections],
   );
   const resumeText = useMemo(() => resumeRawText.toLowerCase(), [resumeRawText]);
+  // The page's text when the current report arrived (see buildFixItems' reportText).
+  const reportPageText = useRef<{ report: unknown; text: string }>({ report: null, text: "" });
+  if (reportPageText.current.report !== atsReportV3) reportPageText.current = { report: atsReportV3, text: resumeRawText };
   // Suggestion types the user switched off in the ATS panel (remembered in this browser).
   const [hiddenFixGroups, setHiddenFixGroups] = useState<Set<string>>(() => {
     try {
@@ -3237,7 +3297,7 @@ export default function EditResumePage() {
   }, []);
   const livePlaceholderIssues = useMemo(() => placeholderFindingsToIssues(livePlaceholders), [livePlaceholders]);
   const allFixGroups = useMemo(
-    () => buildFixItems(atsReportV3, resumeRawText, livePlaceholderIssues),
+    () => buildFixItems(atsReportV3, resumeRawText, livePlaceholderIssues, undefined, reportPageText.current.text),
     [atsReportV3, resumeRawText, livePlaceholderIssues],
   );
   const fixGroups = useMemo(
@@ -3372,7 +3432,22 @@ export default function EditResumePage() {
     placeRestoredRef.current = true;
     const place = readEditorPlace(resumeId);
     if (!place) return;
-    if (place.panel) setCanvasPanel(place.panel as CanvasPanel);
+    // Reopen the panel the way opening it does: the ATS panel needs the ATS view (else its frame
+    // showed the Personal Information form), Style and a section's fields need their form.
+    if (place.panel === "fix") {
+      setCanvasPanel("fix");
+      setViewMode("ats");
+    } else if (place.panel === "design") {
+      setCanvasPanel("design");
+      startLayoutEdit();
+    } else if (place.panel === "details") {
+      if (place.focus?.sectionId) {
+        setCanvasPanel("details");
+        startSectionEdit(place.focus.sectionId);
+      }
+    } else if (place.panel) {
+      setCanvasPanel(place.panel as CanvasPanel);
+    }
     if (place.focus) setCanvasFocus(place.focus);
     let tries = 0;
     const restore = () => {
@@ -3453,7 +3528,17 @@ export default function EditResumePage() {
       const current = resumeRef.current ?? resume;
       if (!current) return;
       if (path === "@profileSummary") {
-        setResume((prev) => (prev ? { ...prev, profileSummary: value } : prev));
+        // content.profileSummary is the copy the sample-text check reads: keep both in step
+        // (as atsIssueApply / suggestionApply do), or the old summary is flagged until reload.
+        setResume((prev) => {
+          if (!prev) return prev;
+          const content = prev.content as Resume["content"] & { profileSummary?: unknown };
+          return {
+            ...prev,
+            profileSummary: value,
+            content: (typeof content.profileSummary === "string" ? { ...content, profileSummary: value } : prev.content) as Resume["content"],
+          };
+        });
         setHasChanges(true);
         invalidateAtsScoreDisplay();
         return;
@@ -3703,6 +3788,11 @@ export default function EditResumePage() {
       const key = entryPath.split(".")[0] as keyof Resume["content"];
       updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
     },
+    getField: (path) => {
+      const value = getAtPath((resumeRef.current ?? resume)?.content, path);
+      return typeof value === "string" ? value : "";
+    },
+    onSetField: (path, value) => commitCanvasFieldRef.current(path, value),
     onChangePhoto: openPhotoPicker,
     onRemovePhoto: removePhoto,
     getTags: (sectionType) => parseTags((resume?.content as Record<string, unknown> | undefined)?.[sectionType]).tags,
@@ -4520,6 +4610,7 @@ export default function EditResumePage() {
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
               liveText={resumeRawText}
+              reportText={reportPageText.current.text}
               livePlaceholders={livePlaceholderIssues}
               onUndo={handleUndo}
               onApplyRewrite={(item, text, previous) => {
@@ -4531,9 +4622,11 @@ export default function EditResumePage() {
                   occurrence: Number(/#(\d+)(?:~next)?$/.exec(item.id)?.[1] ?? 1),
                 });
                 if (!at) showCanvasNotice("Couldn't find that line on your resume — it may have changed. Edit it on the page instead.");
+                else recordFixedLine(item.check, item.issue, text);
                 return at;
               }}
               onDone={resolveFix}
+              lineOf={(quote) => (resumeRef.current ? lineContaining(resumeRef.current, quote) : null)}
               onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
@@ -8534,7 +8627,7 @@ export default function EditResumePage() {
         defaultName={resumePdfFilenameFromResume(resume).replace(/\.pdf$/i, "")}
         downloadingPdf={downloading}
         onPdf={(name) => {
-          downloadFilenameRef.current = `${sanitizePdfFilename(name)}.pdf`;
+          downloadFilenameRef.current = sanitizePdfFilename(name);
           setDownloadDialogOpen(false);
           void handleDownload();
         }}
@@ -8548,7 +8641,7 @@ export default function EditResumePage() {
             );
             const text = atsPlainText(pages);
             const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-            triggerBlobDownload(blob, `${sanitizePdfFilename(name)}.txt`);
+            triggerBlobDownload(blob, sanitizeDownloadFilename(name, "txt"));
             setDownloadDialogOpen(false);
           } finally {
             setPdfCapture(false);

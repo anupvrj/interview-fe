@@ -7,13 +7,15 @@
 
 import { organizeSectionColumns } from "@/lib/sectionLayout";
 import { ensureResumeSharedStyles } from "@/lib/resume-fonts";
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
 import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
+import { TemplateLoader } from "@/lib/templateLoader";
+import { applyScopedCssOverrides, remapColor, sameFontFamily } from "@/lib/resume-template-overrides";
 import { shouldAppendEducationField } from "@/lib/educationDisplay";
 import { useCanvasEdit } from "@/components/resume-canvas/CanvasEditContext";
 import { EdText, pathRevealed, richEditProps, stableHtml } from "@/components/resume-canvas/Editable";
@@ -74,11 +76,14 @@ interface PageBreak {
 }
 
 /** Contact fields shown as empty placeholders while editing on the canvas. */
+/** Contact slots offered (with this hint) while the header is selected, so each can be filled on the page. */
 const CONTACT_PLACEHOLDERS: Record<string, string> = {
   phone: "Phone number",
   email: "Email address",
   linkedin: "Profile link",
   location: "City",
+  github: "GitHub",
+  website: "Website",
 };
 
 const ICON_MAP = {
@@ -203,11 +208,21 @@ function ContactIcon({ icon: Icon, size, fontSize }: { icon: React.ComponentType
 }
 
 /** A link for what people type: a full URL, "linkedin.com/in/x", or just the handle "x". */
-function profileHref(kind: "linkedin" | "website", raw?: string): string | undefined {
+function profileHref(kind: "linkedin" | "github" | "website", raw?: string): string | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
   if (/^https?:\/\//i.test(value)) return value;
   if (kind === "linkedin" && !/linkedin\.com/i.test(value)) return `https://www.linkedin.com/in/${value.replace(/^@/, "")}`;
+  // "github.com/me" used to become github.com/github.com/me.
+  if (kind === "github" && !/github\.com/i.test(value)) return `https://github.com/${value.replace(/^@/, "")}`;
+  return `https://${value.replace(/^\/\//, "")}`;
+}
+
+/** An entry's link as typed ("github.com/me/app") made openable; null when there is none. */
+function webHref(raw?: string | null): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  if (/^(https?:|mailto:)/i.test(value)) return value;
   return `https://${value.replace(/^\/\//, "")}`;
 }
 
@@ -504,6 +519,18 @@ export function ResumeRenderer({
     <EdText canvas={canvas} path={path} value={value} placeholder={placeholder} />
   );
   const rich = (path: string, placeholder?: string) => richEditProps(canvas, path, placeholder);
+  /**
+   * Where a photo would go when there is none: a 1px marker, out of the layout, so the page and
+   * the PDF have no gap. The editor anchors its "Add photo" button on it. Nothing outside the editor.
+   */
+  const photoSlot = canvas ? (
+    <span data-rx-photo-slot="" aria-hidden style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }} />
+  ) : null;
+  /**
+   * A photo whose link no longer loads (expired, deleted) counts as no photo: no broken image on
+   * the page or in the PDF, and the editor offers "Add photo" again. A new photo is a new link.
+   */
+  const [brokenPhoto, setBrokenPhoto] = useState<string | null>(null);
   // Empty optional slots (a missing date, description, contact) only appear for what is
   // selected — otherwise the page shows exactly what will be exported.
   const revealEntry = (sectionId: string, index: number) =>
@@ -559,6 +586,36 @@ export function ResumeRenderer({
     ) : (
       content
     );
+  /**
+   * An entry's web link ("projects.2" → projects.2.link). On the canvas the label opens a small
+   * link editor (and "Add link" shows while the entry is selected); printed, a plain link.
+   */
+  const edLink = (entryPath: string, link: string | undefined | null, label: string, style?: React.CSSProperties) => {
+    const href = webHref(link);
+    if (!canvas) {
+      return href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="resume-content" style={style}>
+          {label}
+        </a>
+      ) : null;
+    }
+    if (!href && !revealPath(entryPath)) return null;
+    return (
+      <a
+        href={href ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="resume-content rx-link"
+        style={style}
+        data-rx-link={`${entryPath}.link`}
+        data-placeholder={href ? undefined : "Add link"}
+        role="button"
+        tabIndex={0}
+      >
+        {href ? label : ""}
+      </a>
+    );
+  };
   const edTitle = (sectionId: string | undefined, title: string, uppercase: boolean) =>
     sectionId ? (
       <EdText canvas={canvas} path={`@section:${sectionId}`} value={title} uppercase={uppercase} />
@@ -583,6 +640,20 @@ export function ResumeRenderer({
     fontFamily?: string;
   };
 
+  // Super Admin's edits: the renderer's own template CSS and colours below follow them too.
+  const templateEdits = extendedTemplate.appliedOverrides;
+  const codeFontFamily = TemplateLoader.peekCode(template.id)?.extended.style?.fontFamily ?? null;
+  const paint = (color: string) => remapColor(color, templateEdits?.palette);
+  const scopedTemplateCss = (css: string) =>
+    applyScopedCssOverrides(css, template.id, templateEdits, codeFontFamily);
+  // A resume still on the template's original font follows Super Admin's new font;
+  // a font the owner picked in Style stays.
+  const ownFontFamily =
+    layoutTypo.fontFamily &&
+    !(templateEdits?.fontFamily && sameFontFamily(layoutTypo.fontFamily, codeFontFamily))
+      ? layoutTypo.fontFamily
+      : undefined;
+
   // Merge custom layout (padding, user font size, font family) into template style
   const templateStyle = {
     ...baseTemplateStyle,
@@ -594,7 +665,7 @@ export function ResumeRenderer({
       ...baseTemplateStyle.fontSize,
       ...layoutTypo.fontSize,
     },
-    fontFamily: layoutTypo.fontFamily ?? baseTemplateStyle.fontFamily,
+    fontFamily: ownFontFamily ?? baseTemplateStyle.fontFamily,
     sectionHeader: {
       ...baseTemplateStyle.sectionHeader,
       ...(layoutTypo.fontSize?.sectionHeader != null && {
@@ -718,6 +789,9 @@ export function ResumeRenderer({
     () => normalizePersonalInfoRecord(resume.content?.personalInfo),
     [resume.content?.personalInfo],
   );
+  const photo = personalInfo?.profilePicture || undefined;
+  const photoSrc = photo && photo !== brokenPhoto ? photo : undefined;
+  const onPhotoError = () => setBrokenPhoto(photo ?? null);
 
   // Get template-specific default sections or use generic defaults
   const getDefaultSections = (): Section[] => {
@@ -1240,11 +1314,7 @@ export function ResumeRenderer({
         type: "github",
         value: personalInfo.github,
         icon: Github,
-        href: personalInfo.github?.startsWith("http")
-          ? personalInfo.github
-          : personalInfo.github?.startsWith("@")
-            ? `https://github.com/${personalInfo.github.slice(1)}`
-            : `https://github.com/${personalInfo.github}`,
+        href: profileHref("github", personalInfo.github),
       },
       {
         type: "website",
@@ -1568,21 +1638,22 @@ export function ResumeRenderer({
                 )}
               </div>
 
-              <div
-                className={
-                  template.id === "atlantic-blue"
-                    ? "atlantic-blue-sidebar-photo-wrap"
-                    : undefined
-                }
-                style={
-                  template.id === "atlantic-blue"
-                    ? undefined
-                    : { textAlign: "center", marginBottom: "20px" }
-                }
-              >
-                {personalInfo?.profilePicture ? (
+              {photoSrc ? (
+                <div
+                  className={
+                    template.id === "atlantic-blue"
+                      ? "atlantic-blue-sidebar-photo-wrap"
+                      : undefined
+                  }
+                  style={
+                    template.id === "atlantic-blue"
+                      ? undefined
+                      : { textAlign: "center", marginBottom: "20px" }
+                  }
+                >
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     className={
@@ -1602,41 +1673,12 @@ export function ResumeRenderer({
                           }
                     }
                   />
-                ) : (
-                  <div
-                    className={
-                      template.id === "atlantic-blue"
-                        ? "atlantic-blue-photo-placeholder"
-                        : undefined
-                    }
-                    style={{
-                      ...(template.id === "atlantic-blue"
-                        ? {}
-                        : { borderRadius: "50%", backgroundColor: "#e5e7eb" }),
-                      // No photo: the grey placeholder is an editor prompt, not part of the
-                      // resume. Keep its space (the header layout depends on it), never print it.
-                      ...(canvas ? {} : { visibility: "hidden" as const }),
-                    }}
-                  >
-                    <svg
-                      width={template.id === "atlantic-blue" ? 132 : 120}
-                      height={template.id === "atlantic-blue" ? 132 : 120}
-                      viewBox="0 0 120 120"
-                      style={
-                        template.id === "atlantic-blue"
-                          ? undefined
-                          : {
-                              borderRadius: "50%",
-                              backgroundColor: "#e5e7eb",
-                            }
-                      }
-                    >
-                      <circle cx="60" cy="45" r="20" fill="#9ca3af" />
-                      <ellipse cx="60" cy="95" rx="30" ry="25" fill="#9ca3af" />
-                    </svg>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                // No photo: no space for one either (the PDF had a blank gap). The editor shows
+                // an "Add photo" button here instead (see CanvasInteractionLayer).
+                photoSlot
+              )}
 
               {renderContactInfo(true)}
               {renderAdditionalPersonalInfo(true)}
@@ -2095,9 +2137,9 @@ export function ResumeRenderer({
           const headerBackground =
             templateStyle.colors.headerBackground ||
             (template.id === "mercury"
-              ? "#f5f5f5"
+              ? paint("#f5f5f5")
               : template.id === "confident-grid"
-                ? "#d8e5ec"
+                ? paint("#d8e5ec")
                 : "transparent");
           const usesCssHeaderBand =
             template.id === "saffron-line" ||
@@ -2126,11 +2168,12 @@ export function ResumeRenderer({
                     : "30px",
               }}
             >
-              {/* Profile Picture on Left */}
-              <div style={{ flexShrink: 0 }}>
-                {personalInfo?.profilePicture ? (
+              {/* Profile Picture on Left (none, and no space for it, without a photo) */}
+              {photoSrc ? (
+                <div style={{ flexShrink: 0 }}>
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     className={`${template.id}-profile-picture`}
@@ -2146,24 +2189,10 @@ export function ResumeRenderer({
                           }
                     }
                   />
-                ) : (
-                  <div
-                    className={`${template.id}-profile-placeholder`}
-                    style={{
-                      ...(isSaffronLine || isConfidentGrid
-                        ? {}
-                        : {
-                            width: "160px",
-                            height: "160px",
-                            borderRadius: "50%",
-                            backgroundColor: "#e0e0e0",
-                          }),
-                      // Editor prompt only (see the sidebar photo above): never printed.
-                      ...(canvas ? {} : { visibility: "hidden" as const }),
-                    }}
-                  />
-                )}
-              </div>
+                </div>
+              ) : (
+                photoSlot
+              )}
 
               {/* Name, Title, Contact on Right */}
               <div
@@ -2320,10 +2349,11 @@ export function ResumeRenderer({
               }}
             >
               {/* Profile Picture Fallback for Standard Layout */}
-              {personalInfo?.profilePicture && (
+              {photoSrc && (
                 <div style={{ flexShrink: 0, marginBottom: "10px" }}>
                   <img
-                    src={personalInfo.profilePicture}
+                    src={photoSrc}
+                    onError={onPhotoError}
                     alt="Profile"
                     data-rx-photo={canvas ? "" : undefined}
                     style={{
@@ -3015,7 +3045,9 @@ export function ResumeRenderer({
                           }
                         >
                           {ed(`education.${index}.degree`, edu.degree)}
-                          {shouldAppendEducationField(edu.degree, edu.field) && (
+                          {/* Empty field of study: offered while the entry is selected, so it can be added on the page. */}
+                          {(shouldAppendEducationField(edu.degree, edu.field) ||
+                            (!edu.field?.trim() && pathRevealed(canvas, `education.${index}.field`))) && (
                               <span style={{ fontWeight: "normal" }}>
                                 {" "}
                                 in {ed(`education.${index}.field`, edu.field)}
@@ -3211,7 +3243,8 @@ export function ResumeRenderer({
                             }
                           >
                             {ed(`education.${index}.degree`, edu.degree)}
-                            {shouldAppendEducationField(edu.degree, edu.field) && (
+                            {(shouldAppendEducationField(edu.degree, edu.field) ||
+                              (!edu.field?.trim() && pathRevealed(canvas, `education.${index}.field`))) && (
                                 <span style={{ fontWeight: "normal" }}>
                                   {" "}
                                   in {ed(`education.${index}.field`, edu.field)}
@@ -4072,6 +4105,18 @@ export function ResumeRenderer({
                               <span className={`${template.id}-project-subtitle`}>{ed(`projects.${index}.technologies`, tech)}</span>
                             </>
                           )}
+                          {/* The project's link was saved but never shown on these designs. */}
+                          {webHref(project.link) || revealPath(`projects.${index}`) ? (
+                            <>
+                              {" "}
+                              {edLink(`projects.${index}`, project.link, "Link", {
+                                fontSize: "0.9em",
+                                fontWeight: "normal",
+                                color: templateStyle.colors.accent || templateStyle.colors.secondary,
+                                textDecoration: "underline",
+                              })}
+                            </>
+                          ) : null}
                         </div>
                         {(formatProjectDates(project) || revealEntry(section.id, index)) && (
                           <div className={`${template.id}-job-details-container`}>
@@ -4112,10 +4157,8 @@ export function ResumeRenderer({
               <div>
                 {projectsData.map((project, index) => {
                   const itemId = project.id || `project-${index}`;
-                  const dateText = [project.startDate, project.endDate]
-                    .filter(Boolean)
-                    .map((d) => formatResumeDateForDisplay(String(d)))
-                    .join(" – ");
+                  // Same range rules as experience ("Present" when current, one separator style).
+                  const dateText = formatProjectDateRange(project);
 
                   return (
                     <div
@@ -4128,6 +4171,17 @@ export function ResumeRenderer({
                         <div className={`${template.id}-job-title-container`}>
                           <div className={`${template.id}-project-title`}>
                             {ed(`projects.${index}.name`, project.name)}
+                            {webHref(project.link) || revealPath(`projects.${index}`) ? (
+                              <>
+                                {" "}
+                                {edLink(`projects.${index}`, project.link, "Link", {
+                                  fontSize: "0.85em",
+                                  fontWeight: "normal",
+                                  color: templateStyle.colors.accent || templateStyle.colors.secondary,
+                                  textDecoration: "underline",
+                                })}
+                              </>
+                            ) : null}
                           </div>
                         </div>
                         {(dateText || revealEntry(section.id, index)) && (
@@ -4206,28 +4260,16 @@ export function ResumeRenderer({
                     }
                   >
                     <span>{ed(`projects.${index}.name`, project.name)}</span>
-                    {project.link && (
-                      <a
-                        href={
-                          project.link.startsWith("http")
-                            ? project.link
-                            : `https://${project.link}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="resume-content"
-                        style={{
-                          fontSize: `${templateStyle.fontSize.small}px`,
-                          fontWeight: "normal",
-                          color: templateStyle.colors.secondary,
-                          textDecoration: "underline",
-                        }}
-                      >
-                        Link
-                      </a>
-                    )}
+                    {/* A space for designs styled by their CSS (no flex gap): "routerLink" read as one word. */}
+                    {webHref(project.link) ? " " : null}
+                    {edLink(`projects.${index}`, project.link, "Link", {
+                      fontSize: `${templateStyle.fontSize.small}px`,
+                      fontWeight: "normal",
+                      color: templateStyle.colors.secondary,
+                      textDecoration: "underline",
+                    })}
                   </div>
-                  {(project.startDate || project.endDate || revealEntry(section.id, index)) && (
+                  {(project.startDate || project.endDate || project.current || revealEntry(section.id, index)) && (
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
@@ -4235,13 +4277,7 @@ export function ResumeRenderer({
                         marginBottom: "4px",
                       }}
                     >
-                      {edDate(
-                        `projects.${index}`,
-                        [project.startDate, project.endDate]
-                          .filter(Boolean)
-                          .map((d) => formatResumeDateForDisplay(String(d)))
-                          .join(" – "),
-                      )}
+                      {edDate(`projects.${index}`, formatProjectDateRange(project))}
                     </div>
                   )}
                   {(hasText(project.description) || revealEntry(section.id, index)) && (
@@ -4927,20 +4963,15 @@ export function ResumeRenderer({
                       ID: {cert.certificateId}
                     </div>
                   )}
-                  {cert.link && (
+                  {webHref(cert.link) || revealPath(`certificates.${index}`) ? (
                     <div style={{ marginTop: "4px" }}>
-                      <a
-                        href={cert.link}
-                        style={{
-                          fontSize: `${templateStyle.fontSize.small}px`,
-                          color: templateStyle.colors.accent,
-                          textDecoration: "none",
-                        }}
-                      >
-                        View Certificate
-                      </a>
+                      {edLink(`certificates.${index}`, cert.link, "View Certificate", {
+                        fontSize: `${templateStyle.fontSize.small}px`,
+                        color: templateStyle.colors.accent,
+                        textDecoration: "none",
+                      })}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -5730,7 +5761,7 @@ export function ResumeRenderer({
     >
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: scopedTemplateCss(`
           .resume-content ul { list-style-type: disc !important; margin: 4px 0 8px 0 !important; padding-left: 24px !important; }
           .resume-content ol { list-style-type: decimal !important; margin: 4px 0 8px 0 !important; padding-left: 24px !important; }
           .resume-content li { margin-bottom: 2px !important; line-height: 1.4 !important; }
@@ -5999,7 +6030,7 @@ export function ResumeRenderer({
           }
           .resume-content a:not(.no-underline) { text-decoration: underline !important; color: inherit; }
           .resume-content a.no-underline { text-decoration: none !important; color: inherit; }
-        `,
+        `),
         }}
       />
 

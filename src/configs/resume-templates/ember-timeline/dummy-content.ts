@@ -66,7 +66,6 @@ export const embertimelineDummyContent = {
       startDate: "2012",
       endDate: "2014",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -75,7 +74,6 @@ export const embertimelineDummyContent = {
       startDate: "2008",
       endDate: "2012",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   skills: [

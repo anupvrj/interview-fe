@@ -44,6 +44,7 @@ import {
 import { userApi, User, type CandidateStatus, type Resume } from "@/lib/api";
 import { ProfileBiometricMark } from "@/components/profile/ProfileBiometricMark";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { useTemplateDisplayName } from "@/lib/resume-template-availability";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import { ProfileDesignedResumePicker, type ProfileDesignedResumePickerHandle } from "@/components/profile/ProfileDesignedResumePicker";
@@ -170,6 +171,7 @@ export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
+  const templateName = useTemplateDisplayName();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -1668,7 +1670,7 @@ export default function ProfilePage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Designed resume ·{" "}
-                      {designedResumeTemplateLabel(defaultDesignedResume.templateId)} ·
+                      {templateName(defaultDesignedResume.templateId, designedResumeTemplateLabel(defaultDesignedResume.templateId))} ·
                       Updated {formatDate(defaultDesignedResume.updatedAt)}
                     </p>
                   </div>

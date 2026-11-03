@@ -38,6 +38,7 @@ import { fetchResumePlaceholderIssues, type ResumePlaceholderIssue } from "@/lib
 import { dismissReviewReminder, shouldShowReviewReminder } from "@/lib/resume-review-reminder";
 import { cn } from "@/lib/utils";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { arrangeResumeTemplates, useResumeTemplateAvailability, useTemplateDisplayName } from "@/lib/resume-template-availability";
 import { useResumesQuery } from "@/hooks/queries/useResumesQuery";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useEntitlements } from "@/hooks/useEntitlements";
@@ -56,7 +57,9 @@ type Sort = "edited" | "ats" | "name";
 type View = "grid" | "list";
 
 const templateById = new Map(TEMPLATES_CATALOG.map((t) => [t.id, t]));
-const starterTemplates = [...TEMPLATES_CATALOG].sort((a, b) => Number(b.popular) - Number(a.popular)).slice(0, 8);
+/** Built-in order for the starter row; Super Admin's order replaces it once saved. */
+const popularFirst = [...TEMPLATES_CATALOG].sort((a, b) => Number(b.popular) - Number(a.popular));
+const STARTER_COUNT = 8;
 
 function ago(date: string) {
   const s = Math.max(0, (Date.now() - new Date(date).getTime()) / 1000);
@@ -106,6 +109,12 @@ export function ResumesHome() {
   const { data: resumes = [], isLoading: loading } = useResumesQuery();
   const { invalidate } = useDashboardInvalidation();
   const { canUse, data: entitlements } = useEntitlements();
+  const { disabledTemplateIds, templateOrder, overrides: templateEdits, ready: templatesReady } = useResumeTemplateAvailability();
+  const starterTemplates = useMemo(
+    () => arrangeResumeTemplates(popularFirst, { disabledTemplateIds, templateOrder, overrides: templateEdits }).slice(0, STARTER_COUNT),
+    [disabledTemplateIds, templateOrder, templateEdits],
+  );
+  const templateName = useTemplateDisplayName();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -156,7 +165,7 @@ export function ResumesHome() {
     const q = query.trim().toLowerCase();
     const rows = q
       ? resumes.filter((r) =>
-          [r.title, r.content?.personalInfo?.fullName, roleOf(r), templateById.get(r.templateId)?.name]
+          [r.title, r.content?.personalInfo?.fullName, roleOf(r), templateName(r.templateId, templateById.get(r.templateId)?.name ?? "")]
             .some((v) => typeof v === "string" && v.toLowerCase().includes(q)),
         )
       : resumes;
@@ -165,7 +174,7 @@ export function ResumesHome() {
         : sort === "ats" ? (b.atsScore ?? -1) - (a.atsScore ?? -1)
           : +new Date(b.updatedAt) - +new Date(a.updatedAt),
     );
-  }, [resumes, query, sort]);
+  }, [resumes, query, sort, templateName]);
 
   // ── actions (same behaviour as the legacy page)
   const createResume = async (templateId?: string) => {
@@ -416,7 +425,15 @@ export function ResumesHome() {
           </button>
         </div>
         <div className="mt-2 flex snap-x gap-4 overflow-x-auto pb-3 pt-2 [mask-image:linear-gradient(90deg,#000_88%,transparent)] [scrollbar-width:thin]">
-          {starterTemplates.map((t) => (
+          {/* wait for Super Admin's list so a switched-off template never flashes in */}
+          {!templatesReady && Array.from({ length: STARTER_COUNT }, (_, i) => (
+            <div key={i} aria-hidden className="w-[156px] shrink-0 sm:w-[172px]">
+              <div className="aspect-[1/1.3] animate-pulse rounded-xl border border-border bg-muted/60" />
+              <div className="mt-2.5 h-3.5 w-24 animate-pulse rounded bg-muted/60" />
+              <div className="mt-1.5 h-3 w-32 animate-pulse rounded bg-muted/40" />
+            </div>
+          ))}
+          {templatesReady && starterTemplates.map((t) => (
             <button
               key={t.id}
               type="button"

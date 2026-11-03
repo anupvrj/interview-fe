@@ -8,18 +8,11 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight, CalendarClock, Loader2, PlayCircle, Plus, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { interviewScheduleApi } from "@/lib/api";
 import { readStoredRole } from "@/lib/roles";
 import { cn, getInterviewCreditsUsed, scheduledInterviewCanStartNow } from "@/lib/utils";
 import { instituteScheduleRoundLabel, routeAfterScheduledStart } from "@/lib/institute-schedule-round";
-import {
-  buildDashboardRecentSessions,
-  countDashboardSessionsByFilter,
-  filterDashboardSessions,
-  type DashboardRecentSessionRow,
-  type DashboardSessionFilter,
-} from "@/lib/dashboard-recent-sessions";
+import { buildDashboardRecentSessions, type DashboardRecentSessionRow } from "@/lib/dashboard-recent-sessions";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
 import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
@@ -30,14 +23,16 @@ import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { useDashboardTheme } from "@/components/dashboard-theme";
 import { dashboardChartPrimaryFill } from "@/lib/dashboard-stat-themes";
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
-import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
-import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 import { Emblem, Mono, type EmblemKind } from "@/components/marketing-2026/primitives";
+import { InterviewCategoryPicker, type ExtraRoundCard } from "./InterviewCategoryPicker";
+import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
+import { allRoundAvailable, visibleInterviewCategories } from "@/lib/interviewCategories";
 import { dash2026Scope, EASE, Eyebrow, ScoreRing } from "./ui";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
+const ROUND_GRID_ID = "interview-rounds";
 const DAYS = 14;
 
 const KIND_LABEL: Record<DashboardRecentSessionRow["kind"], string> = {
@@ -47,13 +42,14 @@ const KIND_LABEL: Record<DashboardRecentSessionRow["kind"], string> = {
   peer: "Peer interview",
 };
 
-/** The five rounds, in the order people usually take them. Hidden per platform feature flags, same as before. */
-const ROUNDS: { href: string; featureKey: string; emblem: EmblemKind; title: string; d: string }[] = [
-  { href: "/dashboard/interviews/new", featureKey: "ai_interview", emblem: "voice", title: "AI mock interview", d: "Realistic voice practice with instant feedback" },
-  { href: "/dashboard/coding-interviews/new", featureKey: "coding_practice", emblem: "code", title: "Coding round", d: "Timed rounds on curated problem sets" },
-  { href: "/dashboard/system-design/new", featureKey: "system_design", emblem: "whiteboard", title: "System design", d: "Whiteboard and a voice interviewer on one canvas" },
-  { href: "/dashboard/peer-interviews/book", featureKey: "peer_booking", emblem: "peers", title: "Peer interview", d: "Live mock sessions with verified interviewers" },
-  { href: "/dashboard/resumes/new", featureKey: "resume_builder", emblem: "resume", title: "Resume builder", d: "ATS-friendly templates and AI polish" },
+/**
+ * Interview formats besides the AI rounds, shown in the same grid. Hidden per platform feature flags.
+ * Their icons differ from the rounds' (Technical Screening has "code", Culture Fit "peers").
+ */
+const OTHER_ROUNDS: { href: string; featureKey: string; emblem: EmblemKind; title: string; d: string; meta: string }[] = [
+  { href: "/dashboard/coding-interviews/new", featureKey: "coding_practice", emblem: "layers", title: "Coding round", d: "Timed rounds on curated problem sets, then a voice discussion of your code.", meta: "60 MIN" },
+  { href: "/dashboard/system-design/new", featureKey: "system_design", emblem: "whiteboard", title: "System design", d: "Whiteboard and a voice interviewer on one canvas.", meta: "60 MIN" },
+  { href: "/dashboard/peer-interviews/book", featureKey: "peer_booking", emblem: "calendar", title: "Peer interview", d: "Live mock sessions with verified interviewers.", meta: "LIVE · BOOK A SLOT" },
 ];
 
 function greeting(d: Date) {
@@ -78,20 +74,34 @@ export function CandidateHome() {
   const { startPracticeSession, checkingSubscription, ...practiceGate } = usePracticeSessionGate();
   const profileCompletion = profile?.profileCompletionPercentage ?? 0;
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [filter, setFilter] = useState<DashboardSessionFilter>("all");
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
   /** null = not read yet (avoid flash); false = show banner; true = dismissed */
   const [bannerDismissed, setBannerDismissed] = useState<boolean | null>(null);
-  const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
 
   const sessions = useMemo(
     () => buildDashboardRecentSessions({ interviews, systemDesignSessions, peerBookings }).sort((a, b) => +new Date(b.sortAt) - +new Date(a.sortAt)),
     [interviews, systemDesignSessions, peerBookings],
   );
-  const counts = useMemo(() => countDashboardSessionsByFilter(sessions), [sessions]);
-  const filtered = useMemo(() => filterDashboardSessions(sessions, filter), [sessions, filter]);
-  const rounds = ROUNDS.filter((r) => isNavHrefVisible(r.href, r.featureKey));
+  const { data: categoryCatalog } = useInterviewCategoriesQuery();
+  // Every interview format in one grid: the all-in-one round (when it's on), the AI rounds, then the rest.
+  const allRound = allRoundAvailable(categoryCatalog);
+  const aiVisible = isNavHrefVisible("/dashboard/interviews/new", "ai_interview");
+  const extraRounds: ExtraRoundCard[] = [
+    ...(allRound && aiVisible
+      ? [{ key: "all-round", emblem: "voice" as const, title: "All-in-one round", description: "Screening, technical and behavioural questions in one session.", meta: "15–30 MIN", first: true, onClick: () => startPracticeSession("ai", { path: "/dashboard/interviews/new" }) }]
+      : []),
+    ...OTHER_ROUNDS.filter((r) => isNavHrefVisible(r.href, r.featureKey)).map((r) => ({
+      key: r.href, emblem: r.emblem, title: r.title, description: r.d, meta: r.meta, onClick: () => router.push(r.href),
+    })),
+  ];
+  const showRoundGrid = (aiVisible && visibleInterviewCategories(categoryCatalog).length > 0) || extraRounds.length > 0;
+  const resumeVisible = isNavHrefVisible("/dashboard/resumes/new", "resume_builder");
+  // With the all-in-one round off, "Start a mock interview" goes to the rounds instead of starting one.
+  const startInterview = () => {
+    if (allRound) startPracticeSession("ai", { path: "/dashboard/interviews/new" });
+    else if (showRoundGrid) document.getElementById(ROUND_GRID_ID)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    else router.push("/dashboard/interviews/new");
+  };
 
   // last 14 days, one row per day
   const daily = useMemo(() => {
@@ -219,21 +229,17 @@ export function CandidateHome() {
               <Button
                 type="button"
                 disabled={checkingSubscription}
-                onClick={() => startPracticeSession("ai", { path: "/dashboard/interviews/new" })}
+                onClick={startInterview}
                 className="h-11 rounded-xl px-5 text-[14.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90"
               >
                 {checkingSubscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Start a mock interview
               </Button>
-              {lastHref ? (
+              {resumeVisible ? (
                 <Button asChild variant="outline" className="h-11 rounded-xl px-5 text-[14.5px]">
-                  <Link href={lastHref}>Open last round <ArrowUpRight className="h-4 w-4" /></Link>
+                  <Link href="/dashboard/resumes/new">Design Resume <ArrowUpRight className="h-4 w-4" /></Link>
                 </Button>
-              ) : (
-                <Button asChild variant="outline" className="h-11 rounded-xl px-5 text-[14.5px]">
-                  <Link href="/dashboard/resumes/new">Build my resume</Link>
-                </Button>
-              )}
+              ) : null}
             </motion.div>
           </div>
 
@@ -357,30 +363,17 @@ export function CandidateHome() {
         </div>
       )}
 
-      {/* ── Practise */}
-      {rounds.length > 0 && (
-        <section aria-label="Practice options">
-          <Eyebrow>PRACTISE</Eyebrow>
-          <h2 className="mt-3 text-[24px] font-extrabold tracking-[-0.035em] text-foreground md:text-[28px]">Pick a round.</h2>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {rounds.map((r, i) => (
-              <motion.div key={r.href} {...rise(0.1 + i * 0.05)}>
-                <Link
-                  href={r.href}
-                  className="group flex h-full flex-col rounded-[18px] border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_24px_50px_-30px_rgba(115,103,240,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                >
-                  <Emblem kind={r.emblem} tone={theme === "dark" ? "dark" : "light"} />
-                  <h3 className="mt-4 text-[16px] font-bold tracking-tight text-foreground">{r.title}</h3>
-                  <p className="mt-1 flex-1 text-[13px] leading-relaxed text-muted-foreground">{r.d}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
-                    Start <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                  </span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Every interview format: the AI rounds first, then coding, system design and peer */}
+      {aiVisible || extraRounds.length ? (
+        <InterviewCategoryPicker
+          id={ROUND_GRID_ID}
+          layout="rows-of-4"
+          showAiRounds={aiVisible}
+          disabled={checkingSubscription}
+          extraRounds={extraRounds}
+          onPick={(id) => startPracticeSession("ai", { path: `/dashboard/interviews/new?category=${id}` })}
+        />
+      ) : null}
 
       {/* ── Last 14 days: one measure per chart */}
       <section className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
@@ -428,42 +421,6 @@ export function CandidateHome() {
           </p>
         </div>
       </section>
-
-      {/* ── Every round */}
-      <section className="overflow-hidden rounded-[18px] border border-border bg-card">
-        <div className="flex flex-col gap-4 border-b border-border px-5 py-5 md:px-6 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <Eyebrow>RECENT ROUNDS</Eyebrow>
-            <h2 className="mt-3 text-[22px] font-extrabold tracking-[-0.035em] text-foreground">Every round, with its score and report.</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <InterviewTypeFilterBar value={filter} onChange={(next) => { setFilter(next); setCurrentPage(1); }} counts={counts} />
-            <Button asChild variant="outline" className="h-9 rounded-lg px-3 text-[13px]"><Link href="/dashboard/interviews">View all</Link></Button>
-          </div>
-        </div>
-        <RecentInterviewsList
-          sessionRows={filtered}
-          currentPage={currentPage}
-          itemsPerPage={10}
-          onPageChange={setCurrentPage}
-          onVideoUnavailable={() => setVideoUnavailableOpen(true)}
-          emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
-        />
-      </section>
-
-      <Dialog open={videoUnavailableOpen} onOpenChange={setVideoUnavailableOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>No video available</DialogTitle>
-            <DialogDescription>
-              This interview does not have a recording, or the video could not be loaded. If you just finished the interview, try again in a few minutes.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" onClick={() => setVideoUnavailableOpen(false)}>OK</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <PracticeSessionGateDialogs {...practiceGate} />
     </div>

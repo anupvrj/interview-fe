@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { resumeApi, type Resume } from "@/lib/api";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { useTemplateDisplayName } from "@/lib/resume-template-availability";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn, formatDate, getScoreColor } from "@/lib/utils";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
@@ -51,6 +52,7 @@ export const ProfileDesignedResumePicker = forwardRef<
   ref,
 ) {
   const { user, isLoaded } = useUser();
+  const templateName = useTemplateDisplayName();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -109,12 +111,12 @@ export const ProfileDesignedResumePicker = forwardRef<
     if (!q) return sorted;
     return sorted.filter((resume) => {
       const title = resumeTitle(resume);
-      const template = resumeTemplateLabel(resume.templateId);
+      const template = templateName(resume.templateId, resumeTemplateLabel(resume.templateId));
       return (
         title.toLowerCase().includes(q) || template.toLowerCase().includes(q)
       );
     });
-  }, [resumes, search]);
+  }, [resumes, search, templateName]);
 
   const selectedResume = resumes.find((r) => r.resumeId === selectedId) ?? null;
 
@@ -257,7 +259,7 @@ export const ProfileDesignedResumePicker = forwardRef<
                             ) : null}
                           </div>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {resumeTemplateLabel(resume.templateId)}
+                            {templateName(resume.templateId, resumeTemplateLabel(resume.templateId))}
                             {hasAts ? (
                               <>
                                 {" · ATS "}

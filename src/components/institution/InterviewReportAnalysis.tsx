@@ -702,7 +702,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
             <div className="rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] p-4">
               <div className="mb-1 font-semibold text-foreground">Filler words</div>
               <div className="text-2xl font-bold tabular-nums text-[#7367F0]">
-                {report.behavioral.fillersPerMinute.toFixed(1)} / min
+                {(report.behavioral.fillersPerMinute ?? 0).toFixed(1)} / min
               </div>
             </div>
           </div>

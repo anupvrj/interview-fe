@@ -11,6 +11,7 @@ import { interviewApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 import { dash2026Scope, Eyebrow, SegmentedSteps } from "@/components/dashboard-2026/ui";
+import { resumeBuilderCard } from "@/components/resume-builder/resumeBuilderStyles";
 import {
   hackathonResultPath,
   isHackathonDashboardReturn,
@@ -60,14 +61,18 @@ export default function PostInterviewFeedbackPage() {
   };
 
   return (
-    <div className={cn(dash2026Scope, "mx-auto w-full max-w-6xl space-y-5 lg:space-y-6")}>
+    <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
       {/* header: the round is done, one short step before the report */}
       <section className="relative overflow-hidden rounded-[22px] border border-border bg-card">
         <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_8%_0%,rgba(115,103,240,.13),transparent_70%),radial-gradient(40%_70%_at_95%_20%,rgba(40,199,111,.10),transparent_70%)]" />
         <div className="relative grid gap-6 p-6 md:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
-            <Eyebrow>{isHackathon ? "INTERVIEW COMPLETE" : "INTERVIEW COMPLETE · BEFORE YOUR REPORT"}</Eyebrow>
+            <Eyebrow>
+              INTERVIEW COMPLETE
+              {/* the long label doesn't fit on a phone */}
+              {isHackathon ? null : <span className="hidden sm:inline"> · BEFORE YOUR REPORT</span>}
+            </Eyebrow>
             <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">
               Nice work. How did that round feel?
             </h1>
@@ -87,11 +92,12 @@ export default function PostInterviewFeedbackPage() {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-        <div className="rounded-[18px] border border-border bg-card p-5 sm:p-7">
+      {/* same layout as the setup form: equal-height cards, the side card moves under the form below 1280px */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-stretch">
+        <div className={cn(resumeBuilderCard, "flex flex-col p-5 sm:p-7")}>
           {submitError && (
             <div
-              className="mb-5 flex items-start gap-2 rounded-xl border border-red-200/80 bg-red-50/80 px-3.5 py-2.5 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+              className="mb-5 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
               role="alert"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -105,21 +111,33 @@ export default function PostInterviewFeedbackPage() {
               isHackathon ? "Submit & see result" : "Submit & generate report"
             }
             submitting={submitting}
+            className="flex-1"
           />
         </div>
 
-        <aside className="rounded-[18px] border border-border bg-card p-5 lg:sticky lg:top-6">
+        <aside className={cn(resumeBuilderCard, "flex flex-col p-5")}>
           <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">{isHackathon ? "WHAT HAPPENS NEXT" : "WHAT'S IN YOUR REPORT"}</p>
-          <ul className="mt-3 space-y-3 text-[13.5px] text-foreground">
+          {/* two columns while the card sits under the form, one beside it */}
+          <ul className="mt-3 divide-y divide-border md:grid md:grid-cols-2 md:gap-x-10 md:divide-y-0 xl:block xl:divide-y">
             {(isHackathon
               ? ["Your interview is analysed", "Your result shows on the hackathon dashboard"]
               : ["An overall score out of 100", "Scores by category", "How you did on every question", "What to fix before the real round"]
             ).map((t) => (
-              <li key={t} className="flex gap-2.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />{t}</li>
+              <li key={t} className="flex items-start gap-2.5 py-2.5 text-[13.5px] text-foreground">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                {t}
+              </li>
             ))}
           </ul>
-          <p className="mt-4 border-t border-border pt-3 text-[12.5px] leading-relaxed text-muted-foreground">
-            The report usually takes about a minute after you submit.
+          <div aria-hidden className="min-h-3 flex-1" />
+          <div className="flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
+            <span className="text-[13px] text-muted-foreground">{isHackathon ? "Result in" : "Report in"}</span>
+            <span className="text-[13px] text-muted-foreground">about <b className="font-[family-name:var(--font-geist-mono)] text-[18px] font-medium text-foreground">1</b> min</span>
+          </div>
+          <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">
+            {isHackathon
+              ? "Analysis starts as soon as you submit. Your answers here don't affect your result."
+              : "We start building it as soon as you submit. Your answers here don't affect your score."}
           </p>
         </aside>
       </div>

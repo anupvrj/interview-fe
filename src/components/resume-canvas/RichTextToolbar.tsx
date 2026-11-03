@@ -100,7 +100,7 @@ function restoreOffsets(field: HTMLElement, { start, end }: { start: number; end
 }
 
 /** https:// added when missing; only web and email links are kept by the sanitizer anyway. */
-function normaliseUrl(raw: string): string | null {
+export function normaliseUrl(raw: string): string | null {
   const v = raw.trim();
   if (!v) return null;
   if (/^(https?:|mailto:)/i.test(v)) return v;

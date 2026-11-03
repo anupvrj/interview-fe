@@ -144,3 +144,39 @@ describe("sample text the report doesn't know about yet", () => {
     expect(fillIn.items).toHaveLength(1);
   });
 });
+
+describe("findings that quote the AI's own reading", () => {
+  const report = {
+    categories: {
+      hrRedFlags: {
+        checks: [
+          {
+            id: "credibility",
+            status: "warn",
+            score: 64,
+            issues: [
+              // The AI quoted its plain-text reading, not what the page prints ("Databricks • 08/2024").
+              { title: "Recent certification", excerpt: "Databricks Certified Data Engineer Professional from Databricks Issued: 2024-08", kind: "credibility_risk" },
+              { title: "Vague claim", excerpt: "Cut pipeline costs by 38% at PhonePe", kind: "credibility_risk" },
+            ],
+          },
+        ],
+      },
+    },
+  } as unknown as ATSReportV3;
+  const page = "Cut pipeline costs by 38% at PhonePe while moving 4 PB.\nDatabricks Certified Data Engineer Professional\nDatabricks • 08/2024";
+  const titles = (live: string) =>
+    buildFixItems(report, live, [], undefined, page)
+      .flatMap((g) => g.items)
+      .map((i) => i.issue.title);
+
+  it("stay listed — they still count in the score", () => {
+    expect(titles(page)).toEqual(["Recent certification", "Vague claim"]);
+  });
+
+  it("while a finding about page text the user changed drops off", () => {
+    expect(titles(page.replace("Cut pipeline costs by 38% at PhonePe", "Lowered pipeline costs 38% at PhonePe"))).toEqual([
+      "Recent certification",
+    ]);
+  });
+});

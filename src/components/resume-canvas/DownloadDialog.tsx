@@ -34,7 +34,7 @@ export function DownloadDialog({
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-md">
         <DialogHeader>
           <DialogTitle>Download your resume</DialogTitle>
-          <DialogDescription>Pick a file name recruiters will recognise, like “Priya_Raghavan_Backend_Engineer”.</DialogDescription>
+          <DialogDescription>Pick a file name recruiters will recognise, like “Priya Raghavan - Backend Engineer - Razorpay”.</DialogDescription>
         </DialogHeader>
         <label className="mt-1 block text-xs font-semibold text-muted-foreground" htmlFor="resume-file-name">
           File name
@@ -48,7 +48,7 @@ export function DownloadDialog({
           />
           <span className="text-sm text-muted-foreground">.pdf</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">Letters, numbers and spaces work best; other characters are removed.</p>
+        <p className="text-[11px] text-muted-foreground">Letters, numbers, spaces and dashes work best; characters like / : * ? are removed.</p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <Button type="button" className="flex-1" disabled={downloadingPdf} onClick={() => onPdf(clean)}>
             {downloadingPdf ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}

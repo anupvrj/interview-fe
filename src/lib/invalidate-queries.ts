@@ -118,6 +118,12 @@ export function invalidateProfile(queryClient: QueryClient, userId: string) {
   });
 }
 
+export function invalidateInterviewSetup(queryClient: QueryClient, userId: string) {
+  return queryClient.invalidateQueries({
+    queryKey: queryKeys.interviewSetup(userId),
+  });
+}
+
 export function invalidateDashboardLists(
   queryClient: QueryClient,
   userId: string,

@@ -65,7 +65,6 @@ export const confidentgridDummyContent = {
       startDate: "2007",
       endDate: "2009",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -74,7 +73,6 @@ export const confidentgridDummyContent = {
       startDate: "2003",
       endDate: "2007",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   skills: [

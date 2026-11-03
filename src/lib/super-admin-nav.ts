@@ -116,7 +116,7 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         icon: LayoutTemplate,
         accent: accent.blue,
         description:
-          "Turn resume templates on or off for every template picker. Existing resumes keep theirs.",
+          "Turn resume templates on or off, set their order for every list, and edit each one's name, colours, font and spacing.",
       },
       {
         title: "Interview Integrity",

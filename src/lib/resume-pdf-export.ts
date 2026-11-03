@@ -5,6 +5,7 @@ import { RESUME_SHARED_CSS } from "@/lib/resume-fonts";
  */
 
 import { resumeApi } from "@/lib/api";
+import { applyCssOverrides } from "./resume-template-overrides";
 
 /** Mirrors globals.css rich-text rules so TipTap `.prose` content matches in PDF. */
 const RICH_TEXT_PROSE_CSS = `
@@ -66,6 +67,16 @@ export async function fetchTemplateCssForPdf(templateId: string): Promise<string
     } catch {
       /* optional */
     }
+  }
+
+  // Super Admin's colour / font edits, same as on screen.
+  const { publishedTemplateOverrides, TemplateLoader } = await import("./templateLoader");
+  const overrides = await publishedTemplateOverrides(templateId);
+  if (overrides) {
+    const baseFont = overrides.fontFamily
+      ? (await TemplateLoader.loadCodeTemplate(templateId)).extended.style?.fontFamily
+      : undefined;
+    css = applyCssOverrides(css, overrides, baseFont);
   }
 
   // Font twins + no text boosting, same as on screen (the PDF server lacks Calibri, Georgia…).

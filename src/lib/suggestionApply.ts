@@ -58,17 +58,61 @@ function quoteMatches(blockText: string, quote: string): boolean {
   return block.startsWith(head);
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Text-node-safe replacement of a phrase inside a block, tolerant of punctuation/spacing. */
-function replacePhrase(text: string, quote: string, improved: string): string | null {
+/** Where a phrase sits in a block's text, tolerant of punctuation/spacing: [start, end) or null. */
+function phraseRange(text: string, quote: string): [number, number] | null {
   const parts = quote.trim().replace(/[.,;:!?]+$/, "").split(/\s+/).filter(Boolean);
   if (!parts.length) return null;
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(parts.map(esc).join("[\\s\\u00A0,;:]+"), "iu");
-  return pattern.test(text) ? text.replace(pattern, () => improved.trim()) : null;
+  const match = new RegExp(parts.map(esc).join("[\\s\\u00A0,;:]+"), "iu").exec(text);
+  return match ? [match.index, match.index + match[0].length] : null;
+}
+
+/**
+ * The sentence(s) of a paragraph a quote is about: [start, end) or null. A summary is one
+ * block of several sentences, and a rewrite of one sentence replaced all of it.
+ */
+function sentenceRange(text: string, quote: string): [number, number] | null {
+  const spans: Array<[number, number]> = [];
+  let start = 0;
+  for (const boundary of text.matchAll(/(?<=[.!?])\s+/g)) {
+    spans.push([start, boundary.index ?? start]);
+    start = (boundary.index ?? start) + boundary[0].length;
+  }
+  spans.push([start, text.length]);
+  const sentences = spans.filter(([a, b]) => text.slice(a, b).trim());
+  // The fewest sentences that hold the quote (one, unless the quote runs across a full stop).
+  for (let size = 1; size <= sentences.length; size++) {
+    for (let i = 0; i + size <= sentences.length; i++) {
+      const [from, to] = [sentences[i][0], sentences[i + size - 1][1]];
+      if (quoteMatches(text.slice(from, to), quote)) return [from, to];
+    }
+  }
+  return null;
+}
+
+/** Replace characters [start, end) of an element's text, keeping the formatting around them. */
+function replaceTextRange(el: Element, start: number, end: number, improved: string): void {
+  const doc = el.ownerDocument;
+  const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node as Text);
+  let pos = 0;
+  let inserted = false;
+  for (const node of nodes) {
+    const value = node.nodeValue ?? "";
+    const from = pos;
+    pos += value.length;
+    if (pos <= start || from >= end) continue;
+    const a = Math.max(start, from) - from;
+    const b = Math.min(end, pos) - from;
+    node.nodeValue = value.slice(0, a) + (inserted ? "" : improved) + value.slice(b);
+    inserted = true;
+  }
+  if (!inserted) el.appendChild(doc.createTextNode(improved));
+  // Formatting that only wrapped the replaced words (e.g. a bold number) is gone with them.
+  el.querySelectorAll("b, strong, i, em, u, a, span").forEach((node) => {
+    if (!node.textContent) node.remove();
+  });
 }
 
 type Blocks = { doc: Document | null; els: Element[]; plain: string[] | null };
@@ -84,35 +128,39 @@ function blocksOf(value: string): Blocks {
   return { doc: null, els: [], plain: value.split(/\n/) };
 }
 
+/**
+ * What to replace in one block's text: the whole block (a bullet), the sentence(s) the quote
+ * is in (a one-block field such as the summary: never all of it), or just the phrase.
+ */
+function targetRange(text: string, quote: string, improved: string, wholeBlock: boolean, singleBlock: boolean): [number, number] | null {
+  if (!quote) return singleBlock ? null : [0, text.length];
+  if (wholeBlock) return singleBlock ? sentenceRange(text, quote) : [0, text.length];
+  const phrase = phraseRange(text, quote);
+  if (phrase) return phrase;
+  // The phrase moved or was reworded: a sentence still replaces the bullet (or its sentence).
+  if (!isSentence(improved)) return null;
+  return singleBlock ? sentenceRange(text, quote) : [0, text.length];
+}
+
 /** Replace inside one block of a field. Returns the new field value, or null. */
 function replaceInBlock(value: string, index: number, quote: string, improved: string, wholeBlock: boolean): string | null {
   const { doc, els, plain } = blocksOf(value);
+  const text = improved.trim();
   if (doc) {
     const el = els[index];
     if (!el) return null;
-    const current = el.textContent ?? "";
-    if (wholeBlock || !quote) {
-      el.textContent = improved.trim();
-    } else {
-      const next = replacePhrase(current, quote, improved);
-      if (next === null) {
-        // The phrase moved or was reworded: a sentence still replaces the bullet.
-        if (!isSentence(improved)) return null;
-        el.textContent = improved.trim();
-      } else {
-        el.textContent = next;
-      }
-    }
-    // The field itself was a single block of text (e.g. "<p>…</p>" or plain body).
-    return els[0] === doc.body ? escapeHtml(doc.body.textContent ?? "") : doc.body.innerHTML;
+    const range = targetRange(el.textContent ?? "", quote, text, wholeBlock, els.length === 1);
+    if (!range) return null;
+    replaceTextRange(el, range[0], range[1], text);
+    return doc.body.innerHTML;
   }
   const lines = plain ?? [];
   if (!lines[index] && lines.length > 1) return null;
   const line = lines[index] ?? value;
-  const nextLine = wholeBlock || !quote ? improved.trim() : replacePhrase(line, quote, improved);
-  if (nextLine === null) return null;
+  const range = targetRange(line, quote, text, wholeBlock, lines.length <= 1);
+  if (!range) return null;
   const out = [...lines];
-  out[index] = nextLine;
+  out[index] = line.slice(0, range[0]) + text + line.slice(range[1]);
   return out.join("\n");
 }
 
@@ -185,6 +233,26 @@ function textFields(resume: Resume): Array<[string, string]> {
   };
   walk(resume.content, "");
   return out;
+}
+
+/**
+ * The whole bullet (or summary sentence) a quote comes from: findings often quote only part
+ * of one, and a rewrite of just that part replaced the full bullet and lost the rest of it.
+ * Null when the quote isn't on the resume.
+ */
+export function lineContaining(resume: Resume, quote: string): string | null {
+  if (!looseText(quote)) return null;
+  for (const [path, value] of textFields(resume)) {
+    const { els, plain } = blocksOf(value);
+    const texts = (els.length ? els.map((el) => el.textContent ?? "") : plain ?? []).map((t) => t.replace(/\s+/g, " ").trim());
+    const hit = texts.find((text) => quoteMatches(text, quote));
+    if (!hit) continue;
+    if (path !== "@profileSummary") return hit;
+    // The summary is one block of several sentences: just the sentence(s) the quote is in.
+    const sentence = hit.split(/(?<=[.!?])\s+/).find((part) => quoteMatches(part, quote));
+    return sentence ?? null;
+  }
+  return null;
 }
 
 /** The text at a spot now (one bullet, or the whole field), or null if it's gone. */

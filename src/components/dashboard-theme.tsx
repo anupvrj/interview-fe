@@ -88,11 +88,10 @@ export function DashboardThemeProvider({
   forcedTheme?: DashboardTheme;
 }>) {
   // Dark unless this browser has an explicit light/dark choice. The server has no
-  // storage, so it renders dark (the logged-in default). The boot script matches that
-  // before paint; a saved "light" choice is applied on the client.
-  const [storedTheme, setThemeState] = useState<DashboardTheme>(
-    () => readStoredTheme() ?? "dark",
-  );
+  // storage, so it renders dark (the logged-in default). The first client render must
+  // match that, or React keeps the server's "dark" wrapper while children read "light";
+  // the saved choice is applied by the effect below, right after hydration.
+  const [storedTheme, setThemeState] = useState<DashboardTheme>("dark");
   const theme = forcedTheme ?? storedTheme;
 
   useEffect(() => {

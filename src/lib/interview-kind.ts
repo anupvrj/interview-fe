@@ -1,4 +1,5 @@
 import type { Interview } from "@/lib/api";
+import { interviewCategoryLabel } from "@/lib/interviewCategories";
 
 type CodingRoundShape = {
   status?: string;
@@ -30,12 +31,12 @@ export function isScreeningInterview(
   return !isCodingPracticeInterview(interview);
 }
 
+/** "Coding Round", "Screening Round", or the category round's name ("Salary Negotiation"). */
 export function interviewRoundLabel(
   interview: Pick<Interview, "metadata" | "codingRound">,
-): "Coding Round" | "Screening Round" {
-  return isCodingPracticeInterview(interview)
-    ? "Coding Round"
-    : "Screening Round";
+): string {
+  if (isCodingPracticeInterview(interview)) return "Coding Round";
+  return interviewCategoryLabel(interview.metadata?.interviewCategory) ?? "Screening Round";
 }
 
 export type InterviewTypeFilter = "all" | "screening" | "coding";

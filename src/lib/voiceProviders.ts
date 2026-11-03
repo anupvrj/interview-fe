@@ -75,13 +75,14 @@ export function normalizeVoiceAllowedDurations(
   return unique.length > 0 ? unique : [...DEFAULT_VOICE_ALLOWED_DURATIONS];
 }
 
+/** A 10-minute category round runs on any voice that allows 15 minutes (same rule as interview-core). */
 export function voiceAllowsDuration(
   option: Pick<VoiceProviderOption, "allowedDurations">,
   durationMinutes: number,
 ): boolean {
-  return normalizeVoiceAllowedDurations(option.allowedDurations).includes(
-    durationMinutes as VoiceInterviewDuration,
-  );
+  const allowed = normalizeVoiceAllowedDurations(option.allowedDurations);
+  if (durationMinutes === 10) return allowed.includes(15);
+  return allowed.includes(durationMinutes as VoiceInterviewDuration);
 }
 
 export function formatVoiceAllowedDurations(value?: number[] | null): string {

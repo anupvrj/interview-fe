@@ -22,8 +22,12 @@ import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGa
 import { Mono } from "@/components/marketing-2026/primitives";
 import { dash2026Scope } from "./ui";
 import { ListHeader, PracticeHero } from "./PracticeHero";
+import { InterviewCategoryPicker } from "./InterviewCategoryPicker";
+import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
+import { allRoundAvailable, visibleInterviewCategories } from "@/lib/interviewCategories";
 
 const ITEMS_PER_PAGE = 10;
+const ROUND_GRID_ID = "interview-rounds";
 
 export function InterviewsHome() {
   const { user, isLoaded } = useUser();
@@ -38,6 +42,7 @@ export function InterviewsHome() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const { startPracticeSession, checkingSubscription, canUse, showTrialUpsell, entitlementsLoading, ...practiceGate } = usePracticeSessionGate();
+  const { data: categoryCatalog } = useInterviewCategoriesQuery();
 
   useEffect(() => {
     if (isLoaded && user) localStorage.setItem("clerk-user-id", user.id);
@@ -100,7 +105,12 @@ export function InterviewsHome() {
   const locked = !entitlementsLoading && !canUse("aiMockInterview");
   const lastScored = scored[0];
   const trend = scored.slice(0, 10).reverse().map((i) => Math.round(i.report!.overallScore));
-  const startNew = () => startPracticeSession("ai", { path: "/dashboard/interviews/new" });
+  // The all-in-one interview is off: "Start an interview" takes you to the rounds below.
+  const allRound = allRoundAvailable(categoryCatalog);
+  const startNew = () => {
+    if (allRound || !visibleInterviewCategories(categoryCatalog).length) startPracticeSession("ai", { path: "/dashboard/interviews/new" });
+    else document.getElementById(ROUND_GRID_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className={cn(dash2026Scope, "mx-auto w-full max-w-7xl space-y-5 lg:space-y-6")}>
@@ -128,6 +138,14 @@ export function InterviewsHome() {
           ["Credits used", String(credits), "from billed sessions"],
         ]}
       />
+
+      {locked ? null : (
+        <InterviewCategoryPicker
+          id={ROUND_GRID_ID}
+          disabled={checkingSubscription}
+          onPick={(id) => startPracticeSession("ai", { path: `/dashboard/interviews/new?category=${id}` })}
+        />
+      )}
 
       {locked ? (
         <PracticeLockedGate type="ai" showTrialUpsell={showTrialUpsell} />

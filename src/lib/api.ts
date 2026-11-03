@@ -486,9 +486,11 @@ export interface Interview {
     resumeS3Key?: string;
     targetCompany?: string;
     createdAt: string;
-    /** Interview duration in minutes (15 or 30). */
+    /** Interview duration in minutes (10, 15 or 30). */
     interviewDuration?: number;
     interviewKind?: "general" | "coding_practice";
+    /** Category round (General Screening, Salary Negotiation, …); absent for the classic interview. */
+    interviewCategory?: import("@/lib/interviewCategories").InterviewCategoryId;
     /** Labels such as event tags, shown as badges in interview lists. */
     tags?: string[];
     codingPhaseDurationMinutes?: number;
@@ -623,6 +625,12 @@ export interface InterviewReport {
     averageWordCount?: number;
     pauseFrequency?: string;
   };
+  /** Category rounds only: competencies scored against that round's rubric. */
+  categoryRubric?: {
+    category: string;
+    overall: number;
+    competencies: Array<{ key: string; label: string; weight: number; score: number; reason: string }>;
+  };
   llmMetadata: {
     model: string;
     promptVersion: string;
@@ -697,8 +705,10 @@ export interface CreateInterviewRequest {
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
-  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
+  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise); 10 or 15 for a category round. */
   duration?: number;
+  /** Category round; the backend checks the round is enabled for this user. */
+  interviewCategory?: import("@/lib/interviewCategories").InterviewCategoryId;
   /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
@@ -717,6 +727,43 @@ export interface CreateInterviewResponse {
 }
 
 // API Methods
+/** A job post the user practised against; each user keeps their five most recent. */
+export interface SavedJobDescription {
+  id: string;
+  text: string;
+  role?: string;
+  company?: string;
+  lastUsedAt: string;
+}
+
+/** What the user chose the last time they set up a practice interview of any kind. */
+export interface LastInterviewSetup {
+  kind: "ai_interview" | "coding_round" | "system_design";
+  role?: string;
+  targetCompany?: string;
+  experience?: number;
+  department?: string;
+  discipline?: string;
+  voiceProvider?: string;
+  /** Id (in `jobDescriptions`) of the job post that interview used, when it had one. */
+  jobDescriptionId?: string;
+  at: string;
+}
+
+export interface InterviewSetupDefaults {
+  last: LastInterviewSetup | null;
+  jobDescriptions: SavedJobDescription[];
+}
+
+/** Who a system design session is for (all optional; the problem stays the same). */
+export interface SystemDesignCandidateInput {
+  role?: string;
+  targetCompany?: string;
+  experience?: number;
+  jobDescription?: string;
+  useSavedResume?: boolean;
+}
+
 export const userApi = {
   createOrGetUser: async (
     clerkId: string,
@@ -747,6 +794,12 @@ export const userApi = {
 
   getMyProfile: async (): Promise<User> => {
     const response = await apiClient.get<{ data: User }>("/users/me/profile");
+    return response.data.data;
+  },
+
+  /** Last interview setup choices and the five saved job posts, to pre-fill setup forms. */
+  getInterviewSetup: async (): Promise<InterviewSetupDefaults> => {
+    const response = await apiClient.get<{ data: InterviewSetupDefaults }>("/users/me/interview-setup");
     return response.data.data;
   },
 
@@ -935,6 +988,9 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.interviewCategory) {
+      formData.append("interviewCategory", data.interviewCategory);
     }
     if (data.jobDescription?.trim()) {
       formData.append(
@@ -1226,6 +1282,7 @@ export const codingInterviewApi = {
     if (data.discipline) formData.append("discipline", data.discipline);
     if (data.targetCompany) formData.append("targetCompany", data.targetCompany);
     if (data.useSavedResume) formData.append("useSavedResume", "true");
+    if (data.jobDescription) formData.append("jobDescription", data.jobDescription);
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
       formData.append("resume", resumeBlob, data.resume.name);
@@ -1865,6 +1922,7 @@ export interface Resume {
       endDate?: string;
       gpa?: string;
       percentage?: string;
+      description?: string | string[];
       honors?: string[];
     }>;
     skills?: string | string[]; // Consolidated skills field (supports both string and array)
@@ -1878,6 +1936,7 @@ export interface Resume {
       github?: string;
       startDate?: string;
       endDate?: string;
+      current?: boolean;
     }>;
     achievements?: Array<{
       id: string;
@@ -1930,6 +1989,7 @@ export interface Resume {
       role: string;
       startDate?: string;
       endDate?: string;
+      current?: boolean;
       description?: string;
     }>;
     declaration?: string;
@@ -2022,13 +2082,91 @@ export interface RecalculateATSOptions {
   };
 }
 
+/** What Super Admin sees of a template's stored design (the `resume_templates` record). */
+export interface ResumeTemplateDesignSummary {
+  /** False when the database has no record yet (the server shows the code copy). */
+  stored: boolean;
+  revision: number;
+  hash: string;
+  syncedAt: string | null;
+  fontFamily: string | null;
+  layoutType: string | null;
+  columnWidths: { left: number; right: number } | null;
+  headerStyle: string | null;
+  colors: string[];
+  cssChars: number;
+}
+
 /** Super Admin row for a resume template switch. */
 export interface AdminResumeTemplateRow {
   id: string;
+  /** Edited name when Super Admin renamed it, else the coded one. */
   name: string;
-  category: "simple" | "modern";
+  category: string;
+  /** Older servers leave these out. */
+  codeName?: string;
+  codeCategory?: string;
+  edited?: boolean;
   enabled: boolean;
   resumeCount: number;
+  /** 1-based place in the display order (older servers leave it out). */
+  position?: number;
+  design?: ResumeTemplateDesignSummary | null;
+}
+
+export interface AdminResumeTemplateList {
+  templates: AdminResumeTemplateRow[];
+  /** False until an order is saved: every page keeps its built-in order. */
+  customOrder: boolean;
+}
+
+/** A template's full stored design: style, design structure and CSS. */
+export interface AdminResumeTemplateDesign {
+  templateId: string;
+  name: string;
+  category: string;
+  description: string;
+  thumbnailPath: string;
+  atsOptimized: boolean;
+  config: {
+    template: Record<string, unknown>;
+    style: Record<string, unknown> | null;
+    structure: {
+      rendering: Record<string, unknown> | null;
+      defaultSectionOrder: unknown[] | null;
+      sections: string[];
+    };
+  };
+  css: string;
+  configHash: string;
+  cssHash: string;
+  hash: string;
+  previousHash?: string;
+  revision: number;
+  inCode: boolean;
+  syncedAt: string | null;
+  stored: boolean;
+  matchesCode: boolean;
+  /** Super Admin's edits (older servers leave these out). */
+  overrides?: import("@/lib/resume-template-overrides").ResumeTemplateOverrides | null;
+  overridesRevision?: number;
+  overridesUpdatedAt?: string | null;
+  overridesUpdatedBy?: string;
+  overrideHistory?: {
+    revision: number;
+    overrides: import("@/lib/resume-template-overrides").ResumeTemplateOverrides | null;
+    updatedBy?: string;
+    updatedAt: string | null;
+  }[];
+}
+
+/** GET /config/resume-templates: what every template list hides and how it's ordered. */
+export interface ResumeTemplateAvailability {
+  disabledTemplateIds: string[];
+  /** Every template id in display order; empty until Super Admin saves one. */
+  templateOrder: string[];
+  /** Super Admin's edits by template id (edited templates only). */
+  overrides: Record<string, import("@/lib/resume-template-overrides").PublishedTemplateOverrides>;
 }
 
 /** One sample-data finding from POST /resumes/placeholder-check. */
@@ -2049,7 +2187,7 @@ export const resumeApi = {
   },
 
   /**
-   * Templates users can pick now (Super Admin can turn templates off).
+   * Templates users can pick now, in Super Admin's order (Super Admin can turn templates off).
    * `keepId` keeps the resume's current template in the list even when it's disabled.
    */
   getSelectableTemplates: async (keepId?: string | null): Promise<ResumeTemplate[]> => {
@@ -2057,11 +2195,11 @@ export const resumeApi = {
       import("./templateLoader"),
       import("./resume-template-availability"),
     ]);
-    const [all, disabled] = await Promise.all([
+    const [all, settings] = await Promise.all([
       TemplateLoader.loadAllTemplates(),
-      availability.fetchDisabledResumeTemplateIds(),
+      availability.fetchResumeTemplateAvailability(),
     ]);
-    return availability.filterSelectableTemplates(all, disabled, keepId);
+    return availability.arrangeResumeTemplates(all, settings, keepId);
   },
 
   /**
@@ -2416,6 +2554,9 @@ export const resumeApi = {
     body: {
       checkId: string;
       issue: import("@/types/atsReport").ATSIssue;
+      /** "fixed": a suggestion was put in, and `line` is the line as it reads now. */
+      reason?: "dismissed" | "fixed";
+      line?: string;
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -3672,23 +3813,71 @@ export const adminApi = {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
   },
 
-  listResumeTemplateSettings: async (): Promise<AdminResumeTemplateRow[]> => {
+  listResumeTemplateSettings: async (): Promise<AdminResumeTemplateList> => {
     const response = await apiClient.get<{
       success: boolean;
-      data: { templates: AdminResumeTemplateRow[] };
+      data: { templates: AdminResumeTemplateRow[]; customOrder?: boolean };
     }>("/admin/resume-templates");
-    return response.data.data.templates;
+    return { templates: response.data.data.templates, customOrder: response.data.data.customOrder ?? false };
   },
 
   setResumeTemplateEnabled: async (
     templateId: string,
     enabled: boolean,
-  ): Promise<AdminResumeTemplateRow[]> => {
+  ): Promise<AdminResumeTemplateList> => {
     const response = await apiClient.patch<{
       success: boolean;
-      data: { templates: AdminResumeTemplateRow[] };
+      data: { templates: AdminResumeTemplateRow[]; customOrder?: boolean };
     }>(`/admin/resume-templates/${encodeURIComponent(templateId)}`, { enabled });
-    return response.data.data.templates;
+    return { templates: response.data.data.templates, customOrder: response.data.data.customOrder ?? false };
+  },
+
+  /** Every template id in the order lists should show them. */
+  setResumeTemplateOrder: async (order: string[]): Promise<AdminResumeTemplateList> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: AdminResumeTemplateList;
+    }>("/admin/resume-templates/order", { order });
+    return response.data.data;
+  },
+
+  /** Forget the saved order: each page goes back to its built-in order. */
+  resetResumeTemplateOrder: async (): Promise<AdminResumeTemplateList> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: AdminResumeTemplateList;
+    }>("/admin/resume-templates/order");
+    return response.data.data;
+  },
+
+  /** Save Super Admin's edits; `expectedRevision` stops two admins overwriting each other. */
+  saveResumeTemplateDesign: async (
+    templateId: string,
+    overrides: import("@/lib/resume-template-overrides").ResumeTemplateOverrides | null,
+    expectedRevision?: number,
+  ): Promise<AdminResumeTemplateDesign> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: { design: AdminResumeTemplateDesign };
+    }>(`/admin/resume-templates/${encodeURIComponent(templateId)}/design`, { overrides, expectedRevision });
+    return response.data.data.design;
+  },
+
+  /** Undo every edit: the template goes back to its coded design. */
+  resetResumeTemplateDesign: async (templateId: string): Promise<AdminResumeTemplateDesign> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: { design: AdminResumeTemplateDesign };
+    }>(`/admin/resume-templates/${encodeURIComponent(templateId)}/design`);
+    return response.data.data.design;
+  },
+
+  getResumeTemplateDesign: async (templateId: string): Promise<AdminResumeTemplateDesign> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { design: AdminResumeTemplateDesign };
+    }>(`/admin/resume-templates/${encodeURIComponent(templateId)}/design`);
+    return response.data.data.design;
   },
 
   getIntegritySettings: async (): Promise<{
@@ -4302,11 +4491,11 @@ export const systemDesignApi = {
     return r.data.data.problem;
   },
 
-  createSession: async (problemId?: string): Promise<SystemDesignSession> => {
+  createSession: async (problemId?: string, candidate?: SystemDesignCandidateInput): Promise<SystemDesignSession> => {
     const r = await apiClient.post<{
       success: boolean;
       data: { session: SystemDesignSession };
-    }>("/system-design/sessions", { problemId });
+    }>("/system-design/sessions", { problemId, ...(candidate ? { candidate } : {}) });
     return r.data.data.session;
   },
 
@@ -6199,12 +6388,21 @@ export const configApi = {
     return response.data.data;
   },
 
-  getDisabledResumeTemplateIds: async (): Promise<string[]> => {
+  getResumeTemplateAvailability: async (): Promise<ResumeTemplateAvailability> => {
     const response = await apiClient.get<{
       success: boolean;
-      data: { disabledTemplateIds: string[] };
+      data: Partial<ResumeTemplateAvailability>;
     }>("/config/resume-templates");
-    return response.data.data.disabledTemplateIds ?? [];
+    return {
+      disabledTemplateIds: response.data.data.disabledTemplateIds ?? [],
+      templateOrder: response.data.data.templateOrder ?? [],
+      overrides: response.data.data.overrides ?? {},
+    };
+  },
+
+  getDisabledResumeTemplateIds: async (): Promise<string[]> => {
+    const { disabledTemplateIds } = await configApi.getResumeTemplateAvailability();
+    return disabledTemplateIds;
   },
 
   getFeatures: async (): Promise<import("@/lib/platform-features").PlatformFeature[]> => {
@@ -6222,6 +6420,16 @@ export const configApi = {
       success: boolean;
       data: import("@/lib/integrity/settings").IntegritySettings;
     }>("/config/integrity");
+    return response.data.data;
+  },
+
+  getInterviewCategories: async (): Promise<
+    import("@/lib/interviewCategories").InterviewCategoryCatalog
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/interviewCategories").InterviewCategoryCatalog;
+    }>("/config/interview-categories");
     return response.data.data;
   },
 

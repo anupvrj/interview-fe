@@ -81,6 +81,9 @@ export interface ATSIgnoredIssue {
   issueKey: string;
   ignoredAt: string;
   title?: string;
+  /** The line the finding was about ("fixed": the line that replaced it). */
+  line?: string;
+  reason?: "fixed";
 }
 
 export interface ATSCheckSummary {
@@ -160,6 +163,7 @@ export interface JobMatchSummary {
   overallMatch: number;
   verdict: "strong" | "partial" | "weak";
   jobTitle?: string;
+  companyName?: string;
   requiredYears?: number | null;
   candidateYears?: number;
   mustHaveCoverage?: number;
@@ -181,6 +185,10 @@ export interface ATSReportV3 {
   scoreCap?: number;
   /** e.g. "No email or phone number", "Experience has no dates". */
   scoreCapReasons?: string[];
+  /** The resume text the AI read (normalised); the re-score after an edit keeps it. */
+  analyzedText?: string;
+  /** Set by the re-score after an edit (no AI); absent on a fresh full check. */
+  rescoredAt?: string;
 }
 
 export function isATSReportV3(

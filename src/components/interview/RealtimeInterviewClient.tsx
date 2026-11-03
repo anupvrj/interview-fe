@@ -46,6 +46,7 @@ import {
   invalidateAfterCodingSessionCompleteFromStorage,
 } from "@/lib/invalidate-queries";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
+import { interviewCategoryLabel, interviewerTitleForCategory } from "@/lib/interviewCategories";
 import { formatDuration } from "@/lib/utils";
 import { dash2026Scope } from "@/components/dashboard-2026/ui";
 import {
@@ -3975,7 +3976,8 @@ export function RealtimeInterviewClient({
                 {interview?.metadata.role || "Interview"}
               </h1>
               <p className="truncate font-[family-name:var(--font-geist-mono)] text-[10.5px] tracking-wide text-white/50 sm:text-[11px]">
-                AI INTERVIEW{interview?.metadata.targetCompany ? ` · ${interview.metadata.targetCompany.toUpperCase()}` : ""}
+                {(interviewCategoryLabel(interview?.metadata.interviewCategory) ?? "AI interview").toUpperCase()}
+                {interview?.metadata.targetCompany ? ` · ${interview.metadata.targetCompany.toUpperCase()}` : ""}
               </p>
             </div>
             {isInterviewActive ? (
@@ -4107,7 +4109,7 @@ export function RealtimeInterviewClient({
                         codingEmbed ? "text-[11px] sm:text-xs" : "text-sm",
                       )}
                     >
-                      {interviewerPersona.title}
+                      {interviewerTitleForCategory(interview?.metadata.interviewCategory) ?? interviewerPersona.title}
                     </p>
                     <InterviewerVoiceStatus
                       compact={codingEmbed}

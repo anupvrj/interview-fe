@@ -1,4 +1,4 @@
-import type { User } from "@/lib/api";
+import type { LastInterviewSetup, User } from "@/lib/api";
 
 /** Map profile years of experience to interview form select value. */
 export function profileExperienceToFormValue(
@@ -15,16 +15,21 @@ export type InterviewFormDefaults = {
   experience: string;
 };
 
-/** Defaults for AI mock / coding interview start forms from user profile. */
+/**
+ * Defaults for the interview start forms (AI interview, coding round, system design):
+ * what the user chose last time first, then their profile.
+ */
 export function interviewDefaultsFromProfile(
   profile: User,
+  last?: LastInterviewSetup | null,
 ): InterviewFormDefaults {
   const role =
+    last?.role?.trim() ||
     profile.targetJobRole?.trim() ||
     profile.currentJob?.role?.trim() ||
     "";
-  const targetCompany = profile.targetCompany?.trim() || "";
-  const experience = profileExperienceToFormValue(profile.experience);
+  const targetCompany = last?.targetCompany?.trim() || profile.targetCompany?.trim() || "";
+  const experience = profileExperienceToFormValue(last?.experience ?? profile.experience);
 
   return { role, targetCompany, experience };
 }
@@ -36,13 +41,14 @@ export type InterviewFormEdits = {
   experience?: boolean;
 };
 
-/** Merge profile defaults into interview form state without overwriting user edits. */
+/** Merge last-setup / profile defaults into interview form state without overwriting user edits. */
 export function mergeInterviewFormDefaults<T extends InterviewFormDefaults>(
   current: T,
   profile: User,
   edits?: InterviewFormEdits,
+  last?: LastInterviewSetup | null,
 ): T {
-  const defaults = interviewDefaultsFromProfile(profile);
+  const defaults = interviewDefaultsFromProfile(profile, last);
   return {
     ...current,
     role: edits?.role

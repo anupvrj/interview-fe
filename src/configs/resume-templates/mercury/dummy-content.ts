@@ -58,7 +58,6 @@ export const mercuryDummyContent = {
       location: "Sample City, Country",
       startDate: "2016",
       endDate: "2018",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -66,7 +65,6 @@ export const mercuryDummyContent = {
       location: "Sample City, Country",
       startDate: "2015",
       endDate: "2018",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   languages: [

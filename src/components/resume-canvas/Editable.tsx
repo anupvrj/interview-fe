@@ -108,6 +108,18 @@ function selectAllIn(el: HTMLElement) {
 }
 
 /**
+ * A triple-click selects the whole bullet or paragraph plus the break after it, so typing over
+ * it pulled the next bullet into this one. Keep the selection to the clicked line's own text.
+ */
+export function selectClickedLine(field: HTMLElement) {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return;
+  const start = selection.getRangeAt(0).startContainer;
+  const line = (start instanceof Element ? start : start.parentElement)?.closest("li, p");
+  selectAllIn(line && field.contains(line) ? (line as HTMLElement) : field);
+}
+
+/**
  * Single-line field. Without the canvas it is just the text (no extra markup).
  * With it, a contentEditable span whose children React never reconciles
  * (it owns them via innerHTML), so typing never fights re-renders.
@@ -228,6 +240,9 @@ export function richEditProps(
       canvas.onFieldBlur?.(path);
       if (original === el.innerHTML) return;
       canvas.commitField(path, sanitizeRichHtml(el.innerHTML));
+    },
+    onMouseUp: (e: React.MouseEvent<HTMLElement>) => {
+      if (e.detail >= 3) selectClickedLine(e.currentTarget);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key === "Escape") {

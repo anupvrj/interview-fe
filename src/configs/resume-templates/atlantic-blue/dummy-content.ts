@@ -90,7 +90,6 @@ export const atlanticblueDummyContent = {
       startDate: "2012",
       endDate: "2016",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [

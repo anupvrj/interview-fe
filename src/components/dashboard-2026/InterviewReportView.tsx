@@ -7,6 +7,7 @@ import { cn, getScoreColor } from "@/lib/utils";
 import { Mono } from "@/components/marketing-2026/primitives";
 import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
 import { sessionAverageScore } from "@/lib/interview-report-session-scores";
+import { interviewCategoryLabel } from "@/lib/interviewCategories";
 import { Eyebrow } from "./ui";
 
 const card = "rounded-[18px] border border-border bg-card";
@@ -150,6 +151,8 @@ export function InterviewReportView({ report }: { report: InterviewReport }) {
   const weakest = ranked[ranked.length - 1];
   const coverage = report.coverage && report.coverage.questionsAsked > 0 ? report.coverage : null;
   const areas = coverage?.areas.filter((a) => a.bucket !== "intro") ?? [];
+  const rubric = report.categoryRubric?.competencies.length ? report.categoryRubric : null;
+  const fillers = report.behavioral.fillersPerMinute;
 
   return (
     <div className="space-y-5 lg:space-y-6">
@@ -183,6 +186,24 @@ export function InterviewReportView({ report }: { report: InterviewReport }) {
           {rings.map((c) => <ScoreRingTile key={c.label} {...c} />)}
         </div>
       </section>
+
+      {/* ── Category rounds: the round's own competencies, each with the reason for its score */}
+      {rubric ? (
+        <section className={cn(card, "p-6 md:p-8")}>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <Eyebrow>{`${(interviewCategoryLabel(rubric.category) ?? "ROUND").toUpperCase()} · WHAT THIS ROUND MEASURES`}</Eyebrow>
+            <Mono className={cn("text-[13px] tabular-nums", getScoreColor(rubric.overall))}>ROUND SCORE {Math.round(rubric.overall)}</Mono>
+          </div>
+          <div className="mt-5 grid gap-x-10 gap-y-5 md:grid-cols-2">
+            {rubric.competencies.map((c) => (
+              <div key={c.key}>
+                <ScoreBar label={c.label} value={c.score} hint={`${Math.round(c.weight * 100)}%`} />
+                {c.reason ? <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{c.reason}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* ── Coding rounds: every problem, then the coach's read of the whole session */}
       {coding ? (
@@ -273,7 +294,7 @@ export function InterviewReportView({ report }: { report: InterviewReport }) {
           </div>
           <div className="mt-6 flex items-baseline justify-between rounded-xl bg-muted/50 px-4 py-3 lg:mt-auto">
             <span className="text-[13px] text-muted-foreground">Filler words</span>
-            <span><Mono className="text-[22px] text-foreground">{report.behavioral.fillersPerMinute.toFixed(1)}</Mono><span className="ml-1 text-[13px] text-muted-foreground">per min</span></span>
+            <span><Mono className="text-[22px] text-foreground">{typeof fillers === "number" ? fillers.toFixed(1) : "—"}</Mono><span className="ml-1 text-[13px] text-muted-foreground">per min</span></span>
           </div>
         </div>
         {coverage ? (

@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Upload,
   FileText,
@@ -17,7 +16,6 @@ import {
   CheckCircle,
   Crown,
   Target,
-  Clock,
   ArrowLeft,
   ArrowRight,
   AlertCircle,
@@ -25,6 +23,9 @@ import {
 } from "lucide-react";
 import { interviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
+import { useInterviewSetupQuery } from "@/hooks/queries/useInterviewSetupQuery";
+import { JobDescriptionPicker } from "@/components/dashboard-2026/JobDescriptionPicker";
+import { defaultJobDescription } from "@/lib/saved-job-descriptions";
 import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
 import {
   getActiveSavedResumeDisplay,
@@ -64,6 +65,17 @@ import {
 } from "@/lib/extension-job-handoff";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { voiceApi } from "@/lib/voiceApi";
+import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
+import { InterviewCategoryPicker } from "@/components/dashboard-2026/InterviewCategoryPicker";
+import {
+  allRoundAvailable,
+  interviewCategoryEmblem,
+  visibleInterviewCategories,
+  type InterviewCategory,
+  type InterviewCategoryId,
+} from "@/lib/interviewCategories";
+import { Emblem, Mono } from "@/components/marketing-2026/primitives";
+import { useDashboardTheme } from "@/components/dashboard-theme";
 import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect";
 import {
   DEFAULT_VOICE_PROVIDER_OPTIONS,
@@ -90,10 +102,12 @@ const DEPARTMENT_OPTIONS = [
   { value: "sales", label: "Sales" },
 ] as const;
 
+const CLASSIC_DURATIONS = ["15", "30"];
+
 const STEPS = [
   {
     number: 1,
-    title: "Role & Background",
+    title: "Role & Job Post",
     icon: Target,
     headline: "Which round are you rehearsing?",
     description:
@@ -101,22 +115,40 @@ const STEPS = [
   },
   {
     number: 2,
-    title: "Session",
-    icon: Clock,
-    headline: "How long, and which voice?",
-    description: "Pick the length and the interviewer's voice. Credits follow the voice model.",
-  },
-  {
-    number: 3,
-    title: "Resume",
+    title: "Voice & Resume",
     icon: FileText,
-    headline: "Which resume should it read?",
-    description: "Follow-ups come straight from your own projects and numbers.",
+    headline: "Who interviews you, and on which resume?",
+    description: "Pick the length and the interviewer's voice. Follow-ups come from your own resume. Credits follow the voice model.",
   },
 ] as const;
 
 const controlClass =
   "h-12 w-full rounded-xl border-border bg-background text-[14.5px] shadow-none";
+
+/** The chosen round, shown where the classic interview has its length picker (rounds have a fixed length). */
+function RoundBanner({ category, onChange }: { category: InterviewCategory; onChange?: () => void }) {
+  const { theme } = useDashboardTheme();
+  return (
+    <div className="flex items-center gap-4 rounded-[18px] border border-border bg-background/60 p-4">
+      <Emblem kind={interviewCategoryEmblem(category)} tone={theme === "dark" ? "dark" : "light"} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-bold tracking-tight text-foreground">
+          {category.name}
+          <span className="font-medium text-muted-foreground sm:hidden"> · {category.defaultDurationMinutes} min</span>
+        </p>
+        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{category.shortDescription}</p>
+      </div>
+      <Mono className="hidden shrink-0 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground sm:inline-flex">
+        {category.defaultDurationMinutes} MIN
+      </Mono>
+      {onChange ? (
+        <button type="button" onClick={onChange} className="shrink-0 text-[13px] font-medium text-primary hover:underline">
+          Change
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 function FieldError({ message }: { message: string }) {
   return (
@@ -254,6 +286,8 @@ export default function NewInterviewPage() {
     );
   const defaultDesignedResume =
     userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const { data: setupDefaults } = useInterviewSetupQuery();
+  const lastSetup = setupDefaults?.last ?? null;
   const savedResumeKnown = Boolean(
     userProfile?.resume?.s3Key ||
       userProfile?.defaultDesignedResume ||
@@ -279,6 +313,8 @@ export default function NewInterviewPage() {
   const [voiceProviderOptions, setVoiceProviderOptions] = useState<
     VoiceProviderOption[]
   >(DEFAULT_VOICE_PROVIDER_OPTIONS);
+  const [voiceListLoaded, setVoiceListLoaded] = useState(false);
+  const voicePicked = useRef(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
@@ -288,6 +324,16 @@ export default function NewInterviewPage() {
   const [jobDescription, setJobDescription] = useState("");
   const jobCaptureRef = useRef<PendingJobCapture | null>(null);
   const formEdits = useRef<InterviewFormEdits>({});
+  // Category round from the "What do you want to rehearse?" cards (?category=); "" = classic interview.
+  const [categoryId, setCategoryId] = useState<InterviewCategoryId | "">("");
+  const requestedCategory = useRef<string | null>(null);
+  const { data: categoryCatalog, isFetched: categoriesFetched } = useInterviewCategoriesQuery();
+  const categories = useMemo(() => visibleInterviewCategories(categoryCatalog), [categoryCatalog]);
+  const category = categories.find((c) => c.id === categoryId) ?? null;
+  // Set once the ?category= round (if any) has been applied.
+  const [categoryResolved, setCategoryResolved] = useState(false);
+  // All-in-one interview switched off: pick a round before the form.
+  const needsRound = categoriesFetched && categoryResolved && !category && !allRoundAvailable(categoryCatalog);
   const {
     canUse,
     showTrialUpsell,
@@ -300,7 +346,7 @@ export default function NewInterviewPage() {
   const filledForm = useMemo(() => {
     const edits = formEdits.current;
     if (!userProfile) return formData;
-    const merged = mergeInterviewFormDefaults(formData, userProfile, edits);
+    const merged = mergeInterviewFormDefaults(formData, userProfile, edits, lastSetup);
     if (!jobCapture) return merged;
     const captured = applyJobCaptureToInterviewForm(merged, jobCapture);
     return {
@@ -310,7 +356,7 @@ export default function NewInterviewPage() {
         ? merged.targetCompany
         : captured.targetCompany,
     };
-  }, [formData, userProfile, jobCapture]);
+  }, [formData, userProfile, jobCapture, lastSetup]);
 
   useEffect(() => {
     if (!savedResumeKnown) return;
@@ -400,6 +446,7 @@ export default function NewInterviewPage() {
             decisionHint: p.decisionHint,
           }));
           setVoiceProviderOptions(nextOptions);
+          setVoiceListLoaded(true);
           setFormData((prev) => ({
             ...prev,
             voiceProvider: resolveVoiceProviderForDuration(
@@ -415,6 +462,62 @@ export default function NewInterviewPage() {
         /* keep local defaults if API unavailable */
       });
   }, []);
+
+  // The voice used last time, once the live voice list is known (unless they already picked one).
+  useEffect(() => {
+    const preferred = lastSetup?.voiceProvider;
+    if (!voiceListLoaded || !preferred || voicePicked.current) return;
+    if (!voiceProviderOptions.some((o) => o.id === preferred)) return;
+    voicePicked.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      voiceProvider: resolveVoiceProviderForDuration(preferred, voiceProviderOptions, Number(prev.duration), prev.voiceProvider),
+    }));
+  }, [lastSetup?.voiceProvider, voiceListLoaded, voiceProviderOptions]);
+
+  useEffect(() => {
+    requestedCategory.current = new URLSearchParams(window.location.search).get("category");
+  }, []);
+
+  const chooseCategory = (id: string) => {
+    const next = categories.find((c) => c.id === id) ?? null;
+    setCategoryId(next?.id ?? "");
+    const duration = String(next ? next.defaultDurationMinutes : 15);
+    setFormData((prev) => ({
+      ...prev,
+      duration,
+      voiceProvider: resolveVoiceProviderForDuration(prev.voiceProvider, voiceProviderOptions, Number(duration), prev.voiceProvider),
+    }));
+  };
+
+  // Preselect the round from the URL once we know which rounds this user may start.
+  useEffect(() => {
+    if (!categoriesFetched || categoryResolved) return;
+    const wanted = requestedCategory.current;
+    requestedCategory.current = null;
+    if (wanted && categories.some((c) => c.id === wanted)) chooseCategory(wanted);
+    setCategoryResolved(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesFetched, categories]);
+
+  // Picked from the round grid on this page: keep the URL in step so a reload keeps the round.
+  const setRoundInUrl = (id: string | null) => {
+    const params = new URLSearchParams(window.location.search);
+    if (id) params.set("category", id);
+    else params.delete("category");
+    const query = params.toString();
+    router.replace(`/dashboard/interviews/new${query ? `?${query}` : ""}`, { scroll: false });
+  };
+  const pickRound = (id: string) => {
+    chooseCategory(id);
+    setCurrentStep(1);
+    setRoundInUrl(id);
+  };
+  const changeRound = () => {
+    setCategoryId("");
+    setCurrentStep(1);
+    setRoundInUrl(null);
+  };
 
   useEffect(() => {
     const apply = (next: PendingJobCapture | null) => {
@@ -506,7 +609,7 @@ export default function NewInterviewPage() {
       newErrors.role = "Role is required";
     }
 
-    if (step === 3) {
+    if (step === 2) {
       if (!useSavedResume && !uploadedFile) {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
@@ -535,9 +638,9 @@ export default function NewInterviewPage() {
       return;
     }
 
-    if (!validateStep(1) || !validateStep(4)) {
+    if (!validateStep(1) || !validateStep(2)) {
       if (!filledForm.role.trim()) setCurrentStep(1);
-      else setCurrentStep(3);
+      else setCurrentStep(2);
       return;
     }
 
@@ -553,7 +656,7 @@ export default function NewInterviewPage() {
         role: filledForm.role,
         experience: parseInt(filledForm.experience),
         language: "en",
-        department: formData.department
+        department: !category && formData.department
           ? (formData.department as
               | "engineering"
               | "management"
@@ -567,7 +670,8 @@ export default function NewInterviewPage() {
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
-        duration: parseInt(formData.duration),
+        duration: category ? category.defaultDurationMinutes : parseInt(formData.duration),
+        interviewCategory: category?.id,
         jobDescription: (() => {
           const jd = trimJobDescriptionForSend(jobDescription);
           return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
@@ -579,7 +683,7 @@ export default function NewInterviewPage() {
       clearPendingJobCapture();
       jobCaptureRef.current = null;
       setJobCapture(null);
-      await invalidate(["interviews", "entitlements"]);
+      await invalidate(["interviews", "entitlements", "interviewSetup"]);
       router.push(`/interview/${response.data.interviewId}/realtime`);
     } catch (error: any) {
       console.error("Error creating interview:", error);
@@ -608,11 +712,22 @@ export default function NewInterviewPage() {
   };
 
   const activeStep = STEPS[currentStep - 1];
+  // The round was picked on the dashboard card, so its steps don't ask for it again.
+  const stepCopy =
+    category && activeStep.number === 1
+      ? { headline: "Which role is this round for?", description: activeStep.description }
+      : category && activeStep.number === 2
+        ? {
+            headline: activeStep.headline,
+            description: `Every ${category.name} round runs for ${category.defaultDurationMinutes} minutes. Follow-ups come from your own resume. Credits follow the voice model.`,
+          }
+        : activeStep;
   const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
   const voiceOption = voiceProviderOptions.find((o) => o.id === formData.voiceProvider);
   const estimatedCredits = voiceOption?.creditsPerMinute ? voiceOption.creditsPerMinute * Number(formData.duration) : null;
   const experienceLabel = EXPERIENCE_OPTIONS.find((o) => o.value === filledForm.experience)?.label;
   const summary: [string, string | null][] = [
+    ["Round", category?.name ?? "All-round"],
     ["Role", filledForm.role.trim() || null],
     ["Company", filledForm.targetCompany.trim() || null],
     ["Experience", experienceLabel ?? null],
@@ -623,9 +738,9 @@ export default function NewInterviewPage() {
   ];
 
   const interviewForm = (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-      <div className={cn(resumeBuilderCard, "relative")}>
-        <form onSubmit={handleSubmit} className="p-5 sm:p-7">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-stretch">
+      <div className={cn(resumeBuilderCard, "relative flex flex-col")}>
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col p-5 sm:p-7">
           {jobCapture && currentStep === 1 ? (
             <JobCaptureBanner
               capture={jobCapture}
@@ -634,7 +749,7 @@ export default function NewInterviewPage() {
           ) : null}
           {currentStep === 1 ? (
             <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+            <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start", category && "min-[1400px]:grid-cols-3")}>
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
                   id="role"
@@ -674,8 +789,6 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Years of experience" htmlFor="experience">
                 <AppSelect
                   id="experience"
@@ -688,6 +801,7 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+              {category ? null : (
               <FormField label="Department" htmlFor="department" optional>
                 <AppSelect
                   id="department"
@@ -702,34 +816,38 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+              )}
             </div>
             <FormField label="Job description" htmlFor="jobDescription" optional>
-              <div className="overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-                <Textarea
-                  id="jobDescription"
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  rows={6}
-                  placeholder="Paste the job post so the questions match this role"
-                  className="min-h-[150px] resize-y !rounded-none !border-0 !bg-transparent px-4 py-3 text-[14px] leading-relaxed !shadow-none !ring-0"
-                />
-                <div className="flex items-center justify-between border-t border-border px-4 py-2">
-                  <span className="text-[12px] text-muted-foreground">At least {MIN_JOB_DESCRIPTION_CHARS} characters</span>
-                  <span className={cn("font-[family-name:var(--font-geist-mono)] text-[11px]", jobDescription.trim().length >= MIN_JOB_DESCRIPTION_CHARS ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
-                    {jobDescription.trim().length.toLocaleString()} CHARS
-                  </span>
-                </div>
-              </div>
+              <JobDescriptionPicker
+                id="jobDescription"
+                saved={setupDefaults?.jobDescriptions ?? []}
+                value={jobDescription}
+                onChange={setJobDescription}
+                preselectId={
+                  jobCapture
+                    ? null
+                    : defaultJobDescription(setupDefaults?.jobDescriptions ?? [], {
+                        lastUsedId: lastSetup?.jobDescriptionId,
+                        company: filledForm.targetCompany,
+                        role: filledForm.role,
+                      })?.id
+                }
+              />
             </FormField>
             </div>
           ) : null}
 
           {currentStep === 2 ? (
             <div className="space-y-6">
+              {/* A category round has a fixed length: show the round instead of a length picker. */}
+              {category ? (
+                <RoundBanner category={category} onChange={allRoundAvailable(categoryCatalog) ? undefined : changeRound} />
+              ) : (
               <div>
                 <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
                 <div className="grid grid-cols-2 gap-3">
-                {(["15", "30"] as const).map((duration) => {
+                {CLASSIC_DURATIONS.map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
                 const selected = formData.duration === duration;
@@ -778,109 +896,112 @@ export default function NewInterviewPage() {
               })}
                 </div>
               </div>
+              )}
 
               <FormField label="Interviewer voice" htmlFor="voiceProvider">
                 <VoiceProviderSelect
                   id="voiceProvider"
                   value={formData.voiceProvider}
-                  onChange={(value) =>
+                  onChange={(value) => {
+                    voicePicked.current = true;
                     setFormData({
                       ...formData,
                       voiceProvider: value,
-                    })
-                  }
+                    });
+                  }}
                   options={voiceProviderOptions}
                   durationMinutes={Number(formData.duration)}
                   className={cn(controlClass, "h-auto min-h-12 py-1.5")}
                 />
               </FormField>
-            </div>
-          ) : null}
 
-          {currentStep === 3 ? (
-            <div className="space-y-3">
-              {savedResumeAvailable && activeSavedResume ? (
-                <ResumeOptionCard
-                  selected={useSavedResume}
-                  onSelect={() => {
-                    setUseSavedResume(true);
-                    setUploadedFile(null);
-                    setErrors((prev) => ({ ...prev, resume: "" }));
-                  }}
-                  icon={FileText}
-                  title={activeSavedResume.title}
-                  subtitle={activeSavedResume.subtitle}
-                />
-              ) : !savedResumeKnown ? (
-                <div
-                  className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
-                  aria-hidden
-                />
-              ) : null}
-
-              <ResumeOptionCard
-                selected={!useSavedResume}
-                onSelect={() => setUseSavedResume(false)}
-                icon={Upload}
-                title="Upload a different resume"
-                subtitle="PDF only · Max 5 MB"
-              />
-
-              {!useSavedResume ? (
-                <div className="pt-1">
-                  {!uploadedFile ? (
+              <div>
+                <p className="mb-2.5 text-xs font-medium text-muted-foreground">Resume</p>
+                <div className="space-y-3">
+                  {savedResumeAvailable && activeSavedResume ? (
+                    <ResumeOptionCard
+                      selected={useSavedResume}
+                      onSelect={() => {
+                        setUseSavedResume(true);
+                        setUploadedFile(null);
+                        setErrors((prev) => ({ ...prev, resume: "" }));
+                      }}
+                      icon={FileText}
+                      title={activeSavedResume.title}
+                      subtitle={activeSavedResume.subtitle}
+                    />
+                  ) : !savedResumeKnown ? (
                     <div
-                      {...getRootProps()}
-                      className={cn(
-                        "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
-                        isDragActive
-                          ? "border-primary bg-primary/[0.06]"
-                          : errors.resume
-                            ? "border-destructive/40 bg-destructive/5"
-                            : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
-                      )}
-                    >
-                      <input {...getInputProps()} />
-                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
-                        <Upload className="h-6 w-6" />
-                      </div>
-                      <p className="text-[16px] font-bold tracking-tight text-foreground">
-                        {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
-                      </p>
-                      <p className="mt-1 text-[13px] text-muted-foreground">
-                        or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
-                      </p>
-                      <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        <FileText className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold text-foreground">
-                          {uploadedFile.name}
-                        </p>
-                        <p className="text-[12.5px] text-muted-foreground">
-                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove file"
-                        onClick={() => setUploadedFile(null)}
-                        className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
+                      className="h-[4.75rem] animate-pulse rounded-[18px] border border-border bg-muted/20"
+                      aria-hidden
+                    />
+                  ) : null}
 
-              {errors.resume ? <FieldError message={errors.resume} /> : null}
+                  <ResumeOptionCard
+                    selected={!useSavedResume}
+                    onSelect={() => setUseSavedResume(false)}
+                    icon={Upload}
+                    title="Upload a different resume"
+                    subtitle="PDF only · Max 5 MB"
+                  />
+
+                  {!useSavedResume ? (
+                    <div className="pt-1">
+                      {!uploadedFile ? (
+                        <div
+                          {...getRootProps()}
+                          className={cn(
+                            "cursor-pointer rounded-[18px] border-2 border-dashed px-6 py-10 text-center transition-all",
+                            isDragActive
+                              ? "border-primary bg-primary/[0.06]"
+                              : errors.resume
+                                ? "border-destructive/40 bg-destructive/5"
+                                : "border-primary/30 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(115,103,240,.07),transparent_70%)] hover:border-primary/55",
+                          )}
+                        >
+                          <input {...getInputProps()} />
+                          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-card text-primary shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
+                            <Upload className="h-6 w-6" />
+                          </div>
+                          <p className="text-[16px] font-bold tracking-tight text-foreground">
+                            {isDragActive ? "Drop it here" : "Drag your resume PDF here"}
+                          </p>
+                          <p className="mt-1 text-[13px] text-muted-foreground">
+                            or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span>
+                          </p>
+                          <p className="mt-3 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX 5 MB</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 rounded-[18px] border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14.5px] font-semibold text-foreground">
+                              {uploadedFile.name}
+                            </p>
+                            <p className="text-[12.5px] text-muted-foreground">
+                              {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · ready
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remove file"
+                            onClick={() => setUploadedFile(null)}
+                            className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {errors.resume ? <FieldError message={errors.resume} /> : null}
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -891,7 +1012,9 @@ export default function NewInterviewPage() {
             </div>
           ) : null}
 
-          <div className={cn(resumeBuilderFooterActions, "mt-7")}>
+          {/* keeps the buttons at the bottom when the summary card is taller */}
+          <div aria-hidden className="min-h-7 flex-1" />
+          <div className={resumeBuilderFooterActions}>
             {currentStep > 1 ? (
               <Button
                 type="button"
@@ -902,6 +1025,17 @@ export default function NewInterviewPage() {
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
+              </Button>
+            ) : category && !allRoundAvailable(categoryCatalog) ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={changeRound}
+                disabled={loading}
+                className={cn(resumeBuilderOutlineButton, "w-full sm:w-auto")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Change round
               </Button>
             ) : (
               <span className="hidden sm:block" />
@@ -934,18 +1068,20 @@ export default function NewInterviewPage() {
       </div>
 
       {/* what you're about to start, filled in as you go */}
-      <aside className={cn(resumeBuilderCard, "p-5 lg:sticky lg:top-6")}>
+      <aside className={cn(resumeBuilderCard, "flex flex-col p-5")}>
         <p className="font-[family-name:var(--font-geist-mono)] text-[11px] text-primary">YOUR SESSION</p>
-        <dl className="mt-3 divide-y divide-border">
+        {/* two columns while the card sits under the form, one beside it */}
+        <dl className="mt-3 divide-y divide-border md:grid md:grid-cols-2 md:gap-x-10 md:divide-y-0 xl:block xl:divide-y">
           {summary.map(([k, v]) => (
-            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5">
+            <div key={k} className="flex items-baseline justify-between gap-4 py-2.5 md:border-b md:border-border xl:border-b-0">
               <dt className="text-[13px] text-muted-foreground">{k}</dt>
               <dd className={cn("min-w-0 truncate text-right text-[13.5px]", v ? "font-medium text-foreground" : "text-muted-foreground/60")}>{v ?? "—"}</dd>
             </div>
           ))}
         </dl>
+        <div aria-hidden className="min-h-3 flex-1" />
         {estimatedCredits != null ? (
-          <div className="mt-3 flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
+          <div className="flex items-baseline justify-between rounded-xl bg-muted/50 px-3.5 py-3">
             <span className="text-[13px] text-muted-foreground">About</span>
             <span className="text-[13px] text-muted-foreground"><b className="font-[family-name:var(--font-geist-mono)] text-[18px] font-medium text-foreground">{estimatedCredits}</b> credits</span>
           </div>
@@ -955,6 +1091,23 @@ export default function NewInterviewPage() {
         </p>
       </aside>
     </div>
+  );
+
+  // With the all-in-one interview off, the round comes first; the form follows the pick.
+  const setupBody = !categoryResolved ? (
+    <div className={cn(resumeBuilderCard, "flex min-h-[240px] items-center justify-center")}>
+      <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading interview rounds" />
+    </div>
+  ) : needsRound ? (
+    categories.length ? (
+      <InterviewCategoryPicker hideHeading onPick={pickRound} />
+    ) : (
+      <div className={cn(resumeBuilderCard, "p-5 text-[14px] text-muted-foreground sm:p-7")}>
+        No interview rounds are available right now. Please check back soon.
+      </div>
+    )
+  ) : (
+    interviewForm
   );
 
   if (!isLoaded) {
@@ -982,9 +1135,9 @@ export default function NewInterviewPage() {
           </div>
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
-              <Eyebrow>NEW INTERVIEW</Eyebrow>
-              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{activeStep.headline}</h1>
-              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{activeStep.description}</p>
+              <Eyebrow>{category ? `NEW INTERVIEW · ${category.name.toUpperCase()}` : "NEW INTERVIEW"}</Eyebrow>
+              <h1 className="text-balance mt-4 text-[30px] font-black leading-[1.04] tracking-[-0.045em] text-foreground md:text-[40px]">{stepCopy.headline}</h1>
+              <p className="text-balance mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">{stepCopy.description}</p>
             </div>
             {checkingLimit || !profileReady ? (
               <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-border bg-background/70 px-3.5 py-2.5 text-[13px] text-muted-foreground">
@@ -1073,7 +1226,7 @@ export default function NewInterviewPage() {
             background={interviewForm}
           />
         ) : limitCheck && limitCheck.allowed ? (
-          interviewForm
+          setupBody
         ) : null)}
     </div>
   );
