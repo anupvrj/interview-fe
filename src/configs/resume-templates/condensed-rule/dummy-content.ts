@@ -64,7 +64,6 @@ export const condensedruleDummyContent = {
       startDate: "2018",
       endDate: "2018",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -73,7 +72,6 @@ export const condensedruleDummyContent = {
       startDate: "2010",
       endDate: "2011",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 3",
@@ -82,7 +80,6 @@ export const condensedruleDummyContent = {
       startDate: "1998",
       endDate: "2003",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   skills: [

@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { isEntrySection } from "./canvasOps";
 import { locateText, type TextHit } from "./textLocator";
+import { LinkEditPopover } from "./LinkEditPopover";
 import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
 import { TagListPopover } from "./TagListPopover";
 import { RichTextToolbar, RICH_ACTIONS, type RichCommand } from "./RichTextToolbar";
@@ -143,6 +144,9 @@ export interface CanvasInteractionHandlers {
   onSetLevel?: (entryPath: string, level: number | null) => void;
   getTags: (sectionType: string) => string[];
   onSetTags: (sectionType: string, tags: string[]) => void;
+  /** One stored field ("projects.0.link"): read it / set it (the on-page link editor). */
+  getField?: (path: string) => string;
+  onSetField?: (path: string, value: string) => void;
   /** Profile photo on the page: pick a new one (opens upload + crop) or remove it. */
   onChangePhoto?: () => void;
   onRemovePhoto?: () => void;
@@ -157,8 +161,9 @@ interface Box {
 
 
 /**
- * A popover anchored on the page that slides up when it would run past the bottom of
- * the window (a menu or date picker opened near the fold must stay fully usable).
+ * A popover anchored on the page that slides up (or left) when it would run past the bottom
+ * (or right edge) of the window: a menu or date picker opened near the fold or by a right-hand
+ * date must stay fully usable.
  */
 const KeepInView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { "data-rx-overlay"?: boolean }>(
   function KeepInView(props, forwarded) {
@@ -168,8 +173,11 @@ const KeepInView = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
       if (!el || getComputedStyle(el).position === "fixed") return;
       el.style.translate = "";
       const rect = el.getBoundingClientRect();
-      const overflow = rect.bottom - (window.innerHeight - 12);
-      if (overflow > 0) el.style.translate = `0 ${-Math.min(overflow, Math.max(0, rect.top - 64))}px`;
+      const overflowY = rect.bottom - (window.innerHeight - 12);
+      const overflowX = rect.right - (window.innerWidth - 12);
+      const dy = overflowY > 0 ? -Math.min(overflowY, Math.max(0, rect.top - 64)) : 0;
+      const dx = overflowX > 0 ? -Math.min(overflowX, Math.max(0, rect.left - 12)) : 0;
+      if (dx || dy) el.style.translate = `${dx}px ${dy}px`;
     });
     return (
       <div
@@ -294,10 +302,14 @@ export function CanvasInteractionLayer({
   /** Skills / interests sections with nothing in them yet: where to put the "Add …" button. */
   const [emptyTagBoxes, setEmptyTagBoxes] = useState<Array<Box & { sectionId: string; type: string; title: string }>>([]);
   const [photoBox, setPhotoBox] = useState<Box | null>(null);
+  /** Where a photo would go on a design that has one, when there is none yet. */
+  const [photoSlotBox, setPhotoSlotBox] = useState<Box | null>(null);
   const [photoMenu, setPhotoMenu] = useState(false);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"]; typo: boolean }>>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
+  /** An entry's link being edited on the page ("projects.0.link"). */
+  const [linkEdit, setLinkEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [levelEdit, setLevelEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
@@ -369,6 +381,8 @@ export function CanvasInteractionLayer({
     );
     const photo = Array.from(root.querySelectorAll<HTMLElement>(".resume-page [data-rx-photo]")).find(isVisible);
     setPhotoBox(photo ? boxesFor(root, [photo], 0)[0] ?? null : null);
+    const slot = photo ? undefined : Array.from(root.querySelectorAll<HTMLElement>(".resume-page [data-rx-photo-slot]")).find(isVisible);
+    setPhotoSlotBox(slot ? boxesFor(root, [slot], 0)[0] ?? null : null);
     const origin = root.getBoundingClientRect();
     setMarkBoxes(
       marks.flatMap((mark) => {
@@ -490,6 +504,14 @@ export function CanvasInteractionLayer({
       } else {
         setLevelEdit(null);
       }
+      const linkEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-link]");
+      if (linkEl && linkEl.closest(".resume-page")) {
+        const origin = root.getBoundingClientRect();
+        const r = linkEl.getBoundingClientRect();
+        setLinkEdit({ path: linkEl.getAttribute("data-rx-link") ?? "", top: r.bottom - origin.top + 6, left: r.left - origin.left });
+      } else {
+        setLinkEdit(null);
+      }
       const dateEl = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-rx-date]");
       if (dateEl && dateEl.closest(".resume-page")) {
         const origin = root.getBoundingClientRect();
@@ -542,6 +564,7 @@ export function CanvasInteractionLayer({
       setMenuOpen(false);
       setPhotoMenu(false);
       setDateEdit(null);
+      setLinkEdit(null);
       setLevelEdit(null);
       setTagEdit(null);
       onFocusChange(null);
@@ -582,10 +605,11 @@ export function CanvasInteractionLayer({
   // Escape (outside a field) leaves focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (dateEdit || tagEdit || levelEdit)) {
+      if (e.key === "Escape" && (dateEdit || tagEdit || levelEdit || linkEdit)) {
         setDateEdit(null);
         setTagEdit(null);
         setLevelEdit(null);
+        setLinkEdit(null);
         return;
       }
       if (e.key !== "Escape" || !focus) return;
@@ -596,7 +620,7 @@ export function CanvasInteractionLayer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus, onFocusChange, dateEdit, tagEdit, levelEdit]);
+  }, [focus, onFocusChange, dateEdit, tagEdit, levelEdit, linkEdit]);
 
   const focusSection = focus ? sections.find((s) => s.id === focus.sectionId) : undefined;
   const hoverSection = hover ? sections.find((s) => s.id === hover.sectionId) : undefined;
@@ -870,6 +894,20 @@ export function CanvasInteractionLayer({
           <Plus className="h-3.5 w-3.5" /> {tagWords(b.type).add}
         </button>
       ))}
+      {photoSlotBox && handlers.onChangePhoto && focusBoxes[0] && focus && sectionsRef.current.find((s) => s.id === focus.sectionId)?.type === "personalInfo" ? (
+        // No photo yet, and the design has room for one: offered while the header is selected,
+        // just above it (taking space on the page would make the page differ from the PDF).
+        <button
+          type="button"
+          data-rx-overlay
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => handlers.onChangePhoto?.()}
+          className="pointer-events-auto absolute z-30 inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-background px-3 py-1 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5"
+          style={{ top: Math.max(0, focusBoxes[0].top - 30), left: Math.max(0, focusBoxes[0].left) }}
+        >
+          <Camera className="h-3.5 w-3.5" /> Add photo
+        </button>
+      ) : null}
       {photoBox && handlers.onChangePhoto ? (
         <>
           <button
@@ -973,6 +1011,20 @@ export function CanvasInteractionLayer({
             single={isSingleDatePath(dateEdit.path)}
             onChange={(dates) => handlers.onSetDates(dateEdit.path, dates)}
             onClose={() => setDateEdit(null)}
+          />
+        </KeepInView>
+      ) : null}
+      {linkEdit && handlers.getField && handlers.onSetField ? (
+        <KeepInView
+          data-rx-overlay
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
+          style={isMobile ? undefined : { top: linkEdit.top, left: Math.max(0, linkEdit.left) }}
+        >
+          <LinkEditPopover
+            key={linkEdit.path}
+            value={handlers.getField(linkEdit.path)}
+            onSave={(url) => handlers.onSetField?.(linkEdit.path, url)}
+            onClose={() => setLinkEdit(null)}
           />
         </KeepInView>
       ) : null}

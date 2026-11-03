@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { applySuggestion, looseText, textAtLocation } from "../suggestionApply";
+import { applySuggestion, lineContaining, looseText, textAtLocation } from "../suggestionApply";
 
 const ul = (...items: string[]) => `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
 const ELEARN = "Directed the development of an impactful eLearning platform, enhancing user engagement through innovative features.";
@@ -132,5 +132,66 @@ describe("applySuggestion", () => {
 
   it("looseText ignores punctuation, quotes and spacing", () => {
     expect(looseText("“Led  a team,” of 5.")).toBe("led a team of 5");
+  });
+});
+
+// A real summary from the editor: one block of sentences with bold and a link (no <p>).
+const SUMMARY =
+  'Backend engineer with 8 years in Node.js and Go. Led a team of 6 that cut checkout latency by <b>42%</b> at 12M requests per day. See my work on <a href="https://github.com/me">GitHub</a>.';
+function withSummary(profileSummary = SUMMARY) {
+  return { resumeId: "r1", profileSummary, content: { personalInfo: { fullName: "A" }, experience: [] } } as never;
+}
+
+describe("applySuggestion in a one-block field (the summary)", () => {
+  it("a rewrite of one sentence replaces that sentence only — the rest, its bold and its link stay", () => {
+    const out = applySuggestion(withSummary(), {
+      original: "Cut checkout latency by 42% at 12M requests per day.",
+      improved: "Managed a team of 6 to achieve a 42% reduction in checkout latency at 12M daily requests.",
+    })!;
+    expect((out.resume as any).profileSummary).toBe(
+      'Backend engineer with 8 years in Node.js and Go. Managed a team of 6 to achieve a 42% reduction in checkout latency at 12M daily requests. See my work on <a href="https://github.com/me">GitHub</a>.',
+    );
+    expect(out.at).toEqual({ path: "@profileSummary", index: null });
+  });
+
+  it("a second option replaces the first one, not the paragraph", () => {
+    const first = applySuggestion(withSummary(), { original: "Led a team of 6 that cut checkout latency", improved: "First option sentence about the latency work." })!;
+    const second = applySuggestion(first.resume, { original: "First option sentence about the latency work.", improved: "Second option, also about the latency work.", at: first.at })!;
+    expect((second.resume as any).profileSummary).toBe(
+      'Backend engineer with 8 years in Node.js and Go. Second option, also about the latency work. See my work on <a href="https://github.com/me">GitHub</a>.',
+    );
+  });
+
+  it("a short phrase swap keeps the formatting around it", () => {
+    const out = applySuggestion(withSummary(), { original: "8 years", improved: "eight years" })!;
+    expect((out.resume as any).profileSummary).toBe(SUMMARY.replace("8 years", "eight years"));
+  });
+
+  it("refuses rather than wiping the summary when the sentence is gone", () => {
+    expect(applySuggestion(withSummary(), { original: "", improved: "Anything long enough to be a sentence.", at: { path: "@profileSummary", index: null } })).toBeNull();
+  });
+
+  it("plain-text summaries change one sentence too", () => {
+    const out = applySuggestion(withSummary("Built APIs. Shipped a payments app used by 2M people. Like hiking."), {
+      original: "Shipped a payments app used by 2M people.",
+      improved: "Shipped a UPI payments app now used by 2M people monthly.",
+    })!;
+    expect((out.resume as any).profileSummary).toBe("Built APIs. Shipped a UPI payments app now used by 2M people monthly. Like hiking.");
+  });
+});
+
+describe("lineContaining", () => {
+  it("gives the whole bullet a fragment comes from, so AI Coach rewrites all of it", () => {
+    expect(lineContaining(resume(1), "talented team to deliver cutting-edge solutions")).toBe(TEAM);
+  });
+
+  it("gives the summary sentence, not the whole summary", () => {
+    expect(lineContaining(withSummary(), "cut checkout latency by 42% at 12M requests per day")).toBe(
+      "Led a team of 6 that cut checkout latency by 42% at 12M requests per day.",
+    );
+  });
+
+  it("null when the quote isn't on the resume", () => {
+    expect(lineContaining(resume(1), "Built a rocket to the moon in a weekend")).toBeNull();
   });
 });

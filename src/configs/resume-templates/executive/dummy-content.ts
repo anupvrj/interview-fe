@@ -67,7 +67,6 @@ export const executiveDummyContent = {
       startDate: "2008",
       endDate: "2010",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -76,7 +75,6 @@ export const executiveDummyContent = {
       startDate: "2000",
       endDate: "2004",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [],

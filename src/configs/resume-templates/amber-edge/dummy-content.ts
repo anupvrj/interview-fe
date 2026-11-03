@@ -68,7 +68,6 @@ export const amberedgeDummyContent = {
       startDate: "2019",
       endDate: "2023",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   certificates: [],

@@ -73,7 +73,6 @@ export const cleanslateDummyContent = {
       startDate: "2014",
       endDate: "2018",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [

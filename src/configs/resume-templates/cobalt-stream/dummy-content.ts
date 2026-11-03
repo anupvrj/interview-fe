@@ -66,7 +66,6 @@ export const cobaltstreamDummyContent = {
       startDate: "2011",
       endDate: "2013",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -75,7 +74,6 @@ export const cobaltstreamDummyContent = {
       startDate: "2007",
       endDate: "2011",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   awards: [

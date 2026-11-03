@@ -69,7 +69,6 @@ export const meridianDummyContent = {
       startDate: "2016",
       endDate: "2019",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -78,7 +77,6 @@ export const meridianDummyContent = {
       startDate: "2014",
       endDate: "2016",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [],

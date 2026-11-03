@@ -66,7 +66,6 @@ export const classicDummyContent = {
       startDate: "2015",
       endDate: "2019",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [],

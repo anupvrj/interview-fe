@@ -95,7 +95,6 @@ export const trueblueDummyContent = {
       startDate: "2020",
       endDate: "2025",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
       degree: "Sample Degree 2",
@@ -104,7 +103,6 @@ export const trueblueDummyContent = {
       startDate: "2015",
       endDate: "2019",
       gpa: "",
-      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
   projects: [],

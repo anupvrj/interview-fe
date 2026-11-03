@@ -1965,6 +1965,21 @@
   color: rgb(148 163 184);
   font-style: italic;
 }
+/* An entry's link on the canvas: click to edit it in place (never styled in the PDF). */
+.resume-page .rx-link {
+  cursor: pointer;
+  border-radius: 2px;
+}
+.resume-page .rx-link:hover {
+  background-color: rgb(59 130 246 / 0.08);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.3);
+}
+.resume-page .rx-link:empty::before {
+  content: "+ " attr(data-placeholder);
+  color: hsl(var(--primary));
+  font-style: normal;
+  font-weight: 600;
+}
 
 /* A suggestion was just put in the resume: a thin green border and glow for a few seconds. */
 .resume-page .rx-applied-flash {

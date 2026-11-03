@@ -5,22 +5,47 @@
 
 const MAX_FILENAME_LEN = 180;
 
-export function sanitizePdfFilename(input: string | undefined | null): string {
-  const trimmed = (input ?? "").trim();
-  const withoutExt = trimmed.replace(/\.pdf$/i, "");
-  const cleaned = withoutExt
+/**
+ * A safe download name with exactly one extension: characters file systems reject are
+ * dropped, spaces kept (single). A ".pdf" added twice ("Name.pdf.pdf") or a text file
+ * named ".pdf" no longer happens.
+ */
+export function sanitizeDownloadFilename(input: string | undefined | null, ext: "pdf" | "txt"): string {
+  const cleaned = (input ?? "")
+    .trim()
+    .replace(/(\.(pdf|txt))+$/i, "")
     .replace(/[•●▪◦·]/g, " ")
     .replace(/[/\\?%*:|"<>]/g, "")
-    .replace(/\s/g, "_")
-    .split("_")
-    .filter(Boolean)
-    .join("_")
-    .slice(0, MAX_FILENAME_LEN);
-  return `${cleaned || "resume"}.pdf`;
+    .replace(/\s+/g, " ")
+    .replace(/_+/g, "_")
+    .trim()
+    .slice(0, MAX_FILENAME_LEN)
+    .trim();
+  return `${cleaned || "resume"}.${ext}`;
+}
+
+export function sanitizePdfFilename(input: string | undefined | null): string {
+  return sanitizeDownloadFilename(input, "pdf");
+}
+
+/** The job a resume was last scored against (the ATS report's job summary), with its company. */
+function scoredJob(atsFeedback: unknown): { role: string; company: string } | null {
+  const job = (atsFeedback as { jobMatch?: { jobTitle?: unknown; companyName?: unknown } } | null | undefined)?.jobMatch;
+  const role = typeof job?.jobTitle === "string" ? job.jobTitle.trim() : "";
+  const company = typeof job?.companyName === "string" ? job.companyName.trim() : "";
+  return role && company ? { role, company } : null;
+}
+
+/** Resumes tailored to a job are titled "Role · Company" (see tailoredResumeTitle). */
+function tailoredJob(title?: string | null): { role: string; company: string } | null {
+  const parts = (title ?? "").split(" · ").map((p) => p.trim());
+  return parts.length === 2 && parts[0] && parts[1] ? { role: parts[0], company: parts[1] } : null;
 }
 
 export function resumePdfFilenameFromResume(input?: {
   title?: string | null;
+  /** The ATS report: names the job (and company) when the resume was scored against a JD. */
+  atsFeedback?: unknown;
   content?: {
     personalInfo?: {
       fullName?: string | null;
@@ -29,15 +54,19 @@ export function resumePdfFilenameFromResume(input?: {
     };
   };
 } | null): string {
-  // "My Resume", "Resume (2)", "Untitled" say nothing: name the file after the person.
-  const title = input?.title?.trim();
-  if (title && !isGenericResumeTitle(title)) return sanitizePdfFilename(title);
-
-  // FirstName_LastName.pdf, as recruiters (and ATS checkers) expect; the role only without a name.
+  // "Candidate Name - Role", plus " - Company" when the resume was tailored to a job: what a
+  // recruiter scanning their downloads (or an ATS) expects to see.
   const pi = input?.content?.personalInfo;
   const name = pi?.fullName?.trim();
-  const role = (pi?.portfolio ?? pi?.jobTitle)?.trim();
-  return sanitizePdfFilename(name || role || "resume");
+  if (name) {
+    const job = tailoredJob(input?.title) ?? scoredJob(input?.atsFeedback);
+    const role = (job?.role ?? pi?.portfolio ?? pi?.jobTitle)?.trim();
+    return sanitizePdfFilename([name, role, job?.company].filter(Boolean).join(" - "));
+  }
+  // No name yet: a real title ("My Resume", "Untitled" say nothing), else the role.
+  const title = input?.title?.trim();
+  if (title && !isGenericResumeTitle(title)) return sanitizePdfFilename(title);
+  return sanitizePdfFilename((pi?.portfolio ?? pi?.jobTitle)?.trim() || "resume");
 }
 
 /** Default / placeholder titles that shouldn't become the file name (same rule as the API). */
@@ -59,7 +88,7 @@ function clickDownloadAnchor(href: string, filename: string) {
 
 /** Trigger a native file download from an in-memory blob (same-origin). */
 export function triggerBlobDownload(blob: Blob, filename: string): void {
-  const safeName = sanitizePdfFilename(filename);
+  const safeName = sanitizeDownloadFilename(filename, /\.txt$/i.test(filename.trim()) ? "txt" : "pdf");
   const objectUrl = URL.createObjectURL(blob);
   clickDownloadAnchor(objectUrl, safeName);
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);

@@ -77,6 +77,9 @@ const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["ton
   { title: "Impact (optional)", checks: ["quantifyingImpact"], tone: "weak" },
 ];
 
+/** Findings about structure (dates, links, sections): they quote an entry to point at it, not to reword it. */
+const STRUCTURE_CHECKS = new Set<ATSCheckId>(["essentialSections", "contactInformation", "sectionOrder", "headerLinks", "emailAddress", "datesLinksConsistency", "design", "atsParseRate"]);
+
 /** Where a finding lives on the page, for findings that quote no text (e.g. "Missing LinkedIn"). */
 const CHECK_SECTION: Partial<Record<ATSCheckId, string>> = {
   contactInformation: "personalInfo",
@@ -221,6 +224,12 @@ export function buildFixItems(
   serverPlaceholders: ATSIssue[] = [],
   /** Quotes (squashed) of cards a suggestion was just applied to: keep showing them. */
   keepQuotes?: Set<string>,
+  /**
+   * The page's text when this report arrived. A quote that wasn't on the page even then is
+   * the AI's own reading ("… Issued: 2024-08"): it can't have been edited away, and it still
+   * counts in the score, so its card stays.
+   */
+  reportText?: string,
 ): Array<{ title: string; items: FixItem[] }> {
   if (!report && !liveText) return [];
   const checks = report ? checksById(report) : new Map<ATSCheckId, ATSCheckResult>();
@@ -246,6 +255,7 @@ export function buildFixItems(
     } as unknown as ATSCheckResult);
   }
   const live = liveText ? squash(liveText) : null;
+  const onPageThen = reportText !== undefined ? squash(reportText) : null;
   return GROUPS.map((group) => ({
     title: group.title,
     items: group.checks.flatMap((id) => {
@@ -264,7 +274,8 @@ export function buildFixItems(
             isWordFix(issue) ||
             !quoteOf(id, issue) ||
             live.includes(squash(quoteOf(id, issue))) ||
-            !!keepQuotes?.has(squash(quoteOf(id, issue)))),
+            !!keepQuotes?.has(squash(quoteOf(id, issue))) ||
+            (onPageThen !== null && !onPageThen.includes(squash(quoteOf(id, issue))))),
       );
       return current.map((issue, i) => {
         const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
@@ -519,6 +530,7 @@ function IssueCard({
   onIgnore,
   onDone,
   targetRole,
+  lineOf,
 }: {
   item: FixItem;
   active: boolean;
@@ -534,6 +546,8 @@ function IssueCard({
   /** "I've handled it": hides the card until the next check (doesn't change the score). */
   onDone?: () => void;
   targetRole?: string;
+  /** The whole bullet a quote is part of (see lineContaining). */
+  lineOf?: (quote: string) => string | null;
 }) {
   const { issue, check } = item;
   const [ai, setAi] = useState<{ loading: boolean; options: string[]; error?: string }>({ loading: false, options: [] });
@@ -557,7 +571,8 @@ function IssueCard({
   // Whole-bullet suggestions only: a fragment would replace the entire line.
   const canTapRewrite =
     !!excerpt && !isWord && !isBlank && !!issue.rewriteSuggestion && issue.rewriteSuggestion.trim() !== excerpt;
-  const canAskAi = !!excerpt && !isWord && !isBlank && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
+  const canAskAi =
+    !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
   const howToFix = issue.fixBody || issue.suggestion;
   // Picked from elsewhere (job checklist "Show", a mark on the page): bring the card into view.
   const cardRef = useRef<HTMLDivElement>(null);
@@ -571,7 +586,11 @@ function IssueCard({
       const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
       // "Too short" findings say the floor ("recommended: 10–35"); options below it wouldn't fix anything.
       const floor = /too short/i.test(issue.title ?? "") ? Number(issue.description?.match(/recommended:?\s*(\d+)/i)?.[1]) || 10 : undefined;
-      const options = await resumeApi.aiRewrite({ text: excerpt, kind: "bullet", targetRole, goal, minWords: floor });
+      // Options replace the whole bullet, so the AI rewrites the whole bullet (keeping all of it),
+      // not just the part the finding quotes.
+      const line = lineOf?.(excerpt) ?? excerpt;
+      const focus = line !== excerpt ? ` — the problem is in: “${excerpt}”` : "";
+      const options = await resumeApi.aiRewrite({ text: line, kind: "bullet", targetRole, goal: `${goal}${focus}`, minWords: floor });
       setAi({ loading: false, options, error: options.length ? undefined : "No better wording found." });
     } catch {
       setAi({ loading: false, options: [], error: "Couldn't reach AI. Try again." });
@@ -732,6 +751,7 @@ export function FixMistakesPanel({
   onCheckAtsParse,
   targetRole,
   liveText,
+  reportText,
   onDone,
   onAddSkill,
   hiddenGroups,
@@ -739,8 +759,11 @@ export function FixMistakesPanel({
   livePlaceholders,
   onApplyRewrite,
   onUndo,
+  lineOf,
   children,
 }: {
+  /** The whole bullet a quote is part of (AI Coach rewrites that, not just the quote). */
+  lineOf?: (quote: string) => string | null;
   /** Live placeholder findings (sample text the report may not know about yet). */
   livePlaceholders?: ATSIssue[];
   /** Put a (possibly edited) reworded sentence in; returns where it went, or null. */
@@ -751,6 +774,8 @@ export function FixMistakesPanel({
   onHiddenGroupsChange?: (next: Set<string>) => void;
   /** The resume's text now (keeps the list in step with edits). */
   liveText?: string;
+  /** The page's text when `report` arrived (see buildFixItems). */
+  reportText?: string;
   onDone?: (item: FixItem) => void;
   /** One-click "add to Skills" for skills recruiters expect. */
   onAddSkill?: (skill: string) => void;
@@ -777,13 +802,15 @@ export function FixMistakesPanel({
   // …and survive the re-score after each save, which drops findings that are now fixed.
   const [pinned, setPinned] = useState<Map<string, FixItem>>(() => new Map());
   const groups = useMemo(() => {
-    const built = buildFixItems(report, liveText, livePlaceholders, keepQuotes);
+    const built = buildFixItems(report, liveText, livePlaceholders, keepQuotes, reportText);
     if (!pinned.size) return built;
     // A fresh report can reuse a pinned card's id for another finding (the 2nd copy of a
-    // repeated bullet becomes "#1" once the 1st is fixed): give that one its own id.
+    // repeated bullet becomes "#1" once the 1st is fixed): give that one its own id. The same
+    // finding back again (its fix was undone) is compared by content: each report is new objects.
+    const sameFinding = (a: ATSIssue, b: ATSIssue) => a === b || (a.title === b.title && a.excerpt === b.excerpt);
     const renamed = built.map((group) => ({
       ...group,
-      items: group.items.map((i) => (pinned.has(i.id) && pinned.get(i.id)!.issue !== i.issue ? { ...i, id: `${i.id}~next` } : i)),
+      items: group.items.map((i) => (pinned.has(i.id) && !sameFinding(pinned.get(i.id)!.issue, i.issue) ? { ...i, id: `${i.id}~next` } : i)),
     }));
     const shown = new Set(renamed.flatMap((g) => g.items.map((i) => i.id)));
     return renamed.map((group) => {
@@ -791,7 +818,7 @@ export function FixMistakesPanel({
       const missing = [...pinned.values()].filter((i) => !shown.has(i.id) && (checks as readonly string[]).includes(i.check.id));
       return missing.length ? { ...group, items: [...group.items, ...missing] } : group;
     });
-  }, [report, liveText, livePlaceholders, keepQuotes, pinned]);
+  }, [report, liveText, livePlaceholders, keepQuotes, pinned, reportText]);
   const rewriteFor = (item: FixItem) =>
     onApplyRewrite
       ? (text: string, previous: { at: SuggestionAt; text: string } | null) => {
@@ -807,10 +834,26 @@ export function FixMistakesPanel({
     (n, g) => n + g.items.filter((i) => i.check.id === PLACEHOLDER_CHECK && !resolved.has(i.id)).length,
     0,
   );
+  // A card kept only to show what a suggestion put in (its quote is gone from the resume) is
+  // fixed, not open: counting it made "N things to improve" one more than the report.
+  const liveWords = liveText ? squash(liveText) : null;
+  const isApplied = (i: FixItem) =>
+    !!i.quote && !!liveWords && keepQuotes.has(squash(i.quote)) && !liveWords.includes(squash(i.quote));
   const open = groups.reduce(
-    (n, g) => (hiddenGroups?.has(g.title) ? n : n + g.items.filter((i) => !i.incomplete && !resolved.has(i.id)).length),
+    (n, g) => (hiddenGroups?.has(g.title) ? n : n + g.items.filter((i) => !i.incomplete && !resolved.has(i.id) && !isApplied(i)).length),
     0,
   );
+  // Fixed cards stay counted after the re-score drops their findings from the report, and stop
+  // counting if the fix is undone (the card is open again).
+  const appliedIds = useRef<Set<string>>(new Set());
+  for (const group of groups) {
+    for (const i of group.items) {
+      if (resolved.has(i.id)) appliedIds.current.delete(i.id);
+      else if (isApplied(i)) appliedIds.current.add(i.id);
+      else if (!i.incomplete) appliedIds.current.delete(i.id);
+    }
+  }
+  const fixedCount = resolved.size + appliedIds.current.size;
   const unfinished = useMemo(
     () => [...new Set(groups.flatMap((g) => g.items.filter((i) => i.incomplete).map((i) => i.check.label)))],
     [groups],
@@ -893,6 +936,7 @@ export function FixMistakesPanel({
                       onIgnore={() => onIgnore(item)}
                       onDone={onDone ? () => onDone(item) : undefined}
                       targetRole={targetRole}
+                      lineOf={lineOf}
                     />
                   ))}
                 </div>
@@ -932,6 +976,7 @@ export function FixMistakesPanel({
                           onIgnore={() => onIgnore(item)}
                           onDone={onDone ? () => onDone(item) : undefined}
                           targetRole={targetRole}
+                          lineOf={lineOf}
                         />
                       )}
                       onAddSkill={onAddSkill}
@@ -945,28 +990,51 @@ export function FixMistakesPanel({
         : null}
 
       {onHiddenGroupsChange ? (
-        <section className="space-y-1.5 border-t border-border pt-3">
+        <section className="border-t border-border pt-3">
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Show suggestions for</p>
-          {[...TOP_GROUPS].map((title) => {
-            const on = !hiddenGroups?.has(title);
-            return (
-              <label key={title} className="flex cursor-pointer items-center justify-between text-sm text-foreground">
-                {title}
-                <input
-                  type="checkbox"
+          {/* Buttons, not <label>: the editor sidebar styles every label as a small block caption. */}
+          <div className="mt-1.5 divide-y divide-border/60">
+            {[...TOP_GROUPS].map((title) => {
+              const on = !hiddenGroups?.has(title);
+              const count = (groups.find((g) => g.title === title)?.items ?? []).filter(
+                (i) => !i.incomplete && !resolved.has(i.id) && !isApplied(i),
+              ).length;
+              return (
+                <button
+                  key={title}
+                  type="button"
                   role="switch"
-                  checked={on}
-                  onChange={() => {
+                  aria-checked={on}
+                  onClick={() => {
                     const next = new Set(hiddenGroups ?? []);
                     if (on) next.add(title);
                     else next.delete(title);
                     onHiddenGroupsChange(next);
                   }}
-                  className="h-4 w-4 accent-[hsl(var(--primary))]"
-                />
-              </label>
-            );
-          })}
+                  className="group flex w-full items-center gap-3 py-2 text-left focus-visible:outline-none"
+                >
+                  <span className={cn("min-w-0 flex-1 text-sm", on ? "text-foreground" : "text-muted-foreground")}>{title}</span>
+                  {count ? (
+                    <span className={cn("rounded-full px-1.5 text-[11px] font-semibold tabular-nums", on ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                      {count}
+                    </span>
+                  ) : null}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors group-focus-visible:ring-2 group-focus-visible:ring-primary/40",
+                      on ? "bg-primary" : "bg-muted-foreground/30",
+                    )}
+                  >
+                    <span className={cn("h-4 w-4 rounded-full bg-white shadow transition-transform", on ? "translate-x-[18px]" : "translate-x-0.5")} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {hiddenGroups && [...TOP_GROUPS].some((t) => hiddenGroups.has(t)) ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">Switched-off suggestions are hidden from this list and the page. Your score still counts them.</p>
+          ) : null}
         </section>
       ) : null}
 
@@ -983,10 +1051,10 @@ export function FixMistakesPanel({
           {showReport ? <div className="mt-3">{children}</div> : null}
         </section>
       ) : null}
-      {resolved.size ? (
+      {fixedCount ? (
         <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
           <Check className="h-3.5 w-3.5" />
-          {resolved.size} fixed this session
+          {fixedCount} fixed this session
         </p>
       ) : null}
     </div>
