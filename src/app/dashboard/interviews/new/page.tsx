@@ -66,7 +66,9 @@ import {
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { voiceApi } from "@/lib/voiceApi";
 import { useInterviewCategoriesQuery } from "@/hooks/queries/useInterviewCategoriesQuery";
+import { InterviewCategoryPicker } from "@/components/dashboard-2026/InterviewCategoryPicker";
 import {
+  allRoundAvailable,
   interviewCategoryEmblem,
   visibleInterviewCategories,
   type InterviewCategory,
@@ -124,7 +126,7 @@ const controlClass =
   "h-12 w-full rounded-xl border-border bg-background text-[14.5px] shadow-none";
 
 /** The chosen round, shown where the classic interview has its length picker (rounds have a fixed length). */
-function RoundBanner({ category }: { category: InterviewCategory }) {
+function RoundBanner({ category, onChange }: { category: InterviewCategory; onChange?: () => void }) {
   const { theme } = useDashboardTheme();
   return (
     <div className="flex items-center gap-4 rounded-[18px] border border-border bg-background/60 p-4">
@@ -139,6 +141,11 @@ function RoundBanner({ category }: { category: InterviewCategory }) {
       <Mono className="hidden shrink-0 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground sm:inline-flex">
         {category.defaultDurationMinutes} MIN
       </Mono>
+      {onChange ? (
+        <button type="button" onClick={onChange} className="shrink-0 text-[13px] font-medium text-primary hover:underline">
+          Change
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -323,6 +330,10 @@ export default function NewInterviewPage() {
   const { data: categoryCatalog, isFetched: categoriesFetched } = useInterviewCategoriesQuery();
   const categories = useMemo(() => visibleInterviewCategories(categoryCatalog), [categoryCatalog]);
   const category = categories.find((c) => c.id === categoryId) ?? null;
+  // Set once the ?category= round (if any) has been applied.
+  const [categoryResolved, setCategoryResolved] = useState(false);
+  // All-in-one interview switched off: pick a round before the form.
+  const needsRound = categoriesFetched && categoryResolved && !category && !allRoundAvailable(categoryCatalog);
   const {
     canUse,
     showTrialUpsell,
@@ -481,12 +492,32 @@ export default function NewInterviewPage() {
 
   // Preselect the round from the URL once we know which rounds this user may start.
   useEffect(() => {
-    if (!categoriesFetched || requestedCategory.current == null) return;
+    if (!categoriesFetched || categoryResolved) return;
     const wanted = requestedCategory.current;
     requestedCategory.current = null;
-    if (categories.some((c) => c.id === wanted)) chooseCategory(wanted);
+    if (wanted && categories.some((c) => c.id === wanted)) chooseCategory(wanted);
+    setCategoryResolved(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriesFetched, categories]);
+
+  // Picked from the round grid on this page: keep the URL in step so a reload keeps the round.
+  const setRoundInUrl = (id: string | null) => {
+    const params = new URLSearchParams(window.location.search);
+    if (id) params.set("category", id);
+    else params.delete("category");
+    const query = params.toString();
+    router.replace(`/dashboard/interviews/new${query ? `?${query}` : ""}`, { scroll: false });
+  };
+  const pickRound = (id: string) => {
+    chooseCategory(id);
+    setCurrentStep(1);
+    setRoundInUrl(id);
+  };
+  const changeRound = () => {
+    setCategoryId("");
+    setCurrentStep(1);
+    setRoundInUrl(null);
+  };
 
   useEffect(() => {
     const apply = (next: PendingJobCapture | null) => {
@@ -811,7 +842,7 @@ export default function NewInterviewPage() {
             <div className="space-y-6">
               {/* A category round has a fixed length: show the round instead of a length picker. */}
               {category ? (
-                <RoundBanner category={category} />
+                <RoundBanner category={category} onChange={allRoundAvailable(categoryCatalog) ? undefined : changeRound} />
               ) : (
               <div>
                 <p className="mb-2.5 text-xs font-medium text-muted-foreground">Session length</p>
@@ -995,6 +1026,17 @@ export default function NewInterviewPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
+            ) : category && !allRoundAvailable(categoryCatalog) ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={changeRound}
+                disabled={loading}
+                className={cn(resumeBuilderOutlineButton, "w-full sm:w-auto")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Change round
+              </Button>
             ) : (
               <span className="hidden sm:block" />
             )}
@@ -1049,6 +1091,23 @@ export default function NewInterviewPage() {
         </p>
       </aside>
     </div>
+  );
+
+  // With the all-in-one interview off, the round comes first; the form follows the pick.
+  const setupBody = !categoryResolved ? (
+    <div className={cn(resumeBuilderCard, "flex min-h-[240px] items-center justify-center")}>
+      <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading interview rounds" />
+    </div>
+  ) : needsRound ? (
+    categories.length ? (
+      <InterviewCategoryPicker hideHeading onPick={pickRound} />
+    ) : (
+      <div className={cn(resumeBuilderCard, "p-5 text-[14px] text-muted-foreground sm:p-7")}>
+        No interview rounds are available right now. Please check back soon.
+      </div>
+    )
+  ) : (
+    interviewForm
   );
 
   if (!isLoaded) {
@@ -1167,7 +1226,7 @@ export default function NewInterviewPage() {
             background={interviewForm}
           />
         ) : limitCheck && limitCheck.allowed ? (
-          interviewForm
+          setupBody
         ) : null)}
     </div>
   );

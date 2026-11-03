@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allRoundAvailable,
   interviewerTitleForCategory,
   interviewCategoryEmblem,
   interviewCategoryLabel,
@@ -33,6 +34,14 @@ describe("interview categories", () => {
       categories: [round("salary_negotiation", 4), round("general_screening", 1), round("managerial", 3, false)],
     });
     expect(visible.map((c) => c.id)).toEqual(["general_screening", "salary_negotiation"]);
+  });
+
+  it("allows the all-in-one interview unless the backend switches it off", () => {
+    expect(allRoundAvailable({ enabled: true, allRound: false, categories: [] })).toBe(false);
+    expect(allRoundAvailable({ enabled: true, allRound: true, categories: [] })).toBe(true);
+    // An older backend doesn't send the switch; nor is there a catalog before it loads.
+    expect(allRoundAvailable({ enabled: true, categories: [] })).toBe(true);
+    expect(allRoundAvailable(undefined)).toBe(true);
   });
 
   it("labels stored rounds and ignores unknown ids", () => {

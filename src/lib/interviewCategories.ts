@@ -24,8 +24,10 @@ export interface InterviewCategory {
 }
 
 export interface InterviewCategoryCatalog {
-  /** The master flag for this user: when false the picker is hidden. */
+  /** Whether this user may start at least one round: when false the picker is hidden. */
   enabled: boolean;
+  /** Whether the all-in-one interview (no round picked) is on; older backends don't send it. */
+  allRound?: boolean;
   categories: InterviewCategory[];
 }
 
@@ -58,6 +60,11 @@ export function interviewerTitleForCategory(id: unknown): string | null {
 /** The emblem the backend names, or a neutral one if it names something unknown. */
 export function interviewCategoryEmblem(c: Pick<InterviewCategory, "emblem">): EmblemKind {
   return (EMBLEMS as readonly string[]).includes(c.emblem) ? (c.emblem as EmblemKind) : "voice";
+}
+
+/** Whether starting without a round (the all-in-one interview) is allowed. */
+export function allRoundAvailable(catalog: InterviewCategoryCatalog | undefined): boolean {
+  return catalog?.allRound !== false;
 }
 
 /** Rounds the user can open, in display order; empty when the feature is off for them. */
