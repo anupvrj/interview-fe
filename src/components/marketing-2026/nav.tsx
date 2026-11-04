@@ -106,8 +106,8 @@ export function Nav() {
       >
         {/* phones and tablets get the production drawer: hamburger on the left, menu slides in from the left */}
         <div className="shrink-0 lg:hidden"><PublicMobileNav mockItems={mockItems} /></div>
-        <Link href={MK26_ROUTES.home} className="min-w-0 shrink">
-          <Image src={mk26Path("/shots/interviewtrix-logo.png")} alt="InterviewTrix" width={164} height={36} priority className="h-8 w-auto max-w-[7.5rem] min-[400px]:max-w-[9.5rem] sm:h-9 sm:max-w-none" />
+        <Link href={MK26_ROUTES.home} className="shrink-0">
+          <Image src={mk26Path("/shots/interviewtrix-logo.png")} alt="InterviewTrix" width={1067} height={234} priority className="h-7 w-auto min-[400px]:h-8 sm:h-9" />
         </Link>
         <ul className="hidden items-center gap-4 whitespace-nowrap text-[14px] font-semibold text-foreground/80 lg:flex xl:gap-6 xl:text-[14.5px]">
           {navLinksHome.map((l) => (
