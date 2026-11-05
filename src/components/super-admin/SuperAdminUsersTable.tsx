@@ -50,6 +50,18 @@ import {
   toDatetimeLocalValue,
 } from "@/lib/utils";
 import { useInsightFilters } from "@/hooks/useInsightFilters";
+import {
+  normalizeSubscriptionPlan,
+  type SubscriptionPlanId,
+} from "@/lib/subscriptionPlans";
+
+const PLAN_OPTIONS: { value: Exclude<SubscriptionPlanId, "trial">; label: string }[] = [
+  { value: "free", label: "Free" },
+  { value: "general_pass", label: "General Pass" },
+  { value: "tech_basic", label: "Tech Basic" },
+  { value: "tech_pro", label: "Tech Pro" },
+  { value: "enterprise", label: "Enterprise" },
+];
 
 export function SuperAdminUsersTable() {
   const router = useRouter();
@@ -76,15 +88,13 @@ export function SuperAdminUsersTable() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
-  const [addPlan, setAddPlan] = useState<"free" | "premium" | "enterprise">(
-    "free",
-  );
+  const [addPlan, setAddPlan] = useState<(typeof PLAN_OPTIONS)[number]["value"]>("free");
   const [addInstitutionId, setAddInstitutionId] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [creditsOpen, setCreditsOpen] = useState<User | null>(null);
+  const [creditsMode, setCreditsMode] = useState<"add" | "set">("add");
   const [creditsAmount, setCreditsAmount] = useState("");
-  const [creditsDescription, setCreditsDescription] = useState("");
   const [creditsSubmitting, setCreditsSubmitting] = useState(false);
 
   const [scheduleUser, setScheduleUser] = useState<User | null>(null);
@@ -193,26 +203,44 @@ export function SuperAdminUsersTable() {
       (i.slug && i.slug.toLowerCase().includes(instSearch.toLowerCase())),
   );
 
-  const handleAddCredits = async () => {
+  const handleSaveCredits = async () => {
     if (!creditsOpen) return;
-    const amount = Number.parseInt(creditsAmount, 10);
-    if (Number.isNaN(amount) || amount <= 0) {
-      alert("Enter a valid positive amount");
+    const current = creditsOpen.credits?.total ?? 0;
+    let delta: number;
+    if (creditsMode === "add") {
+      const amount = Number.parseInt(creditsAmount, 10);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("Enter a positive whole number of credits to add.");
+        return;
+      }
+      delta = amount;
+    } else {
+      const nextBalance = Number.parseInt(creditsAmount, 10);
+      if (!Number.isFinite(nextBalance) || nextBalance < 0) {
+        toast.error("Enter a new balance of 0 or more.");
+        return;
+      }
+      delta = nextBalance - current;
+    }
+    if (delta === 0) {
+      setCreditsOpen(null);
+      setCreditsAmount("");
       return;
     }
     try {
       setCreditsSubmitting(true);
       await adminApi.addCredits(
         creditsOpen.clerkId,
-        amount,
-        creditsDescription || "Admin adjustment",
+        delta,
+        `Admin adjustment (${delta > 0 ? "+" : ""}${delta}; balance was ${current})`,
       );
       setCreditsOpen(null);
       setCreditsAmount("");
-      setCreditsDescription("");
+      setCreditsMode("add");
       await loadUsers();
+      toast.success("Credits updated");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to add credits");
+      toast.error(err?.response?.data?.message || "Failed to update credits");
     } finally {
       setCreditsSubmitting(false);
     }
@@ -242,10 +270,7 @@ export function SuperAdminUsersTable() {
     }
   };
 
-  const handleUpdatePlan = async (
-    u: User,
-    plan: "free" | "premium" | "enterprise",
-  ) => {
+  const handleUpdatePlan = async (u: User, plan: SubscriptionPlanId) => {
     try {
       await adminApi.updatePlan(u.clerkId, plan);
       await loadUsers();
@@ -647,23 +672,29 @@ export function SuperAdminUsersTable() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <select
-                          className="app-control text-xs"
-                          value={(u as any).subscription?.plan || "free"}
-                          onChange={(e) =>
-                            handleUpdatePlan(
-                              u,
-                              e.target.value as
-                                | "free"
-                                | "premium"
-                                | "enterprise",
-                            )
-                          }
-                        >
-                          <option value="free">Free</option>
-                          <option value="premium">Premium</option>
-                          <option value="enterprise">Enterprise</option>
-                        </select>
+                        {(() => {
+                          const currentPlan = normalizeSubscriptionPlan(u.subscription?.plan);
+                          const options =
+                            currentPlan === "trial"
+                              ? [{ value: "trial" as const, label: "Trial" }, ...PLAN_OPTIONS]
+                              : PLAN_OPTIONS;
+                          return (
+                            <select
+                              className="app-control min-w-[8.5rem] text-xs"
+                              value={currentPlan}
+                              aria-label={`Plan for ${u.email}`}
+                              onChange={(e) =>
+                                handleUpdatePlan(u, e.target.value as SubscriptionPlanId)
+                              }
+                            >
+                              {options.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center gap-1">
@@ -674,10 +705,10 @@ export function SuperAdminUsersTable() {
                             className="h-6 w-6 p-0"
                             onClick={() => {
                               setCreditsOpen(u);
+                              setCreditsMode("add");
                               setCreditsAmount("");
-                              setCreditsDescription("");
                             }}
-                            title="Add credits"
+                            title="Adjust credits"
                           >
                             <Coins className="h-4 w-4" />
                           </Button>
@@ -899,51 +930,54 @@ export function SuperAdminUsersTable() {
       <Dialog open={!!creditsOpen} onOpenChange={() => setCreditsOpen(null)}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Credits</DialogTitle>
+            <DialogTitle>Adjust credits</DialogTitle>
             <DialogDescription>
-              Add credits to {creditsOpen?.name} ({creditsOpen?.email}). Current
-              balance: {creditsOpen?.credits?.total ?? 0}
+              {creditsOpen?.name || creditsOpen?.email} — current balance:{" "}
+              {creditsOpen?.credits?.total ?? 0}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
-              <Label htmlFor="credits-amount">Amount</Label>
+              <Label htmlFor="credits-mode">Action</Label>
+              <select
+                id="credits-mode"
+                className="app-control mt-1 w-full bg-card"
+                value={creditsMode}
+                onChange={(e) => {
+                  setCreditsMode(e.target.value as "add" | "set");
+                  setCreditsAmount("");
+                }}
+              >
+                <option value="add">Add credits</option>
+                <option value="set">Set new balance</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="credits-amount">
+                {creditsMode === "add" ? "Credits to add" : "New balance"}
+              </Label>
               <Input
                 id="credits-amount"
                 type="number"
-                min={1}
+                min={creditsMode === "add" ? 1 : 0}
+                step={1}
                 value={creditsAmount}
                 onChange={(e) => setCreditsAmount(e.target.value)}
-                placeholder="e.g. 100"
+                placeholder={creditsMode === "add" ? "e.g. 100" : "e.g. 500"}
               />
-            </div>
-            <div>
-              <Label htmlFor="credits-desc">Description (optional)</Label>
-              <Input
-                id="credits-desc"
-                value={creditsDescription}
-                onChange={(e) => setCreditsDescription(e.target.value)}
-                placeholder="Admin adjustment"
-              />
+              {creditsMode === "set" ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Replaces the current balance of {creditsOpen?.credits?.total ?? 0}. The balance cannot go below zero.
+                </p>
+              ) : null}
             </div>
           </div>
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setCreditsOpen(null)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleAddCredits}
-              disabled={
-                !creditsAmount ||
-                Number.parseInt(creditsAmount, 10) <= 0 ||
-                creditsSubmitting
-              }
-            >
-              {creditsSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Add Credits"
-              )}
+            <Button onClick={handleSaveCredits} disabled={!creditsAmount || creditsSubmitting}>
+              {creditsSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -974,11 +1008,15 @@ export function SuperAdminUsersTable() {
                 id="add-plan"
                 className="app-control w-full bg-card"
                 value={addPlan}
-                onChange={(e) => setAddPlan(e.target.value as any)}
+                onChange={(e) =>
+                  setAddPlan(e.target.value as (typeof PLAN_OPTIONS)[number]["value"])
+                }
               >
-                <option value="free">Free</option>
-                <option value="premium">Premium</option>
-                <option value="enterprise">Enterprise</option>
+                {PLAN_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
