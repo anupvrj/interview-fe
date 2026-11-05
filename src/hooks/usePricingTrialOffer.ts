@@ -12,8 +12,8 @@ export type PricingTrialOfferState =
 
 /**
  * Resolves whether the pricing-page trial banner should render.
- * Signed-in users wait for entitlements before showing anything — avoids
- * flashing the trial CTA for emails that already used the trial.
+ * Signed-in users wait for entitlements before showing anything. The banner
+ * is only for the free plan, so an active Pro plan does not get a trial reminder.
  */
 export function usePricingTrialOffer() {
   const { isLoaded, isSignedIn } = useUser();
@@ -37,14 +37,14 @@ export function usePricingTrialOffer() {
       .getEntitlements()
       .then((data) => {
         if (cancelled) return;
-        if (data.canPurchaseTrial && !data.hasActiveTrial) {
+        if (data.isFreeTier && data.canPurchaseTrial && !data.hasActiveTrial) {
           setState("show");
         } else {
           setState("hide");
         }
       })
       .catch(() => {
-        if (!cancelled) setState("show");
+        if (!cancelled) setState("hide");
       });
 
     return () => {
