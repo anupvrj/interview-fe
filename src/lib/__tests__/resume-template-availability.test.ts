@@ -82,3 +82,38 @@ describe("fetchResumeTemplateAvailability", () => {
     expect(await fetchResumeTemplateAvailability()).toEqual({ disabledTemplateIds: [], templateOrder: [], overrides: {} });
   });
 });
+
+describe("fetchResumeTemplateAvailability request sharing", () => {
+  const settings = { disabledTemplateIds: ["classic"], templateOrder: [], overrides: {} };
+
+  it("sends one request when every template loads at once", async () => {
+    getResumeTemplateAvailability.mockResolvedValue(settings);
+    const results = await Promise.all(Array.from({ length: 17 }, () => fetchResumeTemplateAvailability()));
+    expect(getResumeTemplateAvailability).toHaveBeenCalledTimes(1);
+    expect(results.every((r) => r === settings)).toBe(true);
+  });
+
+  it("asks again after a failed request instead of sharing the failure", async () => {
+    getResumeTemplateAvailability.mockRejectedValueOnce(new Error("down")).mockResolvedValue(settings);
+    expect((await fetchResumeTemplateAvailability()).disabledTemplateIds).toEqual([]);
+    expect(await fetchResumeTemplateAvailability()).toBe(settings);
+    expect(getResumeTemplateAvailability).toHaveBeenCalledTimes(2);
+  });
+
+  it("forgetting ignores a reply already on its way", async () => {
+    let resolveOld!: (value: unknown) => void;
+    const fresh = { ...settings, disabledTemplateIds: ["harvard"] };
+    getResumeTemplateAvailability
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValue(fresh);
+
+    const old = fetchResumeTemplateAvailability();
+    forgetResumeTemplateAvailability();
+    expect(await fetchResumeTemplateAvailability()).toBe(fresh);
+
+    resolveOld(settings);
+    await old;
+    expect(await fetchResumeTemplateAvailability()).toBe(fresh);
+    expect(getResumeTemplateAvailability).toHaveBeenCalledTimes(2);
+  });
+});
