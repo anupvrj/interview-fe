@@ -54,3 +54,10 @@ describe("tour steps", () => {
     expect(tourSteps(false, true, {})[2].title).toBe("Check your ATS score");
   });
 });
+
+describe("atsTourSteps", () => {
+  it("stays short: score, finding, fix, template", async () => {
+    const { atsTourSteps } = await import("../guideTargets");
+    expect(atsTourSteps().map((s) => s.id)).toEqual(["ats-score", "ats-finding", "ats-edit", "ats-design"]);
+  });
+});

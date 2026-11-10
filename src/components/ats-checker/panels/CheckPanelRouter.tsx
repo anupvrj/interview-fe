@@ -51,9 +51,9 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
               className={cn(
                 "font-bold",
                 pct >= 80
-                  ? "text-green-600"
+                  ? "text-green-600 dark:text-green-300"
                   : pct >= 50
-                    ? "text-amber-600"
+                    ? "text-amber-600 dark:text-amber-300"
                     : "text-red-600 dark:text-[#fd7070]",
               )}
             >
@@ -80,10 +80,10 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
           className={cn(
             "inline-block rounded-full px-2 py-0.5 text-xs font-semibold capitalize",
             meta.verdict === "strong"
-              ? "bg-green-100 text-green-800 dark:text-green-200"
+              ? "bg-green-100 text-green-800 dark:text-green-200 dark:bg-green-950/30"
               : meta.verdict === "partial"
-                ? "bg-amber-100 text-amber-800 dark:text-amber-200"
-                : "bg-red-100 text-red-800 dark:text-[#fd7070]",
+                ? "bg-amber-100 text-amber-800 dark:text-amber-200 dark:bg-amber-950/30"
+                : "bg-red-100 text-red-800 dark:text-[#fd7070] dark:bg-red-950/30",
           )}
         >
           {meta.verdict} fit
@@ -100,7 +100,7 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
                 {meta.matched!.map((item) => (
                   <span
                     key={item}
-                    className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200"
+                    className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200 dark:border-green-900/50 dark:bg-green-950/30"
                   >
                     {item}
                   </span>
@@ -117,7 +117,7 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
                 {meta.missing!.map((item) => (
                   <span
                     key={item}
-                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800 dark:text-[#fd7070]"
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800 dark:text-[#fd7070] dark:border-red-900/50 dark:bg-red-950/30"
                   >
                     {item}
                   </span>
@@ -259,7 +259,7 @@ export function CheckPanelRouter({
         if (check.issueCount === 0) {
           return (
             <div className="rounded-xl border border-green-200/70 bg-green-50 dark:border-green-900/40 dark:bg-green-950/25 p-6 text-center">
-              <Check className="mx-auto mb-2 h-8 w-8 text-green-600" />
+              <Check className="mx-auto mb-2 h-8 w-8 text-green-600 dark:text-green-300" />
               <p className="font-medium text-green-800 dark:text-green-200">No issues found</p>
             </div>
           );
@@ -306,7 +306,7 @@ export function CheckPanelRouter({
             <span
               className={cn(
                 "font-bold",
-                check.parseRate >= 85 ? "text-green-600" : "text-amber-600",
+                check.parseRate >= 85 ? "text-green-600 dark:text-green-300" : "text-amber-600 dark:text-amber-300",
               )}
             >
               {check.parseRate}%

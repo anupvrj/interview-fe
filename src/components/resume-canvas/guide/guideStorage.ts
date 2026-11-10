@@ -5,6 +5,8 @@
 export type GuideState = {
   /** The tour was finished or skipped (either way, don't start it on its own again). */
   tour: "done" | "skipped" | null;
+  /** The ATS panel's short tour was seen. */
+  atsTour: boolean;
   /** Existing users get one "Take a 30-sec tour?" prompt. */
   prompted: boolean;
   /** Setup checklist closed for good (finished, or dismissed). */
@@ -17,7 +19,7 @@ export type GuideState = {
   laterCount: number;
 };
 
-const EMPTY: GuideState = { tour: null, prompted: false, checklistClosed: false, explored: [], milestones: [], laterCount: 0 };
+const EMPTY: GuideState = { tour: null, atsTour: false, prompted: false, checklistClosed: false, explored: [], milestones: [], laterCount: 0 };
 const key = (userId: string) => `ix:editorGuide:v1:${userId}`;
 
 export function readGuide(userId: string): GuideState {
@@ -27,6 +29,7 @@ export function readGuide(userId: string): GuideState {
     const parsed = JSON.parse(raw) as Partial<GuideState>;
     return {
       tour: parsed.tour === "done" || parsed.tour === "skipped" ? parsed.tour : null,
+      atsTour: parsed.atsTour === true,
       prompted: parsed.prompted === true,
       checklistClosed: parsed.checklistClosed === true,
       explored: Array.isArray(parsed.explored) ? parsed.explored.filter((x) => typeof x === "string") : [],

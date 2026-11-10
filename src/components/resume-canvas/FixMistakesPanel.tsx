@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, Loader2, Plus, RefreshCw, Sparkles, Target } from "lucide-react";
 import { resumeApi } from "@/lib/api";
 import type { ATSCheckId, ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
+import { countSetAsideIssues } from "@/types/atsReport";
+import { SetAsideLink } from "@/components/ats-checker/SetAsideLink";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
 import { AtsParseCard } from "./AtsParseCard";
@@ -606,8 +608,9 @@ function IssueCard({
       onKeyDown={(e) => {
         if (locatable && e.key === "Enter") onLocate();
       }}
+      data-guide="ats-finding"
       className={cn(
-        "rounded-xl border bg-card p-3 text-left transition-shadow",
+        "rounded-[14px] border bg-card p-3 text-left transition-shadow",
         locatable && "cursor-pointer",
         active ? "border-primary shadow-md" : "border-border hover:shadow-sm",
       )}
@@ -665,7 +668,7 @@ function IssueCard({
           <button
             type="button"
             onClick={() => onApply(issue.rewriteSuggestion!)}
-            className="w-full rounded-md border border-emerald-500/50 bg-emerald-50 px-2.5 py-1.5 text-left text-xs text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-200"
+            className="w-full rounded-md border border-emerald-500/50 bg-emerald-50 px-2.5 py-1.5 text-left text-xs text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-200 dark:hover:bg-emerald-950/40"
           >
             <span className="block font-semibold">Suggested wording · tap to use</span>
             {issue.rewriteSuggestion}
@@ -737,6 +740,7 @@ function IssueCard({
 }
 
 export function FixMistakesPanel({
+  onReplayTour,
   report,
   score,
   checking,
@@ -760,8 +764,16 @@ export function FixMistakesPanel({
   onApplyRewrite,
   onUndo,
   lineOf,
+  onRestoreSetAside,
+  improvedFrom,
   children,
 }: {
+  /** The score before the AI rewrite ("Improve with AI", or the rewrite kept at sign-up). */
+  improvedFrom?: number;
+  /** Brings back the findings they set aside (Ignore / Mark as fixed). */
+  onRestoreSetAside?: () => Promise<void>;
+  /** Shows the ATS tour again. */
+  onReplayTour?: () => void;
   /** The whole bullet a quote is part of (AI Coach rewrites that, not just the quote). */
   lineOf?: (quote: string) => string | null;
   /** Live placeholder findings (sample text the report may not know about yet). */
@@ -863,7 +875,7 @@ export function FixMistakesPanel({
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background p-4 ring-1 ring-border">
+      <div data-guide="ats-score" className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background p-4 ring-1 ring-border">
         <ScoreRing score={score} size={64} busy={checking} />
         <div className="min-w-0 flex-1">
           <p className={cn("text-xs font-bold uppercase tracking-wide", band.text)}>{band.label}</p>
@@ -873,7 +885,17 @@ export function FixMistakesPanel({
           <p className="mt-0.5 text-xs text-muted-foreground">
             {edited ? "You've edited since the last check — re-run to update." : "Score out of 100 from our ATS check."}
           </p>
-          {sampleLeft > 0 ? (
+          {!edited && typeof improvedFrom === "number" && typeof score === "number" && score > improvedFrom ? (
+            <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              Up from {improvedFrom} after the AI rewrite.
+            </p>
+          ) : null}
+          {sampleLeft > 0 && typeof improvedFrom === "number" ? (
+            <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
+              The AI rewrite left {sampleLeft} spot{sampleLeft === 1 ? "" : "s"} like {"{XX%}"} for your real numbers. Fill
+              {sampleLeft === 1 ? " it" : " them"} in to lift your score.
+            </p>
+          ) : sampleLeft > 0 ? (
             <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400">
               Held below 60 while sample text remains — replace it first.
             </p>
@@ -892,6 +914,11 @@ export function FixMistakesPanel({
       </div>
 
       {onCheckAtsParse ? <AtsParseCard onCheck={onCheckAtsParse} /> : null}
+      {onReplayTour ? (
+        <button type="button" onClick={onReplayTour} className="flex min-h-8 items-center text-xs font-medium text-muted-foreground hover:text-foreground">
+          How does this work?
+        </button>
+      ) : null}
 
       {unfinished.length ? (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
@@ -916,7 +943,7 @@ export function FixMistakesPanel({
         if (!visible.length) return null;
         return (
           <div className="space-y-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Fix these first</p>
+            <p className="font-mono text-[11px] uppercase tracking-wider text-primary">Fix these first</p>
             {visible.map((group) => (
               <section key={group.title}>
                 <div className="mb-2 flex items-center justify-between">
@@ -988,6 +1015,8 @@ export function FixMistakesPanel({
             );
           })
         : null}
+
+      {onRestoreSetAside ? <SetAsideLink count={countSetAsideIssues(report)} onRestore={onRestoreSetAside} /> : null}
 
       {onHiddenGroupsChange ? (
         <section className="border-t border-border pt-3">

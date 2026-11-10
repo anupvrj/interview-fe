@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { configApi } from "@/lib/api";
 import {
@@ -16,7 +16,11 @@ export function usePlatformFeatures() {
     staleTime: 30_000,
   });
 
-  const features = query.data ?? [];
+  // The server never has the flags, so the first browser render must not use cached ones either.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const data = hydrated ? query.data : undefined;
+  const features = data ?? [];
   const byKey = useMemo(() => {
     const map = new Map<string, PlatformFeature>();
     for (const feature of features) map.set(feature.key, feature);
@@ -24,17 +28,17 @@ export function usePlatformFeatures() {
   }, [features]);
 
   const isVisible = (key: string) => {
-    if (!query.data) return true;
+    if (!data) return true;
     return byKey.get(key)?.visible !== false;
   };
 
   const isAccessible = (key: string) => {
-    if (!query.data) return true;
+    if (!data) return true;
     return byKey.get(key)?.accessible !== false;
   };
 
   const isNavHrefVisible = (href: string, featureKey?: string) => {
-    if (!query.data) return true;
+    if (!data) return true;
     return isFeatureHrefVisible(features, href, featureKey);
   };
 

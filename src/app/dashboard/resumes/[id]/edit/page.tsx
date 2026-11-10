@@ -3394,6 +3394,37 @@ export default function EditResumePage() {
     });
   };
 
+  const setAsideIds = useRef<Set<string>>(new Set());
+  /** "Show them": every finding set aside comes back to the list, the score unchanged. */
+  const restoreSetAside = useCallback(async () => {
+    if (!resumeId) return;
+    const updated = await resumeApi.restoreIgnoredATSIssues(resumeId);
+    setResumeState((prev) =>
+      prev
+        ? { ...prev, atsScore: updated.atsScore, atsFeedback: updated.atsFeedback, atsIgnoredIssues: updated.atsIgnoredIssues }
+        : prev,
+    );
+    // Only cards set aside this visit come back; applied fixes stay off the list.
+    const back = setAsideIds.current;
+    setAsideIds.current = new Set();
+    setFixResolved((prev) => new Set([...prev].filter((id) => !back.has(id))));
+  }, [resumeId]);
+
+  /** "Mark done" and "Dismiss": off the list, saved so it stays off after a reload. The score holds. */
+  const setFindingAside = (item: FixItem) => {
+    setAsideIds.current.add(item.id);
+    resolveFix(item);
+    handleIgnoreATSIssue(item.check, item.issue).catch(() => {
+      // Not saved: bring the card back so the list matches the report.
+      setFixResolved((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+      showCanvasNotice("Couldn't update that. Check your connection and try again.");
+    });
+  };
+
   // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
   useEffect(() => {
     if (!canvasFocus) return;
@@ -3432,6 +3463,8 @@ export default function EditResumePage() {
     placeRestoredRef.current = true;
     const place = readEditorPlace(resumeId);
     if (!place) return;
+    // A link to the ATS check (Improve now) wins over the panel that was open last time.
+    if (searchParams.get("view") === "ats" && place.panel !== "fix") return;
     // Reopen the panel the way opening it does: the ATS panel needs the ATS view (else its frame
     // showed the Personal Information form), Style and a section's fields need their form.
     if (place.panel === "fix") {
@@ -4609,6 +4642,7 @@ export default function EditResumePage() {
 
           {canvasOn && viewMode === "ats" && resume.atsFeedback ? (
             <FixMistakesPanel
+              onReplayTour={isMobile ? undefined : () => guideRef.current?.startAtsTour()}
               liveText={resumeRawText}
               reportText={reportPageText.current.text}
               livePlaceholders={livePlaceholderIssues}
@@ -4625,7 +4659,7 @@ export default function EditResumePage() {
                 else recordFixedLine(item.check, item.issue, text);
                 return at;
               }}
-              onDone={resolveFix}
+              onDone={setFindingAside}
               lineOf={(quote) => (resumeRef.current ? lineContaining(resumeRef.current, quote) : null)}
               onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
@@ -4654,18 +4688,9 @@ export default function EditResumePage() {
                 else showCanvasNotice("Couldn't find that text on your resume — it may have changed already.");
                 return ok;
               }}
-              onIgnore={(item) => {
-                resolveFix(item);
-                handleIgnoreATSIssue(item.check, item.issue).catch(() => {
-                  // Not saved: bring the card back so the list matches the score.
-                  setFixResolved((prev) => {
-                    const next = new Set(prev);
-                    next.delete(item.id);
-                    return next;
-                  });
-                  showCanvasNotice("Couldn't dismiss that — check your connection and try again.");
-                });
-              }}
+              onIgnore={setFindingAside}
+              onRestoreSetAside={restoreSetAside}
+              improvedFrom={resume.atsImprovementMeta?.previousScore}
               onRecheck={handleCheckATS}
               onTailor={() => setMatchJobOpen(true)}
               targetRole={resume.content.personalInfo?.portfolio}
@@ -8581,6 +8606,7 @@ export default function EditResumePage() {
         hasSample={guideHasSample}
         atsTarget={guideAtsTarget}
         openPanel={canvasPanel}
+        atsPanelReady={canvasPanel === "fix" && Boolean(resume?.atsFeedback)}
         onOpenPanel={(panel) => {
           if (canvasPanel !== panel) openCanvasPanel(panel); // open only — never toggle it shut
         }}

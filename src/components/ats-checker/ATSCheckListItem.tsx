@@ -7,12 +7,12 @@ import { isAdvisoryCheck } from "@/types/atsReport";
 
 function StatusIcon({ status }: { status: ATSCheckStatus }) {
   if (status === "pass")
-    return <Check className="h-4 w-4 text-green-600 shrink-0" />;
+    return <Check className="h-4 w-4 text-green-600 shrink-0 dark:text-green-300" />;
   if (status === "fail")
     return <X className="h-4 w-4 text-red-600 dark:text-[#fd7070] shrink-0" />;
   if (status === "skipped")
     return <Lock className="h-4 w-4 text-muted-foreground shrink-0" />;
-  return <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />;
+  return <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 dark:text-amber-300" />;
 }
 
 interface ATSCheckListItemProps {
@@ -39,7 +39,12 @@ export function ATSCheckListItem({
     >
       <StatusIcon status={check.status} />
       <span className="min-w-0 flex-1 break-words text-left">{check.label}</span>
-      {isAdvisoryCheck(check) && check.status !== "skipped" ? (
+      {check.locked ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          <Lock className="h-3 w-3" />
+          {check.issueCount} locked
+        </span>
+      ) : isAdvisoryCheck(check) && check.status !== "skipped" ? (
         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
           {check.issueCount > 0
             ? `${check.issueCount} tip${check.issueCount !== 1 ? "s" : ""} · optional`

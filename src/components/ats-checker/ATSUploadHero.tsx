@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, Lock, FileText, ArrowRight } from "lucide-react";
+import { Upload, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
 import { cn } from "@/lib/utils";
 import {
   PDF_RESUME_MAX_BYTES,
@@ -19,8 +20,6 @@ import {
 } from "@/lib/pdf-dropzone";
 import type { FileRejection } from "react-dropzone";
 
-type ModalStep = "upload" | "job-description";
-
 interface ATSUploadHeroProps {
   onStart: (file: File, jobDescription: string) => void;
   uploading?: boolean;
@@ -28,20 +27,6 @@ interface ATSUploadHeroProps {
   compact?: boolean;
   showSignInHint?: boolean;
   onSignInRequired?: () => void;
-}
-
-function resetModalState(
-  setModalStep: (step: ModalStep) => void,
-  setPendingFile: (file: File | null) => void,
-  setLocalJd: (value: string) => void,
-  setWantsJd: (value: boolean | null) => void,
-  setLocalError: (value: string | null) => void,
-) {
-  setModalStep("upload");
-  setPendingFile(null);
-  setLocalJd("");
-  setWantsJd(null);
-  setLocalError(null);
 }
 
 export function ATSUploadHero({
@@ -53,29 +38,21 @@ export function ATSUploadHero({
   onSignInRequired,
 }: ATSUploadHeroProps) {
   const [open, setOpen] = useState(false);
-  const [modalStep, setModalStep] = useState<ModalStep>("upload");
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [jdOpen, setJdOpen] = useState(false);
   const [localJd, setLocalJd] = useState("");
-  const [wantsJd, setWantsJd] = useState<boolean | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (uploading || error) {
-      setOpen(true);
-    }
-  }, [uploading, error]);
+    if (error) setOpen(true);
+  }, [error]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (uploading && !nextOpen) return;
     setOpen(nextOpen);
     if (!nextOpen) {
-      resetModalState(
-        setModalStep,
-        setPendingFile,
-        setLocalJd,
-        setWantsJd,
-        setLocalError,
-      );
+      setJdOpen(false);
+      setLocalJd("");
+      setLocalError(null);
     }
   };
 
@@ -102,10 +79,7 @@ export function ATSUploadHero({
     }
 
     setLocalError(null);
-    setPendingFile(file);
-    setModalStep("job-description");
-    setWantsJd(null);
-    setLocalJd("");
+    onStart(file, localJd.trim());
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -116,16 +90,6 @@ export function ATSUploadHero({
     multiple: false,
     disabled: uploading,
   });
-
-  const handleSkipJd = () => {
-    if (!pendingFile || uploading) return;
-    onStart(pendingFile, "");
-  };
-
-  const handleStartWithJd = () => {
-    if (!pendingFile || uploading) return;
-    onStart(pendingFile, localJd.trim());
-  };
 
   const displayError = localError || error;
 
@@ -147,156 +111,61 @@ export function ATSUploadHero({
         </p>
         {showSignInHint && (
           <p className="text-sm text-muted-foreground">
-            Sign in after upload — your resume is saved and analysis continues
-            automatically.
+            Get your score free, no sign-up needed.
           </p>
         )}
         {!open && displayError && (
-          <p className="text-sm text-red-600">{displayError}</p>
+          <p className="text-sm text-destructive">{displayError}</p>
         )}
       </div>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="gap-0 overflow-hidden rounded-[22px] p-0 sm:max-w-[480px]">
-          <div className="flex max-h-[85vh] flex-col gap-6 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
-          {modalStep === "upload" ? (
-            <>
-              <DialogHeader className="space-y-2 pr-8 text-left">
-                <DialogTitle>Upload your resume</DialogTitle>
-                <DialogDescription>
-                  Choose a PDF resume first. We&apos;ll ask about a job description next.
-                </DialogDescription>
-              </DialogHeader>
+        <DialogContent className={cn(dash2026Scope, "gap-0 overflow-hidden rounded-[22px] p-0 sm:max-w-[480px]")}>
+          <div className="flex max-h-[85vh] flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
+            <DialogHeader className="space-y-2 pr-8 text-left">
+              <Eyebrow>ATS CHECK</Eyebrow>
+              <DialogTitle className="text-[24px] font-black tracking-[-0.04em]">Upload your resume</DialogTitle>
+              <DialogDescription>Your check starts as soon as you add the file.</DialogDescription>
+            </DialogHeader>
 
-              <div className="space-y-4">
-                <div
-                  {...getRootProps()}
-                  className={cn(
-                    "rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all bg-muted/30",
-                    isDragActive
-                      ? "border-primary bg-primary/5"
-                      : "border-primary/40 hover:border-primary",
-                    uploading && "opacity-60 pointer-events-none",
-                  )}
-                >
-                  <input {...getInputProps()} />
-                  <Upload className="h-10 w-10 mx-auto text-primary mb-4" />
-                  <p className="font-medium text-foreground mb-1">
-                    Drop your resume here or choose a file
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    PDF only. Max 2MB file size.
-                  </p>
-                  <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-4">
-                    <Lock className="h-3 w-3" /> Privacy guaranteed
-                  </p>
-                </div>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "cursor-pointer rounded-[18px] border-2 border-dashed bg-muted/30 p-8 text-center transition-all",
+                isDragActive ? "border-primary bg-primary/5" : "border-primary/40 hover:border-primary",
+                uploading && "pointer-events-none opacity-60",
+              )}
+            >
+              <input {...getInputProps()} />
+              <Upload className="mx-auto mb-4 h-10 w-10 text-primary" />
+              <p className="mb-1 font-semibold text-foreground">Drop your resume here or choose a file</p>
+              <p className="text-sm text-muted-foreground">PDF only. Max 2MB.</p>
+              <p className="mt-4 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                <Lock className="h-3 w-3" /> Privacy guaranteed
+              </p>
+            </div>
 
-                {showSignInHint && (
-                  <p className="text-sm text-muted-foreground">
-                    Sign in when you start analysis — your upload is remembered.
-                  </p>
-                )}
+            {jdOpen ? (
+              <textarea
+                value={localJd}
+                onChange={(e) => setLocalJd(e.target.value)}
+                autoFocus
+                aria-label="Job description"
+                placeholder="Paste the job description, then add your resume."
+                className="min-h-[120px] w-full resize-y rounded-xl border border-border bg-card p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setJdOpen(true)}
+                className="flex min-h-8 items-center gap-1.5 self-start text-[13.5px] font-medium text-primary hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add a job description (optional)
+              </button>
+            )}
 
-                {displayError && <p className="text-sm text-red-600">{displayError}</p>}
-              </div>
-            </>
-          ) : (
-            <>
-              <DialogHeader className="space-y-2 pr-8 text-left">
-                <DialogTitle>Do you have a job description?</DialogTitle>
-                <DialogDescription>
-                  Paste it to unlock tailoring checks, or skip to run a general ATS score on your resume.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                {pendingFile && (
-                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">
-                        {pendingFile.name}
-                      </p>
-                      <p className="text-xs text-emerald-700">Resume ready</p>
-                    </div>
-                  </div>
-                )}
-
-                {wantsJd === null ? (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full"
-                      disabled={uploading}
-                      onClick={() => setWantsJd(true)}
-                    >
-                      Yes, I have one
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-11 w-full bg-primary text-white hover:bg-primary/90"
-                      disabled={uploading}
-                      onClick={handleSkipJd}
-                    >
-                      Continue Without JD
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <textarea
-                      value={localJd}
-                      onChange={(e) => setLocalJd(e.target.value)}
-                      autoFocus
-                      placeholder="Paste the job description here for tailored keyword and skills matching..."
-                      className="w-full min-h-[140px] rounded-xl border border-border bg-card p-4 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-muted-foreground shrink-0"
-                        disabled={uploading}
-                        onClick={() => setWantsJd(null)}
-                      >
-                        Back
-                      </Button>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploading}
-                          onClick={handleSkipJd}
-                        >
-                          Skip & analyze
-                        </Button>
-                        <Button
-                          type="button"
-                          className="bg-primary text-white hover:bg-primary/90"
-                          disabled={uploading}
-                          onClick={handleStartWithJd}
-                        >
-                          Start analysis
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {uploading && (
-                  <p className="text-sm font-medium text-foreground text-center">
-                    We are scanning your file...
-                  </p>
-                )}
-
-                {displayError && <p className="text-sm text-red-600">{displayError}</p>}
-              </div>
-            </>
-          )}
+            {displayError && <p className="text-sm text-destructive">{displayError}</p>}
           </div>
         </DialogContent>
       </Dialog>

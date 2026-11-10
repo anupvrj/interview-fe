@@ -116,3 +116,15 @@ export function tourSteps(isMobile: boolean, hackathon: boolean, options: TourOp
   steps.push({ id: "export", emoji: "📄", title: "Download when ready", body: "Get a recruiter-ready PDF any time.", find: exportButton });
   return steps;
 }
+
+const guideTarget = (name: string) => () => document.querySelector<HTMLElement>(`[data-guide="${name}"]`);
+
+/** First time in the ATS panel: where the score is, and how to raise it. Short on purpose. */
+export function atsTourSteps(): GuideStep[] {
+  return [
+    { id: "ats-score", emoji: "📊", title: "Your ATS score", body: "This is how well ATS software can read your resume.", find: guideTarget("ats-score") },
+    { id: "ats-finding", emoji: "🔎", title: "Pick a finding", body: "Click one to see exactly where it is on your resume.", find: guideTarget("ats-finding") },
+    { id: "ats-edit", emoji: "✍️", title: "Fix it, watch the score", body: "Use a suggestion or edit the line yourself. Your score updates as you go.", find: resumePage },
+    { id: "ats-design", emoji: "🎨", title: "Change the look any time", body: "Pick another template. Your content stays.", find: () => studioButton("Designs") },
+  ];
+}

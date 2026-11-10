@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { Button } from "@/components/ui/button";
 import {
   navLinkBecomeInterviewer,
@@ -129,9 +130,7 @@ export function Nav() {
             </Button>
           </SignedOut>
           <SignedIn>
-            <Button asChild className="h-10 rounded-xl px-3.5 hover:bg-primary/90 sm:px-4">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
+            <ProfileMenu />
           </SignedIn>
         </div>
       </nav>

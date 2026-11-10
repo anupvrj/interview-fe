@@ -23,6 +23,7 @@ import {
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
+import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
 
 function OnboardingFallback() {
   return (
@@ -51,6 +52,11 @@ function OnboardingPageContent() {
   useEffect(() => {
     if (hackathonLeavePath) {
       leaveOnboarding(hackathonLeavePath);
+      return;
+    }
+    // Came for a free ATS check they just ran: the report first, onboarding later.
+    if (hasUnclaimedGuestCheck()) {
+      leaveOnboarding(GUEST_CHECK_CLAIM_PATH);
       return;
     }
     const next = safeAppRedirectPath(searchParams.get("redirect_url"));

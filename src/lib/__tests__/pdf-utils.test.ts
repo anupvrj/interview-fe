@@ -6,7 +6,7 @@ const extractResumeText = vi.fn();
 vi.mock("@/lib/api", () => ({ userApi: { extractResumeText: (...a: unknown[]) => extractResumeText(...a) } }));
 
 // eslint-disable-next-line import/first
-import { extractTextFromPDF, PdfHasNoTextError } from "../pdf-utils";
+import { extractTextFromPDF, linesFromPdfTextItems, PdfHasNoTextError } from "../pdf-utils";
 
 const file = new File([new Uint8Array([37, 80, 68, 70])], "resume.pdf", { type: "application/pdf" });
 const pdfWithText = (pages: string[]) => ({
@@ -54,5 +54,26 @@ describe("extractTextFromPDF", () => {
     });
     extractResumeText.mockRejectedValue({ response: { status: 401 } });
     await expect(extractTextFromPDF(file)).rejects.toThrow(/couldn't read this PDF/);
+  });
+});
+
+describe("linesFromPdfTextItems", () => {
+  const at = (str: string, x: number, y: number, width = str.length * 5) => ({ str, transform: [1, 0, 0, 1, x, y], width, height: 10 });
+
+  it("keeps each line of the page on its own line", () => {
+    expect(linesFromPdfTextItems([at("PUBLICATIONS", 50, 700), at("First paper", 50, 680), at("Second paper", 50, 660)])).toBe(
+      "PUBLICATIONS\nFirst paper\nSecond paper",
+    );
+  });
+
+  it("marks a section gap with a blank line", () => {
+    expect(linesFromPdfTextItems([at("Line one", 50, 700), at("Line two", 50, 686), at("HEADING", 50, 650), at("Line three", 50, 636)])).toBe(
+      "Line one\nLine two\n\nHEADING\nLine three",
+    );
+  });
+
+  it("joins pieces of one line, with a space only where the page has a gap", () => {
+    expect(linesFromPdfTextItems([at("Senior ", 50, 700, 35), at("Engineer", 85, 700, 40), at("2024", 300, 700, 20)])).toBe("Senior Engineer 2024");
+    expect(linesFromPdfTextItems([at("Eng", 50, 700, 15), at("ineer", 65, 700, 25)])).toBe("Engineer");
   });
 });

@@ -310,10 +310,10 @@ export function ATSIssueMagicButton({
   issue,
   categoryLabel,
 }: ATSIssueMagicButtonProps) {
-  const { enabled } = useATSIssueMagic();
+  const { rewriteEnabled } = useATSIssueMagic();
   const [open, setOpen] = useState(false);
 
-  if (!enabled) return null;
+  if (!rewriteEnabled) return null;
 
   const isPositive =
     issue.kind === "positive" ||

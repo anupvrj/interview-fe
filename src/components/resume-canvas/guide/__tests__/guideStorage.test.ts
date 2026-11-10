@@ -14,11 +14,11 @@ describe("editor guide storage", () => {
   beforeEach(() => data.clear());
 
   it("starts empty for a new user", () => {
-    expect(readGuide("u1")).toEqual({ tour: null, prompted: false, checklistClosed: false, explored: [], milestones: [], laterCount: 0 });
+    expect(readGuide("u1")).toEqual({ tour: null, atsTour: false, prompted: false, checklistClosed: false, explored: [], milestones: [], laterCount: 0 });
   });
 
   it("round-trips per user", () => {
-    writeGuide("u1", { tour: "done", prompted: true, checklistClosed: false, explored: ["fix"], milestones: ["exported"], laterCount: 1 });
+    writeGuide("u1", { tour: "done", atsTour: true, prompted: true, checklistClosed: false, explored: ["fix"], milestones: ["exported"], laterCount: 1 });
     expect(readGuide("u1")).toMatchObject({ tour: "done", explored: ["fix"], milestones: ["exported"], laterCount: 1 });
     expect(readGuide("u2").tour).toBeNull();
   });

@@ -1,23 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Check, Loader2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Mono } from "@/components/marketing-2026/primitives";
-import { dash2026Scope } from "@/components/dashboard-2026/ui";
+import { dash2026Scope, EASE } from "@/components/dashboard-2026/ui";
+import type { PdfSnapshot } from "@/lib/pdf-snapshot";
 
 export const ATS_PROCESSING_STEPS = [
   "Parsing your resume",
   "Analyzing your experience",
   "Extracting your skills",
   "Generating recommendations",
-] as const;
-
-const SCAN_CATEGORIES = [
-  { label: "Content", stepThreshold: 0 },
-  { label: "Sections", stepThreshold: 1 },
-  { label: "ATS Essentials", stepThreshold: 2 },
-  { label: "Tailoring", stepThreshold: 3 },
 ] as const;
 
 export const ATS_IMPROVE_STEPS = [
@@ -27,121 +22,139 @@ export const ATS_IMPROVE_STEPS = [
   "Finalizing improvements",
 ] as const;
 
+/** How fast the scan moves down the page, one line at a time. */
+const LINE_MS = 320;
+
 interface ATSProcessingViewProps {
   currentStep: number;
   fileName?: string;
-  hasJobDescription?: boolean;
   steps?: readonly string[];
   headerLabel?: string;
+  /** The first page of their own resume; a generic page shows without one. */
+  snapshot?: PdfSnapshot | null;
 }
 
-function ResumeScanMock({ active }: { active: boolean }) {
+/** What each step is doing, for the one in progress. */
+const STEP_DETAILS: Record<string, string> = {
+  "Parsing your resume": "Reading your PDF the way ATS software does",
+  "Analyzing your experience": "Working out your roles, dates and sections",
+  "Extracting your skills": "Scoring content, format and red flags",
+  "Generating recommendations": "Preparing what to fix first",
+  "Reviewing ATS feedback": "Going through your findings",
+  "Enhancing resume content": "Rewriting weak lines",
+  "Adding missing sections": "Filling the gaps",
+  "Finalizing improvements": "Almost ready",
+};
+
+/** Steps top to bottom, ticked as they finish, joined by a line that fills as they complete. */
+export function ATSStepRail({ steps, current }: { steps: readonly string[]; current: number }) {
+  const reduce = useReducedMotion();
   return (
-    <div className="relative mx-auto w-full max-w-[240px]">
-      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg">
-        <div className="h-2 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/30" />
-        <div className="space-y-2.5 p-4">
-          <div className="h-3 w-3/4 rounded-md bg-foreground/12" />
-          <div className="h-2 w-1/2 rounded-md bg-foreground/8" />
-          <div className="space-y-1.5 pt-1">
-            {[100, 88, 92, 76, 84].map((w, i) => (
-              <div
-                key={i}
-                className="h-1.5 rounded bg-foreground/7"
-                style={{ width: `${w}%` }}
-              />
-            ))}
-          </div>
-          <div className="h-2.5 w-2/5 rounded-md bg-primary/20" />
-          <div className="space-y-1">
-            {[90, 72, 85].map((w, i) => (
-              <div
-                key={i}
-                className="h-1 rounded bg-foreground/6"
-                style={{ width: `${w}%` }}
-              />
-            ))}
-          </div>
-        </div>
+    <nav aria-label="Progress">
+      <ol>
+        {steps.map((step, index) => {
+          const done = index < current;
+          const active = index === current;
+          const last = index === steps.length - 1;
+          return (
+            <li key={step} aria-current={active ? "step" : undefined} className="relative flex gap-4 pb-6 last:pb-0">
+              {!last && (
+                <span aria-hidden className="absolute bottom-0 left-[15px] top-8 w-0.5 overflow-hidden rounded-full bg-border">
+                  <motion.span
+                    className="block size-full origin-top bg-gradient-to-b from-[#7367F0] to-[#1F8FFF]"
+                    initial={false}
+                    animate={{ scaleY: done ? 1 : 0 }}
+                    transition={{ duration: reduce ? 0 : 0.5, ease: EASE }}
+                  />
+                </span>
+              )}
+              <span
+                className={cn(
+                  "relative grid size-8 shrink-0 place-items-center rounded-full border-2 bg-card transition-colors duration-300",
+                  done && "border-transparent bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white",
+                  active && "border-primary text-primary ring-4 ring-primary/15",
+                  !done && !active && "border-border text-muted-foreground",
+                )}
+              >
+                {done ? <Check className="h-4 w-4" strokeWidth={3} /> : active ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mono className="text-[11px]">{index + 1}</Mono>}
+              </span>
+              <div className="min-w-0 pt-1">
+                <p className={cn("text-[15px] font-semibold leading-snug tracking-[-0.01em]", active || done ? "text-foreground" : "text-muted-foreground")}>{step}</p>
+                {active && STEP_DETAILS[step] && <p className="mt-1 animate-fade-in text-[13.5px] leading-snug text-muted-foreground">{STEP_DETAILS[step]}</p>}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
 
-        {active && (
-          <>
-            <div className="pointer-events-none absolute inset-0 bg-primary/[0.04]" />
-            <div
-              className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_16px_rgba(115,103,240,0.55)]"
-              style={{ animation: "ats-scan-sweep 2s ease-in-out infinite" }}
-            />
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="pointer-events-none absolute left-3 right-3 h-px bg-primary/25"
-                style={{
-                  top: `${22 + i * 16}%`,
-                  animation: `ats-scan-line 1.4s ease-in-out ${i * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </>
-        )}
-      </div>
-
-      {active && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm text-primary font-medium">
-          <ScanLine className="h-4 w-4 animate-pulse" />
-          Scanning document…
-        </div>
-      )}
+/** Always on white paper, so its colours don't follow the theme. */
+function GenericPage() {
+  return (
+    <div className="space-y-3 p-6" aria-hidden>
+      <div className="h-3.5 w-2/3 rounded bg-slate-900/15" />
+      <div className="h-2 w-1/2 rounded bg-slate-900/10" />
+      {[100, 88, 92, 76, 84, 96, 70, 90, 82, 94, 66, 88].map((w, i) => (
+        <div key={i} className={cn("h-1.5 rounded bg-slate-900/[0.08]", i % 4 === 3 && "!mt-5 h-2 bg-[#7367F0]/25")} style={{ width: `${w}%` }} />
+      ))}
     </div>
   );
 }
 
-function CategoryProgress({
-  currentStep,
-  hasJobDescription,
-}: {
-  currentStep: number;
-  hasJobDescription?: boolean;
-}) {
-  return (
-    <div className="mt-8 space-y-4">
-      {SCAN_CATEGORIES.map(({ label, stepThreshold }) => {
-        const isTailoring = label === "Tailoring";
-        const skipped = isTailoring && !hasJobDescription;
-        const done = !skipped && currentStep > stepThreshold;
-        const active = !skipped && currentStep === stepThreshold;
-        const pct = skipped ? 0 : done ? 100 : active ? 55 : 8;
+/** Their resume being read: the lines already read stay marked, the current one glows. */
+function ScanningCard({ snapshot, active }: { snapshot?: PdfSnapshot | null; active: boolean }) {
+  const reduce = useReducedMotion();
+  const lines = snapshot?.lines ?? [];
+  const [line, setLine] = useState(0);
 
-        return (
-          <div key={label} className={cn("space-y-2", skipped && "opacity-40")}>
-            <div className="flex items-center justify-between gap-3">
-              <span
-                className={cn(
-                  "text-xs font-bold uppercase tracking-wider",
-                  done || active ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {label}
-              </span>
-              <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                {skipped ? "—" : done ? "100%" : active ? "…" : "—"}
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted/80">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-700 ease-out",
-                  done
-                    ? "bg-gradient-to-r from-primary to-primary/80"
-                    : active
-                      ? "bg-primary/70 animate-pulse"
-                      : "bg-muted-foreground/15",
-                )}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
+  useEffect(() => {
+    if (reduce || !active || lines.length === 0) return;
+    const timer = setInterval(() => setLine((l) => (l + 1) % (lines.length + 6)), LINE_MS);
+    return () => clearInterval(timer);
+  }, [reduce, active, lines.length]);
+
+  const current = lines[Math.min(line, lines.length - 1)];
+  const scanTop = current ? current.top * 100 : 0;
+
+  return (
+    <div
+      className="relative mx-auto max-h-full w-auto max-w-full overflow-hidden rounded-lg bg-white shadow-[0_30px_60px_-24px_rgba(30,20,90,.55),0_0_0_1px_rgba(30,20,90,.08)] max-lg:w-full max-lg:max-w-[280px] lg:h-full"
+      style={{ aspectRatio: snapshot ? String(snapshot.aspect) : "0.72" }}
+    >
+      {snapshot ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a local data URL of their own PDF
+        <img src={snapshot.dataUrl} alt="First page of your resume" className="absolute inset-0 size-full object-cover" />
+      ) : (
+        <GenericPage />
+      )}
+      {!reduce && lines.slice(0, line + 1).map((box, index) => (
+        <span
+          key={index}
+          aria-hidden
+          className={cn("absolute rounded-[2px] transition-colors duration-300", index === line ? "bg-[#1F8FFF]/30" : "bg-[#7367F0]/[0.09]")}
+          style={{ top: `${box.top * 100}%`, left: `${box.left * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%` }}
+        />
+      ))}
+      {!reduce && active && (
+        lines.length > 0 ? (
+          <motion.div
+            aria-hidden
+            className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#1F8FFF] to-transparent shadow-[0_0_14px_3px_rgba(31,143,255,.45)]"
+            animate={{ top: `${scanTop}%` }}
+            transition={{ duration: LINE_MS / 1000, ease: "linear" }}
+          />
+        ) : (
+          <motion.div
+            aria-hidden
+            className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#1F8FFF] to-transparent shadow-[0_0_14px_3px_rgba(31,143,255,.45)]"
+            initial={{ top: "0%" }}
+            animate={{ top: "100%" }}
+            transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+          />
+        )
+      )}
     </div>
   );
 }
@@ -149,131 +162,54 @@ function CategoryProgress({
 export function ATSProcessingView({
   currentStep,
   fileName,
-  hasJobDescription,
   steps = ATS_PROCESSING_STEPS,
   headerLabel = "Running ATS analysis",
+  snapshot,
 }: ATSProcessingViewProps) {
-  const [pulseIndex, setPulseIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPulseIndex((i) => (i + 1) % steps.length);
-    }, 2400);
-    return () => clearInterval(timer);
-  }, [steps.length]);
-
-  const activeIndex = Math.min(currentStep, steps.length - 1);
-  const activeLabel = steps[activeIndex];
+  const activeLabel = steps[Math.min(currentStep, steps.length - 1)];
 
   return (
     <div className={cn(dash2026Scope, "mx-auto w-full max-w-6xl")}>
-      {/* Header */}
-      <div className="relative mb-6 overflow-hidden rounded-[22px] border border-border bg-card px-6 py-8 text-center sm:mb-8 md:py-10">
-        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_70%_at_50%_0%,rgba(115,103,240,.16),transparent_70%)]" />
-        <div className="relative mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.06] px-3 py-1">
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          <Mono className="text-[11px] uppercase tracking-wider text-primary">{headerLabel}</Mono>
+      <section className="grid overflow-hidden rounded-[22px] border border-border bg-card shadow-[0_24px_60px_-44px_rgba(30,20,90,.55)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        {/* the resume being read */}
+        <div className="relative order-2 overflow-hidden border-border bg-muted/40 p-6 max-lg:border-t sm:p-8 lg:order-1 lg:border-r">
+          <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_50%_at_50%_0%,rgba(115,103,240,.14),transparent_70%)]" />
+          <div className="relative">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <ScanLine className="h-4 w-4 text-primary" />
+              <Mono className="text-[11px] tracking-wider">SCANNING DOCUMENT</Mono>
+            </div>
+            {/* the whole page stays in view, however short the window */}
+            <div className="mt-5 flex justify-center lg:h-[clamp(420px,calc(100vh-240px),640px)]">
+              <ScanningCard snapshot={snapshot} active={currentStep < steps.length} />
+            </div>
+          </div>
         </div>
 
-        <h1
-          key={activeLabel}
-          className="relative animate-fade-in text-[30px] font-black leading-[1.05] tracking-[-0.045em] text-foreground sm:text-[40px]"
-        >
-          {activeLabel}
-          <span className="inline-block w-6 animate-pulse text-primary">…</span>
-        </h1>
-
-        {fileName && (
-          <p className="relative mx-auto mt-3 flex w-full max-w-xl min-w-0 flex-col items-center gap-0.5 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-1 sm:px-0 sm:text-base">
-            <span className="shrink-0">Analyzing</span>
-            <span
-              className="min-w-0 max-w-full truncate font-medium text-foreground"
-              title={fileName}
-            >
-              {fileName}
-            </span>
-          </p>
-        )}
-      </div>
-
-      {/* Side-by-side: scan panel (left) + step list (right) */}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(300px,360px)_1fr] lg:gap-8 xl:gap-10">
-        {/* Left on desktop — document scan + category bars */}
-        <div className="order-2 rounded-[22px] border border-border bg-card p-6 sm:p-8 lg:order-1 lg:sticky lg:top-6">
-          <div className="mb-6 text-center">
-            <Mono className="text-[11px] tracking-wider text-muted-foreground">DOCUMENT SCAN</Mono>
-            <p className="mt-1 text-[17px] font-extrabold tracking-[-0.02em] text-foreground">Your score</p>
+        {/* where the check has got to */}
+        <div className="order-1 flex min-w-0 flex-col justify-center p-6 sm:p-8 lg:order-2 lg:p-12">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.06] px-3 py-1.5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            <Mono className="text-[11px] uppercase tracking-wider text-primary">{headerLabel}</Mono>
           </div>
 
-          <ResumeScanMock active={currentStep < steps.length} />
+          <h1 key={activeLabel} className="mt-5 animate-fade-in text-balance text-[30px] font-black leading-[1.05] tracking-[-0.05em] text-foreground sm:text-[38px]">
+            {activeLabel}
+            <span className="animate-pulse text-primary">…</span>
+          </h1>
 
-          <CategoryProgress
-            currentStep={currentStep}
-            hasJobDescription={hasJobDescription}
-          />
+          {fileName && (
+            <p className="mt-3 truncate text-[15px] font-medium text-muted-foreground" title={fileName}>
+              {fileName}
+            </p>
+          )}
+
+          <div className="mt-8 border-t border-border pt-8">
+            <ATSStepRail steps={steps} current={currentStep} />
+          </div>
         </div>
-
-        {/* Right on desktop — processing steps */}
-        <div className="order-1 flex min-w-0 flex-col gap-3 sm:gap-4 lg:order-2">
-          {steps.map((step, idx) => {
-            const done = idx < currentStep;
-            const active = idx === currentStep;
-            const upcoming = idx > currentStep;
-
-            return (
-              <div
-                key={step}
-                className={cn(
-                  "flex items-center gap-4 rounded-[18px] border bg-card px-5 py-4 text-left transition-all duration-500 sm:px-6 sm:py-5",
-                  done && "border-primary/15 bg-primary/[0.04] shadow-sm",
-                  active &&
-                    "scale-[1.01] border-primary/40 bg-gradient-to-r from-primary/[0.08] to-transparent shadow-md",
-                  upcoming && "border-border/60 bg-card/50 opacity-60",
-                  !active && !done && pulseIndex === idx && "opacity-75",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-300",
-                    done
-                      ? "bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white shadow-md shadow-primary/25"
-                      : active
-                        ? "border-2 border-primary bg-card text-primary ring-4 ring-primary/15"
-                        : "border-2 border-muted-foreground/20 bg-muted/30 text-muted-foreground",
-                  )}
-                >
-                  {done ? (
-                    <Check className="h-5 w-5" strokeWidth={2.5} />
-                  ) : active ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <span className="text-sm font-semibold">{idx + 1}</span>
-                  )}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "text-base font-semibold sm:text-lg lg:text-xl",
-                      done && "text-foreground",
-                      active && "text-primary",
-                      upcoming && "text-muted-foreground",
-                    )}
-                  >
-                    {step}
-                  </p>
-                  {active && (
-                    <p className="mt-0.5 animate-fade-in text-sm text-muted-foreground">
-                      This usually takes a few seconds…
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -251,7 +251,7 @@ export function ATSSpellingRow({
           {issue.alternatives.map((alt) => (
             <span
               key={alt}
-              className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200"
+              className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200 dark:border-green-900/50 dark:bg-green-950/30"
             >
               {alt}
             </span>
@@ -351,7 +351,7 @@ export function ATSCredibilitySplit({
                 key={idx}
                 className="flex gap-3 rounded-xl border border-green-200/70 bg-green-50 dark:border-green-900/40 dark:bg-green-950/20 p-4"
               >
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600 dark:text-green-300" />
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="font-semibold text-foreground">{issue.title}</p>
                   <p className="text-sm text-muted-foreground">
@@ -449,7 +449,7 @@ export function ATSRiskCard({
             )}
           </div>
           {issue.excerpt && (
-            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 dark:text-[#fd7070]">
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 dark:text-[#fd7070] dark:bg-red-950/30">
               {issue.excerpt}
             </p>
           )}
@@ -457,7 +457,7 @@ export function ATSRiskCard({
       </div>
       {issue.interviewQuestion && (
         <div className="flex gap-2 rounded-lg border border-purple-100 bg-purple-50 dark:border-purple-900/40 dark:bg-purple-950/25 px-3 py-2">
-          <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
+          <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-purple-600 dark:text-purple-300" />
           <div>
             <p className="text-xs font-bold text-purple-800 dark:text-purple-200">Q</p>
             <p className="text-sm text-purple-900 dark:text-purple-100">{issue.interviewQuestion}</p>
@@ -466,7 +466,7 @@ export function ATSRiskCard({
       )}
       {(issue.fixBody || issue.suggestion || issue.rewriteSuggestion) && (
         <div className="flex gap-2 rounded-lg border border-amber-100 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/25 px-3 py-2">
-          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
           <div>
             <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Fix</p>
             <p className="text-sm text-amber-900 dark:text-amber-100">
@@ -496,8 +496,8 @@ export function ATSSkillBenchmarkGrid({ issues }: { issues: ATSIssue[] }) {
             className={cn(
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
               present
-                ? "border-green-200 bg-green-50 text-green-800 dark:text-green-200"
-                : "border-red-200 bg-red-50 text-red-800 dark:text-[#fd7070]",
+                ? "border-green-200 bg-green-50 text-green-800 dark:text-green-200 dark:border-green-900/50 dark:bg-green-950/30"
+                : "border-red-200 bg-red-50 text-red-800 dark:text-[#fd7070] dark:border-red-900/50 dark:bg-red-950/30",
             )}
           >
             {present ? (
@@ -572,7 +572,7 @@ export function ATSGenericIssueList({
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {(issue.severity === "fail" || !issue.severity) && issue.kind === "negative" ? (
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

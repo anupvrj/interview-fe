@@ -138,6 +138,25 @@ export interface ATSCheckResult {
   };
   /** Optional tip — never lowers the ATS score or issue counts. */
   advisory?: boolean;
+  /** Signed-out report: the findings are kept back until sign-up (only the count shows). */
+  locked?: boolean;
+  /** What the last full check found, including findings set aside since. */
+  baseline?: Pick<ATSCheckResult, "status" | "score" | "issueCount" | "issues">;
+}
+
+/**
+ * Findings the user set aside (Ignore, or Mark as fixed with the resume unchanged): the
+ * check's baseline still holds them, its visible list doesn't.
+ */
+export function countSetAsideIssues(report: Pick<ATSReportV3, "categories"> | null | undefined): number {
+  if (!report?.categories) return 0;
+  let count = 0;
+  for (const category of Object.values(report.categories)) {
+    for (const check of category?.checks ?? []) {
+      if (check.baseline) count += Math.max(0, check.baseline.issues.length - check.issues.length);
+    }
+  }
+  return count;
 }
 
 /** Optional tips (e.g. adding numbers to bullets). Older reports lack the flag. */

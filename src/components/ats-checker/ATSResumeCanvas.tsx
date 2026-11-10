@@ -21,12 +21,15 @@ type MarkBox = { id: string; tone: CanvasMark["tone"]; top: number; left: number
  */
 export function ATSResumeCanvas({
   resumeId,
+  resume: given,
   marks,
   activeIds,
   onPick,
   className,
 }: {
-  resumeId: string;
+  resumeId?: string;
+  /** A resume that isn't saved yet (a signed-out check); otherwise it's loaded by id. */
+  resume?: Resume;
   marks: CanvasMark[];
   /** Marks of the check open in the report: outlined and scrolled to. */
   activeIds: Set<string>;
@@ -48,7 +51,7 @@ export function ATSResumeCanvas({
     let cancelled = false;
     (async () => {
       try {
-        const r = await resumeApi.get(resumeId);
+        const r = given ?? (await resumeApi.get(resumeId!));
         const list = await resumeApi.getTemplates();
         const t = list.find((x) => x.id === r.templateId) ?? list[0] ?? null;
         if (t) await cssRegistry.loadTemplateCSS(t.id);
@@ -63,7 +66,7 @@ export function ATSResumeCanvas({
     return () => {
       cancelled = true;
     };
-  }, [resumeId]);
+  }, [resumeId, given]);
 
   // fit one page across the column
   useLayoutEffect(() => {
