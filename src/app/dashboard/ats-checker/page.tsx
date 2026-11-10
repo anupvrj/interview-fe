@@ -27,6 +27,7 @@ import { ATSProcessingView, ATS_IMPROVE_STEPS } from "@/components/ats-checker/A
 import { ATSDashboardUploadView } from "@/components/ats-checker/ATSDashboardUploadView";
 import { ATSImproveTemplatePicker } from "@/components/ats-checker/ATSImproveTemplatePicker";
 import { snapshotPdfFirstPage, type PdfSnapshot } from "@/lib/pdf-snapshot";
+import type { ScanFacts } from "@/lib/atsScanFacts";
 import type { ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { isAxiosError } from "axios";
 import { forgetGuestCheck } from "@/lib/atsGuestState";
@@ -74,6 +75,7 @@ function DashboardATSCheckerContent() {
   const [improveStep, setImproveStep] = useState(0);
   const [currentTemplateId, setCurrentTemplateId] = useState<string | undefined>();
   const [snapshot, setSnapshot] = useState<PdfSnapshot | null>(null);
+  const [facts, setFacts] = useState<ScanFacts | null>(null);
   const [templateSource, setTemplateSource] = useState<"improve" | "report">("improve");
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
@@ -116,6 +118,7 @@ function DashboardATSCheckerContent() {
       setFileName(file.name);
       setJobDescription(jd);
       setSnapshot(null);
+      setFacts(null);
       void snapshotPdfFirstPage(file).then(setSnapshot);
 
       try {
@@ -124,6 +127,7 @@ function DashboardATSCheckerContent() {
           file,
           jd,
           setProcessingStep,
+          setFacts,
         );
         void clearPendingATSUpload();
         setReport(result.report);
@@ -443,7 +447,7 @@ function DashboardATSCheckerContent() {
       )}
 
       {step === "processing" && (
-        <ATSProcessingView currentStep={processingStep} fileName={fileName} snapshot={snapshot} />
+        <ATSProcessingView currentStep={processingStep} fileName={fileName} snapshot={snapshot} facts={facts} />
       )}
 
       {step === "improving" && (

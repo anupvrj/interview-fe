@@ -6,6 +6,7 @@ import { sha256OfFile } from "@/lib/pdf-snapshot";
 import { getQueryClient } from "@/lib/query-client";
 import { invalidateResumes } from "@/lib/invalidate-queries";
 import type { ATSReportV3 } from "@/types/atsReport";
+import { scanFactsFromContent, type ScanFacts } from "@/lib/atsScanFacts";
 import { clearPendingUpload, loadPendingUpload, savePendingUpload } from "@/lib/atsPendingFile";
 import {
   forgetGuestCheck,
@@ -71,6 +72,8 @@ export async function runATSAnalysis(
   file: File,
   jobDescription: string,
   onStep?: (step: number) => void,
+  /** What was read from the resume, as soon as it's known (for the scan screen). */
+  onFacts?: (facts: ScanFacts) => void,
 ): Promise<ATSAnalysisResult> {
   onStep?.(0);
   const sourceFileHash = await sha256OfFile(file);
@@ -129,9 +132,11 @@ export async function runATSAnalysis(
       { resumeText, enhance: false },
     );
     const content = mapExtractedSectionsToContent(extractedData.sections);
+    const sectionOrder = await sectionOrderForExtractedContent(ATS_RESUME_TEMPLATE_ID, content);
+    onFacts?.(scanFactsFromContent(content, sectionOrder));
     await resumeApi.update(newResume.resumeId, {
       content,
-      sectionOrder: await sectionOrderForExtractedContent(ATS_RESUME_TEMPLATE_ID, content),
+      sectionOrder,
       profileSummary: typeof content.profileSummary === "string" ? content.profileSummary : undefined,
     });
   } catch {
@@ -187,6 +192,7 @@ export async function runGuestATSCheck(
   file: File,
   jobDescription: string,
   onStep?: (step: number) => void,
+  onFacts?: (facts: ScanFacts) => void,
 ): Promise<GuestATSCheck> {
   const jd = jobDescription.trim() || undefined;
   onStep?.(0);
@@ -204,6 +210,7 @@ export async function runGuestATSCheck(
   const sections = await atsGuestApi.extractSections(resumeText);
   const content = mapExtractedSectionsToContent(sections);
   const sectionOrder = await sectionOrderForExtractedContent(ATS_RESUME_TEMPLATE_ID, content);
+  onFacts?.(scanFactsFromContent(content, sectionOrder));
 
   onStep?.(2);
   const lastStep = window.setTimeout(() => onStep?.(3), LAST_STEP_AFTER_MS);

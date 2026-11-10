@@ -22,6 +22,7 @@ import {
   type GuestATSCheck,
 } from "@/lib/atsCheckFlow";
 import { snapshotPdfFirstPage, type PdfSnapshot } from "@/lib/pdf-snapshot";
+import type { ScanFacts } from "@/lib/atsScanFacts";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { ATSProcessingView } from "@/components/ats-checker/ATSProcessingView";
 import { ATSGuestResult } from "@/components/ats-checker/ATSGuestResult";
@@ -44,6 +45,7 @@ function ATSCheckerPageContent() {
   const [guestStep, setGuestStep] = useState<number | null>(null);
   const [guestFile, setGuestFile] = useState<string | null>(null);
   const [guestSnapshot, setGuestSnapshot] = useState<PdfSnapshot | null>(null);
+  const [guestFacts, setGuestFacts] = useState<ScanFacts | null>(null);
   const [guestResult, setGuestResult] = useState<GuestATSCheck | null>(null);
 
   // Their check survives a refresh, the back button, or a trip to sign-up and back. Signed in
@@ -78,6 +80,7 @@ function ATSCheckerPageContent() {
       // Too big for this browser's storage only means the original PDF isn't kept.
       setGuestFile(file.name);
       setGuestSnapshot(null);
+      setGuestFacts(null);
       setGuestStep(0);
       window.scrollTo({ top: 0 });
       void snapshotPdfFirstPage(file).then(setGuestSnapshot);
@@ -85,7 +88,7 @@ function ATSCheckerPageContent() {
       await forgetGuestATSCheck();
       await savePendingATSUpload(file, jd).catch(() => {});
       try {
-        const check = await runGuestATSCheck(file, jd, setGuestStep);
+        const check = await runGuestATSCheck(file, jd, setGuestStep, setGuestFacts);
         rememberGuestATSCheck(check, file.name);
         setGuestResult(check);
       } catch (err) {
@@ -120,7 +123,7 @@ function ATSCheckerPageContent() {
       )}
       {guestStep !== null && (
         <main className="px-4 pb-20 pt-28 sm:px-6">
-          <ATSProcessingView currentStep={guestStep ?? 0} fileName={guestFile ?? undefined} snapshot={guestSnapshot} />
+          <ATSProcessingView currentStep={guestStep ?? 0} fileName={guestFile ?? undefined} snapshot={guestSnapshot} facts={guestFacts} />
         </main>
       )}
       {!guestBusy && guestResult && (
