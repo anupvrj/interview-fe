@@ -21,12 +21,15 @@ type MarkBox = { id: string; tone: CanvasMark["tone"]; top: number; left: number
  */
 export function ATSResumeCanvas({
   resumeId,
+  resume: given,
   marks,
   activeIds,
   onPick,
   className,
 }: {
-  resumeId: string;
+  resumeId?: string;
+  /** A resume that isn't saved yet (a signed-out check); otherwise it's loaded by id. */
+  resume?: Resume;
   marks: CanvasMark[];
   /** Marks of the check open in the report: outlined and scrolled to. */
   activeIds: Set<string>;
@@ -48,7 +51,7 @@ export function ATSResumeCanvas({
     let cancelled = false;
     (async () => {
       try {
-        const r = await resumeApi.get(resumeId);
+        const r = given ?? (await resumeApi.get(resumeId!));
         const list = await resumeApi.getTemplates();
         const t = list.find((x) => x.id === r.templateId) ?? list[0] ?? null;
         if (t) await cssRegistry.loadTemplateCSS(t.id);
@@ -63,7 +66,7 @@ export function ATSResumeCanvas({
     return () => {
       cancelled = true;
     };
-  }, [resumeId]);
+  }, [resumeId, given]);
 
   // fit one page across the column
   useLayoutEffect(() => {
@@ -155,9 +158,10 @@ export function ATSResumeCanvas({
                     onClick={() => onPick?.(b.id)}
                     aria-label="Show this issue in the report"
                     className={cn(
-                      "absolute rounded-[3px] border transition-all duration-200",
-                      b.tone === "error" ? "border-rose-600/80 bg-rose-500/[0.14]" : "border-rose-500/70 bg-rose-500/[0.08]",
-                      active ? "z-10 border-2 border-primary bg-primary/[0.12] shadow-[0_0_0_4px_rgba(115,103,240,.18)]" : "hover:bg-rose-500/20",
+                      "absolute rounded-[2px] border transition-colors duration-200",
+                      active
+                        ? "z-10 border-primary bg-primary/[0.16]"
+                        : b.tone === "error" ? "border-rose-600/70 bg-rose-500/[0.12] hover:bg-rose-500/20" : "border-rose-500/60 bg-rose-500/[0.07] hover:bg-rose-500/20",
                     )}
                     style={{ top: b.top, left: b.left, width: b.width, height: b.height }}
                   />

@@ -120,12 +120,12 @@ export function PeerBenchmarkingPanel({
                 className={cn(
                   "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium",
                   skill.present
-                    ? "border-green-200 bg-green-50/80 text-green-900 dark:text-green-100"
-                    : "border-red-200 bg-red-50/80 text-red-900 dark:text-[#fd7070]",
+                    ? "border-green-200 bg-green-50/80 text-green-900 dark:text-green-100 dark:border-green-900/50 dark:bg-green-950/30"
+                    : "border-red-200 bg-red-50/80 text-red-900 dark:text-[#fd7070] dark:border-red-900/50 dark:bg-red-950/30",
                 )}
               >
                 {skill.present ? (
-                  <Check className="h-4 w-4 shrink-0 text-green-600" />
+                  <Check className="h-4 w-4 shrink-0 text-green-600 dark:text-green-300" />
                 ) : (
                   <X className="h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
                 )}
@@ -156,7 +156,7 @@ export function PeerBenchmarkingPanel({
           )}
         </div>
       ) : missingCount > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:text-amber-100">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:text-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30">
           Skill details are unavailable in this cached report. Re-run the ATS
           check to see the full peer skills breakdown.
         </div>
@@ -202,7 +202,7 @@ export function PeerBenchmarkingPanel({
             Experience Benchmark
           </h4>
           {experienceYears != null && (
-            <span className="inline-flex rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-sky-800">
+            <span className="inline-flex rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-sky-800 dark:bg-sky-950/30 dark:text-sky-300">
               {Math.round(experienceYears)} years
             </span>
           )}

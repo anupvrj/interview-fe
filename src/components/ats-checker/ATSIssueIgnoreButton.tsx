@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ATSCheckResult, ATSIssue } from "@/types/atsReport";
-import { ATSIconActionButton } from "./ATSIconActionButton";
+import { Button } from "@/components/ui/button";
 import { useATSIssueMagic } from "./ATSIssueMagicContext";
 
 interface ATSIssueIgnoreButtonProps {
@@ -14,7 +14,7 @@ interface ATSIssueIgnoreButtonProps {
 
 export function ATSIssueIgnoreButton({ check, issue }: ATSIssueIgnoreButtonProps) {
   const { enabled, onIgnoreIssue } = useATSIssueMagic();
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<"fixed" | "ignored" | null>(null);
 
   if (!enabled || !onIgnoreIssue) return null;
 
@@ -26,32 +26,33 @@ export function ATSIssueIgnoreButton({ check, issue }: ATSIssueIgnoreButtonProps
   // "Analysis incomplete" is a notice to re-run the check, not a finding to dismiss.
   if (isPositive || issue.title === "Analysis incomplete") return null;
 
-  const handleIgnore = async () => {
-    setLoading(true);
+  const setAside = async (as: "fixed" | "ignored") => {
+    setBusy(as);
     try {
       await onIgnoreIssue(check, issue);
-      toast.success("Dismissed — it won't count against your score or come back on the next check.");
+      toast.success(
+        as === "fixed"
+          ? "Marked as fixed. Your score updates when your resume changes."
+          : "Ignored. Your score updates when your resume changes.",
+      );
     } catch (error) {
       console.error("Error ignoring ATS issue:", error);
-      toast.error("Couldn't dismiss this. Please try again.");
+      toast.error("Couldn't update this. Please try again.");
     } finally {
-      setLoading(false);
+      setBusy(null);
     }
   };
 
   return (
-    <ATSIconActionButton
-      label="Dismiss"
-      variant="outline"
-      className="text-muted-foreground hover:text-foreground"
-      onClick={() => void handleIgnore()}
-      disabled={loading}
-    >
-      {loading ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <CheckCircle2 className="h-3.5 w-3.5" />
-      )}
-    </ATSIconActionButton>
+    <div className="flex items-center gap-1">
+      <Button type="button" size="sm" variant="ghost" disabled={busy !== null} onClick={() => void setAside("fixed")} className="h-8 rounded-lg px-2 text-[12.5px] font-semibold text-primary hover:bg-primary/10 hover:text-primary">
+        {busy === "fixed" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+        Mark as fixed
+      </Button>
+      <Button type="button" size="sm" variant="ghost" disabled={busy !== null} onClick={() => void setAside("ignored")} className="h-8 rounded-lg px-2 text-[12.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+        {busy === "ignored" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <EyeOff className="h-3.5 w-3.5" />}
+        Ignore
+      </Button>
+    </div>
   );
 }

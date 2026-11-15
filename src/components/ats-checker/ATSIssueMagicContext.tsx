@@ -5,6 +5,8 @@ import type { ATSCheckResult, ATSIssue } from "@/types/atsReport";
 
 export interface ATSIssueMagicContextValue {
   enabled: boolean;
+  /** AI rewrites need somewhere to apply them; the report page only sets findings aside. */
+  rewriteEnabled: boolean;
   resumeId?: string;
   onApplyFix?: (original: string, improved: string) => boolean;
   onIgnoreIssue?: (
@@ -15,16 +17,19 @@ export interface ATSIssueMagicContextValue {
 
 const ATSIssueMagicContext = createContext<ATSIssueMagicContextValue>({
   enabled: false,
+  rewriteEnabled: false,
 });
 
 export function ATSIssueMagicProvider({
   children,
   resumeId,
+  rewriteEnabled = true,
   onApplyFix,
   onIgnoreIssue,
 }: {
   children: React.ReactNode;
   resumeId?: string;
+  rewriteEnabled?: boolean;
   onApplyFix?: (original: string, improved: string) => boolean;
   onIgnoreIssue?: (
     check: ATSCheckResult,
@@ -35,6 +40,7 @@ export function ATSIssueMagicProvider({
     <ATSIssueMagicContext.Provider
       value={{
         enabled: !!resumeId,
+        rewriteEnabled: !!resumeId && rewriteEnabled,
         resumeId,
         onApplyFix,
         onIgnoreIssue,

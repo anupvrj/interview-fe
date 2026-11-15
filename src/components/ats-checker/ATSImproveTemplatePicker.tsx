@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  CheckCircle,
-  Loader2,
-  SkipForward,
-  Sparkles,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ResumeTemplate, resumeApi } from "@/lib/api";
 import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
+import { Mono } from "@/components/marketing-2026/primitives";
+import { cn } from "@/lib/utils";
 
 const categoryLabels = {
   simple: "Popular",
@@ -24,12 +21,15 @@ type FilterCategory = "all" | "simple" | "modern" | "creative";
 interface ATSImproveTemplatePickerProps {
   resumeId: string;
   currentTemplateId?: string;
+  /** "report": picked from the ATS report, nothing has been enhanced yet. */
+  source?: "improve" | "report";
   onComplete: (templateId?: string) => void;
 }
 
 export function ATSImproveTemplatePicker({
   resumeId,
   currentTemplateId,
+  source = "improve",
   onComplete,
 }: ATSImproveTemplatePickerProps) {
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
@@ -85,76 +85,49 @@ export function ATSImproveTemplatePicker({
     }
   };
 
+  const selected = templates.find((t) => t.id === selectedTemplate);
+  const fromReport = source === "report";
+
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading templates...</p>
+      <div className={cn(dash2026Scope, "flex min-h-[50vh] flex-col items-center justify-center gap-4")}>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading templates…</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100">
-          <Sparkles className="h-7 w-7 text-green-600" />
+    <div className={cn(dash2026Scope, "mx-auto max-w-6xl space-y-5 pb-24 lg:space-y-6")}>
+      <section className="relative overflow-hidden rounded-[22px] border border-border bg-card p-6 md:p-8">
+        <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
+        <div className="relative">
+          <Eyebrow>{fromReport ? "TEMPLATES" : "RESUME ENHANCED"}</Eyebrow>
+          <h1 className="mt-3 text-[28px] font-black leading-tight tracking-[-0.05em] text-foreground sm:text-[38px]">
+            {fromReport ? "Choose a template" : "Now choose a template"}
+          </h1>
+          <p className="mt-2 max-w-xl text-[15px] text-muted-foreground">
+            Your content stays the same. You can change it any time.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-          Resume enhanced
-        </h1>
-        <p className="mt-2 max-w-xl mx-auto text-muted-foreground">
-          Your resume has been improved using ATS feedback. Choose a template
-          for the editor, or skip to keep your current layout.
-        </p>
-      </div>
+      </section>
 
-      {selectedTemplate && (
-        <Card className="border-2 border-primary/20 bg-primary/5">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-semibold text-foreground">Template selected</p>
-                <p className="text-sm text-muted-foreground">
-                  {templates.find((t) => t.id === selectedTemplate)?.name ??
-                    selectedTemplate}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => void handleContinue(true)}
-                disabled={applying}
-              >
-                <SkipForward className="mr-2 h-4 w-4" />
-                Skip — keep current
-              </Button>
-              <Button
-                onClick={() => void handleContinue(false)}
-                disabled={applying}
-              >
-                {applying ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Continue to editor
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label="Template type" className="flex flex-wrap gap-2">
         {filterButtons.map((filter) => (
-          <Button
+          <button
             key={filter.id}
-            size="sm"
-            variant={activeFilter === filter.id ? "default" : "outline"}
+            type="button"
+            role="tab"
+            aria-selected={activeFilter === filter.id}
             onClick={() => setActiveFilter(filter.id)}
+            className={cn(
+              "min-h-10 rounded-xl border px-4 text-[13.5px] font-semibold transition-colors",
+              activeFilter === filter.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
+            )}
           >
             {filter.label}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -162,40 +135,44 @@ export function ATSImproveTemplatePicker({
         {filteredTemplates.map((template) => {
           const isSelected = selectedTemplate === template.id;
           return (
-            <Card
+            <button
               key={template.id}
-              className={`cursor-pointer overflow-hidden border-2 transition-all hover:shadow-lg ${
-                isSelected
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-primary/40"
-              }`}
+              type="button"
+              aria-pressed={isSelected}
               onClick={() => setSelectedTemplate(template.id)}
+              className={cn(
+                "overflow-hidden rounded-[22px] border bg-card text-left transition-all",
+                isSelected ? "border-primary shadow-[0_0_0_3px_rgba(115,103,240,.2)]" : "border-border hover:border-primary/40 hover:shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)]",
+              )}
             >
-              <CardContent className="p-0">
-                <TemplatePreview template={template} isSelected={isSelected} />
-                <div className="p-4">
-                  <h3 className="font-semibold text-foreground">{template.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                    {template.description}
-                  </p>
-                  <span className="mt-2 inline-block rounded bg-muted px-2 py-0.5 text-xs font-medium">
-                    {categoryLabels[template.category]}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+              <TemplatePreview template={template} isSelected={isSelected} />
+              <div className="p-4">
+                <h3 className="font-bold tracking-[-0.02em] text-foreground">{template.name}</h3>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{template.description}</p>
+                <Mono className="mt-2 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] uppercase text-muted-foreground">
+                  {categoryLabels[template.category]}
+                </Mono>
+              </div>
+            </button>
           );
         })}
       </div>
 
-      {!selectedTemplate && (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => void handleContinue(true)} disabled={applying}>
-            <SkipForward className="mr-2 h-4 w-4" />
-            Skip template selection
+      {/* always in reach, however far down the list they are */}
+      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border bg-card/95 p-3 shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)] backdrop-blur">
+        <p className="min-w-0 truncate pl-2 text-[14px] text-muted-foreground">
+          {selected ? <><span className="font-semibold text-foreground">{selected.name}</span> selected</> : "Pick a template"}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" onClick={() => void handleContinue(true)} disabled={applying} className="h-11 rounded-xl px-4 text-muted-foreground">
+            Keep current
+          </Button>
+          <Button onClick={() => void handleContinue(false)} disabled={applying || !selectedTemplate} className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+            {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Continue to editor
           </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

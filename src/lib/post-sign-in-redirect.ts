@@ -1,4 +1,5 @@
 import { isPrivateAppPath } from "@/lib/seo/site-url";
+import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
 
 export const POST_SIGN_IN_RETURN_URL_KEY = "resumeBuilderReturnUrl";
 export const POST_SIGN_IN_ONE_SHOT_RETURN_KEY = "interviewtrix.oneShotReturnUrl";
@@ -34,6 +35,8 @@ export function resolvePostAuthRedirectPath(
   if (destination && destination !== "/") {
     return destination;
   }
+  // Signed in from the nav right after a free ATS check: their report first, onboarding later.
+  if (hasUnclaimedGuestCheck()) return GUEST_CHECK_CLAIM_PATH;
   return "/onboarding";
 }
 

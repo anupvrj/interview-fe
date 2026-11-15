@@ -1,3 +1,4 @@
+import { atsDeviceId } from "@/lib/atsGuestState";
 import axios, {
   AxiosInstance,
   AxiosError,
@@ -105,6 +106,11 @@ export async function getAuthToken(): Promise<string | null> {
 // Request interceptor to add auth token and userId
 apiClient.interceptors.request.use(
   async (config) => {
+    // Signed-out ATS checks are limited per browser as well as per IP (shared phone IPs).
+    if (typeof window !== "undefined" && config.url?.startsWith("/ats-preview")) {
+      const device = atsDeviceId();
+      if (device) config.headers.set("x-ats-device", device);
+    }
     if (typeof window !== "undefined") {
       try {
         const userId = localStorage.getItem("clerk-user-id");
@@ -2074,6 +2080,8 @@ export interface LegacyATSFeedback {
 export interface RecalculateATSOptions {
   jobDescription?: string;
   rawPdfText?: string;
+  /** SHA-256 of the uploaded PDF, on the check right after an upload. */
+  sourceFileHash?: string;
   fileMetadata?: {
     fileName: string;
     fileSizeBytes: number;
@@ -2549,6 +2557,12 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /** Brings back every finding set aside (Ignore / Mark as fixed); the score stays. */
+  restoreIgnoredATSIssues: async (resumeId: string): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(`/resumes/${resumeId}/ats-restore-ignored`, {});
+    return response.data.data;
+  },
+
   ignoreATSIssue: async (
     resumeId: string,
     body: {
@@ -2707,6 +2721,88 @@ export type ResumeImportBuildOptions = {
   jdRequirements?: JDRequirements;
   /** When false, keep uploaded wording (structure only). Default true. */
   enhance?: boolean;
+};
+
+/** What a signed-out visitor sees: scores and check names. Findings come with signing up. */
+export interface ATSGuestTeaser {
+  score: number;
+  issueCount: number;
+  scoreCap?: number;
+  targetRole?: string;
+  jobMatchScore?: number;
+  /** Estimate of the score with fixable findings resolved. */
+  possibleScore: number;
+  categories: { id: string; label: string; score: number; issueCount: number }[];
+  checksToFix: { label: string; issueCount: number; impact: "high" | "medium" }[];
+}
+
+/** The AI rewrite of a signed-out check, shown as its "After improvement" preview. */
+export type GuestRewrite = { content: Record<string, unknown>; sectionOrder: unknown[] };
+
+export const atsGuestApi = {
+  extractSections: async (resumeText: string) => {
+    const response = await apiClient.post<{
+      data: { sections: Record<string, { sectionType: string; content: string | any; format: "html" | "list" | "paragraph" | "structured" }> };
+    }>("/ats-preview/extract", { resumeText }, { timeout: 180000 });
+    return response.data.data.sections;
+  },
+
+  score: async (body: {
+    content: unknown;
+    sectionOrder: unknown[];
+    resumeText: string;
+    jobDescription?: string;
+    fileHash?: string;
+    fileMetadata: { fileName: string; fileSizeBytes: number; mimeType: string; rawTextLength: number };
+  }): Promise<{ token: string; teaser: ATSGuestTeaser; report: ATSReportV3; improved?: GuestRewrite }> => {
+    const response = await apiClient.post<{ data: { token: string; teaser: ATSGuestTeaser; report: ATSReportV3; improved?: GuestRewrite } }>(
+      "/ats-preview",
+      body,
+      { timeout: 180000 },
+    );
+    return response.data.data;
+  },
+
+  rewrite: async (token: string): Promise<GuestRewrite> => {
+    const response = await apiClient.post<{ data: GuestRewrite }>(
+      "/ats-preview/rewrite",
+      { token },
+      { timeout: 180000 },
+    );
+    return response.data.data;
+  },
+
+  /** This exact PDF was just checked: its score, without checking again. */
+  findSameFile: async (fileHash: string, jobDescription?: string) => {
+    const response = await apiClient.post<{
+      data: { token: string; teaser: ATSGuestTeaser; report: ATSReportV3; content: Record<string, unknown>; sectionOrder: unknown[]; improved?: GuestRewrite } | null;
+    }>("/ats-preview/lookup", { fileHash, jobDescription });
+    return response.data.data;
+  },
+
+  /** A signed-in user's earlier check of this exact PDF, if that resume hasn't changed since. */
+  findOwnCheck: async (fileHash: string, jobDescription?: string): Promise<string | null> => {
+    const response = await apiClient.post<{ data: { resumeId: string | null } }>(
+      "/ats-preview/own-check",
+      { fileHash, jobDescription },
+    );
+    return response.data.data.resumeId;
+  },
+
+  /** They're heading to sign-up: score the rewrite now so claiming is instant. Fire and forget. */
+  prepare: async (token: string): Promise<void> => {
+    await apiClient.post("/ats-preview/prepare", { token });
+  },
+
+  /** `improved`: the resume got the AI rewrite they were shown, scored again (can take a minute). */
+  claim: async (token: string): Promise<{ resumeId: string; improved?: boolean }> => {
+    const response = await apiClient.post<{ data: { resumeId: string; improved?: boolean } }>(
+      "/ats-preview/claim",
+      { token },
+      { timeout: 180000 },
+    );
+    return response.data.data;
+  },
 };
 
 export const resumeDataExtractionApi = {

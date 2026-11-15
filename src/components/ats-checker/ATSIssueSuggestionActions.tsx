@@ -34,7 +34,7 @@ export function ATSIssueSuggestionActions({
   categoryLabel,
   showMagic = true,
 }: ATSIssueSuggestionActionsProps) {
-  const { enabled, onApplyFix } = useATSIssueMagic();
+  const { rewriteEnabled: enabled, onApplyFix } = useATSIssueMagic();
   const [editedContent, setEditedContent] = useState(suggestion);
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -148,7 +148,7 @@ export function ATSIssueSuggestionActions({
       </div>
 
       <div className="flex min-w-0 items-start gap-2">
-        <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+        <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600 dark:text-green-300" />
         {isEditing ? (
           <Textarea
             value={editedContent}

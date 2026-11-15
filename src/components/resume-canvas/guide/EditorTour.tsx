@@ -84,6 +84,7 @@ export function EditorTour({
   welcomeTitle,
   welcomeBody = "A quick 30-second tour of the tools that matter.",
   mini = false,
+  quietEnd = false,
   flyTo,
   onStep,
   onEnd,
@@ -97,6 +98,8 @@ export function EditorTour({
   welcomeBody?: string;
   /** One "Show me" pointer from the checklist: "Got it" ends it, no celebration. */
   mini?: boolean;
+  /** End on the last step, with no celebration screen. */
+  quietEnd?: boolean;
   flyTo: () => { x: number; y: number } | null;
   onStep: (index: number, step: GuideStep) => void;
   onEnd: (how: TourEnd) => void;
@@ -145,9 +148,9 @@ export function EditorTour({
     unlockSound();
     if (phase === "welcome") return setPhase("steps");
     if (index < list.length - 1) return setIndex((i) => i + 1);
-    if (mini) return onEnd("done");
+    if (mini || quietEnd) return onEnd("done");
     setPhase("finish");
-  }, [phase, index, list.length, mini, onEnd]);
+  }, [phase, index, list.length, mini, quietEnd, onEnd]);
   const back = useCallback(() => {
     unlockSound();
     setIndex((i) => Math.max(0, i - 1));
@@ -298,7 +301,7 @@ export function EditorTour({
                   <button type="button" className="eg-ghost" onClick={skip}>Skip</button>
                 )}
                 <button type="button" className="eg-primary" onClick={next} autoFocus>
-                  {mini ? "Got it" : index === list.length - 1 ? "Finish 🎉" : `Next · ${index + 1}/${list.length}`}
+                  {mini ? "Got it" : index === list.length - 1 ? (quietEnd ? "Got it" : "Finish 🎉") : `Next · ${index + 1}/${list.length}`}
                 </button>
               </div>
             </div>

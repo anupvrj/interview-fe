@@ -741,6 +741,20 @@ export async function importResumeFromLinkedIn(
   });
 }
 
+/** The sections to show for extracted content, so nothing parsed stays off the page. */
+export async function sectionOrderForExtractedContent(
+  templateId: string,
+  content: Record<string, unknown>,
+): Promise<ResumeSectionOrderItem[]> {
+  const extended = getExtendedTemplate(await resumeApi.getTemplate(templateId));
+  const layoutType =
+    extended.rendering?.layout?.type === "header-plus-columns" ||
+    extended.rendering?.layout?.type === "double"
+      ? "double"
+      : "single";
+  return buildSectionOrderForExtractedContent(extended, content, layoutType);
+}
+
 export type ResumeImportSourceType = "pdf" | "linkedin" | "chat" | "dummy";
 
 export type BuildResumeImportPayload = {

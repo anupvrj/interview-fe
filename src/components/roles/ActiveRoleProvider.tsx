@@ -1,5 +1,7 @@
 "use client";
 
+import { isGuestATSFlowPath } from "@/lib/atsCheckFlow";
+import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
 import {
   createContext,
   useCallback,
@@ -110,8 +112,17 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
     if (!profile || profile.onboardingCompleted || pathname.startsWith("/onboarding")) {
       return;
     }
+    if (isGuestATSFlowPath(pathname) || hasUnclaimedGuestCheck()) return;
     router.replace("/onboarding");
   }, [profile, pathname, router]);
+
+  // Signed in with a free ATS check still waiting (from the nav, another tab, a bookmark):
+  // collect it before anything else, wherever they landed.
+  useEffect(() => {
+    if (!user || !hasUnclaimedGuestCheck()) return;
+    if (pathname.startsWith(GUEST_CHECK_CLAIM_PATH) || pathname.startsWith("/dashboard/resumes/")) return;
+    router.replace(GUEST_CHECK_CLAIM_PATH);
+  }, [user, pathname, router]);
 
   useEffect(() => {
     if (!user || !profile) return;

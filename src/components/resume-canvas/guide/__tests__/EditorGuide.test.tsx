@@ -163,3 +163,67 @@ describe("EditorGuide", () => {
     expect(text()).not.toContain("Let’s make your resume shine");
   });
 });
+
+describe("EditorGuide ATS tour", () => {
+  const atsPanel = () =>
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div id="ats-panel"><div data-guide="ats-score"></div><div data-guide="ats-finding"></div></div>',
+    );
+  const nextUntilDone = () => {
+    for (let i = 0; i < 6 && !saved()?.atsTour; i++) {
+      const b = [...document.querySelectorAll("button")].find((x) => /Next|Got it/.test(x.textContent ?? ""));
+      if (!b) break;
+      click(b as HTMLElement);
+      act(() => vi.advanceTimersByTime(50));
+    }
+  };
+
+  it("starts instead of the general tour, the first time the panel shows a report", () => {
+    mountEditorFixture();
+    atsPanel();
+    const { tick } = guide({ openPanel: "fix", atsPanelReady: true });
+    tick(1000);
+    expect(text()).toContain("Your ATS score");
+    expect(text()).not.toContain("Let’s make your resume shine");
+    expect(trackEvent).toHaveBeenCalledWith("editor_guide_ats_tour_start", {});
+    document.getElementById("ats-panel")!.remove();
+  });
+
+  it("isn't shown again, and the general tour doesn't follow it", () => {
+    mountEditorFixture();
+    atsPanel();
+    const { tick } = guide({ openPanel: "fix", atsPanelReady: true });
+    tick(1000);
+    nextUntilDone();
+    expect(saved().atsTour).toBe(true);
+    expect(saved().tour).toBe("done");
+    tick(2000);
+    expect(text()).not.toContain("Let’s make your resume shine");
+    document.getElementById("ats-panel")!.remove();
+  });
+
+  it("stays off on phones and in the hackathon flow", () => {
+    mountEditorFixture();
+    atsPanel();
+    const phone = guide({ isMobile: true, openPanel: "fix", atsPanelReady: true });
+    phone.tick(1000);
+    expect(trackEvent).not.toHaveBeenCalledWith("editor_guide_ats_tour_start", {});
+    phone.view.unmount();
+    localStorage.clear();
+    const event = guide({ hackathon: true, openPanel: "fix", atsPanelReady: true });
+    event.tick(1000);
+    expect(trackEvent).not.toHaveBeenCalledWith("editor_guide_ats_tour_start", {});
+    document.getElementById("ats-panel")!.remove();
+  });
+
+  it("can be replayed from the panel", () => {
+    mountEditorFixture();
+    atsPanel();
+    localStorage.setItem("ix:editorGuide:v1:u1", JSON.stringify({ atsTour: true, tour: "done" }));
+    const { ref } = guide({ openPanel: "fix", atsPanelReady: true });
+    act(() => ref.current!.startAtsTour());
+    expect(text()).toContain("Your ATS score");
+    document.getElementById("ats-panel")!.remove();
+  });
+});

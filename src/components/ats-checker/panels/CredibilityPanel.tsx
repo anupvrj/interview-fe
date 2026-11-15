@@ -149,7 +149,7 @@ export function CredibilityPanel({
 
       {positive.length === 0 && risks.length === 0 && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center dark:border-green-900/40 dark:bg-green-950/25">
-          <Check className="mx-auto mb-2 h-8 w-8 text-green-600" />
+          <Check className="mx-auto mb-2 h-8 w-8 text-green-600 dark:text-green-300" />
           <p className="font-medium text-green-800 dark:text-green-200">
             Your resume reads as credible and trustworthy.
           </p>

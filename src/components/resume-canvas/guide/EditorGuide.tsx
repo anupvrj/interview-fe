@@ -10,11 +10,13 @@ import { SetupChecklist } from "./SetupChecklist";
 import { buildChecklist } from "./guideChecklist";
 import { readGuide, writeGuide, type GuideState } from "./guideStorage";
 import { unlockSound } from "./guideSound";
-import { exportButton, hackathonSubmitButton, resumePage, studioButton, tourSteps, type GuideStep } from "./guideTargets";
+import { atsTourSteps, exportButton, hackathonSubmitButton, resumePage, studioButton, tourSteps, type GuideStep } from "./guideTargets";
 
 export type EditorGuideHandle = {
   /** "?" → Replay tour. */
   startTour: () => void;
+  /** The ATS panel's own short tour. */
+  startAtsTour: () => void;
   /** Something the checklist can't read from the resume happened ("fixed", "exported"). */
   milestone: (name: "fixed" | "exported") => void;
 };
@@ -53,11 +55,13 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
   /** Hackathon: the event's ATS goal, when known. */
   atsTarget?: number | null;
   openPanel: CanvasPanel | null;
+  /** The ATS panel is showing a report. */
+  atsPanelReady?: boolean;
   onOpenPanel: (panel: CanvasPanel) => void;
 }>(function EditorGuide(props, ref) {
   const { userId, isMobile, active, resumeIsNew, hackathon, openPanel, onOpenPanel } = props;
   const [state, setState] = useState<GuideState | null>(null);
-  const [tour, setTour] = useState<{ steps: GuideStep[]; welcome: boolean; mini: boolean; key: number } | null>(null);
+  const [tour, setTour] = useState<{ steps: GuideStep[]; welcome: boolean; mini: boolean; key: number; ats?: boolean } | null>(null);
   const [prompt, setPrompt] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const [beacons, setBeacons] = useState<Array<{ panel: CanvasPanel; x: number; y: number }>>([]);
@@ -99,9 +103,33 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     [isMobile, hackathon, props.atsTarget, props.hasSample],
   );
 
+  const startAtsTour = useCallback(() => {
+    setPrompt(false);
+    setTour({ steps: atsTourSteps(), welcome: false, mini: false, key: Date.now(), ats: true });
+    trackEvent("editor_guide_ats_tour_start", {});
+  }, []);
+
+  // First time in the ATS panel. One tour at a time, so this replaces the general one, which
+  // stays available from "Take the tour". Phones skip it, as the panel covers the page there.
+  const atsTourDue = Boolean(active && props.atsPanelReady && !isMobile && !hackathon && state && !state.atsTour);
+  useEffect(() => {
+    if (!atsTourDue || tour) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      if (tries > 50) return window.clearInterval(timer);
+      if (document.hidden || !resumePage() || dialogOpen() || !atsTourSteps()[0].find()) return;
+      window.clearInterval(timer);
+      started.current = true;
+      setSettled(true);
+      startAtsTour();
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [atsTourDue, tour, startAtsTour]);
+
   // First visit: start on its own (new resume) or offer it once (existing users).
   useEffect(() => {
-    if (!active || !state || started.current) return;
+    if (!active || !state || started.current || atsTourDue) return;
     if (state.tour) {
       setSettled(true);
       return;
@@ -127,7 +155,7 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
       }
     }, 600);
     return () => window.clearInterval(timer);
-  }, [active, state, resumeIsNew, startTour, update]);
+  }, [active, state, resumeIsNew, startTour, update, atsTourDue]);
 
   // Tools opened count as explored (their beacon stops).
   useEffect(() => {
@@ -148,7 +176,14 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
   const endTour = useCallback(
     (how: TourEnd) => {
       const wasMini = tour?.mini;
+      const wasAts = tour?.ats;
       setTour(null);
+      if (wasAts) {
+        // Seen either way. A first-timer isn't then sent through the general tour as well.
+        update((s) => ({ ...s, atsTour: true, tour: s.tour ?? "done" }));
+        trackEvent("editor_guide_ats_tour_end", { how });
+        return;
+      }
       // The tour scrolled the phone tab bar sideways; put it back.
       const studio = document.querySelector<HTMLElement>('nav[aria-label="Resume studio"]');
       if (studio && typeof studio.scrollTo === "function") studio.scrollTo({ left: 0, behavior: "smooth" });
@@ -173,9 +208,10 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
     ref,
     () => ({
       startTour: () => startTour(false),
+      startAtsTour,
       milestone: (name) => update((s) => (s.milestones.includes(name) ? s : { ...s, milestones: [...s.milestones, name] })),
     }),
-    [startTour, update],
+    [startTour, startAtsTour, update],
   );
 
   const items = useMemo(
@@ -264,6 +300,7 @@ export const EditorGuide = forwardRef<EditorGuideHandle, {
           welcomeTitle={hackathon ? "Let\u2019s get your Hiring Games resume submitted" : undefined}
           welcomeBody={hackathon ? "About 2 minutes: check it, fix any issues, submit." : undefined}
           mini={tour.mini}
+          quietEnd={tour.ats}
           flyTo={() => {
             const pill = document.getElementById("eg-pill")?.getBoundingClientRect();
             if (pill) return { x: pill.left + pill.width / 2, y: pill.top + pill.height / 2 };
