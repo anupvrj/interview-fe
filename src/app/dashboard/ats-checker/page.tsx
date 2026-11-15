@@ -30,7 +30,7 @@ import { renderPdfPages, snapshotPdfFirstPage, type PdfPage, type PdfSnapshot } 
 import type { ScanFacts } from "@/lib/atsScanFacts";
 import type { ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { isAxiosError } from "axios";
-import { forgetGuestCheck } from "@/lib/atsGuestState";
+import { forgetGuestCheck, rememberGuestCheck } from "@/lib/atsGuestState";
 
 /** A claim that failed for a reason other than "expired" (network, deploy) is tried again. */
 const CLAIM_ATTEMPTS = 3;
@@ -220,7 +220,13 @@ function DashboardATSCheckerContent() {
     if (booted.current) return;
     booted.current = true;
 
-    // Signed up for the report of a check they just ran: it's ready, no second wait.
+    // Signed up for the report of a check they just ran: it's ready, no second wait. From an
+    // in-app browser the check arrives in the link (?check=), since storage didn't come along.
+    const linkToken = searchParams.get("check");
+    if (linkToken && /^[A-Za-z0-9_-]{20,100}$/.test(linkToken) && !loadGuestATSToken()) {
+      rememberGuestCheck(linkToken);
+    }
+    if (linkToken) router.replace("/dashboard/ats-checker", { scroll: false });
     const guestToken = loadGuestATSToken();
     if (guestToken) {
       void claimGuestCheck(guestToken);

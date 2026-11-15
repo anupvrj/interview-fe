@@ -1,3 +1,4 @@
+import { atsDeviceId } from "@/lib/atsGuestState";
 import axios, {
   AxiosInstance,
   AxiosError,
@@ -105,6 +106,11 @@ export async function getAuthToken(): Promise<string | null> {
 // Request interceptor to add auth token and userId
 apiClient.interceptors.request.use(
   async (config) => {
+    // Signed-out ATS checks are limited per browser as well as per IP (shared phone IPs).
+    if (typeof window !== "undefined" && config.url?.startsWith("/ats-preview")) {
+      const device = atsDeviceId();
+      if (device) config.headers.set("x-ats-device", device);
+    }
     if (typeof window !== "undefined") {
       try {
         const userId = localStorage.getItem("clerk-user-id");

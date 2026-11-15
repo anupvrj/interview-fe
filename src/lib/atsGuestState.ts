@@ -109,3 +109,70 @@ export function takeGuestTemplate(): string | null {
     return null;
   }
 }
+
+const DEVICE_KEY = "ats-checker-device";
+const SCAN_KEY = "ats-checker-scan-in-progress";
+/** A scan older than this was abandoned, not interrupted. */
+const SCAN_RESUME_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * An anonymous id for this browser, sent with signed-out checks so limits apply per browser:
+ * many phones share one carrier IP. Not tied to a person; null when storage is off.
+ */
+export function atsDeviceId(): string | null {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      const bytes = crypto.getRandomValues(new Uint8Array(18));
+      id = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A scan is running. Phones freeze or reload a tab when you switch apps, so if the page
+ * comes back without a result, the scan picks up with the PDF already kept here.
+ */
+export function markScanStarted(fileName: string): void {
+  try {
+    localStorage.setItem(SCAN_KEY, JSON.stringify({ fileName, startedAt: Date.now() }));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function clearScanMark(): void {
+  remove(SCAN_KEY);
+}
+
+export function interruptedScan(): { fileName: string } | null {
+  try {
+    const raw = localStorage.getItem(SCAN_KEY);
+    if (!raw) return null;
+    const { fileName, startedAt } = JSON.parse(raw) as { fileName?: string; startedAt?: number };
+    if (!startedAt || Date.now() - startedAt > SCAN_RESUME_WINDOW_MS) {
+      localStorage.removeItem(SCAN_KEY);
+      return null;
+    }
+    return { fileName: fileName ?? "your resume" };
+  } catch {
+    return null;
+  }
+}
+
+/** Instagram, Facebook, LinkedIn and similar in-app browsers, where Google sign-in often fails. */
+export function inAppBrowserName(): string | null {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent;
+  if (/Instagram/i.test(ua)) return "Instagram";
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "Facebook";
+  if (/LinkedInApp/i.test(ua)) return "LinkedIn";
+  if (/Twitter/i.test(ua)) return "X";
+  if (/Snapchat/i.test(ua)) return "Snapchat";
+  if (/\bLine\//i.test(ua)) return "LINE";
+  return null;
+}

@@ -17,6 +17,7 @@ import { fetchDisabledResumeTemplateIds } from "@/lib/resume-template-availabili
 import type { ATSReportV3 } from "@/types/atsReport";
 import { rewriteChanges } from "@/lib/atsRewriteDiff";
 import { loadPendingUpload } from "@/lib/atsPendingFile";
+import { inAppBrowserName } from "@/lib/atsGuestState";
 import { renderPdfPages, type PdfPage } from "@/lib/pdf-snapshot";
 import { ATSReportWorkspace } from "./ATSReportWorkspace";
 import { cssRegistry } from "@/lib/templateLoader";
@@ -30,7 +31,7 @@ const NEEDS_YOU: Record<string, string> = {
   contactInformation: "ADD YOUR DETAILS",
 };
 
-const SIGN_UP_HREF = `/sign-up?redirect_url=${encodeURIComponent("/dashboard/ats-checker")}`;
+const DEFAULT_SIGN_UP_HREF = `/sign-up?redirect_url=${encodeURIComponent("/dashboard/ats-checker")}`;
 /** A4 at 96dpi, the width PaginatedPreview lays pages out at. */
 const PAGE_WIDTH = 794;
 
@@ -142,6 +143,15 @@ export function ATSGuestResult({
   onCheckAnother: () => void;
 }) {
   const reduce = useReducedMotion();
+  // In Instagram/LinkedIn/Facebook's own browser, Google sign-in often fails and people tap
+  // "Open in browser", which doesn't share this browser's storage. There the check travels
+  // in the link itself; elsewhere it stays out of URLs.
+  const [inApp, setInApp] = useState<string | null>(null);
+  useEffect(() => setInApp(inAppBrowserName()), []);
+  const SIGN_UP_HREF =
+    inApp && token
+      ? `/sign-up?redirect_url=${encodeURIComponent(`/dashboard/ats-checker?check=${token}`)}`
+      : DEFAULT_SIGN_UP_HREF;
   const [view, setView] = useState<View>("current");
   const [templateId, setTemplateId] = useState(ATS_RESUME_TEMPLATE_ID);
   const [tryOn, setTryOn] = useState<string[]>([ATS_RESUME_TEMPLATE_ID]);
@@ -438,6 +448,12 @@ export function ATSGuestResult({
         originalPdf={originalPdf}
         guest={{ signUpHref: SIGN_UP_HREF, resume, scoreBox, stage, side, secondaryAction, viewSwitch, onCheckAnother }}
       />
+
+      {inApp && (
+        <p className="mx-auto mt-4 max-w-xl rounded-xl border border-border bg-card px-4 py-3 text-center text-[13px] text-muted-foreground">
+          In the {inApp} app? If Google sign-in doesn&apos;t open, tap <span className="font-semibold text-foreground">⋯ → Open in browser</span>. Your check comes with you.
+        </p>
+      )}
 
       {/* phones: the next step is always in reach */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">

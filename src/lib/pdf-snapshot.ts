@@ -94,7 +94,8 @@ export async function renderPdfPages(file: File, maxPages = MAX_PAGES): Promise<
     const pages: PdfPage[] = [];
     for (let n = 1; n <= Math.min(pdf.numPages, maxPages); n++) {
       const page = await pdf.getPage(n);
-      const viewport = page.getViewport({ scale: 2 });
+      // Phones show the page narrow; a smaller image looks the same and saves memory.
+      const viewport = page.getViewport({ scale: typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 2 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
