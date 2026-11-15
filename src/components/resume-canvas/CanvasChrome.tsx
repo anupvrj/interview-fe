@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Brush, Gauge, LayoutPanelLeft, ListTree, Loader2, MoveVertical, Plus, Sparkles, Target } from "lucide-react";
+import { Brush, Gauge, LayoutPanelLeft, ListTree, MoveVertical, Plus, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type CanvasPanel = "outline" | "fix" | "tailor" | "templates" | "design" | "details" | "ai";
@@ -47,10 +47,26 @@ export function ScoreRing({
           strokeDashoffset={c - (value / 100) * c}
         />
       </svg>
-      <span className={cn("absolute flex items-baseline font-bold leading-none tabular-nums", band.text)}>
-        {busy ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : score == null ? (
+      {busy && (
+        // Updating: the score stays readable while a short arc travels round the ring.
+        <svg width={size} height={size} className="absolute inset-0 animate-spin [animation-duration:1.4s] motion-reduce:animate-none" aria-hidden>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            className={cn("fill-none opacity-80", band.ring)}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${c * 0.18} ${c}`}
+          />
+        </svg>
+      )}
+      <span
+        className={cn("absolute flex items-baseline font-bold leading-none tabular-nums transition-opacity", band.text, busy && "opacity-50")}
+        role={busy ? "status" : undefined}
+        aria-label={busy ? "Updating score" : undefined}
+      >
+        {score == null ? (
           <span className={size >= 48 ? "text-base" : "text-[10px]"}>–</span>
         ) : (
           <>

@@ -883,7 +883,7 @@ export function FixMistakesPanel({
             {open > 0 ? `${open} thing${open === 1 ? "" : "s"} to improve` : "Nothing urgent to improve"}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {edited ? "You've edited since the last check — re-run to update." : "Score out of 100 from our ATS check."}
+            {checking ? "Checking your resume again…" : edited ? "You've edited since the last check — re-run to update." : "Score out of 100 from our ATS check."}
           </p>
           {!edited && typeof improvedFrom === "number" && typeof score === "number" && score > improvedFrom ? (
             <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -905,7 +905,7 @@ export function FixMistakesPanel({
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onRecheck} disabled={checking}>
           {checking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-          Run check again
+          {checking ? "Checking…" : "Run check again"}
         </Button>
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onTailor}>
           <Target className="mr-1.5 h-3.5 w-3.5" />
