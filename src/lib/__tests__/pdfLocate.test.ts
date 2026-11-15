@@ -35,4 +35,10 @@ describe("locateTextInPdf", () => {
   it("returns nothing for text that isn't there", () => {
     expect(locateTextInPdf(pages, "Led a team of twelve engineers")).toEqual([]);
   });
+
+  it("doesn't guess where a short repeated quote is", () => {
+    const repeated = [page([["Description", 0.1, 0.1, 0.2], ["Description", 0.2, 0.1, 0.2], ["Unique heading", 0.3, 0.1, 0.2]])];
+    expect(locateTextInPdf(repeated, "Description")).toEqual([]);
+    expect(locateTextInPdf(repeated, "Unique heading")).toHaveLength(1);
+  });
 });

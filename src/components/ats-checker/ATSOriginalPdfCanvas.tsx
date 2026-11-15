@@ -98,15 +98,17 @@ export function ATSOriginalPdfCanvas({
                     onClick={() => onPick?.(b.id)}
                     aria-label="Show this issue in the report"
                     className={cn(
-                      "absolute rounded-[3px] border transition-all duration-200",
-                      b.tone === "error" ? "border-rose-600/80 bg-rose-500/[0.14]" : "border-rose-500/70 bg-rose-500/[0.08]",
-                      active ? "z-10 border-2 border-primary bg-primary/[0.12] shadow-[0_0_0_4px_rgba(115,103,240,.18)]" : "hover:bg-rose-500/20",
+                      // Thin lines only: a ring or thick border swamps the text when a phone zooms in.
+                      "absolute rounded-[2px] border transition-colors duration-200",
+                      active
+                        ? "z-10 border-primary bg-primary/[0.16]"
+                        : b.tone === "error" ? "border-rose-600/70 bg-rose-500/[0.12] hover:bg-rose-500/20" : "border-rose-500/60 bg-rose-500/[0.07] hover:bg-rose-500/20",
                     )}
                     style={{
-                      top: `calc(${b.top * 100}% - 2px)`,
-                      left: `calc(${b.left * 100}% - 3px)`,
-                      width: `calc(${b.width * 100}% + 6px)`,
-                      height: `calc(${b.height * 100}% + 2px)`,
+                      top: `calc(${b.top * 100}% - 1px)`,
+                      left: `calc(${b.left * 100}% - 2px)`,
+                      width: `calc(${b.width * 100}% + 4px)`,
+                      height: `calc(${b.height * 100}% + 1px)`,
                     }}
                   />
                 );

@@ -165,6 +165,15 @@ export function locateTextInPdf(pages: PdfPage[], text: string): PdfHit[] {
     }
     return null;
   };
+  // A word or two that appears more than once ("Description" on a template) can't be placed
+  // on the right line: no box beats a box on the wrong one.
+  if (query.length < 3) {
+    let seen = 0;
+    outer: for (let i = 0; i + query.length <= tokens.length; i++) {
+      for (let j = 0; j < query.length; j++) if (tokens[i + j].word !== query[j]) continue outer;
+      if (++seen > 1) return [];
+    }
+  }
   const hit = find(query) ?? (query.length > 6 ? find(query.slice(0, 6)) : null);
   if (!hit) return [];
 
