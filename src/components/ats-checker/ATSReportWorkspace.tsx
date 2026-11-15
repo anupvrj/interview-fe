@@ -186,14 +186,16 @@ export function ATSReportWorkspace({
                 <>We rebuilt your resume{templateName ? <> in <span className="font-medium text-foreground">{templateName}</span></> : null} so you can edit it. An uploaded PDF&apos;s own design can&apos;t be edited.</>
               )}
             </motion.p>
-            <motion.div {...rise(0.18)} className="mt-5 flex flex-wrap gap-2">
+            <motion.div {...rise(0.18)} className={cn("mt-5 gap-2", guest ? "grid grid-cols-1 lg:flex lg:flex-wrap" : "flex flex-wrap")}>
               {guest ? (
                 <>
-                  <Button asChild className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+                  {/* phones have this pinned at the bottom of the screen */}
+                  <Button asChild className="hidden h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90 lg:inline-flex">
                     <Link href={guest.signUpHref}>Fix my resume, free<ArrowRight className="h-4 w-4" /></Link>
                   </Button>
                   {guest.secondaryAction}
-                  <Button variant="ghost" onClick={guest.onCheckAnother} className="h-11 rounded-xl px-3 text-muted-foreground">
+                  <Button variant="outline" onClick={guest.onCheckAnother}
+                    className="h-11 w-full rounded-xl px-5 text-muted-foreground lg:w-auto lg:border-transparent lg:bg-transparent lg:px-3 lg:shadow-none lg:hover:bg-muted">
                     <CloudUpload className="h-4 w-4" />
                     Upload new
                   </Button>
@@ -222,7 +224,7 @@ export function ATSReportWorkspace({
                 </>
               )}
             </motion.div>
-            {guest && <motion.p {...rise(0.2)} className="mt-2.5 text-[12.5px] text-muted-foreground">Free account · no card · your check is saved</motion.p>}
+            {guest && <motion.p {...rise(0.2)} className="mt-2.5 text-[12.5px] text-muted-foreground max-lg:hidden">Free account · no card · your check is saved</motion.p>}
           </div>
           {guest ? (
             <motion.div {...rise(0.24)} className="w-full rounded-2xl border border-border bg-background/70 p-4 shadow-[0_24px_50px_-30px_rgba(47,43,61,.45)] backdrop-blur lg:w-[340px]">
