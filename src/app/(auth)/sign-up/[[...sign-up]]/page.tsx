@@ -1,6 +1,7 @@
 "use client";
 
-import { SignUp } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
+import { useRedirectIfSignedIn } from "@/hooks/useRedirectIfSignedIn";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -18,6 +19,7 @@ export default function SignUpPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
+  const signedIn = useRedirectIfSignedIn(afterAuth);
   const signInHref = redirectUrl
     ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-in";
@@ -56,15 +58,20 @@ export default function SignUpPage() {
       }
     >
       <HackathonAuthAnalytics pageType="sign_up" redirectUrl={redirectUrl}>
-        <SignUp
-          routing="path"
-          path="/sign-up"
-          forceRedirectUrl={afterAuth}
-          fallbackRedirectUrl={afterAuth}
-          signInForceRedirectUrl={afterAuth}
-          signInFallbackRedirectUrl={afterAuth}
-          appearance={clerkAuthAppearance}
-        />
+        {/* One email-first flow: an email that already has an account goes to its password
+            (then on to where they were headed) instead of "That email address is taken". */}
+        {!signedIn && (
+          <SignIn
+            withSignUp
+            routing="path"
+            path="/sign-up"
+            forceRedirectUrl={afterAuth}
+            fallbackRedirectUrl={afterAuth}
+            signUpForceRedirectUrl={afterAuth}
+            signUpFallbackRedirectUrl={afterAuth}
+            appearance={clerkAuthAppearance}
+          />
+        )}
       </HackathonAuthAnalytics>
     </AuthCardLayout>
   );
