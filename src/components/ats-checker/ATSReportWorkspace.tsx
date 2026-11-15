@@ -278,7 +278,7 @@ export function ATSReportWorkspace({
 
       {/* ── the workspace: resume with findings on the left, the check and its fix on the right ── */}
       {/* on wide screens both panes scroll on their own, so the resume stays in view while you read */}
-      <div className="grid gap-5 lg:gap-6 xl:h-[calc(100vh-112px)] xl:min-h-[640px] xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:gap-6 xl:h-[calc(100vh-112px)] xl:min-h-[640px] xl:grid-cols-[minmax(0,1fr)_440px]">
         {(() => {
           const stage = guest?.stage ?? (originalPdf?.length ? (
             <ATSOriginalPdfCanvas pages={originalPdf} marks={marks} activeIds={activeIds} onPick={pickMark}
@@ -290,7 +290,7 @@ export function ATSReportWorkspace({
           if (!guest?.viewSwitch) return stage;
           // the switch sits on the resume it changes
           return (
-            <div className="flex min-h-0 flex-col gap-3 [&>*:last-child]:xl:min-h-0 [&>*:last-child]:xl:flex-1">
+            <div className="flex min-h-0 min-w-0 flex-col gap-3 [&>*:last-child]:xl:min-h-0 [&>*:last-child]:xl:flex-1">
               {guest.viewSwitch}
               {stage}
             </div>
