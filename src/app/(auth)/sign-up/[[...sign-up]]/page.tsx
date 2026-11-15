@@ -34,8 +34,9 @@ export default function SignUpPage() {
 
   return (
     <AuthCardLayout
-      title="Get started free"
-      subtitle="Create your account and start practicing today"
+      // The same email-first flow signs existing accounts in, so the heading fits both.
+      title="Continue with your email"
+      subtitle="New here? We'll create your free account. Already have one? We'll sign you in."
       footer={
         <>
           <p>
