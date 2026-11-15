@@ -1,6 +1,7 @@
 "use client";
 
 import { SignIn } from "@clerk/nextjs";
+import { useRedirectIfSignedIn } from "@/hooks/useRedirectIfSignedIn";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { HackathonAuthAnalytics } from "@/features/hackathon/components/HackathonAuthAnalytics";
@@ -18,6 +19,7 @@ export default function SignInPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
+  const signedIn = useRedirectIfSignedIn(afterAuth);
   const signUpHref = redirectUrl
     ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-up";
@@ -57,7 +59,9 @@ export default function SignInPage() {
       }
     >
       <HackathonAuthAnalytics pageType="sign_in" redirectUrl={redirectUrl}>
-        <SignIn
+        {/* A new email carries on into creating the account instead of "account not found". */}
+        {!signedIn && <SignIn
+          withSignUp
           routing="path"
           path="/sign-in"
           forceRedirectUrl={afterAuth}
@@ -65,7 +69,7 @@ export default function SignInPage() {
           signUpForceRedirectUrl={afterAuth}
           signUpFallbackRedirectUrl={afterAuth}
           appearance={clerkAuthAppearance}
-        />
+        />}
       </HackathonAuthAnalytics>
     </AuthCardLayout>
   );
