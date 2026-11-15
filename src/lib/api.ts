@@ -2748,8 +2748,8 @@ export const atsGuestApi = {
     jobDescription?: string;
     fileHash?: string;
     fileMetadata: { fileName: string; fileSizeBytes: number; mimeType: string; rawTextLength: number };
-  }): Promise<{ token: string; teaser: ATSGuestTeaser; report: ATSReportV3 }> => {
-    const response = await apiClient.post<{ data: { token: string; teaser: ATSGuestTeaser; report: ATSReportV3 } }>(
+  }): Promise<{ token: string; teaser: ATSGuestTeaser; report: ATSReportV3; improved?: GuestRewrite }> => {
+    const response = await apiClient.post<{ data: { token: string; teaser: ATSGuestTeaser; report: ATSReportV3; improved?: GuestRewrite } }>(
       "/ats-preview",
       body,
       { timeout: 180000 },

@@ -215,7 +215,7 @@ export async function runGuestATSCheck(
   onStep?.(2);
   const lastStep = window.setTimeout(() => onStep?.(3), LAST_STEP_AFTER_MS);
   try {
-    const { token, teaser, report } = await atsGuestApi.score({
+    const { token, teaser, report, improved } = await atsGuestApi.score({
       content,
       sectionOrder,
       resumeText,
@@ -228,7 +228,8 @@ export async function runGuestATSCheck(
         rawTextLength: resumeText.length,
       },
     });
-    return { token, teaser, report, content, sectionOrder };
+    // The rewrite runs alongside the scoring; when it's already done it comes back here.
+    return { token, teaser, report, content, sectionOrder, ...(improved ? { improved } : {}) };
   } finally {
     window.clearTimeout(lastStep);
   }

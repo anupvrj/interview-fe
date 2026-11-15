@@ -59,7 +59,7 @@ const report = {
       label: "Content",
       score: 70,
       issueCount: 3,
-      checks: [{ id: "repetition", label: "Repetition", description: "Same words", status: "fail", score: 50, issueCount: 3, issues: [{ title: "Repeated word", description: "led, led" }] }],
+      checks: [{ id: "repetition", label: "Repetition", description: "Same words", status: "fail", score: 50, issueCount: 3, issues: [{ title: "Repeated word", description: "led, led", excerpt: "Led the team that led the launch" }] }],
     },
     hrRedFlags: {
       id: "hrRedFlags",
@@ -71,7 +71,7 @@ const report = {
   },
 } as unknown as ATSReportV3;
 
-const props = { teaser, report, content: { name: "Nisha" }, sectionOrder: [], onCheckAnother: () => {} };
+const props = { teaser, report, content: { name: "Nisha", summary: "Led the team that led the launch" }, sectionOrder: [], onCheckAnother: () => {} };
 const tab = (label: string) => [...document.querySelectorAll<HTMLElement>("[role=tab]")].find((t) => t.textContent === label)!;
 const button = (label: string) => [...document.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent?.includes(label))!;
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
@@ -111,10 +111,15 @@ describe("ATSGuestResult", () => {
 
     await act(async () => { finish({ content: { name: "Nisha, rewritten" }, sectionOrder: [] }); await new Promise((r) => setTimeout(r, 0)); });
     await settle();
-    expect(text()).toContain("ESTIMATED AFTER FIXES");
+    // A locked check is still to do, so the estimate is for when they finish.
+    expect(text()).toContain("WHEN YOU FINISH");
+    expect(text()).toContain("The AI rewrite fixed 1");
     expect(text()).toContain("Your score could reach80+");
     expect(text()).toContain("Nisha, rewritten");
+    // Only the line the rewrite changed counts as fixed; the locked check stays locked.
+    expect(text()).toContain("1 fixed by the rewrite");
     expect(text()).toContain("FIXED");
+    expect(text()).toContain("SIGN UP TO SEE");
     expect(rewrite).toHaveBeenCalledTimes(1);
   });
 

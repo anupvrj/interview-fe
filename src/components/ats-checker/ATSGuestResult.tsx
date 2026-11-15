@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
-import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDashed, Loader2, Lock, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaginatedPreview } from "@/components/PaginatedPreview";
 import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
@@ -15,9 +15,18 @@ import { buildResumeTemplateApplication, type ApplyResumeTemplateResult } from "
 import { ATS_RESUME_TEMPLATE_ID, rememberGuestATSTemplate } from "@/lib/atsCheckFlow";
 import { fetchDisabledResumeTemplateIds } from "@/lib/resume-template-availability";
 import type { ATSReportV3 } from "@/types/atsReport";
+import { rewriteChanges } from "@/lib/atsRewriteDiff";
 import { ATSReportWorkspace } from "./ATSReportWorkspace";
 import { cssRegistry } from "@/lib/templateLoader";
 import { cn } from "@/lib/utils";
+
+/** What only they can add, which no rewrite can make up. */
+const NEEDS_YOU: Record<string, string> = {
+  quantifyingImpact: "ADD YOUR NUMBERS",
+  placeholderValues: "ADD YOUR DETAILS",
+  headerLinks: "ADD YOUR LINKS",
+  contactInformation: "ADD YOUR DETAILS",
+};
 
 const SIGN_UP_HREF = `/sign-up?redirect_url=${encodeURIComponent("/dashboard/ats-checker")}`;
 /** A4 at 96dpi, the width PaginatedPreview lays pages out at. */
@@ -192,6 +201,13 @@ export function ATSGuestResult({
     () => (rewrite.value ? (JSON.stringify(rewrite.value.content).match(/[{[]X+%?[}\]]/gi) ?? []).length : 0),
     [rewrite.value],
   );
+  // What the rewrite really changed: only findings whose line it rewrote count as fixed.
+  const changes = useMemo(
+    () => (rewritten ? rewriteChanges(report, content, rewritten.content) : []),
+    [report, content, rewritten],
+  );
+  const fixedCount = changes.filter((c) => c.status === "fixed").length;
+  const leftCount = changes.length - fixedCount + (numbersToFill > 0 ? 1 : 0);
   // One cautious number everywhere: a little under the estimate, never below today's score.
   const expected = Math.max(Math.round(teaser.score), Math.floor((teaser.possibleScore - 10) / 5) * 5);
   const shownScore = afterReady ? expected : teaser.score;
@@ -217,7 +233,7 @@ export function ATSGuestResult({
       <div className="flex items-center gap-4">
         <div className="[&_p]:font-bold [&_p]:tracking-tight"><ScoreRing score={Math.round(shownScore)} /></div>
         <div className="min-w-0">
-          <Mono className="text-[11px] text-muted-foreground">{afterLoading ? "ESTIMATING…" : afterReady ? "ESTIMATED AFTER FIXES" : "SMART ATS SCORE"}</Mono>
+          <Mono className="text-[11px] text-muted-foreground">{afterLoading ? "ESTIMATING…" : afterReady ? (leftCount > 0 ? "WHEN YOU FINISH" : "ESTIMATED AFTER FIXES") : "SMART ATS SCORE"}</Mono>
           <p className={cn("mt-1 text-[16px] font-semibold leading-snug", v.tone)}>{v.label}</p>
         </div>
       </div>
@@ -227,8 +243,8 @@ export function ATSGuestResult({
           : after
             ? rewrite.state === "failed"
               ? "Your content in an ATS-friendly design. Wording fixes happen in the editor."
-              : numbersToFill > 0
-                ? `Rewritten by AI with the fixes applied. Sign up and this becomes your resume; fill in the ${numbersToFill} marked number${numbersToFill === 1 ? "" : "s"} to reach this score.`
+              : leftCount > 0
+                ? `The AI rewrite fixed ${fixedCount}. Sign up to keep it, then finish the other ${leftCount} in the editor to reach about this score.`
                 : "Rewritten by AI with the fixes applied. Sign up and this becomes your resume, ready to edit."
             : "An estimate of how well ATS software can read your resume."}
       </p>
@@ -242,7 +258,11 @@ export function ATSGuestResult({
             onClick={() => switchView(id)}
             className={cn("min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-colors", view === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
           >
-            {label}
+            <span className="inline-flex items-center gap-1.5">
+              {label}
+              {id === "after" && rewrite.state === "loading" && <Loader2 className="h-3 w-3 animate-spin" aria-label="Preparing" />}
+              {id === "after" && rewrite.state === "ready" && view !== "after" && <span className="size-1.5 rounded-full bg-emerald-500" aria-label="Ready" />}
+            </span>
           </button>
         ))}
       </div>
@@ -296,26 +316,61 @@ export function ATSGuestResult({
     </section>
   ) : undefined;
 
-  // Once the improved resume is there, the checks read as done.
-  const fixed = teaser.checksToFix;
   const side = afterReady ? (
     <section className="overflow-hidden rounded-[22px] border border-border bg-card">
       <div className="border-b border-border px-5 py-4">
-        <Mono className="text-[11px] text-primary">— IN THIS PREVIEW —</Mono>
+        <Mono className="text-[11px] text-primary">— IN THIS VERSION —</Mono>
         <p className="mt-1 text-[15px] font-semibold text-foreground">
-          {teaser.issueCount} thing{teaser.issueCount === 1 ? "" : "s"} fixed
+          {rewritten ? `${fixedCount} fixed by the rewrite` : "Your content, redesigned"}
         </p>
+        {leftCount > 0 && (
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            {leftCount} more to finish in the editor after you sign up.
+          </p>
+        )}
       </div>
       <ul className="space-y-2 p-4">
-        {fixed.map((finding) => (
-          <li key={finding.label} className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] px-3.5 py-3">
+        {changes.map((row) => (
+          <li
+            key={row.id}
+            className={cn(
+              "flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3",
+              row.status === "fixed" ? "border-emerald-500/30 bg-emerald-500/[0.07]" : "border-border bg-background",
+            )}
+          >
             <span className="flex min-w-0 items-center gap-2.5 text-[14px] text-foreground">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="truncate">{finding.label}</span>
+              {row.status === "fixed" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              ) : row.status === "partly" ? (
+                <CircleDashed className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              ) : row.status === "locked" ? (
+                <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+              <span className="truncate">{row.label}</span>
             </span>
-            <Mono className="shrink-0 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10.5px] text-emerald-700 dark:text-emerald-400">FIXED</Mono>
+            <Mono
+              className={cn(
+                "shrink-0 rounded-md px-1.5 py-0.5 text-[10.5px]",
+                row.status === "fixed" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+                row.status === "partly" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+                (row.status === "editor" || row.status === "locked") && "bg-muted text-muted-foreground",
+              )}
+            >
+              {row.status === "fixed" ? "FIXED" : row.status === "partly" ? `${row.changed} OF ${row.total}` : row.status === "locked" ? "SIGN UP TO SEE" : NEEDS_YOU[row.id] ?? "IN THE EDITOR"}
+            </Mono>
           </li>
         ))}
+        {numbersToFill > 0 && (
+          <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3.5 py-3">
+            <span className="flex min-w-0 items-center gap-2.5 text-[14px] text-foreground">
+              <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">Your real numbers</span>
+            </span>
+            <Mono className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] text-muted-foreground">{numbersToFill} TO FILL IN</Mono>
+          </li>
+        )}
       </ul>
       <div className="border-t border-border bg-muted/30 p-4">
         <Button asChild className="h-11 w-full rounded-xl hover:bg-primary/90">
