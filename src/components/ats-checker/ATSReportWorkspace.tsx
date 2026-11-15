@@ -19,6 +19,8 @@ import { ATSIssueMagicProvider } from "./ATSIssueMagicContext";
 import { SetAsideLink } from "./SetAsideLink";
 import { countSetAsideIssues } from "@/types/atsReport";
 import { ATSResumeCanvas } from "./ATSResumeCanvas";
+import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
+import type { PdfPage } from "@/lib/pdf-snapshot";
 import { JobMatchBanner } from "./ATSReportDashboard";
 
 function verdict(score: number) {
@@ -71,7 +73,10 @@ export function ATSReportWorkspace({
   onRunJobMatch,
   initialJobDescription,
   guest,
+  originalPdf,
 }: {
+  /** Their uploaded PDF's pages: shown as they designed it, instead of our rebuild. */
+  originalPdf?: PdfPage[] | null;
   report: ATSReportV3;
   resumeId?: string;
   resumeTitle?: string;
@@ -275,10 +280,13 @@ export function ATSReportWorkspace({
       {/* on wide screens both panes scroll on their own, so the resume stays in view while you read */}
       <div className="grid gap-5 lg:gap-6 xl:h-[calc(100vh-112px)] xl:min-h-[640px] xl:grid-cols-[minmax(0,1fr)_440px]">
         {(() => {
-          const stage = guest?.stage ?? (
+          const stage = guest?.stage ?? (originalPdf?.length ? (
+            <ATSOriginalPdfCanvas pages={originalPdf} marks={marks} activeIds={activeIds} onPick={pickMark}
+              className="h-[70vh] min-h-[520px] xl:h-full xl:min-h-0" />
+          ) : (
             <ATSResumeCanvas resumeId={resumeId} resume={guest?.resume} marks={marks} activeIds={activeIds} onPick={pickMark}
               className="h-[70vh] min-h-[520px] xl:h-full xl:min-h-0" />
-          );
+          ));
           if (!guest?.viewSwitch) return stage;
           // the switch sits on the resume it changes
           return (

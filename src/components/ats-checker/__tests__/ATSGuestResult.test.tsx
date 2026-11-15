@@ -20,6 +20,7 @@ vi.mock("@/lib/api", async (original) => ({
   resumeApi: { getTemplate: async () => ({ id: "condensed-rule" }) },
   atsGuestApi: { rewrite: (...a: unknown[]) => rewrite(...a), prepare: (...a: unknown[]) => prepare(...a) },
 }));
+vi.mock("@/lib/pdf-snapshot", () => ({ renderPdfPages: async () => null }));
 vi.mock("@/lib/templateLoader", () => ({ cssRegistry: { loadTemplateCSS: async () => {} } }));
 vi.mock("@/lib/applyResumeTemplate", () => ({
   buildResumeTemplateApplication: async (templateId: string) => ({ templateId, sectionOrder: [], layout: {} }),

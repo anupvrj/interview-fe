@@ -16,6 +16,8 @@ import { ATS_RESUME_TEMPLATE_ID, rememberGuestATSTemplate } from "@/lib/atsCheck
 import { fetchDisabledResumeTemplateIds } from "@/lib/resume-template-availability";
 import type { ATSReportV3 } from "@/types/atsReport";
 import { rewriteChanges } from "@/lib/atsRewriteDiff";
+import { loadPendingUpload } from "@/lib/atsPendingFile";
+import { renderPdfPages, type PdfPage } from "@/lib/pdf-snapshot";
 import { ATSReportWorkspace } from "./ATSReportWorkspace";
 import { cssRegistry } from "@/lib/templateLoader";
 import { cn } from "@/lib/utils";
@@ -169,6 +171,19 @@ export function ATSGuestResult({
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
+  }, []);
+
+  // Their own PDF, as they designed it (kept in this browser until they sign up).
+  const [originalPdf, setOriginalPdf] = useState<PdfPage[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void loadPendingUpload()
+      .then((pending) => (pending ? renderPdfPages(pending.file) : null))
+      .then((pages) => !cancelled && setOriginalPdf(pages))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const pickTemplate = (id: string) => {
@@ -420,6 +435,7 @@ export function ATSGuestResult({
         onRerun={() => {}}
         onCheckAnother={onCheckAnother}
         onRunJobMatch={() => {}}
+        originalPdf={originalPdf}
         guest={{ signUpHref: SIGN_UP_HREF, resume, scoreBox, stage, side, secondaryAction, viewSwitch, onCheckAnother }}
       />
 

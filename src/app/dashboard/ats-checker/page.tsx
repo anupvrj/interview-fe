@@ -26,7 +26,7 @@ import { ATSReportWorkspace } from "@/components/ats-checker/ATSReportWorkspace"
 import { ATSProcessingView, ATS_IMPROVE_STEPS } from "@/components/ats-checker/ATSProcessingView";
 import { ATSDashboardUploadView } from "@/components/ats-checker/ATSDashboardUploadView";
 import { ATSImproveTemplatePicker } from "@/components/ats-checker/ATSImproveTemplatePicker";
-import { snapshotPdfFirstPage, type PdfSnapshot } from "@/lib/pdf-snapshot";
+import { renderPdfPages, snapshotPdfFirstPage, type PdfPage, type PdfSnapshot } from "@/lib/pdf-snapshot";
 import type { ScanFacts } from "@/lib/atsScanFacts";
 import type { ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { isAxiosError } from "axios";
@@ -76,6 +76,8 @@ function DashboardATSCheckerContent() {
   const [currentTemplateId, setCurrentTemplateId] = useState<string | undefined>();
   const [snapshot, setSnapshot] = useState<PdfSnapshot | null>(null);
   const [facts, setFacts] = useState<ScanFacts | null>(null);
+  /** The PDF they just uploaded, as they designed it; a reloaded report shows our rebuild. */
+  const [originalPdf, setOriginalPdf] = useState<PdfPage[] | null>(null);
   const [templateSource, setTemplateSource] = useState<"improve" | "report">("improve");
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
@@ -119,7 +121,9 @@ function DashboardATSCheckerContent() {
       setJobDescription(jd);
       setSnapshot(null);
       setFacts(null);
+      setOriginalPdf(null);
       void snapshotPdfFirstPage(file).then(setSnapshot);
+      void renderPdfPages(file).then(setOriginalPdf);
 
       try {
         const result = await runATSAnalysis(
@@ -298,6 +302,8 @@ function DashboardATSCheckerContent() {
         matchInsights: report ? insightsFromAtsReport(report) : undefined,
       });
       setCurrentTemplateId(updated.templateId);
+      // The words changed, so their original PDF no longer matches the findings.
+      setOriginalPdf(null);
       if (updated.atsFeedback && isATSReportV3(updated.atsFeedback)) {
         setReport(
           applyPersistedJobMatchScore(
@@ -387,6 +393,7 @@ function DashboardATSCheckerContent() {
   };
 
   const handleCheckAnother = () => {
+    setOriginalPdf(null);
     setStep("upload");
     setReport(null);
     setResumeId(null);
@@ -481,6 +488,7 @@ function DashboardATSCheckerContent() {
           onChooseTemplate={() => void handleChooseTemplate()}
           onIgnoreIssue={handleIgnoreIssue}
           onRestoreSetAside={handleRestoreSetAside}
+          originalPdf={originalPdf}
           onRerun={() => void handleRerun()}
           onCheckAnother={handleCheckAnother}
           onRunJobMatch={handleRunJobMatch}
