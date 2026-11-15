@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
-import { ArrowRight, CheckCircle2, CircleDashed, Loader2, Lock, PenLine, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDashed, FileCheck2, FileText, Loader2, Lock, PenLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaginatedPreview } from "@/components/PaginatedPreview";
 import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
@@ -310,7 +310,7 @@ export function ATSGuestResult({
   );
   const secondaryAction = (
     <Button variant="outline" onClick={() => switchView(after ? "current" : "after")} className="h-11 w-full rounded-xl px-5 lg:w-auto">
-      <Sparkles className="h-4 w-4" />
+      {after ? <FileText className="h-4 w-4" /> : <FileCheck2 className="h-4 w-4" />}
       {after ? "See your resume" : "See improved version"}
       {!after && preparingIcon}
       {!after && readyDot}
