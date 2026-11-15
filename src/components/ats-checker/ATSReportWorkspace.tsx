@@ -224,7 +224,6 @@ export function ATSReportWorkspace({
                 </>
               )}
             </motion.div>
-            {guest && <motion.p {...rise(0.2)} className="mt-2.5 text-[12.5px] text-muted-foreground max-lg:hidden">Free account · no card · your check is saved</motion.p>}
           </div>
           {guest ? (
             <motion.div {...rise(0.24)} className="w-full rounded-2xl border border-border bg-background/70 p-4 shadow-[0_24px_50px_-30px_rgba(47,43,61,.45)] backdrop-blur lg:w-[340px]">

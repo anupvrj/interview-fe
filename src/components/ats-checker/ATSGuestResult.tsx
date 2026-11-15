@@ -460,7 +460,6 @@ export function ATSGuestResult({
         <Button asChild className="h-12 w-full rounded-xl text-[15.5px] hover:bg-primary/90">
           <Link href={SIGN_UP_HREF}>Fix my resume, free<ArrowRight className="h-4 w-4" /></Link>
         </Button>
-        <p className="mt-1.5 text-center text-[11.5px] text-muted-foreground">Free account · no card · your check is saved</p>
       </div>
     </div>
   );
