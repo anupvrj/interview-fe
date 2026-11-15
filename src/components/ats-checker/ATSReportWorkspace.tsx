@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, LayoutTemplate, Lock, PenLine, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowRight, CloudUpload, LayoutTemplate, Lock, PenLine, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Mono } from "@/components/marketing-2026/primitives";
 import { dash2026Scope, EASE, Eyebrow, ScoreRing } from "@/components/dashboard-2026/ui";
@@ -99,6 +99,10 @@ export function ATSReportWorkspace({
     stage?: ReactNode;
     /** Shown instead of the checks (the "After improvement" list). */
     side?: ReactNode;
+    /** Next to the main button (switches to the AI-improved version). */
+    secondaryAction?: ReactNode;
+    /** Above the resume: your resume / AI-improved. */
+    viewSwitch?: ReactNode;
     onCheckAnother: () => void;
   };
 }) {
@@ -159,7 +163,15 @@ export function ATSReportWorkspace({
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
         <div className="relative grid items-center gap-6 p-6 md:p-8 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
-            <motion.div {...rise(0)}><Eyebrow>ATS REPORT</Eyebrow></motion.div>
+            <motion.div {...rise(0)} className="flex items-center justify-between gap-3">
+              <Eyebrow className="min-w-0">ATS REPORT</Eyebrow>
+              {guest && (
+                <button type="button" onClick={guest.onCheckAnother}
+                  className="-my-2 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <CloudUpload className="h-4 w-4" />Upload new
+                </button>
+              )}
+            </motion.div>
             <motion.h1 {...rise(0.06)} className="mt-4 truncate text-[28px] font-black leading-tight tracking-[-0.05em] text-foreground sm:text-[38px]">
               {resumeTitle || "Your resume"}
             </motion.h1>
@@ -171,8 +183,8 @@ export function ATSReportWorkspace({
             <motion.p {...rise(0.15)} className="mt-1.5 text-[13.5px] text-muted-foreground">
               {guest ? (
                 lockedCount > 0
-                  ? `${lockedCount} more finding${lockedCount === 1 ? " is" : "s are"} waiting. Sign up free to see everything and fix it in the editor.`
-                  : "Sign up free to fix these in the editor."
+                  ? `${lockedCount} more finding${lockedCount === 1 ? " is" : "s are"} locked. Fix everything free in the editor.`
+                  : "Fix everything free in the editor."
               ) : (
                 <>We rebuilt your resume{templateName ? <> in <span className="font-medium text-foreground">{templateName}</span></> : null} so you can edit it. An uploaded PDF&apos;s own design can&apos;t be edited.</>
               )}
@@ -181,12 +193,9 @@ export function ATSReportWorkspace({
               {guest ? (
                 <>
                   <Button asChild className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
-                    <Link href={guest.signUpHref}>Improve now<ArrowRight className="h-4 w-4" /></Link>
+                    <Link href={guest.signUpHref}>Fix my resume, free<ArrowRight className="h-4 w-4" /></Link>
                   </Button>
-                  <Button variant="ghost" onClick={guest.onCheckAnother} className="h-11 rounded-xl px-3 text-muted-foreground">
-                    <RotateCcw className="h-4 w-4" />
-                    Check another
-                  </Button>
+                  {guest.secondaryAction}
                 </>
               ) : (
                 <>
@@ -205,13 +214,14 @@ export function ATSReportWorkspace({
                 <RefreshCw className={cn("h-4 w-4", rerunning && "animate-spin")} />
                 <span className="max-sm:hidden">Re-run</span>
               </Button>
-              <Button variant="ghost" onClick={onCheckAnother} className="h-11 rounded-xl px-3 text-muted-foreground" title="Check another resume">
-                <RotateCcw className="h-4 w-4" />
-                <span className="max-sm:hidden">Check another</span>
+              <Button variant="ghost" onClick={onCheckAnother} className="h-11 rounded-xl px-3 text-muted-foreground" title="Upload a new resume">
+                <CloudUpload className="h-4 w-4" />
+                <span className="max-sm:hidden">Upload new</span>
               </Button>
                 </>
               )}
             </motion.div>
+            {guest && <motion.p {...rise(0.2)} className="mt-2.5 text-[12.5px] text-muted-foreground">Free account · no card · your check is saved</motion.p>}
           </div>
           {guest ? (
             <motion.div {...rise(0.24)} className="w-full rounded-2xl border border-border bg-background/70 p-4 shadow-[0_24px_50px_-30px_rgba(47,43,61,.45)] backdrop-blur lg:w-[340px]">
@@ -264,10 +274,20 @@ export function ATSReportWorkspace({
       {/* ── the workspace: resume with findings on the left, the check and its fix on the right ── */}
       {/* on wide screens both panes scroll on their own, so the resume stays in view while you read */}
       <div className="grid gap-5 lg:gap-6 xl:h-[calc(100vh-112px)] xl:min-h-[640px] xl:grid-cols-[minmax(0,1fr)_440px]">
-        {guest?.stage ?? (
-          <ATSResumeCanvas resumeId={resumeId} resume={guest?.resume} marks={marks} activeIds={activeIds} onPick={pickMark}
-            className="h-[70vh] min-h-[520px] xl:h-full xl:min-h-0" />
-        )}
+        {(() => {
+          const stage = guest?.stage ?? (
+            <ATSResumeCanvas resumeId={resumeId} resume={guest?.resume} marks={marks} activeIds={activeIds} onPick={pickMark}
+              className="h-[70vh] min-h-[520px] xl:h-full xl:min-h-0" />
+          );
+          if (!guest?.viewSwitch) return stage;
+          // the switch sits on the resume it changes
+          return (
+            <div className="flex min-h-0 flex-col gap-3 [&>*:last-child]:xl:min-h-0 [&>*:last-child]:xl:flex-1">
+              {guest.viewSwitch}
+              {stage}
+            </div>
+          );
+        })()}
 
         <div ref={fixColumn} className="space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
           {guest?.side ?? (<>
@@ -308,7 +328,7 @@ export function ATSReportWorkspace({
             <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-5 py-3.5">
               <p className="text-[12.5px] text-muted-foreground">Fix it in place and the score updates as you edit.</p>
               <Link href={editorHref} className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-primary hover:underline">
-                {guest ? "Sign up to fix" : "Open editor"} <ArrowRight className="h-3.5 w-3.5" />
+                {guest ? "Fix it free" : "Open editor"} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </section>

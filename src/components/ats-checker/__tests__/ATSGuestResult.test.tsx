@@ -72,7 +72,7 @@ const report = {
 } as unknown as ATSReportV3;
 
 const props = { teaser, report, content: { name: "Nisha", summary: "Led the team that led the launch" }, sectionOrder: [], onCheckAnother: () => {} };
-const tab = (label: string) => [...document.querySelectorAll<HTMLElement>("[role=tab]")].find((t) => t.textContent === label)!;
+const tab = (label: string) => [...document.querySelectorAll<HTMLElement>("[role=tab]")].find((t) => t.textContent?.includes(label))!;
 const button = (label: string) => [...document.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent?.includes(label))!;
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 const click = (el: HTMLElement) => act(async () => { el.click(); });
@@ -85,24 +85,27 @@ describe("ATSGuestResult", () => {
     expect(view.container.textContent).toContain("cv.pdf");
     expect(view.container.textContent).toContain("marked page: Nisha");
     expect(view.container.textContent).toContain("Repeated word");
-    expect(view.container.textContent).toContain("Improve now");
+    expect(view.container.textContent).toContain("Fix my resume, free");
+    expect(view.container.textContent).toContain("See AI-improved version");
+    expect(view.container.textContent).toContain("Upload new");
+    expect(view.container.textContent).not.toContain("Check another");
   });
 
   it("keeps locked checks for sign-up, with only their count showing", async () => {
     const view = render(<ATSGuestResult {...props} />);
     await settle();
-    expect(view.container.textContent).toContain("2 more findings are waiting");
+    expect(view.container.textContent).toContain("2 more findings are locked");
     expect(view.container.textContent).not.toContain("Probing questions led");
     await click(button("HR Red Flags"));
     expect(view.container.textContent).toContain("2 locked");
-    expect(view.container.textContent).toContain("Sign up free to see them");
+    expect(view.container.textContent).toContain("Unlock 2 more fixes, free");
   });
 
   it("shows today's result until the rewrite is ready, then the improved one", async () => {
     let finish!: (v: unknown) => void;
     rewrite.mockReturnValue(new Promise((r) => { finish = r; }));
     const view = render(<ATSGuestResult {...props} token="tok" />);
-    await click(tab("After improvement"));
+    await click(tab("AI-improved"));
     const text = () => view.container.textContent ?? "";
     expect(text()).toContain("ESTIMATING…");
     expect(text()).toContain("Your score today76");
@@ -114,7 +117,7 @@ describe("ATSGuestResult", () => {
     // A locked check is still to do, so the estimate is for when they finish.
     expect(text()).toContain("WHEN YOU FINISH");
     expect(text()).toContain("The AI rewrite fixed 1");
-    expect(text()).toContain("Your score could reach80+");
+    expect(text()).toContain("80/ 100");
     expect(text()).toContain("Nisha, rewritten");
     // Only the line the rewrite changed counts as fixed; the locked check stays locked.
     expect(text()).toContain("1 fixed by the rewrite");
@@ -127,7 +130,7 @@ describe("ATSGuestResult", () => {
     rewrite.mockRejectedValue(new Error("down"));
     const view = render(<ATSGuestResult {...props} token="tok" />);
     await settle();
-    await click(tab("After improvement"));
+    await click(tab("AI-improved"));
     await settle();
     expect(view.container.textContent).toContain("Wording fixes happen in the editor");
     expect(view.container.textContent).toContain("Nisha");
@@ -137,7 +140,7 @@ describe("ATSGuestResult", () => {
     rewrite.mockResolvedValue({ content: { name: "Nisha" }, sectionOrder: [] });
     const view = render(<ATSGuestResult {...props} token="tok" />);
     await settle();
-    await click(tab("After improvement"));
+    await click(tab("AI-improved"));
     await settle();
     const group = view.container.querySelector("[aria-label='Try a template']")!;
     expect(group.textContent).toContain("Harvard");

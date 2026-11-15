@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
-import { ArrowRight, CheckCircle2, CircleDashed, Loader2, Lock, PenLine } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDashed, Loader2, Lock, PenLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaginatedPreview } from "@/components/PaginatedPreview";
 import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
@@ -115,7 +115,7 @@ type View = "current" | "after";
 
 /**
  * A signed-out visitor's report: the same page as a signed-in one, with some checks locked
- * and "Improve now" signing them up. "After improvement" previews the AI rewrite.
+ * and "Fix my resume, free" signing them up. "After improvement" previews the AI rewrite.
  */
 export function ATSGuestResult({
   teaser,
@@ -248,32 +248,48 @@ export function ATSGuestResult({
                 : "Rewritten by AI with the fixes applied. Sign up and this becomes your resume, ready to edit."
             : "An estimate of how well ATS software can read your resume."}
       </p>
-      <div role="tablist" aria-label="Resume view" className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
-        {([["current", "Current"], ["after", "After improvement"]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={view === id}
-            onClick={() => switchView(id)}
-            className={cn("min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-colors", view === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {label}
-              {id === "after" && rewrite.state === "loading" && <Loader2 className="h-3 w-3 animate-spin" aria-label="Preparing" />}
-              {id === "after" && rewrite.state === "ready" && view !== "after" && <span className="size-1.5 rounded-full bg-emerald-500" aria-label="Ready" />}
-            </span>
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 flex items-baseline justify-between gap-3">
+      {!afterReady && <div className="mt-3 flex items-baseline justify-between gap-3">
         <p className="text-[13.5px] font-medium text-foreground">
-          {afterReady ? "Your score could reach" : afterLoading ? "Your score today" : "Possible score"}
-          {!afterReady && !afterLoading && <span className="font-normal text-muted-foreground"> (estimated)</span>}
+          {afterLoading ? "Your score today" : "Could reach, when fixed"}
         </p>
         <Mono className="text-[18px] font-semibold text-foreground">{afterLoading ? Math.round(teaser.score) : `${expected}+`}</Mono>
-      </div>
+      </div>}
     </div>
+  );
+
+  const readyDot = rewrite.state === "ready" && view !== "after" && <span className="size-1.5 rounded-full bg-emerald-500" aria-label="Ready" />;
+  const preparingIcon = rewrite.state === "loading" && <Loader2 className="h-3 w-3 animate-spin" aria-label="Preparing" />;
+  const viewSwitch = (
+    <div role="tablist" aria-label="Resume view" className="inline-grid w-full grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 sm:w-fit">
+      {([["current", "Your resume"], ["after", "AI-improved"]] as const).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={view === id}
+          onClick={() => switchView(id)}
+          className={cn(
+            "min-h-9 rounded-lg px-3.5 text-[13px] font-semibold transition-colors",
+            view === id ? (id === "after" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-foreground") : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {id === "after" && <Sparkles className="h-3.5 w-3.5" />}
+            {label}
+            {id === "after" && preparingIcon}
+            {id === "after" && readyDot}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+  const secondaryAction = (
+    <Button variant="outline" onClick={() => switchView(after ? "current" : "after")} className="h-11 rounded-xl px-5">
+      <Sparkles className="h-4 w-4" />
+      {after ? "See your resume" : "See AI-improved version"}
+      {!after && preparingIcon}
+      {!after && readyDot}
+    </Button>
   );
 
   // "After improvement": the rewritten resume, in the design they pick.
@@ -374,7 +390,7 @@ export function ATSGuestResult({
       </ul>
       <div className="border-t border-border bg-muted/30 p-4">
         <Button asChild className="h-11 w-full rounded-xl hover:bg-primary/90">
-          <Link href={SIGN_UP_HREF}>Keep this version, free<ArrowRight className="h-4 w-4" /></Link>
+          <Link href={SIGN_UP_HREF}>Keep the improved version<ArrowRight className="h-4 w-4" /></Link>
         </Button>
       </div>
     </section>
@@ -394,13 +410,13 @@ export function ATSGuestResult({
         onRerun={() => {}}
         onCheckAnother={onCheckAnother}
         onRunJobMatch={() => {}}
-        guest={{ signUpHref: SIGN_UP_HREF, resume, scoreBox, stage, side, onCheckAnother }}
+        guest={{ signUpHref: SIGN_UP_HREF, resume, scoreBox, stage, side, secondaryAction, viewSwitch, onCheckAnother }}
       />
 
       {/* phones: the next step is always in reach */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
         <Button asChild className="h-12 w-full rounded-xl text-[15.5px] hover:bg-primary/90">
-          <Link href={SIGN_UP_HREF}>Improve now<ArrowRight className="h-4 w-4" /></Link>
+          <Link href={SIGN_UP_HREF}>Fix my resume, free<ArrowRight className="h-4 w-4" /></Link>
         </Button>
       </div>
     </div>
