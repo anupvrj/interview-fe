@@ -88,7 +88,7 @@ describe("ATSGuestResult", () => {
     expect(view.container.textContent).toContain("marked page: Nisha");
     expect(view.container.textContent).toContain("Repeated word");
     expect(view.container.textContent).toContain("Fix my resume, free");
-    expect(view.container.textContent).toContain("See AI-improved version");
+    expect(view.container.textContent).toContain("See improved version");
     expect(view.container.textContent).toContain("Upload new");
     expect(view.container.textContent).not.toContain("Check another");
   });
@@ -107,7 +107,7 @@ describe("ATSGuestResult", () => {
     let finish!: (v: unknown) => void;
     rewrite.mockReturnValue(new Promise((r) => { finish = r; }));
     const view = render(<ATSGuestResult {...props} token="tok" />);
-    await click(tab("AI-improved"));
+    await click(tab("Improved"));
     const text = () => view.container.textContent ?? "";
     expect(text()).toContain("ESTIMATING…");
     expect(text()).toContain("Your score today76");
@@ -132,7 +132,7 @@ describe("ATSGuestResult", () => {
     rewrite.mockRejectedValue(new Error("down"));
     const view = render(<ATSGuestResult {...props} token="tok" />);
     await settle();
-    await click(tab("AI-improved"));
+    await click(tab("Improved"));
     await settle();
     expect(view.container.textContent).toContain("Wording fixes happen in the editor");
     expect(view.container.textContent).toContain("Nisha");
@@ -142,7 +142,7 @@ describe("ATSGuestResult", () => {
     rewrite.mockResolvedValue({ content: { name: "Nisha" }, sectionOrder: [] });
     const view = render(<ATSGuestResult {...props} token="tok" />);
     await settle();
-    await click(tab("AI-improved"));
+    await click(tab("Improved"));
     await settle();
     const group = view.container.querySelector("[aria-label='Try a template']")!;
     expect(group.textContent).toContain("Harvard");

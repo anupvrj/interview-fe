@@ -286,7 +286,7 @@ export function ATSGuestResult({
   const preparingIcon = rewrite.state === "loading" && <Loader2 className="h-3 w-3 animate-spin" aria-label="Preparing" />;
   const viewSwitch = (
     <div role="tablist" aria-label="Resume view" className="inline-grid w-full grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 sm:w-fit">
-      {([["current", "Your resume"], ["after", "AI-improved"]] as const).map(([id, label]) => (
+      {([["current", "Your resume"], ["after", "Improved"]] as const).map(([id, label]) => (
         <button
           key={id}
           type="button"
@@ -311,7 +311,7 @@ export function ATSGuestResult({
   const secondaryAction = (
     <Button variant="outline" onClick={() => switchView(after ? "current" : "after")} className="h-11 rounded-xl px-5">
       <Sparkles className="h-4 w-4" />
-      {after ? "See your resume" : "See AI-improved version"}
+      {after ? "See your resume" : "See improved version"}
       {!after && preparingIcon}
       {!after && readyDot}
     </Button>

@@ -104,9 +104,9 @@ export function ATSReportWorkspace({
     stage?: ReactNode;
     /** Shown instead of the checks (the "After improvement" list). */
     side?: ReactNode;
-    /** Next to the main button (switches to the AI-improved version). */
+    /** Next to the main button (switches to the improved version). */
     secondaryAction?: ReactNode;
-    /** Above the resume: your resume / AI-improved. */
+    /** Above the resume: your resume / improved. */
     viewSwitch?: ReactNode;
     onCheckAnother: () => void;
   };
