@@ -168,15 +168,7 @@ export function ATSReportWorkspace({
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
         <div className="relative grid items-center gap-6 p-6 md:p-8 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
-            <motion.div {...rise(0)} className="flex items-center justify-between gap-3">
-              <Eyebrow className="min-w-0">ATS REPORT</Eyebrow>
-              {guest && (
-                <button type="button" onClick={guest.onCheckAnother}
-                  className="-my-2 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                  <CloudUpload className="h-4 w-4" />Upload new
-                </button>
-              )}
-            </motion.div>
+            <motion.div {...rise(0)}><Eyebrow>ATS REPORT</Eyebrow></motion.div>
             <motion.h1 {...rise(0.06)} className="mt-4 truncate text-[28px] font-black leading-tight tracking-[-0.05em] text-foreground sm:text-[38px]">
               {resumeTitle || "Your resume"}
             </motion.h1>
@@ -201,6 +193,10 @@ export function ATSReportWorkspace({
                     <Link href={guest.signUpHref}>Fix my resume, free<ArrowRight className="h-4 w-4" /></Link>
                   </Button>
                   {guest.secondaryAction}
+                  <Button variant="ghost" onClick={guest.onCheckAnother} className="h-11 rounded-xl px-3 text-muted-foreground">
+                    <CloudUpload className="h-4 w-4" />
+                    Upload new
+                  </Button>
                 </>
               ) : (
                 <>
