@@ -2783,6 +2783,11 @@ export const atsGuestApi = {
     return response.data.data.resumeId;
   },
 
+  /** They're heading to sign-up: score the rewrite now so claiming is instant. Fire and forget. */
+  prepare: async (token: string): Promise<void> => {
+    await apiClient.post("/ats-preview/prepare", { token });
+  },
+
   /** `improved`: the resume got the AI rewrite they were shown, scored again (can take a minute). */
   claim: async (token: string): Promise<{ resumeId: string; improved?: boolean }> => {
     const response = await apiClient.post<{ data: { resumeId: string; improved?: boolean } }>(

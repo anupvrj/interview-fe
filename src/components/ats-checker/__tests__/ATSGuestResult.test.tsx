@@ -14,10 +14,11 @@ vi.mock("../ATSResumeCanvas", () => ({
   ATSResumeCanvas: ({ resume }: { resume?: { content?: { name?: string } } }) => <div data-testid="canvas">marked page: {resume?.content?.name}</div>,
 }));
 const rewrite = vi.fn();
+const prepare = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/api", async (original) => ({
   ...(await original<object>()),
   resumeApi: { getTemplate: async () => ({ id: "condensed-rule" }) },
-  atsGuestApi: { rewrite: (...a: unknown[]) => rewrite(...a) },
+  atsGuestApi: { rewrite: (...a: unknown[]) => rewrite(...a), prepare: (...a: unknown[]) => prepare(...a) },
 }));
 vi.mock("@/lib/templateLoader", () => ({ cssRegistry: { loadTemplateCSS: async () => {} } }));
 vi.mock("@/lib/applyResumeTemplate", () => ({
@@ -147,5 +148,19 @@ describe("ATSGuestResult", () => {
     expect(group.textContent).not.toContain("Meridian");
     await click([...group.querySelectorAll("button")].find((b) => b.textContent === "Harvard") as HTMLElement);
     expect(localStorage.getItem("ats-checker-guest-template")).toBe("harvard");
+  });
+
+  it("gets the account's resume ready the moment they click to sign up, once", async () => {
+    rewrite.mockResolvedValue({ content: { name: "Nisha" }, sectionOrder: [] });
+    const view = render(<ATSGuestResult {...props} token="tok" />);
+    await settle();
+    const links = [...view.container.querySelectorAll<HTMLAnchorElement>('a[href^="/sign-up"]')];
+    expect(links.length).toBeGreaterThan(1);
+    links[0].addEventListener("click", (e) => e.preventDefault());
+    links[1].addEventListener("click", (e) => e.preventDefault());
+    await click(links[0]);
+    await click(links[1]);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledWith("tok");
   });
 });

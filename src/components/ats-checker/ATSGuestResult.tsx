@@ -396,8 +396,18 @@ export function ATSGuestResult({
     </section>
   ) : undefined;
 
+  // Any way to sign up from here: start getting their resume ready while they make the
+  // account, so "Opening your resume" afterwards is instant.
+  const prepared = useRef(false);
+  const prepareOnSignUp = (event: React.MouseEvent) => {
+    if (prepared.current || !token) return;
+    if (!(event.target as HTMLElement).closest?.('a[href^="/sign-up"]')) return;
+    prepared.current = true;
+    void atsGuestApi.prepare(token).catch(() => {});
+  };
+
   return (
-    <div className="mx-auto w-full max-w-7xl pb-24 lg:pb-0">
+    <div className="mx-auto w-full max-w-7xl pb-24 lg:pb-0" onClickCapture={prepareOnSignUp}>
       <ATSReportWorkspace
         report={report}
         resumeTitle={fileName}

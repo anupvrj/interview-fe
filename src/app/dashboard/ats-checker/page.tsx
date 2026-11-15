@@ -420,7 +420,7 @@ function DashboardATSCheckerContent() {
           <p className="text-[15px] font-semibold text-foreground">Opening your resume…</p>
           {claimSlow && (
             <p className="max-w-sm text-[14px] text-muted-foreground">
-              Putting the improvements into your resume and checking its new score. This can take up to a minute.
+              Putting the improvements into your resume. Almost there.
             </p>
           )}
         </div>
