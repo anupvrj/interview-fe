@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { fictionalContent, resumes, session } from "../fixtures/api";
+import { dismissPopups, fictionalContent, resumes, session } from "../fixtures/api";
+
+// the trial offer and first-visit tour can pop up over the editor at any time
+test.beforeEach(async ({ page }) => {
+  await dismissPopups(page);
+});
 
 /** After sign-up, the draft built signed out becomes a resume in the account. */
 test("a guest draft is saved to the account and opened in the editor", async ({ page, request }) => {

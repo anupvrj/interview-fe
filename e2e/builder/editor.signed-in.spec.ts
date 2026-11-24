@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { fictionalContent, resumes, session, type TestResume } from "../fixtures/api";
+import { dismissPopups, fictionalContent, resumes, session, type TestResume } from "../fixtures/api";
+
+// the trial offer and first-visit tour can pop up over the editor at any time
+test.beforeEach(async ({ page }) => {
+  await dismissPopups(page);
+});
 
 test.describe("resume editor", () => {
   let created: TestResume | undefined;

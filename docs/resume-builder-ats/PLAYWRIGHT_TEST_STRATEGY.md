@@ -50,5 +50,20 @@ npx playwright test --grep-invert @real-ai  # skip tests that make real AI calls
 ## Running reliably
 Run against a production build (`next build && next start -p 3001`) for automated runs. Against `next dev`, a page can recompile mid-test when files change, which shows up as a one-off console error (seen once on the `/ats-checker` "loads without errors" test while code was being edited; 3 clean reruns after).
 
+## Suites as built (2026-11-24)
+| File | What it covers |
+|---|---|
+| `ats/guest.spec.ts` | signed-out ATS check (recorded API): upload, result, refresh, Upload new, bad files |
+| `ats/report.signed-in.spec.ts` | same resume same score, history, progress card, job keywords + editor link, score explainer, editor's detailed report (@real-ai) |
+| `auth/redirects.spec.ts`, `auth/session.signed-in.spec.ts` | redirects with `redirect_url`; signed-in sign-up → dashboard; dashboard and ATS page load |
+| `builder/guest-builder.spec.ts` | public builder: scratch, design switch, refresh keeps the draft, sign-up link carries it, bad input; PDF upload (@real-ai) |
+| `builder/guest-claim.signed-in.spec.ts` | a guest draft becomes a resume after sign-in and opens in the editor |
+| `builder/editor.signed-in.spec.ts`, `builder/editor-actions.signed-in.spec.ts` | open, edit persists, Word download, design switch, PDF download |
+| `cross/claim-guest-check.signed-in.spec.ts` | real guest ATS check claimed after sign-in (@real-ai) |
+| `marketing/entry-points.spec.ts` | entry links; Start free opens the public builder; pages load without errors |
+| `ui/responsive*.spec.ts` | no sideways scroll on phones: public pages; dashboard, report, editor signed in |
+
+`dismissPopups(page)` (fixtures/api.ts) registers Playwright overlay handlers for the timed trial offer and the first-visit tour, which otherwise block clicks at random.
+
 ## Reporting
 HTML report, trace on first retry, screenshot and video on failure, `--grep @smoke` subset for quick runs. Results and known failures are recorded in `PRODUCTION_READINESS_REPORT.md`.

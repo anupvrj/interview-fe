@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { dismissPopups } from "../fixtures/api";
+
+// the trial offer and first-visit tour can pop up over the editor at any time
+test.beforeEach(async ({ page }) => {
+  await dismissPopups(page);
+});
 
 test.describe("signed-in session", () => {
   test("sign-up page sends a signed-in user to the dashboard", async ({ page }) => {

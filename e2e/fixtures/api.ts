@@ -69,7 +69,21 @@ export function resumes(request: APIRequestContext, s: Session) {
     update: (resumeId: string, data: Record<string, unknown>) => call<TestResume>(request, s, "put", `/resumes/${resumeId}`, data),
     rescore: (resumeId: string, jobDescription?: string) =>
       call<TestResume>(request, s, "post", `/resumes/${resumeId}/ats-score`, jobDescription ? { jobDescription } : {}),
+    get: (resumeId: string) => call<TestResume & { templateId?: string }>(request, s, "get", `/resumes/${resumeId}`),
     history: (resumeId: string) => call<{ score: number }[]>(request, s, "get", `/resumes/${resumeId}/ats-history`),
     remove: (resumeId: string) => call<unknown>(request, s, "delete", `/resumes/${resumeId}`).catch(() => undefined),
   };
+}
+
+/**
+ * Closes the first-visit tour and the trial offer whenever they pop up (the trial offer
+ * opens on a timer, so it can appear mid-test). Uses Playwright's overlay handlers.
+ */
+export async function dismissPopups(page: Page): Promise<void> {
+  await page.addLocatorHandler(page.getByRole("button", { name: /^maybe later$/i }), async (b) => {
+    await b.click();
+  });
+  await page.addLocatorHandler(page.getByRole("button", { name: /^later$/i }), async (b) => {
+    await b.click();
+  });
 }
