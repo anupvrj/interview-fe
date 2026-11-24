@@ -18,3 +18,4 @@ Severity: Critical · High · Medium · Low. "Found by": code (verified by readi
 Pre-existing test failures (not regressions, also fail on `main`): `src/modules/hackathon/__tests__/importBoundary.test.ts`, `src/services/connector/__tests__/blogAdmin.test.ts` (6 tests).
 | B10 | Client errors (body too large, malformed JSON) were returned as 500 | Medium | test | Global error handler always sent 500 | core | Completed (core `ac26e5c`) |
 | B11 | Word download saved as "Name.docx.pdf" | Medium | E2E | `triggerBlobDownload` only kept `.txt`, so every other name got `.pdf` added | fe | Completed |
+| B12 | Loading the template list sent ~41 identical `/config/resume-templates` requests | Low | browser check | The 30 s cache had no shared in-flight request, so every template fetched it at once | fe | Completed (now 1 per load; also helps the editor and new-resume page) |

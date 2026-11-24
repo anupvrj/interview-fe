@@ -44,6 +44,7 @@ B1–B11 in `BUG_TRACKER.md`. Found along the way, beyond the original audit:
 - **B11** Word file saved as `Name.docx.pdf`.
 - `StartLink` sent every signed-out visitor to sign-up, so no public tool was reachable from the marketing buttons (fixed with the guest builder).
 - A placeholder-capped score showed no reason.
+- **B12** Loading the template list sent about 41 identical settings requests; now 1.
 
 ## Test results (final run)
 | Suite | Result | Baseline at start |

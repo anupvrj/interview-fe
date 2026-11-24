@@ -17,17 +17,25 @@ export const RESUME_TEMPLATE_AVAILABILITY_QUERY_KEY = ["resume-template-availabi
 const CACHE_MS = 30_000;
 const NONE: ResumeTemplateAvailability = { disabledTemplateIds: [], templateOrder: [], overrides: {} };
 let cached: { value: ResumeTemplateAvailability; at: number } | null = null;
+/** The request already on its way: loading every template asks at once, so they share one. */
+let inFlight: Promise<ResumeTemplateAvailability> | null = null;
 
 /** Never throws: if the lookup fails, nothing is hidden or reordered (the backend still blocks disabled picks). */
 export async function fetchResumeTemplateAvailability(): Promise<ResumeTemplateAvailability> {
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
-  try {
-    const value = await configApi.getResumeTemplateAvailability();
-    cached = { value, at: Date.now() };
-    return value;
-  } catch {
-    return cached?.value ?? NONE;
-  }
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    try {
+      const value = await configApi.getResumeTemplateAvailability();
+      cached = { value, at: Date.now() };
+      return value;
+    } catch {
+      return cached?.value ?? NONE;
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
 }
 
 export async function fetchDisabledResumeTemplateIds(): Promise<string[]> {
@@ -36,6 +44,7 @@ export async function fetchDisabledResumeTemplateIds(): Promise<string[]> {
 
 export function forgetResumeTemplateAvailability(): void {
   cached = null;
+  inFlight = null;
 }
 
 /** Drop disabled templates; `keepId` (the resume's current template) always stays. */
