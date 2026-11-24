@@ -45,4 +45,19 @@ test.describe("signed-in ATS report @real-ai", () => {
     await expect(page.getByText("Riya Test").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(/ATS/).first()).toBeVisible();
   });
+
+  test("job keywords: missing skills listed, and 'Add in editor' opens the job panel", async ({ page }) => {
+    const jd =
+      "Marketing Manager. Must have: Google Ads, HubSpot, Salesforce, Marketo and SQL. " +
+      "Nice to have: Tableau and Figma. You will run B2B campaigns and report on pipeline.";
+    await api.rescore(created!.resumeId, jd);
+    await page.goto(`/dashboard/ats-checker?resumeId=${created!.resumeId}`);
+    const card = page.locator('section[aria-labelledby="ats-keywords-title"]');
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await expect(card).toContainText(/skills from the job aren't clear on your resume/);
+    await expect(card).toContainText("Salesforce");
+    await card.getByRole("link", { name: /add in editor/i }).click();
+    await expect(page).toHaveURL(/\/edit\?view=job/);
+    await expect(page.getByText("Keywords from the job").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
+  });
 });

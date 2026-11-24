@@ -21,6 +21,8 @@ type Events = {
   ats_claim_completed: { duration_ms: number; improved: boolean; attempts: number };
   ats_claim_failed: { reason: "expired" | "error" };
   ats_score_recalculated: { surface: "dashboard" | "editor"; score_bucket: string; delta: number };
+  ats_job_match_requested: { surface: "report" | "editor"; has_previous: boolean };
+  ats_keywords_editor_opened: { missing: number };
   // resume builder
   resume_builder_opened: { surface: "marketing" | "new"; signed_in: boolean };
   resume_creation_started: { source: string };

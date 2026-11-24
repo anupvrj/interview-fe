@@ -67,7 +67,8 @@ export function resumes(request: APIRequestContext, s: Session) {
     create: (title: string, content = fictionalContent()) =>
       call<TestResume>(request, s, "post", `/users/${s.userId}/resumes`, { title, templateId: "condensed-rule", content }),
     update: (resumeId: string, data: Record<string, unknown>) => call<TestResume>(request, s, "put", `/resumes/${resumeId}`, data),
-    rescore: (resumeId: string) => call<TestResume>(request, s, "post", `/resumes/${resumeId}/ats-score`, {}),
+    rescore: (resumeId: string, jobDescription?: string) =>
+      call<TestResume>(request, s, "post", `/resumes/${resumeId}/ats-score`, jobDescription ? { jobDescription } : {}),
     history: (resumeId: string) => call<{ score: number }[]>(request, s, "get", `/resumes/${resumeId}/ats-history`),
     remove: (resumeId: string) => call<unknown>(request, s, "delete", `/resumes/${resumeId}`).catch(() => undefined),
   };

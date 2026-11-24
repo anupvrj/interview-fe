@@ -600,6 +600,9 @@ export default function EditResumePage() {
       setViewMode("ats");
       // A ?view=ats link means "show me the ATS check": open its panel on the canvas too.
       setCanvasPanel((current) => current ?? "fix");
+    } else if (searchParams.get("view") === "job") {
+      // From the report's "Job keywords": the job match panel with its keyword table.
+      setCanvasPanel("tailor");
     }
   }, [searchParams]);
 
@@ -3465,6 +3468,7 @@ export default function EditResumePage() {
     if (!place) return;
     // A link to the ATS check (Improve now) wins over the panel that was open last time.
     if (searchParams.get("view") === "ats" && place.panel !== "fix") return;
+    if (searchParams.get("view") === "job") return;
     // Reopen the panel the way opening it does: the ATS panel needs the ATS view (else its frame
     // showed the Personal Information form), Style and a section's fields need their form.
     if (place.panel === "fix") {

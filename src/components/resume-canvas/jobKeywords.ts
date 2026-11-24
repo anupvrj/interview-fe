@@ -50,3 +50,42 @@ export function partialJobKeywords(report: ATSReportV3 | null | undefined): stri
     .find((c) => c.id === "mustHaveSkillsMatch");
   return ((check?.meta ?? {}) as { partial?: string[] }).partial ?? [];
 }
+
+export type KeywordGroup = { found: string[]; missing: string[]; partial: string[] };
+export type JobKeywordGroups = { required: KeywordGroup | null; preferred: KeywordGroup | null; total: number; foundCount: number };
+
+/**
+ * The job's keywords from a tailored report: required (must-have) and preferred skills, each
+ * split into found / missing / partly there. With `liveText` (the resume as it is now, lower-
+ * cased), a keyword added since the check moves to found. Null when the report has no job.
+ */
+export function jobKeywordGroups(report: ATSReportV3 | null | undefined, liveText?: string): JobKeywordGroups | null {
+  const checks = Object.values(report?.categories ?? {}).flatMap((c) => c?.checks ?? []);
+  const group = (id: string): KeywordGroup | null => {
+    const check = checks.find((c) => c.id === id);
+    if (!check || check.status === "skipped") return null;
+    const meta = (check.meta ?? {}) as { matched?: string[]; missing?: string[]; partial?: string[] };
+    const uniq = (xs: string[] = []) => Array.from(new Set(xs.map((x) => x.trim()).filter(Boolean)));
+    let found = uniq(meta.matched);
+    let missing = uniq(meta.missing);
+    let partial = uniq(meta.partial).filter((k) => !found.includes(k) && !missing.includes(k));
+    if (liveText) {
+      const nowThere = (k: string) => keywordOnResume(k, liveText);
+      found = [...found, ...missing.filter(nowThere), ...partial.filter(nowThere)];
+      missing = missing.filter((k) => !nowThere(k));
+      partial = partial.filter((k) => !nowThere(k));
+    }
+    if (!found.length && !missing.length && !partial.length) return null;
+    return { found, missing, partial };
+  };
+  const required = group("mustHaveSkillsMatch");
+  const preferred = group("preferredSkillsMatch");
+  if (!required && !preferred) return null;
+  const all = [required, preferred].filter(Boolean) as KeywordGroup[];
+  return {
+    required,
+    preferred,
+    total: all.reduce((n, g) => n + g.found.length + g.missing.length + g.partial.length, 0),
+    foundCount: all.reduce((n, g) => n + g.found.length, 0),
+  };
+}

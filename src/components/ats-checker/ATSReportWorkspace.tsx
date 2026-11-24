@@ -21,6 +21,7 @@ import { countSetAsideIssues } from "@/types/atsReport";
 import { ATSResumeCanvas } from "./ATSResumeCanvas";
 import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
 import { ATSProgressCard } from "./ATSProgressCard";
+import { ATSKeywordsCard } from "./ATSKeywordsCard";
 import { track } from "@/lib/analytics/productEvents";
 import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
@@ -309,6 +310,13 @@ export function ATSReportWorkspace({
         <div ref={fixColumn} className="space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
           {guest?.side ?? (<>
           {history && history.length > 1 && <ATSProgressCard history={history} labels={checkLabels} />}
+          <ATSKeywordsCard
+            report={r}
+            editorHref={resumeId ? `/dashboard/resumes/${resumeId}/edit?view=job` : undefined}
+            initialJobDescription={initialJobDescription}
+            running={rerunning}
+            onRunJobMatch={onRunJobMatch}
+          />
           <section className="overflow-hidden rounded-[22px] border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
