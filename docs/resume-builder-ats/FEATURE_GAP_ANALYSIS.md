@@ -54,3 +54,4 @@ Complexity: S (≤1 day), M (2–4 days), L (1–2 weeks).
 2. **DOCX export (G8): free for everyone.**
 3. **ATS report history (G7): last 20 full checks per resume.**
 4. **Signed-in testing:** the owner's own account, signed in by the owner in the browser pane, against the local app and the QA database only. Automated E2E sign-in reuses a saved session from that sign-in (no test account is created).
+   - **Changed 2026-11-24:** the owner asked for a dummy user instead. Signed-in tests now run as a dummy user in Clerk's development instance, on the QA database only (see `PLAYWRIGHT_TEST_STRATEGY.md`).
