@@ -20,6 +20,8 @@ import { SetAsideLink } from "./SetAsideLink";
 import { countSetAsideIssues } from "@/types/atsReport";
 import { ATSResumeCanvas } from "./ATSResumeCanvas";
 import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
+import { ATSProgressCard } from "./ATSProgressCard";
+import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
 import { JobMatchBanner } from "./ATSReportDashboard";
 
@@ -74,7 +76,10 @@ export function ATSReportWorkspace({
   initialJobDescription,
   guest,
   originalPdf,
+  history,
 }: {
+  /** The resume's past full checks (signed in), for the progress card. */
+  history?: AtsHistoryEntry[];
   /** Their uploaded PDF's pages: shown as they designed it, instead of our rebuild. */
   originalPdf?: PdfPage[] | null;
   report: ATSReportV3;
@@ -158,6 +163,10 @@ export function ATSReportWorkspace({
   const v = verdict(r.score);
   const categories = CATEGORY_ORDER.filter((id) => id !== "jobMatch" && r.categories[id]);
   const editorHref = guest ? guest.signUpHref : `/dashboard/resumes/${resumeId}/edit?view=ats`;
+  const checkLabels = useMemo(
+    () => Object.fromEntries(CATEGORY_ORDER.flatMap((id) => r.categories[id]?.checks ?? []).map((c) => [c.id, c.label])),
+    [r],
+  );
   const lockedCount = guest ? CATEGORY_ORDER.flatMap((id) => r.categories[id]?.checks ?? []).filter((c) => c.locked).reduce((n, c) => n + c.issueCount, 0) : 0;
 
   return (
@@ -296,6 +305,7 @@ export function ATSReportWorkspace({
 
         <div ref={fixColumn} className="space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
           {guest?.side ?? (<>
+          {history && history.length > 1 && <ATSProgressCard history={history} labels={checkLabels} />}
           <section className="overflow-hidden rounded-[22px] border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>

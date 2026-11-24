@@ -2183,6 +2183,19 @@ export interface ResumePlaceholderIssue {
   message: string;
 }
 
+/** One full ATS check, as kept in the resume's history (scores and statuses only). */
+export type AtsHistoryEntry = {
+  _id: string;
+  score: number;
+  jobMatchScore?: number;
+  mode?: string;
+  issueCount: number;
+  categories: Record<string, number>;
+  checks: { id: string; category: string; status: string; score: number; issueCount: number }[];
+  source: "full" | "claim";
+  createdAt: string;
+};
+
 export const resumeApi = {
   /**
    * Get All Templates
@@ -2555,6 +2568,12 @@ export const resumeApi = {
       `/resumes/${resumeId}/ats-rescore`,
     );
     return response.data.data;
+  },
+
+  /** The resume's last full ATS checks (newest first), for progress over time. */
+  getATSHistory: async (resumeId: string): Promise<AtsHistoryEntry[]> => {
+    const response = await apiClient.get<{ data: AtsHistoryEntry[] }>(`/resumes/${resumeId}/ats-history`);
+    return response.data.data ?? [];
   },
 
   /** Brings back every finding set aside (Ignore / Mark as fixed); the score stays. */

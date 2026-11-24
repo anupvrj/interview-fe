@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { atsGuestApi, isATSReportV3, resumeApi, userApi } from "@/lib/api";
+import { atsGuestApi, isATSReportV3, resumeApi, userApi, type AtsHistoryEntry } from "@/lib/api";
 import { applyPersistedJobMatchScore } from "@/lib/atsReportNormalize";
 import { insightsFromAtsReport } from "@/lib/ats-insights";
 import { useEntitlements } from "@/hooks/useEntitlements";
@@ -78,6 +78,16 @@ function DashboardATSCheckerContent() {
   const [facts, setFacts] = useState<ScanFacts | null>(null);
   /** The PDF they just uploaded, as they designed it; a reloaded report shows our rebuild. */
   const [originalPdf, setOriginalPdf] = useState<PdfPage[] | null>(null);
+  /** Past full checks of this resume (progress card); reloaded after each check. */
+  const [history, setHistory] = useState<AtsHistoryEntry[]>([]);
+  useEffect(() => {
+    if (!resumeId || step !== "results") return;
+    let cancelled = false;
+    void resumeApi.getATSHistory(resumeId).then((h) => !cancelled && setHistory(h), () => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeId, step, report]);
   const [templateSource, setTemplateSource] = useState<"improve" | "report">("improve");
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
@@ -495,6 +505,7 @@ function DashboardATSCheckerContent() {
           onIgnoreIssue={handleIgnoreIssue}
           onRestoreSetAside={handleRestoreSetAside}
           originalPdf={originalPdf}
+          history={history}
           onRerun={() => void handleRerun()}
           onCheckAnother={handleCheckAnother}
           onRunJobMatch={handleRunJobMatch}
