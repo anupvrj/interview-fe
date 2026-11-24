@@ -20,8 +20,8 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T1 Lock `thumbnail-url` behind auth + ownership (B1) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Unused by web, extension, plugin |
 | T2 Validate `confirm-pdf-upload` key prefix (B2) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Key must start with `${userId}/resumes/pdfs/` |
 | T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Not Started | core | jest + manual PDF check | Must not break template fonts/images |
-| T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Not Started | core | jest | Keep video routes' large limit |
-| T5 Per-user rate limit on AI endpoints (B5) | High | Not Started | core | jest | In-memory first; note multi-instance limit |
+| T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Completed | core | `aiUsageLimit.test.ts` + live 413 check (core `ac26e5c`) | Keep video routes' large limit |
+| T5 Per-user rate limit on AI endpoints (B5) | High | Completed | core | `aiUsageLimit.test.ts` (core `ac26e5c`) | In-memory first; note multi-instance limit |
 | T6 Playwright setup: config, auth fixture, mocked-AI mode, HTML report | High | Not Started | fe | — | Auth: owner signs in once, session saved as storageState (local + QA DB only) |
 | T7 E2E suites: auth, builder, ATS (guest + signed in), cross-product, responsive | High | Not Started | fe | Playwright | Against local app + QA database only |
 | T8 Analytics events for builder and ATS funnels | High | Not Started | fe | vitest | No resume text/JD/PII in events |
