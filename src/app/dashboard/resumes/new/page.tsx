@@ -193,6 +193,23 @@ export default function NewResumePage() {
   const [jdSummary, setJdSummary] = useState<string | null>(null);
   const [analyzingJd, setAnalyzingJd] = useState(false);
   const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
+  // At the plan's resume limit: say so before they spend minutes on the steps, not at the end.
+  const [limitReached, setLimitReached] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    let cancelled = false;
+    void resumeApi
+      .checkResumeLimit()
+      .then((limit) => {
+        if (!cancelled && !limit.allowed) setLimitReached(limit.reason ?? "You've reached your plan's resume limit.");
+      })
+      .catch(() => {
+        /* the server still enforces it on create */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, user]);
 
   useEffect(() => {
     const apply = () => {
@@ -851,6 +868,20 @@ export default function NewResumePage() {
 
   return (
     <div className={cn(dash2026Scope, resumeBuilderPage)}>
+      <Dialog open={limitReached !== null} onOpenChange={(open) => { if (!open) router.push("/dashboard/resumes"); }}>
+        <DialogContent className="border border-primary/20 bg-card shadow-xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground">Resume limit reached</DialogTitle>
+            <DialogDescription className="pt-1 text-left text-muted-foreground">{limitReached}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
+            <Button variant="outline" onClick={() => router.push("/dashboard/resumes")}>Back to my resumes</Button>
+            <Button onClick={() => router.push("/dashboard/plan")}>
+              Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {quickHackathonChooser ? (
         <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back

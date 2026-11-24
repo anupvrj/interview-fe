@@ -70,6 +70,9 @@ function tintBehind(nav: HTMLElement | null): string | undefined {
   }
 }
 
+/** On resume pages, "Start free" starts a resume, not a mock interview. */
+const RESUME_PAGES = /^\/(ai-resume-builder|resume-templates|resume-examples|ats-checker)(\/|$)/;
+
 export function Nav() {
   const pathname = usePathname() ?? "";
   const visible = useVisibleMarketingNav();
@@ -126,7 +129,7 @@ export function Nav() {
           <SignedOut>
             <Link className="hidden whitespace-nowrap py-2.5 text-[14.5px] font-semibold text-foreground/80 hover:text-foreground sm:block" href={MK26_ROUTES.signIn}>Sign in</Link>
             <Button asChild className="h-10 rounded-xl px-3.5 hover:bg-primary/90 sm:px-4">
-              <StartLink href={MK26_ROUTES.startInterview}>Start free</StartLink>
+              <StartLink href={RESUME_PAGES.test(pathname) ? MK26_ROUTES.startResume : MK26_ROUTES.startInterview}>Start free</StartLink>
             </Button>
           </SignedOut>
           <SignedIn>
