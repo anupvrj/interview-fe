@@ -8657,6 +8657,13 @@ export default function EditResumePage() {
           setDownloadDialogOpen(false);
           void handleDownload();
         }}
+        onDocx={async (name) => {
+          if (!resume) return;
+          const { buildResumeDocx } = await import("@/lib/resume-docx");
+          const blob = await buildResumeDocx({ content: resume.content, sectionOrder: sections, templateId: resume.templateId });
+          triggerBlobDownload(blob, `${sanitizePdfFilename(name).replace(/\.pdf$/i, "")}.docx`);
+          setDownloadDialogOpen(false);
+        }}
         onTxt={async (name) => {
           // Plain text of the finished page (editing off, so no empty-field hints).
           setPdfCapture(true);

@@ -2,7 +2,7 @@
 
 import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useState } from "react";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, FileType, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +14,10 @@ export function DownloadDialog({
   downloadingPdf,
   onPdf,
   onTxt,
+  onDocx,
 }: {
+  /** Word copy, free for everyone. */
+  onDocx?: (name: string) => Promise<void>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Without extension. */
@@ -25,10 +28,12 @@ export function DownloadDialog({
 }) {
   const [name, setName] = useState(defaultName);
   const [txtBusy, setTxtBusy] = useState(false);
+  const [docxBusy, setDocxBusy] = useState(false);
+  const [docxError, setDocxError] = useState(false);
   useEffect(() => {
     if (open) setName(defaultName);
   }, [open, defaultName]);
-  const clean = name.replace(/\.(pdf|txt)$/i, "").trim() || defaultName;
+  const clean = name.replace(/\.(pdf|txt|docx)$/i, "").trim() || defaultName;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,7 +79,32 @@ export function DownloadDialog({
             Download as TXT
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">TXT is handy for pasting into online application forms.</p>
+        {onDocx && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={docxBusy}
+            onClick={async () => {
+              setDocxBusy(true);
+              setDocxError(false);
+              try {
+                track("resume_downloaded", { format: "docx", surface: "editor" });
+                await onDocx(clean);
+              } catch {
+                setDocxError(true);
+              } finally {
+                setDocxBusy(false);
+              }
+            }}
+          >
+            {docxBusy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileType className="mr-1.5 h-4 w-4" />}
+            Download Word (.docx), free
+          </Button>
+        )}
+        {docxError && <p className="text-[12px] text-destructive">Couldn&apos;t make the Word file. Please try again.</p>}
+        <p className="text-[11px] text-muted-foreground">
+          TXT is handy for pasting into online application forms. Word is a simple, editable version of your content (the design stays in the PDF).
+        </p>
       </DialogContent>
     </Dialog>
   );
