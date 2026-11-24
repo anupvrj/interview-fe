@@ -11,7 +11,9 @@
     "test": "vitest run --config config/vitest.config.ts",
     "copy-template-css": "node scripts/copy-template-css.js",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
-    "fix-template-preview-images": "node scripts/fix-template-preview-images.js"
+    "fix-template-preview-images": "node scripts/fix-template-preview-images.js",
+    "test:e2e": "playwright test --project=desktop --project=mobile",
+    "test:e2e:record": "E2E_RECORD=1 playwright test --project=desktop"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
@@ -77,6 +79,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/html2canvas": "^0.5.35",
     "@types/node": "^22.9.0",
