@@ -39,5 +39,8 @@ Clerk's testing tokens (`@clerk/testing`) let a test sign in without solving bot
 | cross | create resume → check it → open the finding in the editor → apply fix → rescore moves; claim a guest check after sign-up |
 | ui | no console errors or failed requests on key pages; mobile layouts have no horizontal scroll; keyboard reaches main CTAs |
 
+## Running reliably
+Run against a production build (`next build && next start -p 3001`) for automated runs. Against `next dev`, a page can recompile mid-test when files change, which shows up as a one-off console error (seen once on the `/ats-checker` "loads without errors" test while code was being edited; 3 clean reruns after).
+
 ## Reporting
 HTML report, trace on first retry, screenshot and video on failure, `--grep @smoke` subset for quick runs. Results and known failures are recorded in `PRODUCTION_READINESS_REPORT.md`.
