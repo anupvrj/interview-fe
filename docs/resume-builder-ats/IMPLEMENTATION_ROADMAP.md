@@ -28,7 +28,7 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T9 ATS report history (last 20, approved) + before/after | High | Completed | core+fe | `atsHistory.test.ts`, `atsProgress.test.ts`, `ATSProgressCard.test.tsx` (core `f4b6b3d`, fe `d34e02b`); live check of the card waits for owner sign-in | Additive collection, no schema break |
 | T10 Missing-keyword list as a first-class report section linked to the editor | High | Completed | fe | vitest + Playwright | |
 | T11 Prompt-injection delimiters in ATS/JD/writing prompts | Medium | Completed | core | `untrustedText.test.ts` + live injection test (core `68887de`) | |
-| T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Not Started | core | jest | |
+| T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Completed (core) | core | jest | |
 | T13 Score transparency in the report (weights, "not an employer's ATS") | Medium | Completed | fe | vitest | |
 | T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Completed | fe | vitest | |
 | T15 Builder page CTA fix (B7) | Medium | Completed | fe | Playwright | |
