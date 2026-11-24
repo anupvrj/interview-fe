@@ -60,4 +60,16 @@ test.describe("signed-in ATS report @real-ai", () => {
     await expect(page).toHaveURL(/\/edit\?view=job/);
     await expect(page.getByText("Keywords from the job").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
   });
+
+  test("'How this score works' shows the weights used and the honest framing", async ({ page }) => {
+    await api.rescore(created!.resumeId);
+    await page.goto(`/dashboard/ats-checker?resumeId=${created!.resumeId}`);
+    const toggle = page.getByRole("button", { name: /how this score works/i });
+    await expect(toggle).toBeVisible({ timeout: 60_000 });
+    await toggle.click();
+    const panel = page.locator("#ats-score-explainer");
+    await expect(panel).toContainText("InterviewTrix's estimate");
+    await expect(panel).toContainText("Content");
+    await expect(panel).toContainText(/\d+%/);
+  });
 });

@@ -29,7 +29,7 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T10 Missing-keyword list as a first-class report section linked to the editor | High | Completed | fe | vitest + Playwright | |
 | T11 Prompt-injection delimiters in ATS/JD/writing prompts | Medium | Completed | core | `untrustedText.test.ts` + live injection test (core `68887de`) | |
 | T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Not Started | core | jest | |
-| T13 Score transparency in the report (weights, "not an employer's ATS") | Medium | Not Started | fe | vitest | |
+| T13 Score transparency in the report (weights, "not an employer's ATS") | Medium | Completed | fe | vitest | |
 | T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Completed | fe | vitest | |
 | T15 Builder page CTA fix (B7) | Medium | Completed | fe | Playwright | |
 | T16 JD threshold consistency (B8) | Low | Completed | core | jest | |

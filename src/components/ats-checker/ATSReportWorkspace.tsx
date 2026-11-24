@@ -22,6 +22,7 @@ import { ATSResumeCanvas } from "./ATSResumeCanvas";
 import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
 import { ATSProgressCard } from "./ATSProgressCard";
 import { ATSKeywordsCard } from "./ATSKeywordsCard";
+import { ATSScoreExplainer } from "./ATSScoreExplainer";
 import { track } from "@/lib/analytics/productEvents";
 import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
@@ -282,6 +283,8 @@ export function ATSReportWorkspace({
           <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted-foreground">{r.scoreCapReasons!.map((x) => <li key={x}>{x}</li>)}</ul>
         </div>
       )}
+
+      <ATSScoreExplainer report={r} />
 
       {/* a finished job match is a result, so it stays; the summary and the promo are gone */}
       {reportHasJobMatch(r) && <div className="[&>div]:rounded-[22px]"><JobMatchBanner report={r} /></div>}
