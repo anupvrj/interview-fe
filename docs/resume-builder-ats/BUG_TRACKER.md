@@ -13,7 +13,7 @@ Severity: Critical · High · Medium · Low. "Found by": code (verified by readi
 | B6 | `/dashboard/resumes/new` only reveals the plan's resume limit at the final create step (the server does enforce it, 403) | Medium | code | Page never calls `checkResumeLimit` on open (list page does) | fe | Completed |
 | B7 | "Start free" in the builder page nav goes to `/dashboard/interviews/new` | Medium | audit | Shared nav CTA points to interviews on every marketing page | fe | Completed |
 | B8 | A JD of exactly 50 characters gets job match but a standalone ATS score | Low | code | `> 50` in V3 vs `>= 50` in job match | core | Completed (core `af0b4a2`) |
-| B9 | Two scorings on different instances can both save (last write wins) | Medium | code | `recalculateATSScore` saves without a revision guard; in-memory generation map | core | Not Started |
+| B9 | Two scorings on different instances can both save (last write wins) | Medium | code | `recalculateATSScore` saves without a revision guard; in-memory generation map | core | Completed: save is conditional on the revision; edited during scoring → re-scored once |
 
 Pre-existing test failures (not regressions, also fail on `main`): `src/modules/hackathon/__tests__/importBoundary.test.ts`, `src/services/connector/__tests__/blogAdmin.test.ts` (6 tests).
 | B10 | Client errors (body too large, malformed JSON) were returned as 500 | Medium | test | Global error handler always sent 500 | core | Completed (core `ac26e5c`) |
