@@ -34,7 +34,7 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T15 Builder page CTA fix (B7) | Medium | Completed | fe | Playwright | |
 | T16 JD threshold consistency (B8) | Low | Completed | core | jest | |
 | T17 Guest-first resume builder (G5) | High | Not Started | fe+core | Playwright | Approved 2026-11-24: build/preview signed out, sign-up to save/download |
-| T18 DOCX export (G8) | High | Not Started | fe+core | jest + Playwright | Approved: free for everyone |
+| T18 DOCX export (G8) | High | Completed | fe+core | `resume-docx.test.ts` opens the real file (fe `c9ede79`); sample checked with macOS textutil; in-editor click waits for owner sign-in | Approved: free for everyone |
 | T19 One report UI in editor/job tracker (G17) | Medium | Not Started | fe | Playwright | |
 | T20 Remove dead scoring code (G18) | Low | Not Started | core | jest | |
 | T21 Final regression + production-readiness report | High | Not Started | both | all | |
