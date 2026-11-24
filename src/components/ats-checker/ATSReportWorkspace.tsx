@@ -23,6 +23,7 @@ import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
 import { ATSProgressCard } from "./ATSProgressCard";
 import { ATSKeywordsCard } from "./ATSKeywordsCard";
 import { ATSScoreExplainer } from "./ATSScoreExplainer";
+import { ATSScoreCapNote } from "./ATSScoreCapNote";
 import { track } from "@/lib/analytics/productEvents";
 import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
@@ -277,12 +278,7 @@ export function ATSReportWorkspace({
 
       {error && <p className="rounded-[18px] border border-destructive/30 bg-destructive/[0.06] px-5 py-3 text-sm text-destructive">{error}</p>}
 
-      {r.scoreCap != null && (r.scoreCapReasons?.length ?? 0) > 0 && (
-        <div role="note" className="rounded-[18px] border border-amber-500/40 bg-amber-500/[0.08] px-5 py-4 text-sm">
-          <p className="font-semibold text-foreground">Your score is held at {r.scoreCap} until you fix:</p>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted-foreground">{r.scoreCapReasons!.map((x) => <li key={x}>{x}</li>)}</ul>
-        </div>
-      )}
+      <ATSScoreCapNote report={r} />
 
       <ATSScoreExplainer report={r} />
 

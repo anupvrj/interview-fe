@@ -72,4 +72,20 @@ test.describe("signed-in ATS report @real-ai", () => {
     await expect(panel).toContainText("Content");
     await expect(panel).toContainText(/\d+%/);
   });
+
+  test("editor's detailed report uses the same pieces: score explainer and job keywords", async ({ page }) => {
+    const jd =
+      "Marketing Manager. Must have: Google Ads, HubSpot, Salesforce and SQL. Nice to have: Tableau. Run B2B campaigns and report on pipeline.";
+    await api.rescore(created!.resumeId, jd);
+    await page.goto(`/dashboard/resumes/${created!.resumeId}/edit?view=ats`);
+    await expect(page.getByText("Riya Test").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
+    await page.keyboard.press("Escape");
+    const detailed = page.getByRole("button", { name: /detailed report/i });
+    await expect(detailed).toBeVisible({ timeout: 30_000 });
+    await detailed.click();
+    await expect(page.getByRole("button", { name: /how this score works/i }).filter({ visible: true })).toBeVisible();
+    const keywords = page.locator('section[aria-labelledby="ats-keywords-title"]').filter({ visible: true });
+    await expect(keywords).toContainText("Salesforce");
+    await expect(page.getByText(/unlock job match insights/i)).toHaveCount(0);
+  });
 });

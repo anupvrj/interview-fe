@@ -536,6 +536,11 @@ export function JobTrackerSheet({
                               embedded
                               jobMatchScore={detail.jobMatchSnapshot?.matchScore}
                               initialJobDescription={detail.jobDescription}
+                              keywordsEditorHref={
+                                detail.jobMatchSnapshot?.resumeId
+                                  ? `/dashboard/resumes/${detail.jobMatchSnapshot.resumeId}/edit?view=job`
+                                  : undefined
+                              }
                             />
                           ) : detail.jobMatchSnapshot ? (
                             <div className={cn(appPanel, "space-y-3 p-5")}>
