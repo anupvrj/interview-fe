@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, Target, Wand2 } from "lucide-react";
 import { resumeApi } from "@/lib/api";
@@ -72,6 +73,7 @@ export function AiAssistPanel({
     if (!target || !current) return;
     setLoading(true);
     setError(null);
+    track("resume_ai_enhancement_requested", { kind: String(target.kind) });
     try {
       const out = await resumeApi.aiRewrite({
         text: currentText,

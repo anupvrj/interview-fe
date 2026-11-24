@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useState } from "react";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -50,7 +51,7 @@ export function DownloadDialog({
         </div>
         <p className="text-[11px] text-muted-foreground">Letters, numbers, spaces and dashes work best; characters like / : * ? are removed.</p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-          <Button type="button" className="flex-1" disabled={downloadingPdf} onClick={() => onPdf(clean)}>
+          <Button type="button" className="flex-1" disabled={downloadingPdf} onClick={() => { track("resume_downloaded", { format: "pdf", surface: "editor" }); onPdf(clean); }}>
             {downloadingPdf ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
             Download PDF
           </Button>
@@ -62,6 +63,7 @@ export function DownloadDialog({
             onClick={async () => {
               setTxtBusy(true);
               try {
+                track("resume_downloaded", { format: "txt", surface: "editor" });
                 await onTxt(clean);
               } finally {
                 setTxtBusy(false);

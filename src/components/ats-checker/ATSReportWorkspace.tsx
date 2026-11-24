@@ -21,6 +21,7 @@ import { countSetAsideIssues } from "@/types/atsReport";
 import { ATSResumeCanvas } from "./ATSResumeCanvas";
 import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
 import { ATSProgressCard } from "./ATSProgressCard";
+import { track } from "@/lib/analytics/productEvents";
 import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
 import { JobMatchBanner } from "./ATSReportDashboard";
@@ -148,6 +149,8 @@ export function ATSReportWorkspace({
   const pickCheck = (id: ATSCheckId) => {
     picked.current = true;
     setSelectedId(id);
+    const check = CATEGORY_ORDER.flatMap((c) => r.categories[c]?.checks ?? []).find((c) => c.id === id);
+    track("ats_recommendation_viewed", { check_id: id, locked: Boolean(check?.locked) });
   };
 
   const pickMark = (markId: string) => {

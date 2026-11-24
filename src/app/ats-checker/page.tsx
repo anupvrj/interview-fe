@@ -25,6 +25,7 @@ import {
 import { snapshotPdfFirstPage, type PdfSnapshot } from "@/lib/pdf-snapshot";
 import type { ScanFacts } from "@/lib/atsScanFacts";
 import { clearScanMark, interruptedScan, markScanStarted } from "@/lib/atsGuestState";
+import { scoreBucket, track } from "@/lib/analytics/productEvents";
 import { isAxiosError } from "axios";
 
 /** Worth trying again: no answer at all (offline, frozen tab) or a server error, not a 4xx. */
@@ -87,6 +88,10 @@ function ATSCheckerPageContent() {
   /** A scan that couldn't finish (offline, server error): one tap retries with the kept PDF. */
   const [failedScan, setFailedScan] = useState<string | null>(null);
   useEffect(() => {
+    if (isLoaded) track("ats_checker_opened", { surface: "public", signed_in: Boolean(user) });
+  }, [isLoaded, user]);
+
+  useEffect(() => {
     if (!isLoaded) return;
     if (user) {
       if (hasUnclaimedGuestATSCheck()) {
@@ -128,6 +133,8 @@ function ATSCheckerPageContent() {
       await savePendingATSUpload(file, jd).catch(() => {});
     }
     markScanStarted(file.name);
+    const startedAt = Date.now();
+    if (!keepPending) track("ats_resume_uploaded", { signed_in: false, size_kb: Math.round(file.size / 1024), has_jd: Boolean(jd.trim()) });
     const attempt = () => runGuestATSCheck(file, jd, setGuestStep, setGuestFacts);
     try {
       let check: GuestATSCheck;
@@ -141,8 +148,19 @@ function ATSCheckerPageContent() {
       }
       rememberGuestATSCheck(check, file.name);
       setGuestResult(check);
+      track("ats_analysis_completed", {
+        signed_in: false,
+        score_bucket: scoreBucket(check.teaser.score),
+        duration_ms: Date.now() - startedAt,
+        reused: Boolean(check.reused),
+      });
     } catch (err) {
       setUploadError(getApiErrorMessage(err, "We couldn't check this resume. Please try again."));
+      const status = isAxiosError(err) ? err.response?.status : undefined;
+      track("ats_analysis_failed", {
+        signed_in: false,
+        reason: status === undefined ? (isAxiosError(err) ? "network" : "unknown") : status >= 500 ? "server" : "rejected",
+      });
       if (isRetryable(err)) setFailedScan(file.name);
     } finally {
       clearScanMark();
@@ -205,6 +223,7 @@ function ATSCheckerPageContent() {
             improved={guestResult.improved}
             fileName={guestFile ?? undefined}
             onCheckAnother={() => {
+              track("ats_upload_new_clicked", { signed_in: false });
               void forgetGuestATSCheck();
               setGuestResult(null);
               setGuestFile(null);

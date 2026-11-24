@@ -31,6 +31,7 @@ import type { ScanFacts } from "@/lib/atsScanFacts";
 import type { ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { isAxiosError } from "axios";
 import { forgetGuestCheck, rememberGuestCheck } from "@/lib/atsGuestState";
+import { scoreBucket, track } from "@/lib/analytics/productEvents";
 
 /** A claim that failed for a reason other than "expired" (network, deploy) is tried again. */
 const CLAIM_ATTEMPTS = 3;
@@ -134,6 +135,8 @@ function DashboardATSCheckerContent() {
       setOriginalPdf(null);
       void snapshotPdfFirstPage(file).then(setSnapshot);
       void renderPdfPages(file).then(setOriginalPdf);
+      const startedAt = Date.now();
+      track("ats_resume_uploaded", { signed_in: true, size_kb: Math.round(file.size / 1024), has_jd: Boolean(jd.trim()) });
 
       try {
         const result = await runATSAnalysis(
@@ -144,6 +147,12 @@ function DashboardATSCheckerContent() {
           setFacts,
         );
         void clearPendingATSUpload();
+        track("ats_analysis_completed", {
+          signed_in: true,
+          score_bucket: scoreBucket(result.report.score),
+          duration_ms: Date.now() - startedAt,
+          reused: Date.now() - startedAt < 4000,
+        });
         setReport(result.report);
         setResumeId(result.resumeId);
         setResumeTitle(file.name.replace(/\.pdf$/i, ""));
@@ -155,6 +164,11 @@ function DashboardATSCheckerContent() {
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Failed to process resume.";
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        track("ats_analysis_failed", {
+          signed_in: true,
+          reason: status === undefined ? (isAxiosError(err) ? "network" : "unknown") : status >= 500 ? "server" : "rejected",
+        });
         void clearPendingATSUpload();
         setError(message);
         setStep("upload");
@@ -174,10 +188,12 @@ function DashboardATSCheckerContent() {
       setClaimSlow(false);
       // Putting in the AI rewrite and scoring it takes a while; say so instead of spinning.
       const slow = window.setTimeout(() => setClaimSlow(true), 3000);
+      const startedAt = Date.now();
       try {
         for (let attempt = 1; ; attempt++) {
           try {
-            const { resumeId: claimedId } = await atsGuestApi.claim(token);
+            const { resumeId: claimedId, improved } = await atsGuestApi.claim(token);
+            track("ats_claim_completed", { duration_ms: Date.now() - startedAt, improved: Boolean(improved), attempts: attempt });
             void userApi.sendWelcomeSignup("candidate").catch(() => {});
             await attachPendingPDF(claimedId);
             await applyGuestATSTemplate(claimedId);
@@ -186,8 +202,12 @@ function DashboardATSCheckerContent() {
             return;
           } catch (err) {
             const expired = isAxiosError(err) && err.response?.status === 404;
-            if (expired) break;
+            if (expired) {
+              track("ats_claim_failed", { reason: "expired" });
+              break;
+            }
             if (attempt >= CLAIM_ATTEMPTS) {
+              track("ats_claim_failed", { reason: "error" });
               // Keep the token and the PDF: "Try again" (or a refresh) picks up from here.
               setClaimFailed(true);
               return;
@@ -211,6 +231,10 @@ function DashboardATSCheckerContent() {
     },
     [router, executeAnalysis],
   );
+
+  useEffect(() => {
+    if (isLoaded && user) track("ats_checker_opened", { surface: "dashboard", signed_in: true });
+  }, [isLoaded, user]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -274,6 +298,7 @@ function DashboardATSCheckerContent() {
 
     try {
       const updated = await rerunATSAnalysis(resumeId, jobDescription);
+      track("ats_score_recalculated", { surface: "dashboard", score_bucket: scoreBucket(updated.score), delta: report ? updated.score - report.score : 0 });
       setReport(updated);
       setProcessingStep(3);
       setStep("results");

@@ -182,6 +182,8 @@ export type GuestATSCheck = {
   sectionOrder: unknown[];
   /** The AI rewrite, when the same file was checked and rewritten before. */
   improved?: GuestRewrite;
+  /** Came back from an earlier check of the same file (no new analysis ran). */
+  reused?: boolean;
 };
 
 /** How long after scoring starts the steps move on to the last one. */
@@ -201,7 +203,7 @@ export async function runGuestATSCheck(
   const earlier = fileHash ? await atsGuestApi.findSameFile(fileHash, jd).catch(() => null) : null;
   if (earlier) {
     onStep?.(3);
-    return earlier;
+    return { ...earlier, reused: true };
   }
 
   const resumeText = await extractTextFromPDF(file);

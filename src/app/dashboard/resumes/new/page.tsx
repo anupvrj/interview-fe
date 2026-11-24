@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
@@ -193,6 +194,10 @@ export default function NewResumePage() {
   const [jdSummary, setJdSummary] = useState<string | null>(null);
   const [analyzingJd, setAnalyzingJd] = useState(false);
   const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
+  useEffect(() => {
+    if (isLoaded) track("resume_builder_opened", { surface: "new", signed_in: Boolean(user) });
+  }, [isLoaded, user]);
+
   // At the plan's resume limit: say so before they spend minutes on the steps, not at the end.
   const [limitReached, setLimitReached] = useState<string | null>(null);
   useEffect(() => {
@@ -410,6 +415,7 @@ export default function NewResumePage() {
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
+    track("resume_template_selected", { template_id: templateId, surface: "new_resume" });
   };
 
   const useTemplateAndGoToImport = (templateId: string) => {
@@ -1108,9 +1114,9 @@ export default function NewResumePage() {
               ) : null}
               <ResumeBuilderImportChoiceCards
                 selectedSource={importSource}
-                onSelectChat={() => setShowChatModeModal(true)}
-                onSelectLinkedIn={() => setImportSource("linkedin")}
-                onSelectPdf={() => setImportSource("pdf")}
+                onSelectChat={() => { track("resume_creation_started", { source: "chat" }); setShowChatModeModal(true); }}
+                onSelectLinkedIn={() => { track("resume_creation_started", { source: "linkedin" }); setImportSource("linkedin"); }}
+                onSelectPdf={() => { track("resume_creation_started", { source: "pdf" }); setImportSource("pdf"); }}
               />
               <div className={resumeBuilderFooterActions}>
                 <Button

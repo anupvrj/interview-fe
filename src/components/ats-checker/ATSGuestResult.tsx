@@ -16,12 +16,24 @@ import { ATS_RESUME_TEMPLATE_ID, rememberGuestATSTemplate } from "@/lib/atsCheck
 import { fetchDisabledResumeTemplateIds } from "@/lib/resume-template-availability";
 import type { ATSReportV3 } from "@/types/atsReport";
 import { rewriteChanges } from "@/lib/atsRewriteDiff";
+import { track } from "@/lib/analytics/productEvents";
 import { loadPendingUpload } from "@/lib/atsPendingFile";
 import { inAppBrowserName } from "@/lib/atsGuestState";
 import { renderPdfPages, type PdfPage } from "@/lib/pdf-snapshot";
 import { ATSReportWorkspace } from "./ATSReportWorkspace";
 import { cssRegistry } from "@/lib/templateLoader";
 import { cn } from "@/lib/utils";
+
+/** Which sign-up button it was, as a fixed name (never the link's text). */
+function signUpPlacement(link: Element): string {
+  const text = (link.textContent ?? "").toLowerCase();
+  if (link.closest(".fixed")) return "phone_bar";
+  if (text.includes("keep the improved")) return "keep_improved";
+  if (text.includes("unlock")) return "unlock_locked";
+  if (text.includes("fix it free")) return "panel_footer";
+  if (text.includes("fix my resume")) return "header";
+  return "other";
+}
 
 /** What only they can add, which no rewrite can make up. */
 const NEEDS_YOU: Record<string, string> = {
@@ -205,6 +217,7 @@ export function ATSGuestResult({
   // seems to do nothing.
   const stageRef = useRef<HTMLDivElement>(null);
   const switchView = (next: View) => {
+    if (next === "after" && view !== "after") track("ats_improved_view_opened", { ready: rewrite.state === "ready" });
     setView(next);
     requestAnimationFrame(() => {
       const stage = stageRef.current?.closest("section, div.grid")?.querySelector("[data-resume-stage]") as HTMLElement | null;
@@ -425,8 +438,10 @@ export function ATSGuestResult({
   // account, so "Opening your resume" afterwards is instant.
   const prepared = useRef(false);
   const prepareOnSignUp = (event: React.MouseEvent) => {
+    const link = (event.target as HTMLElement).closest?.('a[href^="/sign-up"]');
+    if (!link) return;
+    track("ats_signup_clicked", { placement: signUpPlacement(link) });
     if (prepared.current || !token) return;
-    if (!(event.target as HTMLElement).closest?.('a[href^="/sign-up"]')) return;
     prepared.current = true;
     void atsGuestApi.prepare(token).catch(() => {});
   };
