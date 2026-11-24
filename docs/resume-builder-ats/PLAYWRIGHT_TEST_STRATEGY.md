@@ -24,10 +24,18 @@ e2e/
 ```
 
 ## Authentication
-Clerk's testing tokens (`@clerk/testing`) let a test sign in without solving bot checks. It needs:
-- a **test user** in the Clerk development instance (created by the owner; Claude doesn't create accounts),
-- `CLERK_SECRET_KEY` for the dev instance in the test environment (never committed),
-- `E2E_CLERK_USER_EMAIL` / password in a local, git-ignored `.env.e2e`.
+Signed-in suites (`*.signed-in.spec.ts`, project `signed-in`) run as a **dummy user in Clerk's development instance**, never a real person's account:
+- Created once through Clerk's Backend API with the development secret key (`sk_test_…` only). Its email ends in `+clerk_test@example.com`, so Clerk accepts the fixed code `424242` instead of emailing one.
+- Its login lives only in the git-ignored `.env.e2e` (`E2E_CLERK_USER_EMAIL`, `E2E_CLERK_USER_PASSWORD`, `E2E_CLERK_USER_ID`).
+- `e2e/auth.setup.ts` signs in by itself (password or code, whichever the page asks for) and saves the session to `e2e/.auth/user.json` (git-ignored). Without `.env.e2e` it waits for a person to sign in.
+- In the QA database the user is marked onboarded, so tests land on the dashboard.
+- Tests create fictional resumes through the API (`e2e/fixtures/api.ts`) and delete them afterwards. The fixture avoids sample-looking contact details, which the ATS "Sample Text & Blanks" check rightly caps at 25.
+
+```
+npx playwright test                      # everything (setup runs first for signed-in)
+npx playwright test --project=signed-in  # signed-in only
+npx playwright test --grep-invert @real-ai  # skip tests that make real AI calls
+```
 
 ## Suites (first pass)
 | Suite | Key cases |

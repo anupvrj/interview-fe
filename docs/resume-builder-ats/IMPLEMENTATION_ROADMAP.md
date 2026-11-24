@@ -23,7 +23,7 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Completed | core | `aiUsageLimit.test.ts` + live 413 check (core `ac26e5c`) | Keep video routes' large limit |
 | T5 Per-user rate limit on AI endpoints (B5) | High | Completed | core | `aiUsageLimit.test.ts` (core `ac26e5c`) | In-memory first; note multi-instance limit |
 | T6 Playwright setup: config, auth fixture, mocked-AI mode, HTML report | High | Completed | fe | 12 e2e tests + recorded-API replay (fe `7a4041c`); signed-in auth setup written, awaiting owner sign-in | Auth: owner signs in once, session saved as storageState (local + QA DB only) |
-| T7 E2E suites: auth, builder, ATS (guest + signed in), cross-product, responsive | High | Not Started | fe | Playwright | Against local app + QA database only |
+| T7 E2E suites: auth, builder, ATS (guest + signed in), cross-product, responsive | High | In Progress | fe | Playwright | 25 tests pass (15 signed out, 10 signed in as a dummy Clerk development user on the QA database). Still to add: template switch, PDF export, cross-product claim, responsive |
 | T8 Analytics events for builder and ATS funnels | High | Completed | fe | `productEvents.test.ts` + live console check (fe `8a72d1e`) | No resume text/JD/PII in events |
 | T9 ATS report history (last 20, approved) + before/after | High | Completed | core+fe | `atsHistory.test.ts`, `atsProgress.test.ts`, `ATSProgressCard.test.tsx` (core `f4b6b3d`, fe `d34e02b`); live check of the card waits for owner sign-in | Additive collection, no schema break |
 | T10 Missing-keyword list as a first-class report section linked to the editor | High | Not Started | fe | vitest + Playwright | |

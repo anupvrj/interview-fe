@@ -1,4 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
+
+// Local test-user login (git-ignored .env.e2e), used only by e2e/auth.setup.ts.
+const envFile = path.join(__dirname, ".env.e2e");
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, "utf8").split("\n")) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
 
 /**
  * End-to-end tests for the Resume Builder and ATS Checker (see
@@ -39,12 +50,19 @@ export default defineConfig({
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /\.signed-in\.spec\.ts/],
+    },
+    {
+      // Signed in as the dummy test user (QA database). Runs the setup first.
+      name: "signed-in",
+      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/user.json" },
+      testMatch: /\.signed-in\.spec\.ts/,
+      dependencies: ["setup-auth"],
     },
     {
       name: "mobile",
       use: { ...devices["Pixel 7"] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /\.signed-in\.spec\.ts/],
       grep: /@mobile/,
     },
   ],

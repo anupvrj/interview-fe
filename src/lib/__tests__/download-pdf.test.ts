@@ -67,6 +67,11 @@ describe("sanitizeDownloadFilename", () => {
     expect(sanitizeDownloadFilename("Priya Sharma.pdf", "txt")).toBe("Priya Sharma.txt");
   });
 
+  it("supports Word files: one .docx, never .docx.pdf", () => {
+    expect(sanitizeDownloadFilename("Riya Test.docx", "docx")).toBe("Riya Test.docx");
+    expect(sanitizeDownloadFilename("Riya Test.pdf", "docx")).toBe("Riya Test.docx");
+  });
+
   it("falls back to 'resume' when nothing is left", () => {
     expect(sanitizePdfFilename("  /// ")).toBe("resume.pdf");
   });
