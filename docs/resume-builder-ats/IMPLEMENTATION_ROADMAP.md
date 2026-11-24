@@ -19,7 +19,7 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 |---|---|---|---|---|---|
 | T1 Lock `thumbnail-url` behind auth + ownership (B1) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Unused by web, extension, plugin |
 | T2 Validate `confirm-pdf-upload` key prefix (B2) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Key must start with `${userId}/resumes/pdfs/` |
-| T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Not Started | core | jest + manual PDF check | Must not break template fonts/images |
+| T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Completed | core | jest + manual PDF check | Must not break template fonts/images |
 | T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Completed | core | `aiUsageLimit.test.ts` + live 413 check (core `ac26e5c`) | Keep video routes' large limit |
 | T5 Per-user rate limit on AI endpoints (B5) | High | Completed | core | `aiUsageLimit.test.ts` (core `ac26e5c`) | In-memory first; note multi-instance limit |
 | T6 Playwright setup: config, auth fixture, mocked-AI mode, HTML report | High | Not Started | fe | — | Auth: owner signs in once, session saved as storageState (local + QA DB only) |
@@ -30,9 +30,9 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T11 Prompt-injection delimiters in ATS/JD/writing prompts | Medium | Not Started | core | jest | |
 | T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Not Started | core | jest | |
 | T13 Score transparency in the report (weights, "not an employer's ATS") | Medium | Not Started | fe | vitest | |
-| T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Not Started | fe | vitest | |
-| T15 Builder page CTA fix (B7) | Medium | Not Started | fe | Playwright | |
-| T16 JD threshold consistency (B8) | Low | Not Started | core | jest | |
+| T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Completed | fe | vitest | |
+| T15 Builder page CTA fix (B7) | Medium | Completed | fe | Playwright | |
+| T16 JD threshold consistency (B8) | Low | Completed | core | jest | |
 | T17 Guest-first resume builder (G5) | High | Not Started | fe+core | Playwright | Approved 2026-11-24: build/preview signed out, sign-up to save/download |
 | T18 DOCX export (G8) | High | Not Started | fe+core | jest + Playwright | Approved: free for everyone |
 | T19 One report UI in editor/job tracker (G17) | Medium | Not Started | fe | Playwright | |
