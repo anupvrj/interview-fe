@@ -24,6 +24,7 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
+import { GUEST_DRAFT_CLAIM_PATH, hasGuestResumeDraft } from "@/lib/guestResumeDraft";
 
 function OnboardingFallback() {
   return (
@@ -57,6 +58,11 @@ function OnboardingPageContent() {
     // Came for a free ATS check they just ran: the report first, onboarding later.
     if (hasUnclaimedGuestCheck()) {
       leaveOnboarding(GUEST_CHECK_CLAIM_PATH);
+      return;
+    }
+    // Built a resume before signing up: straight to it, onboarding later.
+    if (hasGuestResumeDraft()) {
+      leaveOnboarding(GUEST_DRAFT_CLAIM_PATH);
       return;
     }
     const next = safeAppRedirectPath(searchParams.get("redirect_url"));

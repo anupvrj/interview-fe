@@ -71,7 +71,7 @@ function tintBehind(nav: HTMLElement | null): string | undefined {
 }
 
 /** On resume pages, "Start free" starts a resume, not a mock interview. */
-const RESUME_PAGES = /^\/(ai-resume-builder|resume-templates|resume-examples|ats-checker)(\/|$)/;
+const RESUME_PAGES = /^\/(ai-resume-builder|resume-builder|resume-templates|resume-examples|ats-checker)(\/|$)/;
 
 export function Nav() {
   const pathname = usePathname() ?? "";

@@ -24,7 +24,10 @@ type Events = {
   ats_job_match_requested: { surface: "report" | "editor"; has_previous: boolean };
   ats_keywords_editor_opened: { missing: number };
   // resume builder
-  resume_builder_opened: { surface: "marketing" | "new"; signed_in: boolean };
+  resume_builder_opened: { surface: "marketing" | "new" | "guest"; signed_in: boolean };
+  resume_guest_signup_clicked: { placement: "save" | "download"; source: string; template_id: string };
+  resume_guest_draft_claimed: { source: string; template_id: string; duration_ms: number };
+  resume_guest_draft_claim_failed: { reason: "limit" | "error" };
   resume_creation_started: { source: string };
   resume_template_selected: { template_id: string; surface: string };
   resume_ai_enhancement_requested: { kind: string };

@@ -23,3 +23,12 @@ Needs a test account on the local app (QA database). To cover: dashboard → new
 2. Builder creation has 4–6 steps before the editor; several are optional but presented as steps.
 3. ATS scan wait (~25–35 s) — mitigated by live facts.
 4. Download paywall appears only at the end (`resumeDownload` entitlement) — the pattern competitors are criticised for; make the plan clear earlier.
+
+## Guest-first resume builder (added 2026-11-24, T17)
+`/resume-builder/start`, public. "Build free" / "Start free" on the resume pages now go here for everyone (signed-in visitors are sent on to `/dashboard/resumes/new`).
+1. **Start:** upload a PDF (read by the guest extraction endpoint, rate limited per IP) or start from scratch with name, job title and contact details (the template's example content fills the page; the editor marks every example line).
+2. **Preview:** the resume in up to 8 enabled templates, live; light edits to name, title and contact. Saved only in this browser (`ix-guest-resume-draft`, 7 days) on every change, so refresh and the trip to sign-up lose nothing.
+3. **Sign up** from "Save and keep editing, free" or "Download PDF or Word". Onboarding is skipped when a draft is waiting.
+4. **Claim:** `/dashboard/resumes/new?draft=guest` checks the plan's resume limit, creates the resume (template, content, section order, layout), clears the draft and opens the editor. On the limit, the existing limit dialog shows and the draft stays.
+
+Found and fixed on the way: `StartLink` sent every signed-out visitor to sign-up, so a public tool could never be reached from the marketing CTAs. Links to public tools (`/resume-builder`, `/ats-checker`) now go there directly.
