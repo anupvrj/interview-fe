@@ -5,8 +5,8 @@ Severity: Critical · High · Medium · Low. "Found by": code (verified by readi
 
 | ID | Bug | Severity | Found by | Root cause | Repo | Status |
 |---|---|---|---|---|---|---|
-| B1 | `GET /resumes/:id/thumbnail-url` gives a 7-day link to any resume's thumbnail with no auth or ownership check | Critical | code | Handler never calls `authenticateRequest` (`ResumeController.ts:1509`) | core | Not Started |
-| B2 | `POST /resumes/:id/confirm-pdf-upload` stores any client-supplied `s3Key` as the resume's PDF | Critical | code | No check that the key is under `${userId}/resumes/pdfs/` (`ResumeController.ts:1167`) | core | Not Started |
+| B1 | `GET /resumes/:id/thumbnail-url` gives a 7-day link to any resume's thumbnail with no auth or ownership check | Critical | code | Handler never calls `authenticateRequest` (`ResumeController.ts:1509`) | core | Completed (core `bb6da04`) |
+| B2 | `POST /resumes/:id/confirm-pdf-upload` stores any client-supplied `s3Key` as the resume's PDF | Critical | code | No check that the key is under `${userId}/resumes/pdfs/` (`ResumeController.ts:1167`) | core | Completed (core `bb6da04`) |
 | B3 | PDF rendering can be made to fetch arbitrary URLs from the server | High | code | `PuppeteerPDFService`: `--disable-web-security`, all requests allowed, image inliner fetches any `http*` src | core | Not Started |
 | B4 | Resume routes accept 500 MB JSON bodies; `rawPdfText` saved uncapped (Mongo 16 MB limit) | High | code | Global `bodyLimit`/multipart limits in `app.ts` | core | Not Started |
 | B5 | No per-user rate limit on paid AI endpoints | High | code | Only guest preview uses `assertRateLimit` | core | Not Started |

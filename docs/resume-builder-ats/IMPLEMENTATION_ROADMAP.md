@@ -17,8 +17,8 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 
 | Task | Priority | Status | Repo | Tests | Notes |
 |---|---|---|---|---|---|
-| T1 Lock `thumbnail-url` behind auth + ownership (B1) | Critical | Not Started | core | jest controller test | Unused by web, extension, plugin |
-| T2 Validate `confirm-pdf-upload` key prefix (B2) | Critical | Not Started | core | jest | Key must start with `${userId}/resumes/pdfs/` |
+| T1 Lock `thumbnail-url` behind auth + ownership (B1) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Unused by web, extension, plugin |
+| T2 Validate `confirm-pdf-upload` key prefix (B2) | Critical | Completed | core | `resumeFileAccess.test.ts` (core `bb6da04`) | Key must start with `${userId}/resumes/pdfs/` |
 | T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Not Started | core | jest + manual PDF check | Must not break template fonts/images |
 | T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Not Started | core | jest | Keep video routes' large limit |
 | T5 Per-user rate limit on AI endpoints (B5) | High | Not Started | core | jest | In-memory first; note multi-instance limit |
