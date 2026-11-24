@@ -22,10 +22,10 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Not Started | core | jest + manual PDF check | Must not break template fonts/images |
 | T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Not Started | core | jest | Keep video routes' large limit |
 | T5 Per-user rate limit on AI endpoints (B5) | High | Not Started | core | jest | In-memory first; note multi-instance limit |
-| T6 Playwright setup: config, auth fixture (Clerk testing token), mocked-AI mode, HTML report | High | Not Started | fe | — | Needs a test account (owner) |
+| T6 Playwright setup: config, auth fixture, mocked-AI mode, HTML report | High | Not Started | fe | — | Auth: owner signs in once, session saved as storageState (local + QA DB only) |
 | T7 E2E suites: auth, builder, ATS (guest + signed in), cross-product, responsive | High | Not Started | fe | Playwright | Against local app + QA database only |
 | T8 Analytics events for builder and ATS funnels | High | Not Started | fe | vitest | No resume text/JD/PII in events |
-| T9 ATS report history (last 20) + before/after | High | Not Started | core+fe | jest + Playwright | Additive collection, no schema break |
+| T9 ATS report history (last 20, approved) + before/after | High | Not Started | core+fe | jest + Playwright | Additive collection, no schema break |
 | T10 Missing-keyword list as a first-class report section linked to the editor | High | Not Started | fe | vitest + Playwright | |
 | T11 Prompt-injection delimiters in ATS/JD/writing prompts | Medium | Not Started | core | jest | |
 | T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Not Started | core | jest | |
@@ -33,8 +33,8 @@ Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
 | T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Not Started | fe | vitest | |
 | T15 Builder page CTA fix (B7) | Medium | Not Started | fe | Playwright | |
 | T16 JD threshold consistency (B8) | Low | Not Started | core | jest | |
-| T17 Guest-first resume builder (G5) | High | Blocked | fe+core | Playwright | Owner decision 1 |
-| T18 DOCX export (G8) | High | Blocked | fe+core | jest + Playwright | Owner decision 2 |
+| T17 Guest-first resume builder (G5) | High | Not Started | fe+core | Playwright | Approved 2026-11-24: build/preview signed out, sign-up to save/download |
+| T18 DOCX export (G8) | High | Not Started | fe+core | jest + Playwright | Approved: free for everyone |
 | T19 One report UI in editor/job tracker (G17) | Medium | Not Started | fe | Playwright | |
 | T20 Remove dead scoring code (G18) | Low | Not Started | core | jest | |
 | T21 Final regression + production-readiness report | High | Not Started | both | all | |

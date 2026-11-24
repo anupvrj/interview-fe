@@ -49,7 +49,8 @@ Complexity: S (≤1 day), M (2–4 days), L (1–2 weeks).
 - **Rewriting the editor from scratch.** It works and has conflict-safe saving; split it incrementally instead.
 - **More LLM calls in scoring.** Keep deterministic checks deterministic; add schema validation rather than extra calls.
 
-## Decisions needed from the product owner
-1. **Guest resume builder (G5):** let visitors build and preview a full resume before signing up (sign-up to download or save), like the ATS checker? Recommended: yes.
-2. **DOCX export (G8):** free for everyone, or part of the paid plan? Recommended: free, as a trust signal (Jobscan model).
-3. **ATS report history (G7):** keep every full check, or the last N (e.g. 20) per resume? Recommended: last 20.
+## Owner decisions (2026-11-24)
+1. **Guest resume builder (G5): yes.** Visitors build and preview a full resume before signing up; sign-up to save or download.
+2. **DOCX export (G8): free for everyone.**
+3. **ATS report history (G7): last 20 full checks per resume.**
+4. **Signed-in testing:** the owner's own account, signed in by the owner in the browser pane, against the local app and the QA database only. Automated E2E sign-in reuses a saved session from that sign-in (no test account is created).
