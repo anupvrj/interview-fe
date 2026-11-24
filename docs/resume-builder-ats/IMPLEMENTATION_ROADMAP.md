@@ -1,0 +1,40 @@
+# Implementation roadmap
+
+Branch in both repos: `feature/ai-resume-builder-ats-upgrade` (from `main`, 2026-11-24). Nothing is merged to `main` or deployed without the owner's explicit approval.
+Baseline tests: fe 573 pass; core 1639 pass, 6 fail (pre-existing).
+
+## Order of work and why
+
+1. **Security fixes first (B1–B5).** Small, isolated, and they protect candidate data now.
+2. **Playwright baseline.** Before larger product changes, so every later step is checked against the core journeys.
+3. **Analytics instrumentation.** Cheap, and needed to measure whether the product changes help.
+4. **ATS report quality:** history and before/after, first-class missing-keyword list, score transparency, prompt-injection hardening, schema validation.
+5. **Resume builder:** guest-first building (pending decision), DOCX export (pending decision), limit fix, CTA fix.
+6. **Cross-product polish:** one report UI, editor deep links per finding, editor split (incremental).
+7. **Final regression and production-readiness report.**
+
+## Implementation tracker
+
+| Task | Priority | Status | Repo | Tests | Notes |
+|---|---|---|---|---|---|
+| T1 Lock `thumbnail-url` behind auth + ownership (B1) | Critical | Not Started | core | jest controller test | Unused by web, extension, plugin |
+| T2 Validate `confirm-pdf-upload` key prefix (B2) | Critical | Not Started | core | jest | Key must start with `${userId}/resumes/pdfs/` |
+| T3 Puppeteer hardening: block non-data/non-allowed requests, drop `--disable-web-security`, restrict image inliner to our CDN/S3 (B3) | High | Not Started | core | jest + manual PDF check | Must not break template fonts/images |
+| T4 Per-route body limits for resume/extraction routes; cap `rawPdfText` (B4) | High | Not Started | core | jest | Keep video routes' large limit |
+| T5 Per-user rate limit on AI endpoints (B5) | High | Not Started | core | jest | In-memory first; note multi-instance limit |
+| T6 Playwright setup: config, auth fixture (Clerk testing token), mocked-AI mode, HTML report | High | Not Started | fe | — | Needs a test account (owner) |
+| T7 E2E suites: auth, builder, ATS (guest + signed in), cross-product, responsive | High | Not Started | fe | Playwright | Against local app + QA database only |
+| T8 Analytics events for builder and ATS funnels | High | Not Started | fe | vitest | No resume text/JD/PII in events |
+| T9 ATS report history (last 20) + before/after | High | Not Started | core+fe | jest + Playwright | Additive collection, no schema break |
+| T10 Missing-keyword list as a first-class report section linked to the editor | High | Not Started | fe | vitest + Playwright | |
+| T11 Prompt-injection delimiters in ATS/JD/writing prompts | Medium | Not Started | core | jest | |
+| T12 zod validation of LLM outputs (ATS checks, JD analysis) | Medium | Not Started | core | jest | |
+| T13 Score transparency in the report (weights, "not an employer's ATS") | Medium | Not Started | fe | vitest | |
+| T14 Resume-count limit on `/dashboard/resumes/new` (B6) | Medium | Not Started | fe | vitest | |
+| T15 Builder page CTA fix (B7) | Medium | Not Started | fe | Playwright | |
+| T16 JD threshold consistency (B8) | Low | Not Started | core | jest | |
+| T17 Guest-first resume builder (G5) | High | Blocked | fe+core | Playwright | Owner decision 1 |
+| T18 DOCX export (G8) | High | Blocked | fe+core | jest + Playwright | Owner decision 2 |
+| T19 One report UI in editor/job tracker (G17) | Medium | Not Started | fe | Playwright | |
+| T20 Remove dead scoring code (G18) | Low | Not Started | core | jest | |
+| T21 Final regression + production-readiness report | High | Not Started | both | all | |
