@@ -86,7 +86,8 @@ function Paper({ src, alt, score, className }: { src?: string; alt: string; scor
   return (
     <div className={cn("relative aspect-[1/1.3] overflow-hidden rounded-xl border border-border bg-white shadow-[0_18px_40px_-28px_rgba(47,43,61,.55)]", className)}>
       {src ? (
-        <Image src={src} alt={alt} fill sizes="(min-width:1280px) 22vw, (min-width:640px) 45vw, 90vw" className="object-cover object-top" />
+        // A resume's own thumbnail is a small signed S3 image: shown as is (not re-optimised).
+        <Image src={src} alt={alt} fill unoptimized={/^https?:/.test(src)} sizes="(min-width:1280px) 22vw, (min-width:640px) 45vw, 90vw" className="object-cover object-top" />
       ) : (
         <div className="space-y-2 p-5">{[70, 45, 90, 85, 60, 88, 75].map((w, i) => <div key={i} className="h-2 rounded bg-slate-200" style={{ width: `${w}%` }} />)}</div>
       )}
@@ -658,7 +659,9 @@ function ResumeCard({
   return (
     <div className="group relative">
       <Link href={href} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-        <Paper src={t?.thumbnail} alt={`${r.title} — ${t?.name ?? "resume"} template`} score={hasAts(r) ? r.atsScore : undefined} className="transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/40 group-hover:shadow-[0_28px_50px_-30px_rgba(115,103,240,.65)]" />
+        {/* The resume's own page 1 (rendered on the server after saves); the template's sample
+            only until the first render exists. */}
+        <Paper src={r.thumbnailUrl || t?.thumbnail} alt={r.thumbnailUrl ? `${r.title} — page 1` : `${r.title} — ${t?.name ?? "resume"} template`} score={hasAts(r) ? r.atsScore : undefined} className="transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/40 group-hover:shadow-[0_28px_50px_-30px_rgba(115,103,240,.65)]" />
         <span className="pointer-events-none absolute inset-x-0 top-0 flex aspect-[1/1.3] items-end justify-center rounded-xl bg-gradient-to-t from-black/45 via-black/0 to-transparent pb-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-semibold text-slate-900 shadow-lg"><PenLine className="h-3.5 w-3.5" />Open editor</span>
         </span>
