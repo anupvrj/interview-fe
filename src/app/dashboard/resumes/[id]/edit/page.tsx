@@ -1348,15 +1348,9 @@ export default function EditResumePage() {
             };
             setLayout(updatedLayout as any);
             // Save updated layout to database
-            (async () => {
-              try {
-                await resumeApi.update(resumeId, {
-                  layout: updatedLayout,
-                });
-              } catch (error) {
-                console.error("Error updating layout padding:", error);
-              }
-            })();
+            // Saved by the normal autosave. A separate save here raced it with the same
+            // revision, so one was refused as "changed in another tab" and nothing saved after.
+            setHasChanges(true);
           }
         }
 
@@ -1374,11 +1368,7 @@ export default function EditResumePage() {
               columnWidths: { left: 36, right: 64 },
             };
             setLayout(updatedLayout as typeof layout);
-            void resumeApi
-              .update(resumeId, { layout: updatedLayout })
-              .catch((error) => {
-                console.error("Error updating saffron-line layout:", error);
-              });
+            setHasChanges(true); // saved by the autosave (a separate save raced it: 409)
           }
         }
 
@@ -1396,11 +1386,7 @@ export default function EditResumePage() {
               columnWidths: { left: 50, right: 50 },
             };
             setLayout(updatedLayout as typeof layout);
-            void resumeApi
-              .update(resumeId, { layout: updatedLayout })
-              .catch((error) => {
-                console.error("Error updating confident-grid layout:", error);
-              });
+            setHasChanges(true); // saved by the autosave (a separate save raced it: 409)
           }
         }
       } else {
