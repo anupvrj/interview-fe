@@ -2030,6 +2030,8 @@ export interface Resume {
     dismissedEmptyTrailingPages?: number;
     /** Date style picked in the Style panel ("auto" / "MM/YYYY" / "Mon YYYY" / …). */
     dateFormat?: string;
+    /** Per-section designs picked on the page ({ skills: "columns-3" }); see resume-section-designs. */
+    sectionDesigns?: Record<string, string>;
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;

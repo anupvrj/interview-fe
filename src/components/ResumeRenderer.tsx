@@ -64,6 +64,12 @@ import {
   setResumeDateFormat,
 } from "@/lib/resume-date-utils";
 import { unwrapSkills } from "@/lib/skillsShape";
+import {
+  listItemsFrom,
+  sectionDesignOf,
+  supportsListDesigns,
+  type ListDesignId,
+} from "@/lib/resume-section-designs";
 import { resumeForPrint } from "@/lib/resumePrintContent";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
@@ -1545,6 +1551,83 @@ export function ResumeRenderer({
       <div style={{ marginBottom: `${templateStyle.sectionSpacing}px` }}>
         {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
         <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type]}</span>
+      </div>
+    );
+  };
+
+  /**
+   * A list section (skills, interests) in the design picked on the page, drawn with the
+   * template's own fonts and colours. Each word keeps an item marker so pages can break
+   * between rows.
+   */
+  const renderListDesign = (
+    section: Section,
+    items: string[],
+    design: ListDesignId,
+    isInSidebar: boolean,
+    sidebarStyle: React.CSSProperties,
+  ) => {
+    const textColor = isInSidebar ? templateStyle.colors.sidebarText || "#ffffff" : templateStyle.colors.text;
+    const accent = isInSidebar
+      ? textColor
+      : templateStyle.colors.accent || templateStyle.colors.primary || textColor;
+    const body: React.CSSProperties = {
+      fontSize: `${templateStyle.fontSize.body}px`,
+      lineHeight: templateStyle.lineHeight,
+      color: textColor,
+    };
+    const id = (i: number) => `${section.id}-design-${i}`;
+    let inner: React.ReactNode;
+    if (design === "comma" || design === "dot") {
+      inner = (
+        <p style={{ ...body, margin: 0 }}>
+          {items.map((t, i) => (
+            <React.Fragment key={i}>
+              {/* The dot sticks to the item before it (no-break space); the line may wrap only
+                  after it, so a line never starts with a dot or breaks inside an item. */}
+              {i > 0 ? (design === "comma" ? ", " : <>{"\u00A0"}<span style={{ color: accent, padding: "0 2px" }}>·</span>{" "}</>) : null}
+              <span style={{ whiteSpace: design === "dot" ? "nowrap" : undefined }}>{t}</span>
+            </React.Fragment>
+          ))}
+        </p>
+      );
+    } else if (design === "tags") {
+      inner = (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 6px" }}>
+          {items.map((t, i) => (
+            <span
+              key={i}
+              data-item-id={id(i)}
+              style={{ ...body, display: "inline-block", padding: "1px 8px", border: `1px solid ${accent}`, borderRadius: "4px" }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      );
+    } else {
+      const wanted = design === "columns-3" ? 3 : 2;
+      // A narrow sidebar has no room for a table: one column there.
+      const cols = isInSidebar ? 1 : wanted;
+      inner = (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: "16px", rowGap: "2px" }}>
+          {items.map((t, i) => (
+            <div key={i} data-item-id={id(i)} style={{ ...body, display: "flex", gap: "6px", minWidth: 0 }}>
+              {design === "bullets" ? <span aria-hidden style={{ color: accent }}>•</span> : null}
+              <span style={{ overflowWrap: "anywhere" }}>{t}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div
+        data-section={section.id}
+        data-rx-list-design={design}
+        style={{ marginBottom: `${templateStyle.sectionSpacing}px`, ...sidebarStyle }}
+      >
+        {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+        {inner}
       </div>
     );
   };
@@ -3339,6 +3422,12 @@ export function ResumeRenderer({
             (typeof skillsData === "object" && !Array.isArray(skillsData) && Object.keys(skillsData).length === 0);
           if (noSkills && !canvas && !isRoyalIndigo) return null;
 
+          const skillsDesign = supportsListDesigns("skills", template.id) ? sectionDesignOf(resumeLayout, section.id) : null;
+          if (skillsDesign && !noSkills) {
+            const words = listItemsFrom(skillsData);
+            if (words.length > 0) return renderListDesign(section, words, skillsDesign, isInSidebar, sidebarStyle);
+          }
+
           if (isRoyalIndigo) {
             const skillList = parseRoyalIndigoSkillItems(skillsData);
 
@@ -5097,6 +5186,13 @@ export function ResumeRenderer({
           | string
           | string[]
           | undefined;
+        {
+          const interestsDesign = supportsListDesigns("interests", template.id) ? sectionDesignOf(resumeLayout, section.id) : null;
+          const words = interestsDesign ? listItemsFrom(interestsRaw) : [];
+          if (interestsDesign && words.length > 0) {
+            return renderListDesign(section, words, interestsDesign, isInSidebar, sidebarStyle);
+          }
+        }
 
         if (isAmberEdge || isMeridian) {
           const additionalItems: { label: string; value: string }[] = [];

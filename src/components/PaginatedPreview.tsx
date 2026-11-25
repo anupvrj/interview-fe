@@ -112,7 +112,9 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       | undefined;
     const dateFormat = (currentLayout as { dateFormat?: string }).dateFormat ?? "";
     // Date style changes text width ("March 2024" vs "03/2024"), so it re-paginates too.
-    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? "", dateFormat].join("|");
+    // A section's design (skills as a table, as commas…) changes its height too.
+    const designs = JSON.stringify((currentLayout as { sectionDesigns?: unknown }).sectionDesigns ?? {});
+    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? "", dateFormat, designs].join("|");
   }, [currentLayout]);
 
   const contentMeasureKey = useMemo(() => buildResumeContentMeasureKey(resume), [resume]);

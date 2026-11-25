@@ -1,4 +1,5 @@
 "use client";
+import { sectionDesignOf, supportsListDesigns, withSectionDesign } from "@/lib/resume-section-designs";
 
 import {
   useEffect,
@@ -408,6 +409,8 @@ export default function EditResumePage() {
     fontFamily?: string;
     dismissedEmptyTrailingPages?: number;
     dateFormat?: string;
+    /** Per-section designs picked on the page ({ skills: "columns-3" }). */
+    sectionDesigns?: Record<string, string>;
   } | null>(null);
 
   // Effective typography: template defaults merged with layout overrides (for Layout UI)
@@ -1320,6 +1323,8 @@ export default function EditResumePage() {
             (resumeData.layout as { dismissedEmptyTrailingPages?: number })
               .dismissedEmptyTrailingPages ?? 0,
           dateFormat: resumeData.layout.dateFormat,
+          // Kept, or the next save would wipe the designs picked on the page.
+          sectionDesigns: resumeData.layout.sectionDesigns,
         });
 
         // If Mercury template has wrong padding, update it
@@ -2163,8 +2168,12 @@ export default function EditResumePage() {
         { content: resume.content, sectionOrder: resume.sectionOrder },
       );
 
-      // The date style is the user's choice, not the design's: keep it.
-      const nextLayout = { ...templateApplication.layout, dateFormat: layout?.dateFormat };
+      // The date style and section designs are the user's choices, not the template's: keep them.
+      const nextLayout = {
+        ...templateApplication.layout,
+        dateFormat: layout?.dateFormat,
+        sectionDesigns: layout?.sectionDesigns,
+      };
       const designOrder = templateApplication.sectionOrder || [];
 
       // A new design changes how the resume looks, not what's in it: keep the user's order,
@@ -3790,6 +3799,12 @@ export default function EditResumePage() {
       setDeleteDialogOpen(true);
     },
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    canDesignSection: (sectionId) => supportsListDesigns(sectionTypeOf(sectionId), template?.id),
+    getSectionDesign: (sectionId) => sectionDesignOf(layout, sectionId),
+    onSetSectionDesign: (sectionId, design) => {
+      setLayout((prev) => withSectionDesign(prev ?? ({ type: "single" } as NonNullable<typeof prev>), sectionId, design));
+      setHasChanges(true);
+    },
     onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
     onNotice: showCanvasNotice,
     getDates: (entryPath) => {

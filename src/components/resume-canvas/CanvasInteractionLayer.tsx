@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Copy,
   EyeOff,
+  LayoutGrid,
   MoreHorizontal,
   Plus,
   SlidersHorizontal,
@@ -21,6 +22,8 @@ import { locateText, type TextHit } from "./textLocator";
 import { LinkEditPopover } from "./LinkEditPopover";
 import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
 import { TagListPopover } from "./TagListPopover";
+import { SectionDesignPicker } from "./SectionDesignPicker";
+import type { ListDesignId } from "@/lib/resume-section-designs";
 import { RichTextToolbar, RICH_ACTIONS, type RichCommand } from "./RichTextToolbar";
 
 /** Labels used by templates that merge several sections into one block. */
@@ -150,6 +153,10 @@ export interface CanvasInteractionHandlers {
   /** Profile photo on the page: pick a new one (opens upload + crop) or remove it. */
   onChangePhoto?: () => void;
   onRemovePhoto?: () => void;
+  /** Section designs (skills as a table, as commas…): offered only where the template allows. */
+  canDesignSection?: (sectionId: string) => boolean;
+  getSectionDesign?: (sectionId: string) => ListDesignId | null;
+  onSetSectionDesign?: (sectionId: string, design: ListDesignId | null) => void;
 }
 
 interface Box {
@@ -312,6 +319,7 @@ export function CanvasInteractionLayer({
   const [linkEdit, setLinkEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [levelEdit, setLevelEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   const [tagEdit, setTagEdit] = useState<{ sectionType: string; title: string; top: number; left: number } | null>(null);
+  const [designEdit, setDesignEdit] = useState<{ sectionId: string; title: string; top: number; left: number } | null>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const handlersRef = useRef(handlers);
@@ -605,9 +613,10 @@ export function CanvasInteractionLayer({
   // Escape (outside a field) leaves focus mode.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (dateEdit || tagEdit || levelEdit || linkEdit)) {
+      if (e.key === "Escape" && (dateEdit || tagEdit || levelEdit || linkEdit || designEdit)) {
         setDateEdit(null);
         setTagEdit(null);
+        setDesignEdit(null);
         setLevelEdit(null);
         setLinkEdit(null);
         return;
@@ -620,7 +629,7 @@ export function CanvasInteractionLayer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus, onFocusChange, dateEdit, tagEdit, levelEdit, linkEdit]);
+  }, [focus, onFocusChange, dateEdit, tagEdit, levelEdit, linkEdit, designEdit]);
 
   const focusSection = focus ? sections.find((s) => s.id === focus.sectionId) : undefined;
   const hoverSection = hover ? sections.find((s) => s.id === hover.sectionId) : undefined;
@@ -708,6 +717,21 @@ export function CanvasInteractionLayer({
                     sectionType: handleSection.type,
                     title: handleSection.title,
                     top: handleBox.top + handleBox.height + 6,
+                    left: handleBox.left,
+                  }),
+              },
+            ]
+          : []),
+        ...(handlers.onSetSectionDesign && handlers.canDesignSection?.(handleSection.id) && handleBox
+          ? [
+              {
+                label: "Change design…",
+                icon: LayoutGrid,
+                run: () =>
+                  setDesignEdit({
+                    sectionId: handleSection.id,
+                    title: handleSection.title,
+                    top: handleBox.top + 30,
                     left: handleBox.left,
                   }),
               },
@@ -979,6 +1003,20 @@ export function CanvasInteractionLayer({
             onChange={(tags) => handlers.onSetTags(tagEdit.sectionType, tags)}
             onClose={() => setTagEdit(null)}
             placeholder={tagWords(tagEdit.sectionType).placeholder}
+          />
+        </KeepInView>
+      ) : null}
+      {designEdit && handlers.onSetSectionDesign ? (
+        <KeepInView
+          data-rx-overlay
+          className={cn("pointer-events-auto z-40", isMobile ? "fixed inset-x-0 bottom-[8.5rem] flex justify-center" : "absolute")}
+          style={isMobile ? undefined : { top: designEdit.top, left: Math.max(0, designEdit.left) }}
+        >
+          <SectionDesignPicker
+            title={designEdit.title}
+            value={handlers.getSectionDesign?.(designEdit.sectionId) ?? null}
+            onPick={(design) => handlers.onSetSectionDesign?.(designEdit.sectionId, design)}
+            onClose={() => setDesignEdit(null)}
           />
         </KeepInView>
       ) : null}
