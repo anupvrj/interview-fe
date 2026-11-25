@@ -33,6 +33,8 @@ import {
   Linkedin,
   ExternalLink,
   Github,
+  AtSign,
+  MessageCircle,
 } from "lucide-react";
 
 interface Section {
@@ -64,6 +66,12 @@ import {
   setResumeDateFormat,
 } from "@/lib/resume-date-utils";
 import { unwrapSkills } from "@/lib/skillsShape";
+import {
+  listItemsFrom,
+  sectionDesignOf,
+  supportsListDesigns,
+  type ListDesignId,
+} from "@/lib/resume-section-designs";
 import { resumeForPrint } from "@/lib/resumePrintContent";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
@@ -216,6 +224,38 @@ function profileHref(kind: "linkedin" | "github" | "website", raw?: string): str
   // "github.com/me" used to become github.com/github.com/me.
   if (kind === "github" && !/github\.com/i.test(value)) return `https://github.com/${value.replace(/^@/, "")}`;
   return `https://${value.replace(/^\/\//, "")}`;
+}
+
+/**
+ * Profile links people can add in Personal details beyond LinkedIn / GitHub / website. They were
+ * saved but no template showed them. `prefix` labels handles that mean nothing on their own.
+ */
+const EXTRA_PROFILE_LINKS: { type: string; label: string; prefix?: string; href: (v: string) => string | undefined }[] = [
+  { type: "medium", label: "Medium", href: (v) => (/medium\.com/i.test(v) ? webHref(v) ?? undefined : `https://medium.com/@${v.replace(/^@/, "")}`) },
+  { type: "orcid", label: "ORCID", prefix: "ORCID:", href: (v) => (/orcid\.org/i.test(v) ? webHref(v) ?? undefined : `https://orcid.org/${v}`) },
+  { type: "x", label: "X", href: (v) => (/(^|\/\/|\.)(x|twitter)\.com/i.test(v) ? webHref(v) ?? undefined : `https://x.com/${v.replace(/^@/, "")}`) },
+  { type: "bluesky", label: "Bluesky", href: (v) => (/bsky\.app/i.test(v) ? webHref(v) ?? undefined : `https://bsky.app/profile/${v.replace(/^@/, "")}`) },
+  { type: "threads", label: "Threads", href: (v) => (/threads\.(net|com)/i.test(v) ? webHref(v) ?? undefined : `https://www.threads.net/@${v.replace(/^@/, "")}`) },
+  { type: "skype", label: "Skype", prefix: "Skype:", href: () => undefined },
+];
+
+type ContactItem = {
+  type: string;
+  value: string | undefined;
+  icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties }>;
+  href?: string;
+  label?: string;
+  prefix?: string;
+};
+
+/** The extra profile links that have a value, as contact items. */
+function extraProfileLinks(info: Record<string, unknown> | null | undefined): ContactItem[] {
+  return EXTRA_PROFILE_LINKS.flatMap((link) => {
+    const raw = info?.[link.type];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return [];
+    return [{ type: link.type, value, icon: link.type === "skype" ? MessageCircle : AtSign, href: link.href(value), label: link.label, prefix: link.prefix }];
+  });
 }
 
 /** An entry's link as typed ("github.com/me/app") made openable; null when there is none. */
@@ -1103,10 +1143,36 @@ export function ResumeRenderer({
   };
 
   // Render additional personal information fields
+  /**
+   * "Experience: 7 years" under the title. It's a Personal details field, but several headers
+   * (Royal Indigo, Meridian, Condensed Rule, the photo headers) never showed it.
+   */
+  const renderYearsOfExperience = (className?: string) =>
+    personalInfo?.yearsOfExperience?.trim() ? (
+      <p
+        className={className ?? `${template.id}-years-experience`}
+        style={{ fontSize: `${templateStyle.fontSize.small}px`, margin: "2px 0 6px 0", fontStyle: "italic" }}
+      >
+        Experience: {ed("personalInfo.yearsOfExperience", personalInfo.yearsOfExperience)}
+      </p>
+    ) : null;
+
+  /** GPA / percentage under an education entry, for designs whose entry line has no slot for them. */
+  const renderEducationScore = (edu: { gpa?: string; percentage?: string }, index: number) =>
+    edu.gpa?.trim() || edu.percentage?.trim() || pathRevealed(canvas, `education.${index}.gpa`) ? (
+      <div className={`${template.id}-education-score`} style={{ fontSize: `${templateStyle.fontSize.small}px` }}>
+        {edu.gpa?.trim() || pathRevealed(canvas, `education.${index}.gpa`) ? <>CGPA: {ed(`education.${index}.gpa`, edu.gpa)}</> : null}
+        {edu.gpa?.trim() && edu.percentage?.trim() ? " · " : null}
+        {edu.percentage?.trim() ? <>Percentage: {ed(`education.${index}.percentage`, edu.percentage)}</> : null}
+      </div>
+    ) : null;
+
   const renderAdditionalPersonalInfo = (isInSidebar: boolean = false) => {
     const additionalFields: Array<{
       label: string;
       value: string | undefined;
+      /** Its Personal details field: shown as an inline field on the editor canvas. */
+      field?: string;
     }> = [];
 
     if (personalInfo.dateOfBirth) {
@@ -1126,40 +1192,25 @@ export function ResumeRenderer({
       });
     }
     if (personalInfo.maritalStatus) {
-      additionalFields.push({
-        label: "Marital Status",
-        value: personalInfo.maritalStatus,
-      });
+      additionalFields.push({ label: "Marital Status", value: personalInfo.maritalStatus, field: "maritalStatus" });
     }
     if (personalInfo.gender) {
-      additionalFields.push({ label: "Gender", value: personalInfo.gender });
+      additionalFields.push({ label: "Gender", value: personalInfo.gender, field: "gender" });
     }
     if (personalInfo.visa) {
-      additionalFields.push({ label: "Visa Status", value: personalInfo.visa });
+      additionalFields.push({ label: "Visa Status", value: personalInfo.visa, field: "visa" });
     }
     if (personalInfo.nationality) {
-      additionalFields.push({
-        label: "Nationality",
-        value: personalInfo.nationality,
-      });
+      additionalFields.push({ label: "Nationality", value: personalInfo.nationality, field: "nationality" });
     }
     if (personalInfo.militaryService) {
-      additionalFields.push({
-        label: "Military Service",
-        value: personalInfo.militaryService,
-      });
+      additionalFields.push({ label: "Military Service", value: personalInfo.militaryService, field: "militaryService" });
     }
     if (personalInfo.drivingLicense) {
-      additionalFields.push({
-        label: "Driving License",
-        value: personalInfo.drivingLicense,
-      });
+      additionalFields.push({ label: "Driving License", value: personalInfo.drivingLicense, field: "drivingLicense" });
     }
     if (personalInfo.disability) {
-      additionalFields.push({
-        label: "Disability",
-        value: personalInfo.disability,
-      });
+      additionalFields.push({ label: "Disability", value: personalInfo.disability, field: "disability" });
     }
 
     // Render passport details sub-section if available
@@ -1181,6 +1232,7 @@ export function ResumeRenderer({
       const passportFields: Array<{
         label: string;
         value: string | undefined;
+        field?: string;
       }> = [];
 
       if (personalInfo.passportNo) {
@@ -1241,7 +1293,7 @@ export function ResumeRenderer({
               }}
             >
               <span style={{ fontWeight: "bold" }}>{field.label}</span> -{" "}
-              {field.value}
+              {field.field ? ed(`personalInfo.${field.field}`, field.value) : field.value}
             </div>
           ))}
         </div>
@@ -1276,7 +1328,7 @@ export function ResumeRenderer({
             {field.value && (
               <>
                 {" - "}
-                <span>{field.value}</span>
+                <span>{field.field ? ed(`personalInfo.${field.field}`, field.value) : field.value}</span>
               </>
             )}
           </div>
@@ -1290,7 +1342,7 @@ export function ResumeRenderer({
   const renderContactInfo = (isInSidebar: boolean = false) => {
     const contactConfig = templateStyle.contactDisplay;
 
-    const contactItems = [
+    const contactItems = ([
       {
         type: "email",
         value: personalInfo.email,
@@ -1322,7 +1374,7 @@ export function ResumeRenderer({
         icon: ExternalLink,
         href: profileHref("website", personalInfo.website),
       },
-    ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
+    ] as ContactItem[]).concat(extraProfileLinks(personalInfo as Record<string, unknown>)).filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
 
     // Sidebar text color
     const textColor = isInSidebar
@@ -1338,6 +1390,7 @@ export function ResumeRenderer({
           "linkedin",
           "github",
           "website",
+          ...EXTRA_PROFILE_LINKS.map((l) => l.type),
         ];
         const orderedItems = gridOrder
           .map((type) => contactItems.find((item) => item.type === type))
@@ -1356,7 +1409,7 @@ export function ResumeRenderer({
                   style={{ alignItems: "flex-start" }}
                 >
                   <ContactIcon icon={IconComponent} size={13} />
-                  <span style={{ lineHeight: 1.4 }}>{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</span>
+                  <span style={{ lineHeight: 1.4 }}>{item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</span>
                 </div>
               );
 
@@ -1416,7 +1469,7 @@ export function ResumeRenderer({
                     color: textColor,
                   }}
                 >
-                  {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
+                  {item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
                 </span>
               </div>
             );
@@ -1447,7 +1500,7 @@ export function ResumeRenderer({
 
     if (isRoyalIndigo) {
       const primaryOrder = ["location", "phone", "email"] as const;
-      const secondaryOrder = ["linkedin", "website", "github"] as const;
+      const secondaryOrder = ["linkedin", "website", "github", ...EXTRA_PROFILE_LINKS.map((l) => l.type)];
       const primaryItems = primaryOrder
         .map((type) => contactItems.find((item) => item.type === type))
         .filter((item): item is (typeof contactItems)[number] => Boolean(item));
@@ -1461,10 +1514,10 @@ export function ResumeRenderer({
             {index > 0 && contactSeparator}
             {item.href ? (
               <a href={item.href} className="no-underline">
-                {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
+                {item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
               </a>
             ) : (
-              ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])
+              <>{item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</>
             )}
           </span>
         ));
@@ -1514,10 +1567,10 @@ export function ResumeRenderer({
                     : { textDecoration: "none", color: textColor }
                 }
               >
-                {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
+                {item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
               </a>
             ) : (
-              ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])
+              <>{item.prefix ? `${item.prefix} ` : null}{ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}</>
             )}
             {/* Its own element with even space both sides: a trailing " • " lost its space
                 in flex rows ("India •   linkedin"). */}
@@ -1545,6 +1598,83 @@ export function ResumeRenderer({
       <div style={{ marginBottom: `${templateStyle.sectionSpacing}px` }}>
         {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
         <span data-rx-empty-section={section.id}>{EMPTY_SECTION_ACTION[section.type]}</span>
+      </div>
+    );
+  };
+
+  /**
+   * A list section (skills, interests) in the design picked on the page, drawn with the
+   * template's own fonts and colours. Each word keeps an item marker so pages can break
+   * between rows.
+   */
+  const renderListDesign = (
+    section: Section,
+    items: string[],
+    design: ListDesignId,
+    isInSidebar: boolean,
+    sidebarStyle: React.CSSProperties,
+  ) => {
+    const textColor = isInSidebar ? templateStyle.colors.sidebarText || "#ffffff" : templateStyle.colors.text;
+    const accent = isInSidebar
+      ? textColor
+      : templateStyle.colors.accent || templateStyle.colors.primary || textColor;
+    const body: React.CSSProperties = {
+      fontSize: `${templateStyle.fontSize.body}px`,
+      lineHeight: templateStyle.lineHeight,
+      color: textColor,
+    };
+    const id = (i: number) => `${section.id}-design-${i}`;
+    let inner: React.ReactNode;
+    if (design === "comma" || design === "dot") {
+      inner = (
+        <p style={{ ...body, margin: 0 }}>
+          {items.map((t, i) => (
+            <React.Fragment key={i}>
+              {/* The dot sticks to the item before it (no-break space); the line may wrap only
+                  after it, so a line never starts with a dot or breaks inside an item. */}
+              {i > 0 ? (design === "comma" ? ", " : <>{"\u00A0"}<span style={{ color: accent, padding: "0 2px" }}>·</span>{" "}</>) : null}
+              <span style={{ whiteSpace: design === "dot" ? "nowrap" : undefined }}>{t}</span>
+            </React.Fragment>
+          ))}
+        </p>
+      );
+    } else if (design === "tags") {
+      inner = (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 6px" }}>
+          {items.map((t, i) => (
+            <span
+              key={i}
+              data-item-id={id(i)}
+              style={{ ...body, display: "inline-block", padding: "1px 8px", border: `1px solid ${accent}`, borderRadius: "4px" }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      );
+    } else {
+      const wanted = design === "columns-3" ? 3 : 2;
+      // A narrow sidebar has no room for a table: one column there.
+      const cols = isInSidebar ? 1 : wanted;
+      inner = (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: "16px", rowGap: "2px" }}>
+          {items.map((t, i) => (
+            <div key={i} data-item-id={id(i)} style={{ ...body, display: "flex", gap: "6px", minWidth: 0 }}>
+              {design === "bullets" ? <span aria-hidden style={{ color: accent }}>•</span> : null}
+              <span style={{ overflowWrap: "anywhere" }}>{t}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div
+        data-section={section.id}
+        data-rx-list-design={design}
+        style={{ marginBottom: `${templateStyle.sectionSpacing}px`, ...sidebarStyle }}
+      >
+        {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+        {inner}
       </div>
     );
   };
@@ -1633,7 +1763,7 @@ export function ResumeRenderer({
                       margin: "0 0 20px 0",
                     }}
                   >
-                    Experience: {personalInfo.yearsOfExperience}
+                    Experience: {ed("personalInfo.yearsOfExperience", personalInfo.yearsOfExperience)}
                   </p>
                 )}
               </div>
@@ -1726,6 +1856,19 @@ export function ResumeRenderer({
                 value: personalInfo.linkedin,
                 href: profileHref("linkedin", personalInfo.linkedin),
               },
+              // GitHub and the extra profile links were saved but never shown here.
+              {
+                field: "github",
+                label: "GitHub:",
+                value: personalInfo.github,
+                href: profileHref("github", personalInfo.github),
+              },
+              ...extraProfileLinks(personalInfo as Record<string, unknown>).map((l) => ({
+                field: l.type,
+                label: `${l.label}:`,
+                value: l.value,
+                href: l.href,
+              })),
             ].filter((row) => row.value?.trim() || (revealContacts && row.field));
 
             return (
@@ -1786,7 +1929,10 @@ export function ResumeRenderer({
                 ? personalInfo.website
                 : `https://${personalInfo.website}`,
             },
-          ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS));
+            // GitHub and the extra profile links were saved but never shown in this header.
+            { type: "github", value: personalInfo.github, icon: Github, href: profileHref("github", personalInfo.github) },
+            ...extraProfileLinks(personalInfo as Record<string, unknown>),
+          ].filter((item) => (typeof item.value === "string" ? item.value.trim() : item.value) || (revealContacts && item.type in CONTACT_PLACEHOLDERS)) as ContactItem[];
 
           // Group items into pairs for two-per-line display
           const pairs: (typeof contactItems)[] = [];
@@ -1825,6 +1971,7 @@ export function ResumeRenderer({
                             fontFamily: templateStyle.fontFamily,
                           }}
                         >
+                          {item.prefix ? `${item.prefix} ` : null}
                           {ed(`personalInfo.${item.type}`, item.value, CONTACT_PLACEHOLDERS[item.type])}
                         </span>
                       </div>
@@ -1860,6 +2007,7 @@ export function ResumeRenderer({
           const additionalFields: Array<{
             label: string;
             value: string | undefined;
+            field?: string;
           }> = [];
 
           if (personalInfo.dateOfBirth) {
@@ -1874,46 +2022,25 @@ export function ResumeRenderer({
             });
           }
           if (personalInfo.maritalStatus) {
-            additionalFields.push({
-              label: "Marital Status",
-              value: personalInfo.maritalStatus,
-            });
+            additionalFields.push({ label: "Marital Status", value: personalInfo.maritalStatus, field: "maritalStatus" });
           }
           if (personalInfo.gender) {
-            additionalFields.push({
-              label: "Gender",
-              value: personalInfo.gender,
-            });
+            additionalFields.push({ label: "Gender", value: personalInfo.gender, field: "gender" });
           }
           if (personalInfo.visa) {
-            additionalFields.push({
-              label: "Visa Status",
-              value: personalInfo.visa,
-            });
+            additionalFields.push({ label: "Visa Status", value: personalInfo.visa, field: "visa" });
           }
           if (personalInfo.nationality) {
-            additionalFields.push({
-              label: "Nationality",
-              value: personalInfo.nationality,
-            });
+            additionalFields.push({ label: "Nationality", value: personalInfo.nationality, field: "nationality" });
           }
           if (personalInfo.militaryService) {
-            additionalFields.push({
-              label: "Military Service",
-              value: personalInfo.militaryService,
-            });
+            additionalFields.push({ label: "Military Service", value: personalInfo.militaryService, field: "militaryService" });
           }
           if (personalInfo.drivingLicense) {
-            additionalFields.push({
-              label: "Driving License",
-              value: personalInfo.drivingLicense,
-            });
+            additionalFields.push({ label: "Driving License", value: personalInfo.drivingLicense, field: "drivingLicense" });
           }
           if (personalInfo.disability) {
-            additionalFields.push({
-              label: "Disability",
-              value: personalInfo.disability,
-            });
+            additionalFields.push({ label: "Disability", value: personalInfo.disability, field: "disability" });
           }
 
           if (additionalFields.length === 0) {
@@ -1946,7 +2073,7 @@ export function ResumeRenderer({
                       {field.value && (
                         <>
                           {" - "}
-                          <span>{field.value}</span>
+                          <span>{field.field ? ed(`personalInfo.${field.field}`, field.value) : field.value}</span>
                         </>
                       )}
                     </div>
@@ -1981,6 +2108,7 @@ export function ResumeRenderer({
           const passportFields: Array<{
             label: string;
             value: string | undefined;
+            field?: string;
           }> = [];
           if (personalInfo.passportNo) {
             passportFields.push({
@@ -2044,7 +2172,7 @@ export function ResumeRenderer({
                   {pair.map((field, fieldIndex) => (
                     <div key={fieldIndex}>
                       <span style={{ fontWeight: "bold" }}>{field.label}</span>{" "}
-                      - {field.value}
+                      - {field.field ? ed(`personalInfo.${field.field}`, field.value) : field.value}
                     </div>
                   ))}
                 </div>
@@ -2066,9 +2194,11 @@ export function ResumeRenderer({
                     {ed("personalInfo.portfolio", personalInfo.portfolio?.trim(), "Professional title")}
                   </span>
                 </div>
+                {renderYearsOfExperience()}
                 <div className={`${template.id}-contact`}>
                   {renderContactInfo(isInSidebar)}
                 </div>
+                {renderAdditionalPersonalInfo(isInSidebar)}
               </div>
             );
           }
@@ -2122,6 +2252,7 @@ export function ResumeRenderer({
                   </p>
               </div>
               <div className={`${template.id}-contact`}>
+                {renderYearsOfExperience()}
                 {renderContactInfo(isInSidebar)}
               </div>
               {renderAdditionalPersonalInfo(isInSidebar)}
@@ -2291,6 +2422,7 @@ export function ResumeRenderer({
                   </p>
                   </>
                 )}
+                {renderYearsOfExperience()}
                 {template.id === "saffron-line" || isConfidentGrid
                   ? renderContactInfo(false)
                   : renderProfileHeaderContactInfo()}
@@ -2308,7 +2440,15 @@ export function ResumeRenderer({
               <h1 className={`${template.id}-name`}>
                 {ed("personalInfo.fullName", personalInfo.fullName?.trim(), "Your name")}
               </h1>
+              {/* Job title, years and personal details were saved but never shown here. */}
+              {personalInfo.portfolio?.trim() || canvas ? (
+                <p className={`${template.id}-job-title`} style={{ margin: "0 0 4px 0" }}>
+                  {ed("personalInfo.portfolio", personalInfo.portfolio?.trim(), "Professional title")}
+                </p>
+              ) : null}
+              {renderYearsOfExperience()}
               {renderContactInfo(isInSidebar)}
+              {renderAdditionalPersonalInfo(isInSidebar)}
             </div>
           );
         }
@@ -2328,7 +2468,9 @@ export function ResumeRenderer({
                     {ed("personalInfo.portfolio", personalInfo.portfolio?.trim(), "Professional title")}
                   </p>
                 </div>
+                {renderYearsOfExperience()}
                 {renderContactInfo(isInSidebar)}
+                {renderAdditionalPersonalInfo(isInSidebar)}
               </>
             ) : (
             <div
@@ -2407,7 +2549,7 @@ export function ResumeRenderer({
                       fontStyle: "italic",
                     }}
                   >
-                    Experience: {personalInfo.yearsOfExperience}
+                    Experience: {ed("personalInfo.yearsOfExperience", personalInfo.yearsOfExperience)}
                   </p>
                 )}
                 {renderContactInfo(isInSidebar)}
@@ -2703,6 +2845,12 @@ export function ResumeRenderer({
                           <div className={`${template.id}-job-date`}>
                             {edDate(`experience.${index}`, formatRoyalIndigoDateRange(exp))}
                           </div>
+                          {/* The location was saved but never shown in this design. */}
+                          {(exp.location || pathRevealed(canvas, `experience.${index}.location`)) && (
+                            <div className={`${template.id}-job-location`} style={{ fontSize: `${templateStyle.fontSize.small}px`, textAlign: "right" }}>
+                              {ed(`experience.${index}.location`, exp.location)}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {(hasText(exp.description) || revealEntry(section.id, index)) && (
@@ -2826,6 +2974,12 @@ export function ResumeRenderer({
                           <div className={`${template.id}-job-date`}>
                             {edDate(`experience.${index}`, formatExperienceDateRange(exp))}
                           </div>
+                          {/* The location was saved but never shown in this design. */}
+                          {(exp.location || pathRevealed(canvas, `experience.${index}.location`)) && (
+                            <div className={`${template.id}-job-location`} style={{ fontSize: `${templateStyle.fontSize.small}px` }}>
+                              {ed(`experience.${index}.location`, exp.location)}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {(hasText(exp.description) || revealEntry(section.id, index)) && (
@@ -3062,7 +3216,7 @@ export function ResumeRenderer({
                           {edu.percentage && (
                             <span style={{ fontWeight: "normal" }}>
                               {" "}
-                              (Percentage: {edu.percentage})
+                              (Percentage: {ed(`education.${index}.percentage`, edu.percentage)})
                             </span>
                           )}
                         </div>
@@ -3082,17 +3236,7 @@ export function ResumeRenderer({
                             {ed(`education.${index}.institution`, edu.institution)}
                           </div>
                         )}
-                        {edu.location && !isEmberTimeline && (
-                          <div
-                            className={`${template.id}-education-location`}
-                            style={{
-                              fontSize: `${templateStyle.fontSize.small}px`,
-                              color: templateStyle.colors.secondary,
-                            }}
-                          >
-                            {ed(`education.${index}.location`, edu.location)}
-                          </div>
-                        )}
+                        {/* The location is already in the date column: it used to print twice. */}
                       </div>
                     </>
                   ) : isRoyalIndigo ? (
@@ -3119,8 +3263,24 @@ export function ResumeRenderer({
                       {(edu.institution || pathRevealed(canvas, `education.${index}.institution`)) && (
                         <div className={`${template.id}-institution`}>
                           {ed(`education.${index}.institution`, edu.institution)}
+                          {/* Location, field, GPA and percentage were saved but never shown here. */}
+                          {edu.location || pathRevealed(canvas, `education.${index}.location`) ? (
+                            <>, {ed(`education.${index}.location`, edu.location)}</>
+                          ) : null}
                         </div>
                       )}
+                      {edu.field?.trim() && !String(edu.degree ?? "").toLowerCase().includes(edu.field.trim().toLowerCase()) ? (
+                        <div className={`${template.id}-education-field`} style={{ fontSize: `${templateStyle.fontSize.small}px` }}>
+                          {ed(`education.${index}.field`, edu.field)}
+                        </div>
+                      ) : null}
+                      {edu.gpa || edu.percentage || pathRevealed(canvas, `education.${index}.gpa`) ? (
+                        <div className={`${template.id}-education-score`} style={{ fontSize: `${templateStyle.fontSize.small}px` }}>
+                          {edu.gpa || pathRevealed(canvas, `education.${index}.gpa`) ? <>CGPA: {ed(`education.${index}.gpa`, edu.gpa)}</> : null}
+                          {edu.gpa && edu.percentage ? " · " : null}
+                          {edu.percentage ? <>Percentage: {ed(`education.${index}.percentage`, edu.percentage)}</> : null}
+                        </div>
+                      ) : null}
                       {(hasText(edu.description) || revealEntry(section.id, index)) && (
                         <div
                           data-item-id={`${edu.id || `edu-${index}`}-body`}
@@ -3169,6 +3329,8 @@ export function ResumeRenderer({
                           )}
                         </div>
                       </div>
+                      {/* GPA was saved but never shown in this design. */}
+                      {renderEducationScore(edu, index)}
                     </>
                   ) : isConfidentGrid ? (
                     <>
@@ -3210,6 +3372,8 @@ export function ResumeRenderer({
                             .join(" | "))}
                         </div>
                       )}
+                      {/* GPA was saved but never shown in this design. */}
+                      {renderEducationScore(edu, index)}
                     </>
                   ) : (
                     <>
@@ -3259,7 +3423,7 @@ export function ResumeRenderer({
                             {edu.percentage && (
                               <span style={{ fontWeight: "normal" }}>
                                 {" "}
-                                (Percentage: {edu.percentage})
+                                (Percentage: {ed(`education.${index}.percentage`, edu.percentage)})
                               </span>
                             )}
                           </div>
@@ -3306,6 +3470,16 @@ export function ResumeRenderer({
                       </div>
                     </>
                   )}
+                  {/* Coursework / honours (kept from imported resumes): only Royal Indigo showed them.
+                      In grid designs it sits under the details column, not the date column. */}
+                  {!isRoyalIndigo && hasText(edu.description) ? (
+                    <div
+                      className={`resume-content ${template.id}-description`}
+                      style={{ gridColumn: templateStyle.timelineLayout.type === "grid" ? "2 / -1" : undefined, marginTop: "4px", width: "100%" }}
+                      {...rich(`education.${index}.description`)}
+                      dangerouslySetInnerHTML={stableHtml({ __html: formatExperienceDescriptionHtml(edu.description) })}
+                    />
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -3339,6 +3513,12 @@ export function ResumeRenderer({
             (typeof skillsData === "object" && !Array.isArray(skillsData) && Object.keys(skillsData).length === 0);
           if (noSkills && !canvas && !isRoyalIndigo) return null;
 
+          const skillsDesign = supportsListDesigns("skills", template.id) ? sectionDesignOf(resumeLayout, section.id) : null;
+          if (skillsDesign && !noSkills) {
+            const words = listItemsFrom(skillsData);
+            if (words.length > 0) return renderListDesign(section, words, skillsDesign, isInSidebar, sidebarStyle);
+          }
+
           if (isRoyalIndigo) {
             const skillList = parseRoyalIndigoSkillItems(skillsData);
 
@@ -3367,10 +3547,12 @@ export function ResumeRenderer({
               .join(", ");
 
             const certificatesData = resume.content.certificates || [];
+            // "Name (Issuer)": the issuer was saved but never shown in this design.
             const certificateText = certificatesData
-              .map((cert: { name?: string; title?: string }) =>
-                cert.name || cert.title || "",
-              )
+              .map((cert: { name?: string; title?: string; issuer?: string }) => {
+                const name = cert.name || cert.title || "";
+                return name && cert.issuer?.trim() ? `${name} (${cert.issuer.trim()})` : name;
+              })
               .filter(Boolean)
               .join(", ");
 
@@ -3414,10 +3596,13 @@ export function ResumeRenderer({
                 node: canvas
                   ? joinNodes(
                       certificatesData
-                        .map((cert: { name?: string; title?: string }, i: number) =>
-                          cert.name || cert.title
-                            ? ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, cert.title || cert.name)
-                            : null,
+                        .map((cert: { name?: string; title?: string; issuer?: string }, i: number) =>
+                          cert.name || cert.title ? (
+                            <React.Fragment key={i}>
+                              {ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, cert.title || cert.name)}
+                              {cert.issuer?.trim() ? <> ({ed(`certificates.${i}.issuer`, cert.issuer)})</> : null}
+                            </React.Fragment>
+                          ) : null,
                         )
                         .filter(Boolean),
                     )
@@ -4159,6 +4344,10 @@ export function ResumeRenderer({
                   const itemId = project.id || `project-${index}`;
                   // Same range rules as experience ("Present" when current, one separator style).
                   const dateText = formatProjectDateRange(project);
+                  // Technologies were saved but never shown in this design.
+                  const tech = Array.isArray(project.technologies)
+                    ? (project.technologies as string[]).filter(Boolean).join(", ")
+                    : String(project.technologies ?? "").split(",").map((t) => t.trim()).filter(Boolean).join(", ");
 
                   return (
                     <div
@@ -4202,6 +4391,11 @@ export function ResumeRenderer({
                           })}
                         />
                       )}
+                      {tech || pathRevealed(canvas, `projects.${index}.technologies`) ? (
+                        <div className={`${template.id}-project-tech`} style={{ fontSize: `${templateStyle.fontSize.small}px`, marginTop: "2px" }}>
+                          Technologies: {ed(`projects.${index}.technologies`, tech)}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -4681,9 +4875,14 @@ export function ResumeRenderer({
           // Same one-line style as its certificates (awards used to be left out entirely).
           const awardDetail = (award: { issuer?: string; date?: string }) =>
             [award.issuer, award.date ? formatResumeDateForDisplay(String(award.date)) : ""].filter(Boolean).join(", ");
-          const awardNames = awardsData.map((award: { title?: string; issuer?: string; date?: string }) =>
-            [award.title, awardDetail(award)].filter(Boolean).join(" — "),
-          );
+          // What it was for: the description was saved but never shown in this design.
+          const awardAbout = (award: { description?: string }) =>
+            typeof award.description === "string" ? award.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "";
+          const awardNames = awardsData.map((award: { title?: string; issuer?: string; date?: string; description?: string }) => {
+            const base = [award.title, awardDetail(award)].filter(Boolean).join(" — ");
+            const about = awardAbout(award);
+            return about ? `${base}: ${about}` : base;
+          });
           return (
             <div data-section={section.id} style={{ marginBottom: templateStyle.sectionSpacing }}>
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
@@ -4692,12 +4891,15 @@ export function ResumeRenderer({
                 `${template.id}-inline-list`,
                 canvas && executiveAwards.length === 0
                   ? (i) => {
-                      const award = awardsData[i] as { title?: string; issuer?: string; date?: string };
+                      const award = awardsData[i] as { title?: string; issuer?: string; date?: string; description?: string };
                       const detail = awardDetail(award);
+                      const about = awardAbout(award);
                       return (
                         <>
                           {ed(`awards.${i}.title`, award.title)}
                           {detail ? ` — ${detail}` : null}
+                          {/* Editable when it's plain text (editing stripped HTML would drop its formatting). */}
+                          {about ? <>: {/<[a-z]/i.test(String(award.description)) ? about : ed(`awards.${i}.description`, about)}</> : null}
                         </>
                       );
                     }
@@ -4739,10 +4941,14 @@ export function ResumeRenderer({
                     >
                       {(award.title || pathRevealed(canvas, `awards.${index}.title`)) && (
                         <span className={`${template.id}-award-title`}>
-                          {ed(`awards.${index}.title`, award.title)}.
+                          {ed(`awards.${index}.title`, award.title)}
+                          {/* The issuer was saved but never shown here. */}
+                          {award.issuer?.trim() || pathRevealed(canvas, `awards.${index}.issuer`) ? <>, {ed(`awards.${index}.issuer`, award.issuer)}</> : null}.
                         </span>
                       )}{" "}
-                      {description}
+                      {typeof award.description === "string" && !/<[a-z]/i.test(award.description)
+                        ? ed(`awards.${index}.description`, award.description)
+                        : description}
                     </li>
                   );
                 })}
@@ -4886,9 +5092,15 @@ export function ResumeRenderer({
           // "Name — Issuer": the issuer used to be dropped, so ATS never read who issued it.
           const certIssuer = (cert: { issuer?: string } | string) =>
             typeof cert === "object" && cert !== null && typeof cert.issuer === "string" ? cert.issuer.trim() : "";
+          // The issue date was saved but never shown here: "Name — Issuer (03/2022)".
+          const certDate = (cert: { issueDate?: string } | string) =>
+            typeof cert === "object" && cert !== null && cert.issueDate ? formatResumeDateForDisplay(String(cert.issueDate)) : "";
           const certificateNames = certificatesData.map(
-            (cert: { name?: string; title?: string; issuer?: string }) =>
-              [cert.name || cert.title || String(cert), certIssuer(cert)].filter(Boolean).join(" — "),
+            (cert: { name?: string; title?: string; issuer?: string; issueDate?: string }) => {
+              const base = [cert.name || cert.title || String(cert), certIssuer(cert)].filter(Boolean).join(" — ");
+              const date = certDate(cert);
+              return date ? `${base} (${date})` : base;
+            },
           );
           return (
             <div
@@ -4901,13 +5113,15 @@ export function ResumeRenderer({
                 `${template.id}-inline-list`,
                 canvas
                   ? (i, label) => {
-                      const cert = certificatesData[i] as { name?: string; title?: string; issuer?: string } | string;
+                      const cert = certificatesData[i] as { name?: string; title?: string; issuer?: string; issueDate?: string } | string;
                       if (typeof cert !== "object" || cert === null) return label;
                       const issuer = certIssuer(cert);
+                      const date = certDate(cert);
                       return (
                         <>
                           {ed(`certificates.${i}.${cert.title !== undefined || !cert.name ? "title" : "name"}`, cert.title || cert.name)}
-                          {issuer ? ` — ${issuer}` : null}
+                          {issuer ? <> — {ed(`certificates.${i}.issuer`, issuer)}</> : null}
+                          {date ? <> ({edDate1(`certificates.${i}.issueDate`, date)})</> : null}
                         </>
                       );
                     }
@@ -4950,7 +5164,8 @@ export function ResumeRenderer({
                           {edDate1(`certificates.${index}.issueDate`, formatResumeDateForDisplay(String(cert.issueDate ?? "")))}
                         </>
                       ) : null}
-                      {cert.expiryDate && ` - ${cert.expiryDate}`}
+                      {/* Was printed raw ("2025-02"), not in the resume's date style. */}
+                      {cert.expiryDate && ` - ${formatResumeDateForDisplay(String(cert.expiryDate))}`}
                     </div>
                   ) : null}
                   {cert.certificateId && (
@@ -4960,7 +5175,7 @@ export function ResumeRenderer({
                         color: templateStyle.colors.secondary,
                       }}
                     >
-                      ID: {cert.certificateId}
+                      ID: {ed(`certificates.${index}.certificateId`, cert.certificateId)}
                     </div>
                   )}
                   {webHref(cert.link) || revealPath(`certificates.${index}`) ? (
@@ -5097,6 +5312,13 @@ export function ResumeRenderer({
           | string
           | string[]
           | undefined;
+        {
+          const interestsDesign = supportsListDesigns("interests", template.id) ? sectionDesignOf(resumeLayout, section.id) : null;
+          const words = interestsDesign ? listItemsFrom(interestsRaw) : [];
+          if (interestsDesign && words.length > 0) {
+            return renderListDesign(section, words, interestsDesign, isInSidebar, sidebarStyle);
+          }
+        }
 
         if (isAmberEdge || isMeridian) {
           const additionalItems: { label: string; value: string }[] = [];
@@ -5152,7 +5374,8 @@ export function ResumeRenderer({
             additionalItems.push({ label: "Interests", value: interestsText });
           }
 
-          if (isMeridian) {
+          // Only when achievements have no section of their own (they used to print twice).
+          if (isMeridian && !shownTypes.has("achievements")) {
             const achievementsData = resume.content.achievements || [];
             const awardsActivityText = achievementsData
               .map((item: { title?: string; description?: string } | string) =>
@@ -5526,9 +5749,9 @@ export function ResumeRenderer({
                           : templateStyle.colors.text,
                       }}
                     >
-                      {ref.email && ref.email}
+                      {ref.email && ed(`references.${index}.email`, ref.email)}
                       {ref.email && ref.phone && " • "}
-                      {ref.phone && ref.phone}
+                      {ref.phone && ed(`references.${index}.phone`, ref.phone)}
                     </div>
                   )}
                 </div>

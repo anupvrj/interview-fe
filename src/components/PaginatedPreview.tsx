@@ -26,6 +26,7 @@ import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { buildResumeContentMeasureKey } from "@/lib/resume-content-measure-key";
 import type { PageData } from "@/hooks/useResumePagination";
 import { cn } from "@/lib/utils";
+import { ALL_UNIT_SELECTOR, applyPageVisibility } from "@/lib/resume-pagination/applyPageVisibility";
 
 export interface ResumePaginationSnapshot {
   pages: PageData[];
@@ -62,75 +63,6 @@ interface PreviewFrame {
  * so export / snapshot consumers still wait for the real layout.
  */
 const lastFrames = new Map<string, PreviewFrame>();
-
-const ALL_UNIT_SELECTOR =
-  '[data-item-id],[data-section-id],[data-section="personalInfo"]';
-
-function nodeUnitId(node: HTMLElement): string | null {
-  if (node.getAttribute("data-section") === "personalInfo") return "personalInfo";
-  return (
-    node.getAttribute("data-section-id") ?? node.getAttribute("data-item-id") ?? null
-  );
-}
-
-function nearestAncestorSectionId(node: HTMLElement): string | null {
-  let cur: HTMLElement | null = node.parentElement;
-  while (cur) {
-    const sec = cur.getAttribute("data-section");
-    if (sec) return sec;
-    cur = cur.parentElement;
-  }
-  return null;
-}
-
-/** Hide every unit node whose id is a known unit but not visible on this page.
- *  Also hide entire section wrappers (`[data-section=X]`) that have no visible
- *  units on this page, so unmarked residual content (empty-state placeholders,
- *  body paragraphs not wrapped in a marker) cannot leak onto other pages.
- *  Uses !important because some template CSS (e.g. atlantic-blue section headers)
- *  declares `display: flex !important`, which would override a plain inline none. */
-/** Marks what applyPageVisibility hid, so the next pass can show it again (pages are reused). */
-const HIDDEN_ATTR = "data-rx-page-hidden";
-
-function hideOnPage(el: HTMLElement) {
-  el.style.setProperty("display", "none", "important");
-  el.setAttribute(HIDDEN_ATTR, "");
-}
-
-function applyPageVisibility(root: HTMLElement, all: Set<string>, visible: Set<string>) {
-  // Start from what React rendered: undo the previous pass (the page DOM is kept between
-  // layouts now, so edits don't replace the field being typed in).
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>(`[${HIDDEN_ATTR}]`))) {
-    el.style.removeProperty("display");
-    el.removeAttribute(HIDDEN_ATTR);
-  }
-  // Sections that have at least one known unit (so we may safely toggle the wrapper)
-  // and sections that have at least one visible unit on this page (keep their wrapper).
-  const knownSections = new Set<string>();
-  const visibleSections = new Set<string>();
-  for (const node of Array.from(root.querySelectorAll(ALL_UNIT_SELECTOR)) as HTMLElement[]) {
-    const id = nodeUnitId(node);
-    if (!id || !all.has(id)) continue;
-    const sec = nearestAncestorSectionId(node);
-    if (!sec) continue;
-    knownSections.add(sec);
-    if (visible.has(id)) visibleSections.add(sec);
-  }
-
-  // Hide entire known section wrappers with no visible units on this page.
-  for (const sec of Array.from(root.querySelectorAll("[data-section]")) as HTMLElement[]) {
-    const sid = sec.getAttribute("data-section");
-    if (!sid || !knownSections.has(sid)) continue;
-    if (!visibleSections.has(sid)) hideOnPage(sec);
-  }
-
-  // Within visible sections, hide individual marked units not on this page.
-  for (const node of Array.from(root.querySelectorAll(ALL_UNIT_SELECTOR)) as HTMLElement[]) {
-    const id = nodeUnitId(node);
-    if (!id || !all.has(id)) continue;
-    if (!visible.has(id)) hideOnPage(node);
-  }
-}
 
 /**
  * Pages after the first start at least this far from the top edge. Templates with no top
@@ -180,7 +112,9 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       | undefined;
     const dateFormat = (currentLayout as { dateFormat?: string }).dateFormat ?? "";
     // Date style changes text width ("March 2024" vs "03/2024"), so it re-paginates too.
-    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? "", dateFormat].join("|");
+    // A section's design (skills as a table, as commas…) changes its height too.
+    const designs = JSON.stringify((currentLayout as { sectionDesigns?: unknown }).sectionDesigns ?? {});
+    return [fs?.heading ?? "", fs?.subheading ?? "", fs?.body ?? "", fs?.small ?? "", fs?.sectionHeader ?? "", currentLayout.fontFamily ?? "", dateFormat, designs].join("|");
   }, [currentLayout]);
 
   const contentMeasureKey = useMemo(() => buildResumeContentMeasureKey(resume), [resume]);

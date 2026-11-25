@@ -57,9 +57,15 @@
   print-color-adjust: exact !important;
 }
 
-/* Reference design: name + contact only (no job title under name) */
+/* The job title people type was hidden here (the reference design had none), so it never
+   reached the page or the PDF. Shown under the name, quietly; empty titles print nothing. */
 .navy-frame-header-section .navy-frame-job-title {
-  display: none !important;
+  font-size: var(--resume-subheading-font-size, 13px) !important;
+  font-weight: 600 !important;
+  color: #1f3a5f !important;
+  margin: -4px 0 10px 0 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
 .navy-frame-contact {
