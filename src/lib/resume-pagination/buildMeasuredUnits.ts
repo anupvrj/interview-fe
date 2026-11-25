@@ -46,7 +46,21 @@ export interface BuildMeasuredUnitsResult {
    *  accounts for the page padding, any full-width header above the columns (e.g.
    *  Saffron Line personalInfo), the header→column gap, and the column's own padding. */
   columnBudgets: Record<UnitColumn, number>;
+  /** The same for pages after the first, where the page-1 header (name band) isn't shown:
+   *  a full-width header above the columns no longer takes room there. */
+  laterColumnBudgets: Record<UnitColumn, number>;
 }
+
+import {
+  PATH_JOIN,
+  blockUnitId,
+  collectBlockGroups,
+  itemAnchorKey,
+  orphanGlue,
+  parentAnchorKey,
+  pathFrom,
+  sectionAnchorKey,
+} from "./splitBlocks";
 
 const HEADER_SUFFIX = "-header";
 const BODY_SUFFIX = "-body";
@@ -109,6 +123,10 @@ export function buildMeasuredUnits(
     containerRect.height > 0 && offsetH > 0 ? containerRect.height / offsetH : 1;
 
   const raw: MeasuredUnit[] = [];
+  /** The element each unit was measured from (for splitting tall units into lines). */
+  const elementOf = new Map<MeasuredUnit, HTMLElement>();
+  /** Bodyless sections: header unit -> its section element (the body may split into lines). */
+  const bodylessSection = new Map<MeasuredUnit, HTMLElement>();
 
   // Per-section bottom margin (px, unscaled) — added to the last unit of each section
   // so the packer accounts for the trailing section spacing and doesn't overflow.
@@ -154,7 +172,7 @@ export function buildMeasuredUnits(
       const prev = sectionMarginBottom.get(sectionId) ?? 0;
       if (mb > prev) sectionMarginBottom.set(sectionId, mb);
     }
-    raw.push({
+    const unit: MeasuredUnit = {
       id: node.getAttribute("data-item-id") ?? node.getAttribute("id") ?? "",
       sectionId,
       column: resolveColumn(node),
@@ -163,7 +181,9 @@ export function buildMeasuredUnits(
       height,
       keepWithNext: false,
       ...partial,
-    });
+    };
+    raw.push(unit);
+    elementOf.set(unit, node);
   };
 
   // Section headers. id = data-section-id so hiding can target [data-section-id="X"] in the page DOM.
@@ -183,6 +203,7 @@ export function buildMeasuredUnits(
     });
     if (bodyless && raw.length > before) {
       const unit = raw[raw.length - 1];
+      bodylessSection.set(unit, sectionNode!);
       // Border box: the body below the header (the bottom margin is added later).
       const section = rectToContainerY(sectionNode!, containerTop, scale);
       unit.bottom = Math.max(unit.bottom, section.bottom);
@@ -236,9 +257,18 @@ export function buildMeasuredUnits(
     push(node as HTMLElement, { kind: "atomic-if-fits", atomicIfFits: true });
   }
 
+  const split = splitTallUnits(
+    entryHeadersWithoutBody(raw, elementOf, containerTop, scale),
+    elementOf,
+    bodylessSection,
+    containerTop,
+    scale,
+    pageHeightLimit,
+  );
+
   // Sort by document position (top, then DOM order). personalInfo is included as a
   // single unit (the page-1 header) so it can be hidden on page 2+.
-  const units = raw.sort((a, b) => {
+  const units = split.sort((a, b) => {
     if (a.top !== b.top) return a.top - b.top;
     return 0;
   });
@@ -282,5 +312,166 @@ export function buildMeasuredUnits(
     columnBudgets[col] = Math.max(120, pageHeightLimit - firstUnitTop - colPadBottom);
   }
 
-  return { units, headerHeight, columnBudgets };
+  // Later pages: measure where each column's content starts with the header hidden (it
+  // is display:none on those pages), so a full-width header above the columns doesn't
+  // shrink every page after the first. Read synchronously and restored at once.
+  const laterColumnBudgets: Record<UnitColumn, number> = { ...columnBudgets };
+  // Only a header ABOVE the columns frees room on later pages; in a single column the
+  // header is part of the flow and page 1's budget already measures from the page top.
+  const headerAboveColumns = !!headerNode && resolveColumn(headerNode) === "single" && (!!colNodes.left || !!colNodes.right);
+  if (headerNode && headerHeight > 0 && headerAboveColumns) {
+    const prev = headerNode.style.getPropertyValue("display");
+    const prevPriority = headerNode.style.getPropertyPriority("display");
+    headerNode.style.setProperty("display", "none", "important");
+    try {
+      const top = measureRoot.getBoundingClientRect().top;
+      for (const col of ["left", "right"] as UnitColumn[]) {
+        const colUnits = units.filter((u) => u.column === col && u.id !== "personalInfo");
+        if (colUnits.length === 0) continue;
+        let firstTop = Infinity;
+        for (const node of Array.from(measureRoot.querySelectorAll<HTMLElement>("[data-section-header],[data-item-id]"))) {
+          if (resolveColumn(node) !== col || node.closest('[data-section="personalInfo"]')) continue;
+          const r = node.getBoundingClientRect();
+          if (r.height > 0) firstTop = Math.min(firstTop, (r.top - top) / scale);
+        }
+        if (!Number.isFinite(firstTop) || firstTop <= 0) continue;
+        const colNode = colNodes[col];
+        const colPadBottom = colNode ? parseFloat(getComputedStyle(colNode).paddingBottom || "0") || 0 : 0;
+        // Never less room than page 1 had (the header can't make later pages smaller).
+        laterColumnBudgets[col] = Math.max(columnBudgets[col], Math.floor(pageHeightLimit - firstTop - colPadBottom));
+      }
+    } finally {
+      if (prev) headerNode.style.setProperty("display", prev, prevPriority);
+      else headerNode.style.removeProperty("display");
+    }
+  }
+
+  return { units, headerHeight, columnBudgets, laterColumnBudgets };
+}
+
+/**
+ * Replace units that may break across pages with the lines they're made of, so a long job
+ * (or summary, custom section, project) fills the rest of the page instead of jumping to the
+ * next one whole. Orphan glue keeps a title with at least two of its lines and never leaves
+ * one line alone at the top of a page. Small entries stay in one piece.
+ */
+function splitTallUnits(
+  raw: MeasuredUnit[],
+  elementOf: Map<MeasuredUnit, HTMLElement>,
+  bodylessSection: Map<MeasuredUnit, HTMLElement>,
+  containerTop: number,
+  scale: number,
+  pageHeightLimit: number,
+): MeasuredUnit[] {
+  const out: MeasuredUnit[] = [];
+  const toBlocks = (
+    template: MeasuredUnit,
+    anchor: HTMLElement,
+    anchorKey: string,
+    groups: Element[][],
+    leadingGlue: number,
+    span: { top: number; bottom: number },
+  ): MeasuredUnit[] | null => {
+    const paths = groups.map((g) => {
+      const parts = g.map((e) => pathFrom(anchor, e));
+      return parts.some((p) => p === null) ? null : parts.join(PATH_JOIN);
+    });
+    if (paths.some((p) => p === null)) return null;
+    const blocks = groups.map((g) => g[0]);
+    const glue = orphanGlue(blocks.length, leadingGlue);
+    return blocks.map((b, i) => {
+      // Measure the line itself; side columns (a stretched date column) would span the row.
+      const r = rectToContainerY(b as HTMLElement, containerTop, scale);
+      // The first and last lines carry the anchor's own padding, so the run of lines
+      // spans exactly what the whole unit did.
+      const top = i === 0 ? Math.min(r.top, span.top) : r.top;
+      const bottom = i === blocks.length - 1 ? Math.max(r.bottom, span.bottom) : r.bottom;
+      return {
+        id: blockUnitId(anchorKey, paths[i]!),
+        kind: "body-block" as const,
+        sectionId: template.sectionId,
+        column: template.column,
+        top,
+        bottom,
+        height: Math.max(0, bottom - top),
+        keepWithNext: glue[i],
+      };
+    });
+  };
+
+  for (const unit of raw) {
+    const el = elementOf.get(unit);
+    const section = bodylessSection.get(unit);
+    if (el && section) {
+      // Header + body with no item markers (summary, a free-text custom section): keep the
+      // header as its own unit glued to the body's lines.
+      const blocks = collectBlockGroups(section, el);
+      const headerRect = rectToContainerY(el, containerTop, scale);
+      const lines = blocks.length >= 2 && !blocks.some((g) => g.includes(section))
+        ? toBlocks(unit, section, sectionAnchorKey(unit.sectionId), blocks, 1, { top: headerRect.bottom, bottom: unit.bottom })
+        : null;
+      if (lines) {
+        out.push({ ...unit, bottom: headerRect.bottom, height: headerRect.height, keepWithNext: true }, ...lines);
+        continue;
+      }
+    } else if (el && (unit.kind === "item" || unit.kind === "atomic-if-fits")) {
+      const isBody = unit.id.endsWith(BODY_SUFFIX);
+      const blocks = collectBlockGroups(el);
+      const tall = unit.height > pageHeightLimit * 0.3;
+      // Item bodies always may break (their header is a separate unit). A whole item (a card,
+      // an entry with no header marker) breaks only when it's tall; a card that asks to stay
+      // together breaks only when it can't fit on a page at all.
+      const eligible =
+        unit.kind === "atomic-if-fits" ? unit.height > pageHeightLimit * 0.9 : isBody ? true : tall || blocks.length >= 6;
+      if (eligible && blocks.length >= 2 && !blocks.some((g) => g.includes(el))) {
+        const lines = toBlocks(unit, el, itemAnchorKey(unit.id), blocks, isBody ? 1 : 2, unit);
+        if (lines) {
+          out.push(...lines);
+          continue;
+        }
+      }
+    }
+    out.push(unit);
+  }
+  return out;
+}
+
+/**
+ * An entry whose title is marked ("edu-0-header") but whose details aren't (no "-body"):
+ * gluing the title to "the next unit" chained it to the NEXT entry's title, so a whole
+ * section (and the heading after it) moved as one block. Use the entry's wrapper instead,
+ * so the title and its unmarked details move (and hide) together.
+ */
+function entryHeadersWithoutBody(
+  raw: MeasuredUnit[],
+  elementOf: Map<MeasuredUnit, HTMLElement>,
+  containerTop: number,
+  scale: number,
+): MeasuredUnit[] {
+  const bodies = new Set(raw.filter((u) => u.id.endsWith(BODY_SUFFIX)).map((u) => u.id.slice(0, -BODY_SUFFIX.length)));
+  return raw.map((u) => {
+    if (u.kind !== "header" || !u.id.endsWith(HEADER_SUFFIX)) return u;
+    const base = u.id.slice(0, -HEADER_SUFFIX.length);
+    if (bodies.has(base)) return u;
+    const wrapper = elementOf.get(u)?.parentElement;
+    const ownsOnlyThisEntry =
+      !!wrapper &&
+      !wrapper.hasAttribute("data-section") &&
+      Array.from(wrapper.querySelectorAll("[data-item-id]")).every((n) => (n.getAttribute("data-item-id") ?? "").startsWith(base));
+    if (!wrapper || !ownsOnlyThisEntry) return { ...u, keepWithNext: false };
+    const r = rectToContainerY(wrapper, containerTop, scale);
+    const wrapperId = wrapper.getAttribute("data-item-id");
+    const unit: MeasuredUnit = {
+      ...u,
+      // The wrapper is itself a marked item ("edu-0"): hide it by its id. Otherwise address it
+      // through the title it holds.
+      id: wrapperId === base ? base : blockUnitId(parentAnchorKey(u.id), ""),
+      kind: wrapperId === base ? "item" : "body-block",
+      top: Math.min(u.top, r.top),
+      bottom: Math.max(u.bottom, r.bottom),
+      height: Math.max(u.bottom, r.bottom) - Math.min(u.top, r.top),
+      keepWithNext: false,
+    };
+    return unit;
+  });
 }

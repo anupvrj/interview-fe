@@ -63,9 +63,17 @@ function isTwoColumnLayout(units: MeasuredUnit[]): boolean {
   return units.some((u) => u.column === "left" || u.column === "right");
 }
 
+/**
+ * A page that continues a section mid-way still renders that section's wrapper (its top
+ * margin / padding) above the first line, which the packer's Y-span can't see. Keep this
+ * much spare on later pages so the last line never runs into the bottom margin.
+ */
+const CONTINUATION_SAFETY_PX = 10;
+
 /** Pack a single column's units; returns per-page unit-id lists. */
-function packColumn(units: MeasuredUnit[], pageHeightPx: number, laterReservePx = 0, firstExtraPx = 0) {
-  return packUnitsIntoPages(units, pageHeightPx + firstExtraPx, Math.max(pageHeightPx * 0.5, pageHeightPx - laterReservePx));
+function packColumn(units: MeasuredUnit[], pageHeightPx: number, laterReservePx = 0, firstExtraPx = 0, laterPageHeightPx = pageHeightPx) {
+  const later = laterPageHeightPx - laterReservePx - CONTINUATION_SAFETY_PX;
+  return packUnitsIntoPages(units, pageHeightPx + firstExtraPx, Math.max(laterPageHeightPx * 0.5, later));
 }
 
 export function useResumePagination({
@@ -130,7 +138,7 @@ export function useResumePagination({
 
     const fullHeight = Math.ceil(container.scrollHeight);
     const activeSections = sectionsRef.current;
-    const { units, columnBudgets } = buildMeasuredUnits(
+    const { units, columnBudgets, laterColumnBudgets } = buildMeasuredUnits(
       container,
       pageHeightLimitRef.current,
     );
@@ -161,8 +169,8 @@ export function useResumePagination({
       // above both columns on page 1 only. They are not part of left/right packing; if
       // we omitted them they would have no page assignment and vanish from every page.
       const single = units.filter((u) => u.column === "single");
-      const leftPages = packColumn(left, columnBudgets.left, laterReserveRef.current, firstExtraRef.current);
-      const rightPages = packColumn(right, columnBudgets.right, laterReserveRef.current, firstExtraRef.current);
+      const leftPages = packColumn(left, columnBudgets.left, laterReserveRef.current, firstExtraRef.current, laterColumnBudgets.left);
+      const rightPages = packColumn(right, columnBudgets.right, laterReserveRef.current, firstExtraRef.current, laterColumnBudgets.right);
       const pageCount = Math.max(leftPages.length, rightPages.length, 1);
       const singleIds = single.map((u) => u.id);
       pageUnits = [];
@@ -184,7 +192,7 @@ export function useResumePagination({
         });
       }
     } else {
-      const packed = packColumn(units, columnBudgets.single, laterReserveRef.current, firstExtraRef.current);
+      const packed = packColumn(units, columnBudgets.single, laterReserveRef.current, firstExtraRef.current, laterColumnBudgets.single);
       pageUnits = packed.map((p) => p.unitIds);
       pages = packed;
     }
