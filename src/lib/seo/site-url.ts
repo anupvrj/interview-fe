@@ -106,6 +106,7 @@ export function isPrivateAppPath(pathname: string): boolean {
   return (
     pathname === "/*" ||
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/render") ||
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
