@@ -62,7 +62,7 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-[1120px] px-5 text-center">
         <motion.div {...rise(0)}><LivePill><span className="hidden sm:inline">New · InterviewTrix is </span><span className="sm:hidden">Now </span>live inside ChatGPT</LivePill></motion.div>
-        <h1 className="text-balance mx-auto mt-7 max-w-[15ch] text-[46px] font-black leading-[0.98] tracking-[-0.055em] sm:text-[62px] md:text-[78px] xl:text-[88px]">
+        <h1 className="text-balance mx-auto mt-7 max-w-[15ch] text-[clamp(30px,11.4vw,46px)] font-black leading-[0.98] tracking-[-0.055em] sm:text-[62px] md:text-[78px] xl:text-[88px]">
           {words.map((w, i) => (
             <motion.span key={w.t} className={`inline-block ${w.c}`} {...rise(0.12 + i * 0.07)}>
               {w.t}&nbsp;
