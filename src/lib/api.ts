@@ -2030,6 +2030,8 @@ export interface Resume {
     dismissedEmptyTrailingPages?: number;
     /** Date style picked in the Style panel ("auto" / "MM/YYYY" / "Mon YYYY" / …). */
     dateFormat?: string;
+    /** Per-section designs picked on the page ({ skills: "columns-3" }); see resume-section-designs. */
+    sectionDesigns?: Record<string, string>;
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;
@@ -2060,6 +2062,10 @@ export interface Resume {
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF
   thumbnailS3Key?: string; // S3 key for resume thumbnail
+  /** Signed link to the resume's own thumbnail (resume list only); null until first rendered. */
+  thumbnailUrl?: string | null;
+  /** The thumbnail shows an older revision (a new one is being rendered). */
+  thumbnailStale?: boolean;
   createdAt: string;
   updatedAt: string;
 }

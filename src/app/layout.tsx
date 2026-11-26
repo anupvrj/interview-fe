@@ -17,6 +17,7 @@ import { getMetaPixelId } from "@/config/meta-pixel";
 import { AppMetaPixel } from "@/components/AppMetaPixel";
 import { AppToaster } from "@/components/AppToaster";
 import { SitePopupHost } from "@/features/site-popups/SitePopupHost";
+import { SkipOnRenderRoutes } from "@/components/SkipOnRenderRoutes";
 import {
   StructuredData,
   organizationSchema,
@@ -133,9 +134,11 @@ export default function RootLayout({
           />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
-          <AppGoogleAnalytics gaId={gaMeasurementId} debugMode={!isSearchIndexable()} />
-          <AppMicrosoftClarity projectId={clarityProjectId} />
-          <AppMetaPixel pixelId={metaPixelId} />
+          <SkipOnRenderRoutes>
+            <AppGoogleAnalytics gaId={gaMeasurementId} debugMode={!isSearchIndexable()} />
+            <AppMicrosoftClarity projectId={clarityProjectId} />
+            <AppMetaPixel pixelId={metaPixelId} />
+          </SkipOnRenderRoutes>
           <TemplateRegistryInitializer />
           <QueryProvider>
             <UserProvider>
@@ -146,7 +149,9 @@ export default function RootLayout({
                 <ReferralCapture />
               </Suspense>
               <FeatureRouteGuard>{children}</FeatureRouteGuard>
-              <SitePopupHost />
+              <SkipOnRenderRoutes>
+                <SitePopupHost />
+              </SkipOnRenderRoutes>
             </UserProvider>
           </QueryProvider>
           <AppToaster />

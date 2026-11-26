@@ -39,6 +39,8 @@ const isPublicRoute = createRouteMatcher([
   "/about-us(.*)",
   "/pricing(.*)",
   "/ats-checker(.*)",
+  // Server-side resume thumbnail renderer (guarded by a short-lived signed token, not a session).
+  "/render(.*)",
   "/contact(.*)",
   "/refund(.*)",
   "/terms(.*)",

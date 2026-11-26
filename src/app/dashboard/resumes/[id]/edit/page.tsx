@@ -1,4 +1,5 @@
 "use client";
+import { sectionDesignOf, supportsListDesigns, withSectionDesign } from "@/lib/resume-section-designs";
 
 import {
   useEffect,
@@ -116,7 +117,6 @@ import { eventTargets, hackathonApi, toHackathonError } from "@/features/hackath
 import { hackathonKeys } from "@/features/hackathon/hooks";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
-import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { compileResumePdfFromPreviewContainer } from "@/lib/compile-resume-pdf-from-dom";
 import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 import {
@@ -408,6 +408,8 @@ export default function EditResumePage() {
     fontFamily?: string;
     dismissedEmptyTrailingPages?: number;
     dateFormat?: string;
+    /** Per-section designs picked on the page ({ skills: "columns-3" }). */
+    sectionDesigns?: Record<string, string>;
   } | null>(null);
 
   // Effective typography: template defaults merged with layout overrides (for Layout UI)
@@ -608,9 +610,6 @@ export default function EditResumePage() {
 
   // Track dragging state
   const isDraggingRef = useRef(false);
-  const isThumbnailUploadingRef = useRef(false);
-  const autoThumbnailAttemptsRef = useRef(0);
-  const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
   const resumeRef = useRef(resume);
   const layoutRef = useRef(layout);
   const sectionsRef = useRef(sections);
@@ -998,88 +997,8 @@ export default function EditResumePage() {
     );
   }, []);
 
-  const triggerThumbnailCapture = useCallback(
-    async (targetResumeId: string, options?: { force?: boolean }) => {
-      if (!targetResumeId) return;
-      if (isThumbnailUploadingRef.current) return;
-      const force = options?.force === true;
-      if (!force) {
-        if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) {
-          return;
-        }
-        if (resume?.thumbnailS3Key) {
-          return;
-        }
-      }
-
-      const previewContainerId = `resume-preview-container-${targetResumeId}`;
-      const previewElement = document.getElementById(previewContainerId);
-      if (!previewElement) {
-        return;
-      }
-
-      isThumbnailUploadingRef.current = true;
-      if (!force) {
-        autoThumbnailAttemptsRef.current += 1;
-      }
-
-      try {
-        const result = await captureAndUploadThumbnail(
-          targetResumeId,
-          previewContainerId,
-        );
-
-        if (result.success) {
-          const updatedResume = await resumeApi.get(targetResumeId);
-          debugResumePagination("thumbnail:auto:setResume", {
-            targetResumeId,
-          });
-          // Only the thumbnail changed. Swapping in the whole server copy gave the page a new
-          // resume object after every autosave, which re-laid out the pages and replaced the
-          // field being typed in (caret and uncommitted text lost).
-          setResumeState((prev) => {
-            if (!prev) return updatedResume;
-            if (prev.thumbnailS3Key === updatedResume.thumbnailS3Key) return prev;
-            return { ...prev, thumbnailS3Key: updatedResume.thumbnailS3Key };
-          });
-        } else {
-          // Non-critical: the next save captures it again.
-          console.warn("Auto thumbnail upload skipped:", result.error);
-        }
-      } catch (error) {
-        console.error("Error during auto thumbnail capture:", error);
-      } finally {
-        isThumbnailUploadingRef.current = false;
-      }
-    },
-    [resume?.thumbnailS3Key, MAX_AUTO_THUMBNAIL_ATTEMPTS],
-  );
-
-  // Attempt thumbnail generation on initial preview render (not only after save).
-  const thumbnailS3Key = resume?.thumbnailS3Key;
-  useEffect(() => {
-    if (!mounted || loading || !resume || !template || !resumeId) return;
-    if (thumbnailS3Key) return;
-    if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
-
-    const timers = [
-      setTimeout(() => void triggerThumbnailCapture(resumeId), 1500),
-      setTimeout(() => void triggerThumbnailCapture(resumeId), 4500),
-      setTimeout(() => void triggerThumbnailCapture(resumeId), 9000),
-    ];
-
-    return () => {
-      timers.forEach((timerId) => clearTimeout(timerId));
-    };
-  }, [
-    mounted,
-    loading,
-    resumeId,
-    template,
-    thumbnailS3Key,
-    triggerThumbnailCapture,
-    resume,
-  ]);
+  // Thumbnails are rendered on the server after saves (page 1, as the PDF draws it). The editor
+  // used to screenshot the page in the browser (html2canvas) after every autosave.
 
   // Autosave only when the user has unsaved edits — not on ATS/thumbnail resume syncs.
   useEffect(() => {
@@ -1110,7 +1029,6 @@ export default function EditResumePage() {
         });
 
         finishSave({ resume: currentResume, sections: currentSections, layout: currentLayout });
-        await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         // A save refused because another tab saved first is handled by the conflict banner.
         if ((error as { response?: { status?: number } })?.response?.status !== 409) {
@@ -1122,7 +1040,7 @@ export default function EditResumePage() {
     }, 1500);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, saveConflict, resumeId, triggerThumbnailCapture, saveNudge, finishSave]);
+  }, [hasChanges, saveConflict, resumeId, saveNudge, finishSave]);
 
   useEffect(() => {
     const onConflict = (event: Event) => {
@@ -1323,6 +1241,8 @@ export default function EditResumePage() {
             (resumeData.layout as { dismissedEmptyTrailingPages?: number })
               .dismissedEmptyTrailingPages ?? 0,
           dateFormat: resumeData.layout.dateFormat,
+          // Kept, or the next save would wipe the designs picked on the page.
+          sectionDesigns: resumeData.layout.sectionDesigns,
         });
 
         // If Mercury template has wrong padding, update it
@@ -1346,15 +1266,9 @@ export default function EditResumePage() {
             };
             setLayout(updatedLayout as any);
             // Save updated layout to database
-            (async () => {
-              try {
-                await resumeApi.update(resumeId, {
-                  layout: updatedLayout,
-                });
-              } catch (error) {
-                console.error("Error updating layout padding:", error);
-              }
-            })();
+            // Saved by the normal autosave. A separate save here raced it with the same
+            // revision, so one was refused as "changed in another tab" and nothing saved after.
+            setHasChanges(true);
           }
         }
 
@@ -1372,11 +1286,7 @@ export default function EditResumePage() {
               columnWidths: { left: 36, right: 64 },
             };
             setLayout(updatedLayout as typeof layout);
-            void resumeApi
-              .update(resumeId, { layout: updatedLayout })
-              .catch((error) => {
-                console.error("Error updating saffron-line layout:", error);
-              });
+            setHasChanges(true); // saved by the autosave (a separate save raced it: 409)
           }
         }
 
@@ -1394,11 +1304,7 @@ export default function EditResumePage() {
               columnWidths: { left: 50, right: 50 },
             };
             setLayout(updatedLayout as typeof layout);
-            void resumeApi
-              .update(resumeId, { layout: updatedLayout })
-              .catch((error) => {
-                console.error("Error updating confident-grid layout:", error);
-              });
+            setHasChanges(true); // saved by the autosave (a separate save raced it: 409)
           }
         }
       } else {
@@ -1931,7 +1837,6 @@ export default function EditResumePage() {
       });
       setHasChanges(false);
       setLastSaved(new Date());
-      await triggerThumbnailCapture(resumeId, { force: true });
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Failed to save resume. Please try again.");
@@ -2166,8 +2071,12 @@ export default function EditResumePage() {
         { content: resume.content, sectionOrder: resume.sectionOrder },
       );
 
-      // The date style is the user's choice, not the design's: keep it.
-      const nextLayout = { ...templateApplication.layout, dateFormat: layout?.dateFormat };
+      // The date style and section designs are the user's choices, not the template's: keep them.
+      const nextLayout = {
+        ...templateApplication.layout,
+        dateFormat: layout?.dateFormat,
+        sectionDesigns: layout?.sectionDesigns,
+      };
       const designOrder = templateApplication.sectionOrder || [];
 
       // A new design changes how the resume looks, not what's in it: keep the user's order,
@@ -2678,27 +2587,7 @@ export default function EditResumePage() {
       }
       guideRef.current?.milestone("exported");
 
-      const currentResumeId = resumeId;
-      setTimeout(async () => {
-        try {
-          if (currentResumeId !== resumeId) return;
-          const previewContainerId = `resume-preview-container-${currentResumeId}`;
-          const previewElement = document.getElementById(previewContainerId);
-          if (!previewElement) return;
-          const result = await captureAndUploadThumbnail(
-            currentResumeId,
-            previewContainerId,
-          );
-          if (result.success) {
-            const updatedResume = await resumeApi.get(resumeId);
-            debugResumePagination("download:thumbnail:setResume", { resumeId });
-            rememberResumeRevision(updatedResume);
-            setResumeState(updatedResume);
-          }
-        } catch (error) {
-          console.error("Error capturing thumbnail:", error);
-        }
-      }, 8000);
+
     } catch (error: unknown) {
       console.error("Error generating PDF:", error);
       const err = error as {
@@ -3794,6 +3683,12 @@ export default function EditResumePage() {
       setDeleteDialogOpen(true);
     },
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    canDesignSection: (sectionId) => supportsListDesigns(sectionTypeOf(sectionId), template?.id),
+    getSectionDesign: (sectionId) => sectionDesignOf(layout, sectionId),
+    onSetSectionDesign: (sectionId, design) => {
+      setLayout((prev) => withSectionDesign(prev ?? ({ type: "single" } as NonNullable<typeof prev>), sectionId, design));
+      setHasChanges(true);
+    },
     onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
     onNotice: showCanvasNotice,
     getDates: (entryPath) => {
