@@ -62,7 +62,7 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-[1120px] px-5 text-center">
         <motion.div {...rise(0)}><LivePill><span className="hidden sm:inline">New · InterviewTrix is </span><span className="sm:hidden">Now </span>live inside ChatGPT</LivePill></motion.div>
-        <h1 className="text-balance mx-auto mt-7 max-w-[15ch] text-[46px] font-black leading-[0.98] tracking-[-0.055em] sm:text-[62px] md:text-[78px] xl:text-[88px]">
+        <h1 className="text-balance mx-auto mt-7 max-w-[15ch] text-[clamp(30px,11.4vw,46px)] font-black leading-[0.98] tracking-[-0.055em] sm:text-[62px] md:text-[78px] xl:text-[88px]">
           {words.map((w, i) => (
             <motion.span key={w.t} className={`inline-block ${w.c}`} {...rise(0.12 + i * 0.07)}>
               {w.t}&nbsp;
@@ -81,10 +81,10 @@ export function Hero() {
           Your real interview shouldn&apos;t be your first rehearsal. Practise voice, coding and system design rounds — each one picks up where the last left off.
         </motion.p>
         <motion.div {...rise(0.92)} className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button asChild className="h-12 rounded-xl px-6 text-[15.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+          <Button asChild className="h-12 max-w-full rounded-xl px-4 text-[15px] min-[360px]:px-6 min-[360px]:text-[15.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
             <StartLink href={MK26_ROUTES.startInterview}>Start my free mock interview <ArrowRight /></StartLink>
           </Button>
-          <Button asChild variant="outline" className="h-12 rounded-xl px-6 text-[15.5px]">
+          <Button asChild variant="outline" className="h-12 max-w-full rounded-xl px-4 text-[15px] min-[360px]:px-6 min-[360px]:text-[15.5px]">
             <Link href={MK26_ROUTES.ats}>Check my resume score</Link>
           </Button>
         </motion.div>
