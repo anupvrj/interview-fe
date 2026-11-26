@@ -81,10 +81,10 @@ export function Hero() {
           Your real interview shouldn&apos;t be your first rehearsal. Practise voice, coding and system design rounds — each one picks up where the last left off.
         </motion.p>
         <motion.div {...rise(0.92)} className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button asChild className="h-12 rounded-xl px-6 text-[15.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+          <Button asChild className="h-12 max-w-full rounded-xl px-4 text-[15px] min-[360px]:px-6 min-[360px]:text-[15.5px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
             <StartLink href={MK26_ROUTES.startInterview}>Start my free mock interview <ArrowRight /></StartLink>
           </Button>
-          <Button asChild variant="outline" className="h-12 rounded-xl px-6 text-[15.5px]">
+          <Button asChild variant="outline" className="h-12 max-w-full rounded-xl px-4 text-[15px] min-[360px]:px-6 min-[360px]:text-[15.5px]">
             <Link href={MK26_ROUTES.ats}>Check my resume score</Link>
           </Button>
         </motion.div>
