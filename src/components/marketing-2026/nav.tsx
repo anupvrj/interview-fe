@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { ChevronDown } from "lucide-react";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
@@ -76,6 +77,7 @@ const RESUME_PAGES = /^\/(ai-resume-builder|resume-builder|resume-templates|resu
 export function Nav() {
   const pathname = usePathname() ?? "";
   const visible = useVisibleMarketingNav();
+  const hydrated = useHydrated();
   const { resumeItems, showBecomeInterviewer } = visible;
   // the new design has a landing page for peer interviews, so send people there before the booking screen
   const mockItems = visible.mockItems.map((i) => (i.href === MK26_ROUTES.startPeerBooking ? { ...i, href: MK26_ROUTES.peerInterviews } : i));
@@ -126,15 +128,15 @@ export function Nav() {
           <li><Link href={navLinkPricing.href} className={linkCls(navLinkPricing.match(pathname))}>{navLinkPricing.label}</Link></li>
         </ul>
         <div className="ml-auto flex shrink-0 items-center gap-2 pl-2 sm:gap-3 sm:pl-0">
-          <SignedOut>
+          {hydrated && <SignedOut>
             <Link className="hidden whitespace-nowrap py-2.5 text-[14.5px] font-semibold text-foreground/80 hover:text-foreground sm:block" href={MK26_ROUTES.signIn}>Sign in</Link>
             <Button asChild className="h-10 rounded-xl px-3.5 hover:bg-primary/90 sm:px-4">
               <StartLink href={RESUME_PAGES.test(pathname) ? MK26_ROUTES.startResume : MK26_ROUTES.startInterview}>Start free</StartLink>
             </Button>
-          </SignedOut>
-          <SignedIn>
+          </SignedOut>}
+          {hydrated && <SignedIn>
             <ProfileMenu />
-          </SignedIn>
+          </SignedIn>}
         </div>
       </nav>
     </header>

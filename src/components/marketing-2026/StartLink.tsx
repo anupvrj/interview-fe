@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useHydrated } from "@/hooks/useHydrated";
 import { signUpTo } from "./cta";
 
 type Props = {
@@ -18,6 +19,8 @@ const PUBLIC_STARTS = /^\/(resume-builder|ats-checker)(\/|$|\?)/;
  * except for tools that work signed out (the public builder asks for sign-up itself).
  */
 export function StartLink({ href, className, children }: Props) {
+  const { isSignedIn } = useAuth();
+  const hydrated = useHydrated();
   if (PUBLIC_STARTS.test(href)) {
     return (
       <Link href={href} className={className}>
@@ -25,18 +28,11 @@ export function StartLink({ href, className, children }: Props) {
       </Link>
     );
   }
+  // Rendered for everyone (it's in the server HTML); the sign-up link until we know the visitor
+  // is signed in, so the server and the first client pass match.
   return (
-    <>
-      <SignedIn>
-        <Link href={href} className={className}>
-          {children}
-        </Link>
-      </SignedIn>
-      <SignedOut>
-        <Link href={signUpTo(href)} className={className}>
-          {children}
-        </Link>
-      </SignedOut>
-    </>
+    <Link href={hydrated && isSignedIn ? href : signUpTo(href)} className={className}>
+      {children}
+    </Link>
   );
 }
