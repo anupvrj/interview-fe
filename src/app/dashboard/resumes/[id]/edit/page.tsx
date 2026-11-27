@@ -177,6 +177,7 @@ import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLay
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
 import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
+import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
 import { addBullet, fillSlot, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
@@ -3361,6 +3362,49 @@ export default function EditResumePage() {
     // handleCheckATS is re-created each render; the latest one is what we want.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, resume?.aiBuildMeta, resume?.atsFeedback, refreshingATS, layout, sections.length]);
+  // Fit an AI-built resume to its page budget with layout first (margins, then text size), once.
+  const fitRanRef = useRef(false);
+  useEffect(() => {
+    const budget = resume?.aiBuildMeta?.pageBudget;
+    if (fitRanRef.current || loading || !budget || resume?.aiBuildMeta?.fitDone || !layout || !template || !canvasOn) return;
+    fitRanRef.current = true;
+    const base = getTemplateStyle(getExtendedTemplate(template));
+    const baseTypo = {
+      heading: base.fontSize.heading,
+      subheading: base.fontSize.subheading,
+      body: base.fontSize.body,
+      small: base.fontSize.small,
+      sectionHeader: base.sectionHeader.fontSize,
+    };
+    const basePadding = layout.padding ?? base.padding;
+    const countPages = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(`#resume-preview-container-${resumeId} .resume-page`)).filter((el) => el.getClientRects().length > 0).length;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const markDone = (changed: boolean) => {
+      setResume((prev) => (prev?.aiBuildMeta ? { ...prev, aiBuildMeta: { ...prev.aiBuildMeta, fitDone: true } } : prev));
+      setHasChanges(true);
+      if (changed) showCanvasNotice(`Tightened margins and text size to fit ${budget} page${budget > 1 ? "s" : ""}. Undo puts them back.`);
+    };
+    void (async () => {
+      await wait(1500);
+      let pages = countPages();
+      if (!pages || pages <= budget) return markDone(false);
+      let cur = layout;
+      let changed = false;
+      for (let i = 0; i < 14 && pages > budget; i++) {
+        const next = nextFitStep(cur, baseTypo, basePadding);
+        if (!next) break;
+        cur = next;
+        changed = true;
+        setLayout(next);
+        await wait(800);
+        pages = countPages();
+      }
+      markDone(changed);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, resume?.aiBuildMeta?.pageBudget, resume?.aiBuildMeta?.fitDone, layout, template, canvasOn]);
+
   const markWhatsLeftDone = (key: string, action: "done" | "dismissed" = "done") => {
     track("resume_whats_left_action", { kind: key.split(":")[0], action });
     setResume((prev) => {
