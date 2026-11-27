@@ -20,6 +20,7 @@ export function WhatsLeftCard({
   onRemoveLine,
   onEditContact,
   onDismiss,
+  onRemovePersonal,
 }: {
   items: WhatsLeftItem[];
   compact?: boolean;
@@ -29,6 +30,7 @@ export function WhatsLeftCard({
   onRemoveLine: (item: WhatsLeftItem & { kind: "length" }) => void;
   onEditContact: (field: string) => void;
   onDismiss: (key: string) => void;
+  onRemovePersonal?: (item: WhatsLeftItem & { kind: "personal" }) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -94,6 +96,26 @@ export function WhatsLeftCard({
                   </p>
                   <button type="button" className={cn(btn, "bg-primary text-white hover:bg-primary/90")} onClick={() => onConfirmSkill(it.skill, it.key)}>
                     <Plus className="h-3.5 w-3.5" /> Yes, add
+                  </button>
+                </>
+              ) : it.kind === "timeline" ? (
+                <>
+                  <p className="min-w-0 flex-1 text-[13px] text-foreground">
+                    <b className="font-semibold">{it.tool.replace(/\b\w/g, (c) => c.toUpperCase())}</b> appears under {it.role.split(" (")[0]}, a job that
+                    ended in {it.roleEnded}, but it came out in {it.released}. Recruiters notice this — check the dates or wording.
+                  </p>
+                  <button type="button" className={cn(btn, "border border-border text-foreground hover:bg-muted")} onClick={() => onDismiss(it.key)}>
+                    Checked
+                  </button>
+                </>
+              ) : it.kind === "personal" ? (
+                <>
+                  <p className="min-w-0 flex-1 text-[13px] text-foreground">
+                    Your resume shows your <b className="font-semibold">{it.label}</b>. Recruiters in {it.region} usually don&apos;t expect this, and
+                    some screen it out.
+                  </p>
+                  <button type="button" className={cn(btn, "border border-border text-foreground hover:bg-muted")} onClick={() => onRemovePersonal?.(it)}>
+                    Remove
                   </button>
                 </>
               ) : it.kind === "suggestion" ? (

@@ -180,7 +180,7 @@ import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
-import { addBullet, fillSlot, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
+import { addBullet, fillSlot, personalFieldsToClear, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
 import { selectionInLine } from "@/lib/aiSelection";
 import {
   addEntry,
@@ -4156,6 +4156,12 @@ export default function EditResumePage() {
           onRemoveLine={(it) => applyBuiltContent(removeLine(resume.content, it.path, it.text), it.key, "Line removed. Undo brings it back.")}
           onEditContact={() => openCanvasPanel("details", "personalInfo")}
           onDismiss={(key) => markWhatsLeftDone(key, "dismissed")}
+          onRemovePersonal={(it) => {
+            const cleared = Object.fromEntries(personalFieldsToClear(it.fields).map((f) => [f, ""]));
+            updateContent({ personalInfo: { ...resume.content.personalInfo, ...cleared } });
+            markWhatsLeftDone(it.key);
+            showCanvasNotice(`Removed your ${it.label}. Undo puts it back.`);
+          }}
         />
       ) : null}
       {extensionSyncState !== "idle" ? (

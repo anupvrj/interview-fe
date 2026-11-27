@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addBullet, bulletsOf, fillSlot, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
+import { addBullet, bulletsOf, fillSlot, personalFieldsToClear, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
 import type { Resume } from "@/lib/api";
 
 const content = (desc: string) =>
@@ -56,5 +56,22 @@ describe("aiBuildMetaApply", () => {
     const filled = fillSlot(content(desc), meta.slots[0].path, meta.slots[0].text, "35%")!;
     expect(whatsLeft(filled, meta).some((i) => i.kind === "slot")).toBe(false);
     expect(whatsLeft(content(desc), undefined)).toEqual([]);
+  });
+
+  it("flags photo / date of birth / passport for US, UK and India, but not elsewhere", () => {
+    const c = content(desc);
+    (c.personalInfo as Record<string, string>).dateOfBirth = "01/01/1995";
+    (c.personalInfo as Record<string, string>).passportNo = "Z1234567";
+    const us = whatsLeft(c, { brief: { region: "us" } }).find((i) => i.kind === "personal");
+    expect(us).toMatchObject({ label: "date of birth, passport details", region: "the US" });
+    expect(whatsLeft(c, { brief: { region: "eu" } }).some((i) => i.kind === "personal")).toBe(false);
+    expect(personalFieldsToClear(["passportNo"])).toContain("passportDateOfExpiry");
+  });
+
+  it("lists tools named before they existed, until checked", () => {
+    const meta = { timelineFlags: [{ roleIndex: 0, role: "Engineer (Acme)", tool: "chatgpt", released: 2022, roleEnded: 2019 }], dismissed: [] as string[] };
+    expect(whatsLeft(content(desc), meta).find((i) => i.kind === "timeline")).toMatchObject({ key: "timeline:0:chatgpt" });
+    meta.dismissed.push("timeline:0:chatgpt");
+    expect(whatsLeft(content(desc), meta).some((i) => i.kind === "timeline")).toBe(false);
   });
 });

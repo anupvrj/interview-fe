@@ -127,7 +127,26 @@ export type WhatsLeftItem =
   | { kind: "slot"; key: string; path: string; text: string }
   | { kind: "skill"; key: string; skill: string }
   | { kind: "suggestion"; key: string; roleIndex: number; role: string; text: string }
-  | { kind: "length"; key: string; path: string; text: string };
+  | { kind: "length"; key: string; path: string; text: string }
+  | { kind: "personal"; key: string; fields: string[]; label: string; region: string }
+  | { kind: "timeline"; key: string; role: string; tool: string; released: number; roleEnded: number };
+
+/** Details recruiters in these regions usually don't expect (and some screen out for bias). */
+export const SENSITIVE_PERSONAL: { field: string; label: string }[] = [
+  { field: "profilePicture", label: "photo" },
+  { field: "dateOfBirth", label: "date of birth" },
+  { field: "maritalStatus", label: "marital status" },
+  { field: "gender", label: "gender" },
+  { field: "nationality", label: "nationality" },
+  { field: "passportNo", label: "passport details" },
+];
+const PASSPORT_FIELDS = ["passport", "passportNo", "passportPlaceOfIssue", "passportDateOfIssue", "passportDateOfExpiry"];
+const REGION_NAMES: Record<string, string> = { us: "the US", uk: "the UK", india: "India" };
+
+/** Fields to clear for one "personal" item (passport covers all its parts). */
+export function personalFieldsToClear(fields: string[]): string[] {
+  return fields.flatMap((f) => (f === "passportNo" ? PASSPORT_FIELDS : [f]));
+}
 
 /** Everything still open, minus what the user dealt with. */
 export function whatsLeft(content: Content, meta: AiBuildMeta | undefined | null): WhatsLeftItem[] {
@@ -154,6 +173,25 @@ export function whatsLeft(content: Content, meta: AiBuildMeta | undefined | null
   for (const l of meta?.lengthSuggestions ?? []) {
     const key = `length:${l.path}`;
     if (!dismissed.has(key) && locate(content, l.path, l.text)) items.push({ kind: "length", key, path: l.path, text: l.text });
+  }
+  for (const f of meta?.timelineFlags ?? []) {
+    const key = `timeline:${f.roleIndex}:${f.tool}`;
+    if (!dismissed.has(key)) items.push({ kind: "timeline", key, role: f.role, tool: f.tool, released: f.released, roleEnded: f.roleEnded });
+  }
+  const region = String((meta?.brief as { region?: string } | undefined)?.region ?? "");
+  if (REGION_NAMES[region] && !dismissed.has("personal:details")) {
+    const shown = SENSITIVE_PERSONAL.filter(({ field }) =>
+      field === "passportNo" ? PASSPORT_FIELDS.some((f) => String(pi[f] ?? "").trim()) : String(pi[field] ?? "").trim(),
+    );
+    if (shown.length) {
+      items.push({
+        kind: "personal",
+        key: "personal:details",
+        fields: shown.map((s) => s.field),
+        label: shown.map((s) => s.label).join(", "),
+        region: REGION_NAMES[region],
+      });
+    }
   }
   return items.filter((it) => !dismissed.has(it.key));
 }

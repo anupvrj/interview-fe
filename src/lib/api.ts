@@ -2833,6 +2833,8 @@ export type AiBuildMeta = {
   jobGaps?: string[];
   /** Items the user has dealt with in "What's left for you". */
   dismissed?: string[];
+  /** Tools named in a job that ended before they existed (for the user to check). */
+  timelineFlags?: { roleIndex: number; role: string; tool: string; released: number; roleEnded: number }[];
   /** The editor already fitted the layout to pageBudget (runs once). */
   fitDone?: boolean;
   [key: string]: unknown;
