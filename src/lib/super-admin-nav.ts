@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   SlidersHorizontal,
   AudioLines,
+  Cpu,
   UserRound,
   LayoutGrid,
   Code2,
@@ -133,6 +134,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.indigo,
         description:
           "Choose which voice AI appears at interview start, and set credits per minute.",
+      },
+      {
+        title: "AI Models",
+        href: `${SUPER_ADMIN_HOME}/ai-models`,
+        icon: Cpu,
+        accent: accent.indigo,
+        description:
+          "Pick the OpenAI model for each resume AI step (read, write, check facts, ATS) and set the cost ceiling per build.",
       },
       {
         title: "AI Interviewers",

@@ -3069,6 +3069,28 @@ export const contactApi = {
 };
 
 // Admin API (requires admin role)
+export type AiReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type AiStageConfig = { model: string; effort?: AiReasoningEffort; maxOutputTokens: number; timeoutMs: number };
+export type AiStageOverride = { model?: string; effort?: string; maxOutputTokens?: number; timeoutMs?: number };
+export type AiBuildSettings = { costCeilingUsd: number; verifierEnabled: boolean; voicePassEnabled: boolean };
+export type AiModelInfo = {
+  id: string;
+  price: { input: number; cachedInput: number; output: number };
+  reasoning: boolean;
+  efforts: AiReasoningEffort[];
+  deprecated: boolean;
+  note?: string;
+};
+export type AdminAiStageRow = {
+  id: string;
+  label: string;
+  description: string;
+  defaults: AiStageConfig;
+  current: AiStageConfig & { source: "admin" | "env" | "default" };
+  override: AiStageOverride | null;
+};
+export type AdminAiModelSettings = { stages: AdminAiStageRow[]; build: AiBuildSettings; models: AiModelInfo[] };
+
 export const adminApi = {
   listUsers: async (params?: {
     limit?: number;
@@ -3946,6 +3968,24 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  /** Super Admin → AI models: model per resume-AI stage, and build-wide switches. */
+  getAiModelSettings: async (): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.get<{ data: AdminAiModelSettings }>("/admin/ai-models");
+    return response.data.data;
+  },
+  setAiModelStage: async (stage: string, override: AiStageOverride): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.put<{ data: AdminAiModelSettings }>(`/admin/ai-models/stages/${encodeURIComponent(stage)}`, override);
+    return response.data.data;
+  },
+  resetAiModelStage: async (stage: string): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.delete<{ data: AdminAiModelSettings }>(`/admin/ai-models/stages/${encodeURIComponent(stage)}`);
+    return response.data.data;
+  },
+  setAiBuildSettings: async (build: Partial<AiBuildSettings>): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.put<{ data: AdminAiModelSettings }>("/admin/ai-models/build", build);
+    return response.data.data;
   },
 
   listResumeTemplateSettings: async (): Promise<AdminResumeTemplateList> => {
