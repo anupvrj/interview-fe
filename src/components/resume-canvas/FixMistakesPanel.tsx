@@ -610,6 +610,7 @@ function IssueCard({
         if (locatable && e.key === "Enter") onLocate();
       }}
       data-guide="ats-finding"
+      data-active={active || undefined}
       className={cn(
         "rounded-[14px] border bg-card p-3 text-left transition-shadow",
         locatable && "cursor-pointer",

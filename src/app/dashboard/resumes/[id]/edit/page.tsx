@@ -8626,6 +8626,17 @@ export default function EditResumePage() {
                       revision={previewResume}
                       marks={canvasMarks}
                       activeMarkId={activeMarkId}
+                      onMarkClick={(id, tone) => {
+                        if (tone === "ai") {
+                          // An AI change: open the list of changes on it.
+                          setAiReviewListOpen(true);
+                          pickMark(id);
+                          return;
+                        }
+                        if (tone === "keyword") return;
+                        if (canvasPanel !== "fix") openCanvasPanel("fix");
+                        pickMark(id);
+                      }}
                     />
                   ) : null
                 }

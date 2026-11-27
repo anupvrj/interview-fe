@@ -287,6 +287,7 @@ export function CanvasInteractionLayer({
   revision,
   marks = [],
   activeMarkId = null,
+  onMarkClick,
 }: {
   /** Element wrapping the rendered pages; overlay coordinates are relative to it. */
   rootRef: React.RefObject<HTMLElement | null>;
@@ -302,6 +303,8 @@ export function CanvasInteractionLayer({
   marks?: CanvasMark[];
   /** The mark the user picked in a panel: outlined and scrolled into view. */
   activeMarkId?: string | null;
+  /** A click landed on a marked finding on the page: show its explanation (the panel card). */
+  onMarkClick?: (id: string, tone: CanvasMark["tone"]) => void;
 }) {
   const [hover, setHover] = useState<CanvasFocus | null>(null);
   const [focusBoxes, setFocusBoxes] = useState<Box[]>([]);
@@ -315,6 +318,30 @@ export function CanvasInteractionLayer({
   const [photoSlotBox, setPhotoSlotBox] = useState<Box | null>(null);
   const [photoMenu, setPhotoMenu] = useState(false);
   const [markBoxes, setMarkBoxes] = useState<Array<Box & { id: string; tone: CanvasMark["tone"]; typo: boolean }>>([]);
+  const markBoxesRef = useRef(markBoxes);
+  markBoxesRef.current = markBoxes;
+  const onMarkClickRef = useRef(onMarkClick);
+  onMarkClickRef.current = onMarkClick;
+  // Clicking marked text on the page opens its finding (the caret still goes where you clicked,
+  // so editing works as usual). Boxes are relative to the root, like the overlay.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onClick = (e: MouseEvent) => {
+      if (!onMarkClickRef.current || e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-rx-overlay], button, a")) return;
+      const origin = root.getBoundingClientRect();
+      const x = e.clientX - origin.left;
+      const y = e.clientY - origin.top;
+      const hit = markBoxesRef.current.find(
+        (b) => x >= b.left - 2 && x <= b.left + b.width + 2 && y >= b.top - 2 && y <= b.top + b.height + 2,
+      );
+      if (hit) onMarkClickRef.current(hit.id, hit.tone);
+    };
+    root.addEventListener("click", onClick);
+    return () => root.removeEventListener("click", onClick);
+  }, [rootRef]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);
   /** An entry's link being edited on the page ("projects.0.link"). */
@@ -899,6 +926,7 @@ export function CanvasInteractionLayer({
       {markBoxes.map((b, i) => (
         <div
           key={`mark-${b.id}-${i}`}
+          data-rx-mark={b.tone}
           className={cn(
             "absolute transition-shadow",
             MARK_STYLE[b.tone],

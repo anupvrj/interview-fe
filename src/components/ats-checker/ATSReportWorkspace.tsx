@@ -136,6 +136,8 @@ export function ATSReportWorkspace({
   const fixColumn = useRef<HTMLDivElement>(null);
   const fixSection = useRef<HTMLElement>(null);
   const picked = useRef(false);
+  /** Bumped on every pick, so picking the already-selected check still scrolls to its explanation. */
+  const [pickNonce, setPickNonce] = useState(0);
   useEffect(() => {
     if (!picked.current) return;
     const column = fixColumn.current;
@@ -148,10 +150,11 @@ export function ATSReportWorkspace({
     } else {
       section.scrollIntoView({ block: "start", behavior });
     }
-  }, [selectedId, reduce]);
+  }, [selectedId, pickNonce, reduce]);
   const pickCheck = (id: ATSCheckId) => {
     picked.current = true;
     setSelectedId(id);
+    setPickNonce((n) => n + 1);
     const check = CATEGORY_ORDER.flatMap((c) => r.categories[c]?.checks ?? []).find((c) => c.id === id);
     track("ats_recommendation_viewed", { check_id: id, locked: Boolean(check?.locked) });
   };
