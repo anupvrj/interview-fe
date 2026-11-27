@@ -175,6 +175,10 @@ import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-content";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
+import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { track } from "@/lib/analytics/productEvents";
+import { addBullet, fillSlot, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
 import { selectionInLine } from "@/lib/aiSelection";
 import {
   addEntry,
@@ -901,6 +905,7 @@ export default function EditResumePage() {
         profileSummary: resumeSnapshot.profileSummary,
         sectionOrder: sectionOrderData,
         layout: currentLayout,
+        ...(resumeSnapshot.aiBuildMeta ? { aiBuildMeta: resumeSnapshot.aiBuildMeta } : {}),
       });
 
       finishSave({ resume: resumeSnapshot, sections: currentSections, layout: currentLayout });
@@ -1027,6 +1032,7 @@ export default function EditResumePage() {
           profileSummary: currentResume.profileSummary,
           sectionOrder: sectionOrderData,
           layout: currentLayout,
+          ...(currentResume.aiBuildMeta ? { aiBuildMeta: currentResume.aiBuildMeta } : {}),
         });
 
         finishSave({ resume: currentResume, sections: currentSections, layout: currentLayout });
@@ -2211,11 +2217,46 @@ export default function EditResumePage() {
     setApplyNonce((prev) => prev + 1);
   };
 
-  // Step 1: user submits the JD -> stage it and ask for confirmation, since
-  // tailoring overwrites the current resume content.
+  // Step 1: user submits the JD -> ask whether to tailor a copy (default) or this resume.
   const handleRequestMatchJobDescription = (jobDescription: string) => {
     setPendingMatchJd(jobDescription);
     setConfirmMatchOpen(true);
+  };
+
+  /** Tailor a copy for this job: the master resume stays as it is; the copy opens. */
+  const handleTailorCopy = async (jobDescription: string) => {
+    if (!resume) return;
+    setLastMatchedJd(jobDescription);
+    try {
+      setMatchingJob(true);
+      await ensureResumePersisted();
+      const matchInsights = isATSReportV3(resume.atsFeedback) ? insightsFromAtsReport(resume.atsFeedback) : undefined;
+      const base = (resume.title?.trim() || "Resume").replace(/ — tailored( \d+)?$/, "");
+      const copy = await resumeApi.duplicate(resumeId, `${base} — tailored`);
+      const result = await resumeApi.tailorToJobDescription(copy.resumeId, { jobDescription, matchInsights });
+      await resumeApi.update(copy.resumeId, {
+        content: result.content,
+        profileSummary: result.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: { lastJobDescription: jobDescription },
+        pdfS3Key: "",
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
+      });
+      try {
+        await resumeApi.recalculateATS(copy.resumeId, { jobDescription });
+      } catch {
+        /* the copy is saved; its score refreshes on open */
+      }
+      track("resume_duplicated", { surface: "tailor_copy" });
+      setMatchJobOpen(false);
+      router.push(`/dashboard/resumes/${copy.resumeId}/edit`);
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.message;
+      console.error("Error tailoring a copy:", { status: error?.response?.status, serverMessage, error });
+      alert(serverMessage ? `Couldn't make the tailored copy: ${serverMessage}` : "Couldn't make the tailored copy. Please try again.");
+    } finally {
+      setMatchingJob(false);
+    }
   };
 
   // Step 2: confirmed -> run the tailoring/overwrite.
@@ -2254,10 +2295,12 @@ export default function EditResumePage() {
         sectionOrder: result.sectionOrder,
         atsScoringContext: nextAtsContext,
         pdfS3Key: "",
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
       });
 
       let updatedResume: Resume = {
         ...resume,
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
         content: result.content,
         profileSummary: result.profileSummary ?? resume.profileSummary,
         sectionOrder: result.sectionOrder,
@@ -3278,6 +3321,45 @@ export default function EditResumePage() {
     updateContent({ skills: next } as Partial<Resume["content"]>);
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
+  /** "What's left for you": the items, and marking one done (saved with the resume). */
+  const whatsLeftItems = useMemo(
+    () => (resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : []),
+    [resume?.content, resume?.aiBuildMeta],
+  );
+  // An AI-built resume opens with its score: run the check once, on first open.
+  const autoAtsRanRef = useRef(false);
+  useEffect(() => {
+    if (autoAtsRanRef.current || loading || !resume?.aiBuildMeta || resume.atsFeedback || refreshingATS) return;
+    if (!layout || sections.length === 0) return;
+    autoAtsRanRef.current = true;
+    void handleCheckATS();
+    // handleCheckATS is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, resume?.aiBuildMeta, resume?.atsFeedback, refreshingATS, layout, sections.length]);
+  const markWhatsLeftDone = (key: string, action: "done" | "dismissed" = "done") => {
+    track("resume_whats_left_action", { kind: key.split(":")[0], action });
+    setResume((prev) => {
+      if (!prev?.aiBuildMeta) return prev;
+      const dismissed = [...new Set([...(prev.aiBuildMeta.dismissed ?? []), key])];
+      return { ...prev, aiBuildMeta: { ...prev.aiBuildMeta, dismissed } };
+    });
+    setHasChanges(true);
+  };
+  const applyBuiltContent = (next: Resume["content"] | null, key: string, notice: string) => {
+    const base = resumeRef.current;
+    if (!base || !next) {
+      showCanvasNotice("That line has changed since the AI wrote it — edit it on the page instead.");
+      markWhatsLeftDone(key);
+      return;
+    }
+    const changed = Object.fromEntries(
+      Object.entries(next).filter(([k, v]) => (base.content as Record<string, unknown>)[k] !== v),
+    ) as Partial<Resume["content"]>;
+    updateContent(changed);
+    markWhatsLeftDone(key);
+    showCanvasNotice(notice);
+  };
+
   const resolveFix = (item: FixItem) => {
     guideRef.current?.milestone("fixed");
     return setFixResolved((prev) => {
@@ -3986,6 +4068,25 @@ export default function EditResumePage() {
           compact={isMobile}
           onShow={showSampleText}
           onRemove={() => void removeSamplesNow()}
+        />
+      ) : null}
+      {canvasOn && whatsLeftItems.length > 0 && !(isMobile && canvasPanel) && !tryOnTemplate ? (
+        <WhatsLeftCard
+          items={whatsLeftItems}
+          compact={isMobile}
+          onFillSlot={(it, value) =>
+            applyBuiltContent(fillSlot(resume.content, it.path, it.text, value), it.key, "Number added.")
+          }
+          onConfirmSkill={(skill, key) => {
+            addSkillFromJob(skill);
+            markWhatsLeftDone(key);
+          }}
+          onAddSuggestion={(it) =>
+            applyBuiltContent(addBullet(resume.content, it.roleIndex, it.text), it.key, "Line added — edit it on the page to make it yours.")
+          }
+          onRemoveLine={(it) => applyBuiltContent(removeLine(resume.content, it.path, it.text), it.key, "Line removed. Undo brings it back.")}
+          onEditContact={() => openCanvasPanel("details", "personalInfo")}
+          onDismiss={(key) => markWhatsLeftDone(key, "dismissed")}
         />
       ) : null}
       {extensionSyncState !== "idle" ? (
@@ -8346,6 +8447,7 @@ export default function EditResumePage() {
                 liveText={resumeText}
                 target={aiTarget}
                 targetRole={resume.content.personalInfo?.portfolio}
+                evidence={resume.aiBuildMeta?.evidence}
                 onTailor={() => setMatchJobOpen(true)}
                 onFixMistakes={() => openCanvasPanel("fix")}
               />
@@ -8733,28 +8835,47 @@ export default function EditResumePage() {
           lastMatchedJd ?? resume?.atsScoringContext?.lastJobDescription ?? ""
         }
       />
-      <ConfirmationDialog
+      <Dialog
         open={confirmMatchOpen}
         onOpenChange={(open) => {
           if (matchingJob) return;
           setConfirmMatchOpen(open);
           if (!open) setPendingMatchJd(null);
         }}
-        title="Tailor and overwrite this resume?"
-        description="AI will rewrite your profile summary, skills, experience, projects, and certificates to match this job description, replacing the current content. You can undo it while editing, but this cannot be reversed after you reload or leave the page."
-        confirmText="Tailor my resume"
-        cancelText="Cancel"
-        variant="destructive"
-        isLoading={matchingJob}
-        onConfirm={() => {
-          // Close the confirmation immediately, then run tailoring in the
-          // background (progress is shown on the toolbar button + match dialog).
-          const jd = pendingMatchJd;
-          setConfirmMatchOpen(false);
-          setPendingMatchJd(null);
-          if (jd) void handleMatchJobDescription(jd);
-        }}
-      />
+      >
+        <DialogContent className="max-w-md" data-testid="tailor-choice">
+          <DialogHeader>
+            <DialogTitle>Tailor for this job</DialogTitle>
+            <DialogDescription>
+              AI rewrites your summary, skills, experience and projects toward this job, using only what is already in your resume.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              onClick={() => {
+                const jd = pendingMatchJd;
+                setConfirmMatchOpen(false);
+                setPendingMatchJd(null);
+                if (jd) void handleTailorCopy(jd);
+              }}
+            >
+              Make a tailored copy
+            </Button>
+            <p className="-mt-0.5 text-center text-xs text-muted-foreground">Recommended: this resume stays as your master; the copy opens.</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const jd = pendingMatchJd;
+                setConfirmMatchOpen(false);
+                setPendingMatchJd(null);
+                if (jd) void handleMatchJobDescription(jd);
+              }}
+            >
+              Update this resume instead
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {resume && template ? (
         <ImportResumeDialog
           open={importResumeOpen}

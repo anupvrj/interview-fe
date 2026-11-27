@@ -2,7 +2,7 @@
 
 import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useState } from "react";
-import { Loader2, Sparkles, Target, Wand2 } from "lucide-react";
+import { Loader2, MessageCircleQuestion, Sparkles, Target, Wand2 } from "lucide-react";
 import { resumeApi } from "@/lib/api";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { spliceSelection, type AiSelection } from "@/lib/aiSelection";
@@ -46,7 +46,10 @@ export function AiAssistPanel({
   textAt,
   onApply,
   onUndo,
+  evidence,
 }: {
+  /** Where each AI-written line came from (Resume Writer v2), shown as "Based on…". */
+  evidence?: { path: string; text: string; sources: string[] }[];
   /** What's at that spot in the resume now (follows undo/redo and typing on the page). */
   textAt?: (at: SuggestionAt) => string | null;
   /** Put `text` in place of `original` at `at`; returns where it went (null: couldn't). */
@@ -62,6 +65,9 @@ export function AiAssistPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  /** "Practice defending this line": interview follow-ups for the line. */
+  const [defend, setDefend] = useState<{ question: string; showWith: string }[] | null>(null);
+  const [defendLoading, setDefendLoading] = useState(false);
   /** What's in that bullet now (it changes as options are put in). */
   const [current, setCurrent] = useState<{ text: string; at: SuggestionAt } | null>(target ? { text: target.text, at: target.at } : null);
   /** The selected span being reworded (moves as options are put in), else the whole line. */
@@ -72,6 +78,7 @@ export function AiAssistPanel({
   const targetKey = target ? `${target.at.path}#${target.at.index ?? ""}#${target.requestId ?? ""}` : "";
   useEffect(() => {
     setSuggestions([]);
+    setDefend(null);
     setError(null);
     setCurrent(target ? { text: target.text, at: target.at } : null);
     setSelection(target?.selection ?? null);
@@ -113,6 +120,22 @@ export function AiAssistPanel({
     }
   };
 
+  const practice = async () => {
+    if (!target) return;
+    setDefendLoading(true);
+    setError(null);
+    track("resume_ai_defend_requested", { kind: String(target.kind) });
+    try {
+      const out = await resumeApi.aiDefend({ text: currentText, role: target.role, company: target.company, targetRole });
+      setDefend(out);
+      if (!out.length) setError("No questions for this line — add a little more detail first.");
+    } catch {
+      setError("Couldn't get questions right now. Try again in a moment.");
+    } finally {
+      setDefendLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-6">
       <section className="rounded-xl border border-border bg-card p-3.5">
@@ -136,6 +159,29 @@ export function AiAssistPanel({
                 currentText
               )}
             </p>
+            {(() => {
+              const key = target.at.index === null ? target.at.path : `${target.at.path}.${target.at.index}`;
+              const words = (t: string) => new Set(t.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
+              const similar = (a: string, b: string) => {
+                const wa = words(a), wb = words(b);
+                const shared = [...wa].filter((w) => wb.has(w)).length;
+                return shared / Math.max(1, Math.min(wa.size, wb.size)) >= 0.6;
+              };
+              const hit =
+                evidence?.find((e) => e.text === target.text) ??
+                evidence?.find((e) => e.path === key && similar(e.text, target.text));
+              if (!hit?.sources.length) return null;
+              return (
+                <details data-testid="ai-coach-based-on" className="mt-2 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+                  <summary className="cursor-pointer font-medium text-muted-foreground">Based on your resume ({hit.sources.length})</summary>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-foreground">
+                    {hit.sources.slice(0, 4).map((src) => (
+                      <li key={src}>{src}</li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })()}
             {isSampleText(target.text) ? (
               <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 This is still sample text. Write what you actually did in a few words first — AI will then make it sound sharper,
@@ -171,8 +217,28 @@ export function AiAssistPanel({
                 }}
               />
             ) : null}
+            {target.kind === "bullet" && canRewrite(target.text) ? (
+              <div className="mt-3 border-t border-border pt-3">
+                <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => void practice()} disabled={defendLoading}>
+                  {defendLoading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <MessageCircleQuestion className="mr-1.5 h-3.5 w-3.5" />}
+                  Practice defending this line
+                </Button>
+                {defend?.length ? (
+                  <ol data-testid="ai-coach-defend" className="mt-2.5 space-y-2 text-xs">
+                    {defend.map((q, i) => (
+                      <li key={i} className="rounded-lg bg-muted/60 px-2.5 py-2">
+                        <p className="font-medium text-foreground">
+                          {i + 1}. {q.question}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">A strong answer shows: {q.showWith}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </div>
+            ) : null}
             <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-              AI only rewords what you wrote. Where a number would help, it leaves a {"{X}"} for you to fill in.
+              AI only rewords what you wrote. Where a result would be stronger with a number, it leaves a [X%] for you to fill in.
             </p>
           </>
         ) : (

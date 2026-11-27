@@ -4,8 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Check, Pencil, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** "{X}", "{XX%}", "{N}" — a number the AI left for the user to fill in. */
-const BLANK_RE = /\{[^{}\n]{0,15}\}/;
+/** "{X}", "{XX%}", "{N}" or "[X%]", "[N users]" — a number the AI left for the user to fill in. */
+const BLANK_RE = /\{[^{}\n]{0,15}\}|\[(?:X%?|N|\$X|X [a-z]+|N [a-z]+)\]/;
 
 /**
  * Pick a suggested wording, edit it if you like, then put it in the resume.

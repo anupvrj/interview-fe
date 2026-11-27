@@ -33,7 +33,9 @@ import {
   Mic,
 } from "lucide-react";
 import {
-  buildResumeFromExtractedData,
+  buildResumeWithMeta,
+  LIVE_BUILD_STEPS,
+  liveBuildStepIndex,
   buildSectionOrderForExtractedContent,
   getResumeProcessingMessages,
   mapExtractedSectionsToContent,
@@ -191,6 +193,8 @@ export default function NewResumePage() {
   const [extracting, setExtracting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+  /** Real build step from the server (Resume Writer v2); null while unknown → timed messages. */
+  const [liveStep, setLiveStep] = useState<string | null>(null);
   const [pendingImport, setPendingImport] =
     useState<BuildResumeImportPayload | null>(null);
   const [chatProfile, setChatProfile] = useState<ChatCollectedProfile | null>(
@@ -261,8 +265,10 @@ export default function NewResumePage() {
   useEffect(() => {
     if (step !== "processing") {
       setProcessingMessageIndex(0);
+      setLiveStep(null);
       return;
     }
+    if (liveStep) return; // real steps drive the view
 
     setProcessingMessageIndex(0);
     const lastIndex = processingMessages.length - 1;
@@ -277,7 +283,7 @@ export default function NewResumePage() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [step, processingMessages.length]);
+  }, [step, processingMessages.length, liveStep]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -578,12 +584,27 @@ export default function NewResumePage() {
         return;
       }
 
-      const sections = await buildResumeFromExtractedData({
-        ...pendingImport,
-        templateId: selectedTemplate,
-        jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
-        jdRequirements: jdReq ?? undefined,
-      });
+      const { sections, writerMeta } = await buildResumeWithMeta(
+        {
+          ...pendingImport,
+          templateId: selectedTemplate,
+          jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
+          jdRequirements: jdReq ?? undefined,
+        },
+        (s) => setLiveStep(s),
+      );
+      if (writerMeta) {
+        const num = (v: unknown) => (typeof v === "number" ? v : 0);
+        track("resume_ai_build_completed", {
+          source: String(pendingImport.source),
+          slots: writerMeta.slots?.length ?? 0,
+          suggestions: writerMeta.suggestions?.length ?? 0,
+          skills_to_confirm: writerMeta.skillsToConfirm?.length ?? 0,
+          kept_original: num(writerMeta.keptOriginal),
+          cost_usd: num(writerMeta.costUsd),
+          ms: num(writerMeta.ms),
+        });
+      }
 
       const { TemplateLoader } = await import("@/lib/templateLoader");
       const templateConfig =
@@ -617,6 +638,7 @@ export default function NewResumePage() {
         content,
         sectionOrder,
         layout: initialLayout,
+        ...(writerMeta ? { aiBuildMeta: writerMeta } : {}),
         ...(jdText.trim().length > 50
           ? {
               atsScoringContext: {
@@ -1369,8 +1391,8 @@ export default function NewResumePage() {
       {step === "processing" && (
         <ResumeBuilderProcessingView
           label={processingLabel}
-          messageIndex={processingMessageIndex}
-          messages={processingMessages}
+          messageIndex={liveStep ? liveBuildStepIndex(liveStep) : processingMessageIndex}
+          messages={liveStep ? LIVE_BUILD_STEPS.map((s) => s.label) : processingMessages}
         />
       )}
 

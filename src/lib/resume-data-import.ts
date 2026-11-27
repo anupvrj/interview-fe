@@ -768,22 +768,28 @@ export type BuildResumeImportPayload = {
   enhance?: boolean;
 };
 
-export async function buildResumeFromExtractedData(
+type BuiltSections = Record<
+  string,
+  {
+    sectionType: string;
+    content: string | unknown;
+    format: "html" | "list" | "paragraph" | "structured";
+  }
+>;
+
+/**
+ * Build the resume sections, with Resume Writer v2's hand-over data (slots, suggestions,
+ * evidence) when v2 wrote it, and live build steps via onProgress.
+ */
+export async function buildResumeWithMeta(
   payload: BuildResumeImportPayload,
-): Promise<
-  Record<
-    string,
-    {
-      sectionType: string;
-      content: string | unknown;
-      format: "html" | "list" | "paragraph" | "structured";
-    }
-  >
-> {
+  onProgress?: (step: string, detail?: string) => void,
+): Promise<{ sections: BuiltSections; writerMeta: import("@/lib/api").AiBuildMeta | null }> {
   const buildOptions = {
     jobDescription: payload.jobDescription,
     jdRequirements: payload.jdRequirements,
     enhance: payload.enhance,
+    onProgress,
   };
 
   if (payload.source === "linkedin" && payload.linkedinHandle) {
@@ -792,32 +798,45 @@ export async function buildResumeFromExtractedData(
       payload.templateId,
       buildOptions,
     );
-    return extracted.sections;
+    return { sections: extracted.sections, writerMeta: extracted.writerMeta ?? null };
   }
 
   if (payload.source === "chat" && payload.chatProfile) {
-    const extracted = await resumeDataExtractionApi.extractResumeData(
-      payload.templateId,
-      {
-        chatProfile: payload.chatProfile,
-        ...buildOptions,
-      },
-    );
-    return extracted.sections;
+    const extracted = await resumeDataExtractionApi.extractResumeData(payload.templateId, {
+      chatProfile: payload.chatProfile,
+      ...buildOptions,
+    });
+    return { sections: extracted.sections, writerMeta: extracted.writerMeta ?? null };
   }
 
   if (payload.source === "pdf" && payload.resumeText) {
-    const extracted = await resumeDataExtractionApi.extractResumeData(
-      payload.templateId,
-      {
-        resumeText: payload.resumeText,
-        ...buildOptions,
-      },
-    );
-    return extracted.sections;
+    const extracted = await resumeDataExtractionApi.extractResumeData(payload.templateId, {
+      resumeText: payload.resumeText,
+      ...buildOptions,
+    });
+    return { sections: extracted.sections, writerMeta: extracted.writerMeta ?? null };
   }
 
-  return {};
+  return { sections: {}, writerMeta: null };
+}
+
+export async function buildResumeFromExtractedData(payload: BuildResumeImportPayload): Promise<BuiltSections> {
+  return (await buildResumeWithMeta(payload)).sections;
+}
+
+/** Real build steps (v2) as the processing view's messages, with the index of the current one. */
+export const LIVE_BUILD_STEPS = [
+  { step: "reading", label: "Reading your resume…" },
+  { step: "understanding", label: "Understanding your role, industry and strengths…" },
+  { step: "writing", label: "Writing every line from your own facts…" },
+  { step: "checking", label: "Checking each line against your facts and ATS rules…" },
+  { step: "fitting", label: "Fitting it to the page…" },
+  { step: "done", label: "Done — opening your resume…" },
+] as const;
+
+export function liveBuildStepIndex(step: string): number {
+  const i = LIVE_BUILD_STEPS.findIndex((s) => s.step === step);
+  return i < 0 ? 0 : i;
 }
 
 /** @deprecated Use buildResumeFromExtractedData */

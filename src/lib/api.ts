@@ -1877,6 +1877,8 @@ export interface Resume {
   userId: string;
   /** Server bumps this on every content edit; used to detect saves from another tab/device. */
   revision?: number;
+  /** What the AI build left for the user: number slots, skills to confirm, suggestions, evidence. */
+  aiBuildMeta?: AiBuildMeta;
   title: string;
   templateId: string;
   content: {
@@ -2266,6 +2268,8 @@ export const resumeApi = {
       forAtsCheckOnly?: boolean;
       /** Source resume id when copying; the copy may keep a disabled template. */
       duplicateOf?: string;
+      /** What the AI build left for the user (Resume Writer v2). */
+      aiBuildMeta?: AiBuildMeta;
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -2340,6 +2344,14 @@ export const resumeApi = {
       timeout: 60000,
     });
     return response.data.data.suggestions ?? [];
+  },
+
+  /** "Can you defend this line?": the follow-ups an interviewer would ask about one resume line. */
+  aiDefend: async (body: { text: string; role?: string; company?: string; targetRole?: string }): Promise<{ question: string; showWith: string }[]> => {
+    const response = await apiClient.post<{ data: { questions: { question: string; showWith: string }[] } }>("/resumes/ai-defend", body, {
+      timeout: 60000,
+    });
+    return response.data.data.questions ?? [];
   },
 
   /**
@@ -2421,6 +2433,8 @@ export const resumeApi = {
       isDefault?: boolean;
       pdfS3Key?: string;
       atsScoringContext?: Resume["atsScoringContext"];
+      /** What the AI build left for the user; null clears it. */
+      aiBuildMeta?: AiBuildMeta | null;
     },
   ): Promise<Resume> => {
     const baseRevision = resumeRevisions.get(resumeId);
@@ -2532,6 +2546,7 @@ export const resumeApi = {
     profileSummary?: string;
     sectionOrder: NonNullable<Resume["sectionOrder"]>;
     jobDescription: string;
+    aiBuildMeta?: AiBuildMeta;
   }> => {
     const response = await apiClient.post<{
       data: {
@@ -2539,6 +2554,7 @@ export const resumeApi = {
         profileSummary?: string;
         sectionOrder: NonNullable<Resume["sectionOrder"]>;
         jobDescription: string;
+        aiBuildMeta?: AiBuildMeta;
       };
     }>(
       `/resumes/${resumeId}/tailor-to-jd`,
@@ -2760,6 +2776,22 @@ export type ResumeImportBuildOptions = {
   jdRequirements?: JDRequirements;
   /** When false, keep uploaded wording (structure only). Default true. */
   enhance?: boolean;
+  /** Live build steps from the server ("reading", "understanding", "writing", "checking", "fitting", "done"). */
+  onProgress?: (step: string, detail?: string) => void;
+};
+
+/** What the AI build left for the user (Resume Writer v2); saved on the resume as aiBuildMeta. */
+export type AiBuildMeta = {
+  slots?: { path: string; text: string }[];
+  evidence?: { path: string; text: string; sources: string[] }[];
+  suggestions?: { roleIndex: number; role: string; text: string }[];
+  lengthSuggestions?: { path: string; text: string; reason: string }[];
+  pageBudget?: 1 | 2;
+  skillsToConfirm?: string[];
+  jobGaps?: string[];
+  /** Items the user has dealt with in "What's left for you". */
+  dismissed?: string[];
+  [key: string]: unknown;
 };
 
 /** What a signed-out visitor sees: scores and check names. Findings come with signing up. */
@@ -2870,25 +2902,59 @@ export const resumeDataExtractionApi = {
       }
     >;
     templateId: string;
+    writerMeta?: AiBuildMeta | null;
   }> => {
-    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance, onProgress } =
       options;
-    const response = await apiClient.post(
-      "/extract-resume-data",
-      {
-        templateId,
-        resumeText: resumeText || undefined,
-        chatProfile: chatProfile || undefined,
-        jobDescription: jobDescription
-          ? trimJobDescriptionForSend(jobDescription)
-          : undefined,
-        jdRequirements: jdRequirements || undefined,
-        enhance: enhance !== false,
-      },
-      {
-        timeout: 180000,
-      },
-    );
+    const body = {
+      templateId,
+      resumeText: resumeText || undefined,
+      chatProfile: chatProfile || undefined,
+      jobDescription: jobDescription ? trimJobDescriptionForSend(jobDescription) : undefined,
+      jdRequirements: jdRequirements || undefined,
+      enhance: enhance !== false,
+    };
+    // Live steps: one JSON line per step, then the result. Falls back to the plain request.
+    if (onProgress && typeof window !== "undefined" && typeof ReadableStream !== "undefined") {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch(`${API_URL}/extract-resume-data`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/x-ndjson",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        });
+        if (res.ok && res.body && (res.headers.get("content-type") ?? "").includes("ndjson")) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buffer.indexOf("\n")) >= 0) {
+              const line = buffer.slice(0, nl).trim();
+              buffer = buffer.slice(nl + 1);
+              if (!line) continue;
+              const msg = JSON.parse(line) as { type: string; step?: string; detail?: string; data?: unknown; message?: string };
+              if (msg.type === "progress" && msg.step) onProgress(msg.step, msg.detail);
+              else if (msg.type === "result") return msg.data as never;
+              else if (msg.type === "error") throw new Error(msg.message || "Failed to build the resume");
+            }
+          }
+          throw new Error("The build stopped before finishing");
+        }
+        if (res.ok) return ((await res.json()) as { data: never }).data;
+      } catch (error) {
+        if (error instanceof Error && /Failed to build|stopped before/.test(error.message)) throw error;
+        // network/streaming problem: try the plain request below
+      }
+    }
+    const response = await apiClient.post("/extract-resume-data", body, { timeout: 180000 });
     return response.data.data;
   },
 
@@ -2906,6 +2972,7 @@ export const resumeDataExtractionApi = {
       }
     >;
     templateId: string;
+    writerMeta?: AiBuildMeta | null;
   }> => {
     const response = await apiClient.post(
       "/import-linkedin-profile",

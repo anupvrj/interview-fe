@@ -31,6 +31,11 @@ type Events = {
   resume_template_selected: { template_id: string; surface: string };
   resume_ai_enhancement_requested: { kind: string };
   resume_ai_enhancement_applied: { kind: string };
+  resume_ai_defend_requested: { kind: string };
+  /** Resume Writer v2 finished a build (what it left for the user). */
+  resume_ai_build_completed: { source: string; slots: number; suggestions: number; skills_to_confirm: number; kept_original: number; cost_usd: number; ms: number };
+  /** "What's left for you": the user dealt with one item. */
+  resume_whats_left_action: { kind: string; action: "done" | "dismissed" };
   resume_downloaded: { format: "pdf" | "txt" | "docx"; surface: string };
   resume_duplicated: { surface: string };
 };
