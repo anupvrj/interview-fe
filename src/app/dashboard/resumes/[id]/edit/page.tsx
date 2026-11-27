@@ -2388,6 +2388,48 @@ export default function EditResumePage() {
     }
   };
 
+  /** "Fix all with AI": the server rewrites against the ATS findings; every change is then reviewable. */
+  const [fixingAll, setFixingAll] = useState(false);
+  const handleFixAllWithAi = async () => {
+    const current = resumeRef.current;
+    if (!current || !resumeId || fixingAll) return;
+    // The one-click optimizer is a plan feature (same as "Improve with AI" on the ATS page).
+    if (!canUse("oneClickResumeOptimizer")) {
+      setTrialUpsellOpen(true);
+      return;
+    }
+    const before = { content: current.content, profileSummary: current.profileSummary, sectionOrder: current.sectionOrder };
+    const scoreBefore = typeof current.atsScore === "number" ? current.atsScore : null;
+    try {
+      setFixingAll(true);
+      await ensureResumePersisted();
+      const updated = await resumeApi.improveFromATS(resumeId, { fixFindings: true });
+      handleResumeImported(updated);
+      setDisplayAtsScore(typeof updated.atsScore === "number" ? updated.atsScore : null);
+      const changes = explainChanges(
+        { content: before.content as unknown as Record<string, unknown>, profileSummary: before.profileSummary },
+        { content: updated.content as unknown as Record<string, unknown>, profileSummary: updated.profileSummary },
+      );
+      setAiReview(changes.length ? { before, lines: changes.map((c) => c.after), changes } : null);
+      track("resume_ai_enhancement_applied", { kind: "fix_all" });
+      showCanvasNotice(
+        scoreBefore !== null && typeof updated.atsScore === "number"
+          ? `Fixed with AI: ${scoreBefore} → ${updated.atsScore}. Review the changes above; undo any you don't want.`
+          : "Fixed with AI. Review the changes above; undo any you don't want.",
+      );
+    } catch (error) {
+      const res = (error as { response?: { status?: number; data?: { message?: string; upgradePlan?: string } } })?.response;
+      if (res?.status === 403 && res.data?.upgradePlan) {
+        setTrialUpsellOpen(true);
+        return;
+      }
+      const message = res?.data?.message;
+      showCanvasNotice(message ? `Couldn't fix with AI: ${message}` : "Couldn't fix with AI right now. Try again in a moment.");
+    } finally {
+      setFixingAll(false);
+    }
+  };
+
   const handleCheckATS = async () => {
     const current = resumeRef.current;
     if (!current || !resumeId) return;
@@ -4823,6 +4865,8 @@ export default function EditResumePage() {
               onRestoreSetAside={restoreSetAside}
               improvedFrom={resume.atsImprovementMeta?.previousScore}
               onRecheck={handleCheckATS}
+              onFixAll={() => void handleFixAllWithAi()}
+              fixingAll={fixingAll}
               onTailor={() => setMatchJobOpen(true)}
               targetRole={resume.content.personalInfo?.portfolio}
             >

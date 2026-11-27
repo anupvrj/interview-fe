@@ -752,6 +752,8 @@ export function FixMistakesPanel({
   onApply,
   onIgnore,
   onRecheck,
+  onFixAll,
+  fixingAll = false,
   onTailor,
   onCheckAtsParse,
   targetRole,
@@ -806,6 +808,9 @@ export function FixMistakesPanel({
   onTailor: () => void;
   /** How ATS read the resume (builds the real PDF; run on demand). */
   onCheckAtsParse?: () => Promise<AtsParseResult>;
+  /** "Fix all with AI": rewrite to fix every AI-fixable finding, then review each change. */
+  onFixAll?: () => void;
+  fixingAll?: boolean;
   targetRole?: string;
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
@@ -903,6 +908,18 @@ export function FixMistakesPanel({
           ) : null}
         </div>
       </div>
+      {onFixAll && report && report.issueCount > 0 ? (
+        <div data-testid="fix-all" className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <Button type="button" size="sm" className="w-full" onClick={onFixAll} disabled={fixingAll || checking}>
+            {fixingAll ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+            {fixingAll ? "Fixing with AI… (about a minute)" : "Fix all with AI"}
+          </Button>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            Rewrites wording, repetition and structure from what&apos;s already in your resume, then re-checks. You review every
+            change and can undo any line. Things only you know (real numbers, dates, skills) stay in your list.
+          </p>
+        </div>
+      ) : null}
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onRecheck} disabled={checking}>
           {checking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}

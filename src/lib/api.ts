@@ -2523,7 +2523,12 @@ export const resumeApi = {
 
   improveFromATS: async (
     resumeId: string,
-    options: { jobDescription?: string; matchInsights?: unknown } = {},
+    options: {
+      jobDescription?: string;
+      matchInsights?: unknown;
+      /** "Fix all with AI": fix the ATS findings, even when the resume has a saved job. */
+      fixFindings?: boolean;
+    } = {},
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/improve-from-ats`,
