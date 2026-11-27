@@ -9,6 +9,7 @@ import { SetAsideLink } from "@/components/ats-checker/SetAsideLink";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
 import { AtsParseCard } from "./AtsParseCard";
+import { ScoreBreakdown } from "./ScoreBreakdown";
 import type { AtsParseResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -913,6 +914,7 @@ export function FixMistakesPanel({
         </Button>
       </div>
 
+      {report ? <ScoreBreakdown report={report} /> : null}
       {onCheckAtsParse ? <AtsParseCard onCheck={onCheckAtsParse} /> : null}
       {onReplayTour ? (
         <button type="button" onClick={onReplayTour} className="flex min-h-8 items-center text-xs font-medium text-muted-foreground hover:text-foreground">

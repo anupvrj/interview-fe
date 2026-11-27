@@ -76,6 +76,12 @@ test.describe("what's left for you", () => {
     const fresh = async () => resumes(page.request, await session(page));
     await expect.poll(async () => (await (await fresh()).get(created!.resumeId)).atsScore, { timeout: 120_000 }).toBeGreaterThan(0);
 
+    // The ATS panel splits the score into plain parts.
+    await page.getByRole("button", { name: "ATS score" }).first().click();
+    await expect(page.getByTestId("score-breakdown")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId("score-breakdown")).toContainText("Readable by ATS");
+    await shot(page, info, "score-breakdown");
+
     // Saved: after a reload the done items stay done.
     await expect.poll(async () => {
       const r = (await (await fresh()).get(created!.resumeId)) as TestResume & { aiBuildMeta?: { dismissed?: string[] } };
