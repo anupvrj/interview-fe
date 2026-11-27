@@ -98,6 +98,16 @@ export function WhatsLeftCard({
                     <Plus className="h-3.5 w-3.5" /> Yes, add
                   </button>
                 </>
+              ) : it.kind === "functional" ? (
+                <>
+                  <p className="min-w-0 flex-1 text-[13px] text-foreground">
+                    Your achievements are listed apart from your jobs. Recruiters and ATS read them best as bullets under the job where
+                    they happened — move each one under its job on the page (only you know which).
+                  </p>
+                  <button type="button" className={cn(btn, "border border-border text-foreground hover:bg-muted")} onClick={() => onDismiss(it.key)}>
+                    Got it
+                  </button>
+                </>
               ) : it.kind === "timeline" ? (
                 <>
                   <p className="min-w-0 flex-1 text-[13px] text-foreground">

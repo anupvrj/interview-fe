@@ -74,4 +74,9 @@ describe("aiBuildMetaApply", () => {
     meta.dismissed.push("timeline:0:chatgpt");
     expect(whatsLeft(content(desc), meta).some((i) => i.kind === "timeline")).toBe(false);
   });
+
+  it("suggests moving achievements under jobs for a functional resume", () => {
+    expect(whatsLeft(content(desc), { functionalLayout: true }).some((i) => i.kind === "functional")).toBe(true);
+    expect(whatsLeft(content(desc), { functionalLayout: true, dismissed: ["functional:layout"] }).some((i) => i.kind === "functional")).toBe(false);
+  });
 });

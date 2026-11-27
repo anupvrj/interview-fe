@@ -129,7 +129,8 @@ export type WhatsLeftItem =
   | { kind: "suggestion"; key: string; roleIndex: number; role: string; text: string }
   | { kind: "length"; key: string; path: string; text: string }
   | { kind: "personal"; key: string; fields: string[]; label: string; region: string }
-  | { kind: "timeline"; key: string; role: string; tool: string; released: number; roleEnded: number };
+  | { kind: "timeline"; key: string; role: string; tool: string; released: number; roleEnded: number }
+  | { kind: "functional"; key: string };
 
 /** Details recruiters in these regions usually don't expect (and some screen out for bias). */
 export const SENSITIVE_PERSONAL: { field: string; label: string }[] = [
@@ -174,6 +175,7 @@ export function whatsLeft(content: Content, meta: AiBuildMeta | undefined | null
     const key = `length:${l.path}`;
     if (!dismissed.has(key) && locate(content, l.path, l.text)) items.push({ kind: "length", key, path: l.path, text: l.text });
   }
+  if (meta?.functionalLayout && !dismissed.has("functional:layout")) items.push({ kind: "functional", key: "functional:layout" });
   for (const f of meta?.timelineFlags ?? []) {
     const key = `timeline:${f.roleIndex}:${f.tool}`;
     if (!dismissed.has(key)) items.push({ kind: "timeline", key, role: f.role, tool: f.tool, released: f.released, roleEnded: f.roleEnded });

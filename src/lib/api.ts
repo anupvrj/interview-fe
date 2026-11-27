@@ -2845,6 +2845,8 @@ export type AiBuildMeta = {
   dismissed?: string[];
   /** Tools named in a job that ended before they existed (for the user to check). */
   timelineFlags?: { roleIndex: number; role: string; tool: string; released: number; roleEnded: number }[];
+  /** Jobs have no bullets; achievements sit in separate sections (functional resume). */
+  functionalLayout?: boolean;
   /** The editor already fitted the layout to pageBudget (runs once). */
   fitDone?: boolean;
   [key: string]: unknown;
