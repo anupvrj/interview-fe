@@ -63,3 +63,6 @@ export function endResumeBuilderFlow(): void {
 export function builderFlowSkipsOnboarding(pathname: string): boolean {
   return pathname.startsWith("/dashboard/resumes") && readFlow() !== null;
 }
+
+/** The app user changed outside the role provider (e.g. onboarding finished here): detail is the User. */
+export const PROFILE_UPDATED_EVENT = "ix-profile-updated";

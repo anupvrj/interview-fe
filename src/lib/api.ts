@@ -15,6 +15,7 @@ import {
   unauthorizedNeedsOnboarding,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { builderFlowSkipsOnboarding } from "@/lib/resumeBuilderFlow";
 import type { ApplicationProfile } from "@/lib/application-profile";
 import type { VoiceProvider } from "@/lib/voiceProviders";
 import type {
@@ -219,6 +220,8 @@ function handleAuthLost(error: AxiosError, message: string | undefined, returnPa
     const onboarding = window.location.pathname.startsWith("/onboarding");
     if (onHackathonSignup) {
       // Hackathon profile provisions the user; never send to general onboarding.
+    } else if (builderFlowSkipsOnboarding(window.location.pathname)) {
+      // "Build my resume": the new-resume page creates the app user itself; onboarding waits.
     } else if (!onboarding) {
       window.location.href = getOnboardingUrlWithRedirect(returnPath);
     }
@@ -909,7 +912,8 @@ export const userApi = {
   completeOnboarding: async (data: {
     /** Display name (e.g. from the CV); applied only over the signup placeholder. */
     name?: string;
-    userType: "student" | "fresher" | "experienced";
+    /** Left out by "Build my resume", which finishes onboarding as a candidate without asking. */
+    userType?: "student" | "fresher" | "experienced";
     experience?: number;
     targetJobRole?: string;
     targetCompany?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { track } from "@/lib/analytics/productEvents";
-import { markResumeBuilderFlowBuilt } from "@/lib/resumeBuilderFlow";
+import { PROFILE_UPDATED_EVENT, builderFlowSkipsOnboarding, markResumeBuilderFlowBuilt } from "@/lib/resumeBuilderFlow";
 import { useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
@@ -286,10 +286,22 @@ export default function NewResumePage() {
     if (!user) return;
 
     try {
+      // From "Build my resume" (sign-up → here): a brand-new account may not have its app user
+      // yet, and onboarding waits until the resume is built.
+      const builderFlow = builderFlowSkipsOnboarding(window.location.pathname);
+      if (builderFlow) {
+        await userApi.createOrGetUser(user.id, user.primaryEmailAddress?.emailAddress || "", user.fullName || user.firstName || "User");
+      }
       // Check onboarding status
-      const profile = await userApi.getMyProfile();
+      let profile = await userApi.getMyProfile();
+      if (builderFlow && !profile.onboardingCompleted) {
+        // Building a resume means they're a candidate: finish onboarding without asking.
+        profile = await userApi.completeOnboarding({ name: user.fullName || user.firstName || undefined });
+        window.dispatchEvent(new CustomEvent(PROFILE_UPDATED_EVENT, { detail: profile }));
+        void userApi.sendWelcomeSignup("candidate").catch(() => undefined);
+      }
 
-      if (!profile.onboardingCompleted) {
+      if (!profile.onboardingCompleted && !builderFlow) {
         // Onboarding not completed - redirect to onboarding with return URL
         const returnUrl = newResumeReturnUrl();
         localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
