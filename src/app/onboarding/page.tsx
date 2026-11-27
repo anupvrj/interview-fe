@@ -24,7 +24,7 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
-import { GUEST_DRAFT_CLAIM_PATH, hasGuestResumeDraft } from "@/lib/guestResumeDraft";
+import { RESUME_BUILDER_FLOW_PATH, inResumeBuilderFlow } from "@/lib/resumeBuilderFlow";
 
 function OnboardingFallback() {
   return (
@@ -60,9 +60,9 @@ function OnboardingPageContent() {
       leaveOnboarding(GUEST_CHECK_CLAIM_PATH);
       return;
     }
-    // Built a resume before signing up: straight to it, onboarding later.
-    if (hasGuestResumeDraft()) {
-      leaveOnboarding(GUEST_DRAFT_CLAIM_PATH);
+    // Signed up from the resume builder: their resume first, onboarding later.
+    if (inResumeBuilderFlow()) {
+      leaveOnboarding(RESUME_BUILDER_FLOW_PATH);
       return;
     }
     const next = safeAppRedirectPath(searchParams.get("redirect_url"));

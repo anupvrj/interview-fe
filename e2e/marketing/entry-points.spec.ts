@@ -9,15 +9,14 @@ test.describe("entry points", () => {
     await expect(page.locator('a[href="/ats-checker"]').first()).toBeAttached();
   });
 
-  test("on the resume builder page, Start free opens the public builder (no sign-up first)", async ({ page }) => {
+  test("on the resume builder page, Start free opens sign-up, which comes back to the new-resume flow", async ({ page }) => {
     await page.goto("/ai-resume-builder");
     // wait for Clerk, so this is the signed-out link and not a pre-load placeholder
     await page.waitForFunction(() => Boolean((window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded), null, { timeout: 30_000 });
     const start = page.getByRole("link", { name: /^start free$/i }).first();
     await expect(start).toHaveAttribute("href", "/resume-builder/start");
     await start.click();
-    await expect(page).toHaveURL(/\/resume-builder\/start$/);
-    await expect(page.getByRole("button", { name: /start from scratch/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/sign-up\?redirect_url=%2Fdashboard%2Fresumes%2Fnew$/, { timeout: 30_000 });
   });
 
   for (const path of ["/ai-resume-builder", "/ats-checker"]) {

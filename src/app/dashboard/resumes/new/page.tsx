@@ -1,8 +1,8 @@
 "use client";
 
 import { track } from "@/lib/analytics/productEvents";
-import { forgetGuestResumeDraft, loadGuestResumeDraft } from "@/lib/guestResumeDraft";
-import { useEffect, useRef, useState } from "react";
+import { markResumeBuilderFlowBuilt } from "@/lib/resumeBuilderFlow";
+import { useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -217,61 +217,6 @@ export default function NewResumePage() {
     };
   }, [isLoaded, user]);
 
-  // Built in the public builder before signing up (?draft=guest): make it a real resume
-  // and open it. The draft stays in the browser if this can't finish (limit, error).
-  const claimDraft = searchParams.get("draft") === "guest";
-  const [claimingDraft, setClaimingDraft] = useState(claimDraft);
-  const [draftClaimError, setDraftClaimError] = useState<string | null>(null);
-  const claimStarted = useRef(false);
-  useEffect(() => {
-    if (!claimDraft || !isLoaded || !user || claimStarted.current) return;
-    claimStarted.current = true;
-    const draft = loadGuestResumeDraft();
-    if (!draft) {
-      setClaimingDraft(false);
-      return;
-    }
-    const started = Date.now();
-    void (async () => {
-      try {
-        const limit = await resumeApi.checkResumeLimit().catch(() => ({ allowed: true }) as { allowed: boolean; reason?: string });
-        if (!limit.allowed) {
-          setLimitReached(limit.reason ?? "You've reached your plan's resume limit.");
-          track("resume_guest_draft_claim_failed", { reason: "limit" });
-          setClaimingDraft(false);
-          return;
-        }
-        const { buildResumeTemplateApplication } = await import("@/lib/applyResumeTemplate");
-        const application = await buildResumeTemplateApplication(draft.templateId, {
-          content: draft.content,
-          sectionOrder: draft.sectionOrder,
-        } as Pick<Resume, "content" | "sectionOrder">);
-        const role = ((draft.content.personalInfo ?? {}) as { portfolio?: unknown }).portfolio;
-        const resume = await resumeApi.create(user.id, {
-          title: typeof role === "string" && role.trim() ? `${role.trim().slice(0, 60)} resume` : "My Resume",
-          templateId: application.templateId,
-          content: draft.content as Partial<Resume["content"]>,
-          sectionOrder: application.sectionOrder,
-          layout: application.layout,
-        });
-        forgetGuestResumeDraft();
-        track("resume_guest_draft_claimed", { source: draft.source, template_id: application.templateId, duration_ms: Date.now() - started });
-        await invalidate(["resumes"]);
-        router.replace(resumeEditorPath(resume.resumeId));
-      } catch (error: unknown) {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status === 403) {
-          setLimitReached("You've reached your plan's resume limit.");
-          track("resume_guest_draft_claim_failed", { reason: "limit" });
-        } else {
-          setDraftClaimError("We couldn't save the resume you built. It's still in this browser. Please reload to try again.");
-          track("resume_guest_draft_claim_failed", { reason: "error" });
-        }
-        setClaimingDraft(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [claimDraft, isLoaded, user]);
 
   useEffect(() => {
     const apply = () => {
@@ -630,6 +575,7 @@ export default function NewResumePage() {
           : {}),
       });
 
+      markResumeBuilderFlowBuilt();
       await invalidate(["resumes"]);
       router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
@@ -794,6 +740,7 @@ export default function NewResumePage() {
       });
 
       console.log("✅ Resume created with dummy content:", resume.resumeId);
+      markResumeBuilderFlowBuilt();
       await invalidate(["resumes"]);
       router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
@@ -929,24 +876,10 @@ export default function NewResumePage() {
   const stepNumber = Math.max(0, STEP_ORDER.indexOf(step)) + 1;
   const selectedTemplateMeta = templates.find((t) => t.id === selectedTemplate);
 
-  if (claimingDraft && limitReached === null) {
-    return (
-      <div className={cn(dash2026Scope, "flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center")} role="status">
-        <Loader2 className="h-7 w-7 animate-spin text-primary" />
-        <p className="text-[16px] font-semibold text-foreground">Saving the resume you built…</p>
-        <p className="text-[13.5px] text-muted-foreground">Opening it in the editor in a moment.</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className={cn(dash2026Scope, resumeBuilderPage)}>
-      {draftClaimError && (
-        <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p className="min-w-0 flex-1">{draftClaimError}</p>
-        </div>
-      )}
       <Dialog open={limitReached !== null} onOpenChange={(open) => { if (!open) router.push("/dashboard/resumes"); }}>
         <DialogContent className="border border-primary/20 bg-card shadow-xl sm:max-w-md">
           <DialogHeader>

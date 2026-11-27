@@ -2,6 +2,7 @@
 
 import { isGuestATSFlowPath } from "@/lib/atsCheckFlow";
 import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
+import { builderFlowSkipsOnboarding } from "@/lib/resumeBuilderFlow";
 import {
   createContext,
   useCallback,
@@ -113,6 +114,8 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
       return;
     }
     if (isGuestATSFlowPath(pathname) || hasUnclaimedGuestCheck()) return;
+    // Signed up from the resume builder: they finish their resume first, onboarding later.
+    if (builderFlowSkipsOnboarding(pathname)) return;
     router.replace("/onboarding");
   }, [profile, pathname, router]);
 
