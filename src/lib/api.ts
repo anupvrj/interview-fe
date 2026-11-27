@@ -3072,7 +3072,7 @@ export const contactApi = {
 export type AiReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type AiStageConfig = { model: string; effort?: AiReasoningEffort; maxOutputTokens: number; timeoutMs: number };
 export type AiStageOverride = { model?: string; effort?: string; maxOutputTokens?: number; timeoutMs?: number };
-export type AiBuildSettings = { costCeilingUsd: number; verifierEnabled: boolean; voicePassEnabled: boolean };
+export type AiBuildSettings = { costCeilingUsd: number; verifierEnabled: boolean; voicePassEnabled: boolean; writerV2Enabled: boolean };
 export type AiModelInfo = {
   id: string;
   price: { input: number; cachedInput: number; output: number };

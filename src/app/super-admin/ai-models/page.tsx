@@ -208,6 +208,7 @@ export default function AiModelsPage() {
           </label>
           {(
             [
+              ["writerV2Enabled", "Build resumes with Resume Writer v2"],
               ["verifierEnabled", "Check every line against the facts"],
               ["voicePassEnabled", "Polish wording and fit to page"],
             ] as const
