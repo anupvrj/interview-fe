@@ -149,6 +149,7 @@ export default function AiModelsPage() {
   const { authorized, loading } = useRequirePlatformAdmin();
   const [data, setData] = useState<AdminAiModelSettings | null>(null);
   const [ceiling, setCeiling] = useState("");
+  const [rollout, setRollout] = useState("100");
   const [savingBuild, setSavingBuild] = useState(false);
 
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function AiModelsPage() {
       .then((d) => {
         setData(d);
         setCeiling(String(d.build.costCeilingUsd));
+        setRollout(String(d.build.writerV2RolloutPercent ?? 100));
       })
       .catch((e) => toast.error(getApiErrorMessage(e, "Couldn't load AI model settings")));
   }, [authorized]);
@@ -165,6 +167,7 @@ export default function AiModelsPage() {
   const onSaved = (d: AdminAiModelSettings) => {
     setData(d);
     setCeiling(String(d.build.costCeilingUsd));
+    setRollout(String(d.build.writerV2RolloutPercent ?? 100));
   };
   const models = useMemo(() => data?.models ?? [], [data]);
 
@@ -205,6 +208,30 @@ export default function AiModelsPage() {
                 Save
               </Button>
             </div>
+          </label>
+          <label className="block text-[12.5px] text-muted-foreground">
+            Writer v2 rollout (% of users)
+            <div className="mt-1 flex gap-2">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                aria-label="Writer v2 rollout percent"
+                value={rollout}
+                onChange={(e) => setRollout(e.target.value)}
+                className="h-10 w-24 rounded-lg border border-border bg-background px-3 text-[14px] text-foreground"
+              />
+              <Button
+                size="sm"
+                className="h-10"
+                disabled={savingBuild || rollout === String(data.build.writerV2RolloutPercent ?? 100)}
+                onClick={() => void saveBuild({ writerV2RolloutPercent: Number(rollout) })}
+              >
+                Save
+              </Button>
+            </div>
+            <span className="mt-1 block text-[11.5px]">Same user, same builder every time; the rest get the current builder.</span>
           </label>
           {(
             [

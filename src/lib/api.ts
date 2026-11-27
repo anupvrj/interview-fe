@@ -3200,7 +3200,14 @@ export const contactApi = {
 export type AiReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type AiStageConfig = { model: string; effort?: AiReasoningEffort; maxOutputTokens: number; timeoutMs: number };
 export type AiStageOverride = { model?: string; effort?: string; maxOutputTokens?: number; timeoutMs?: number };
-export type AiBuildSettings = { costCeilingUsd: number; verifierEnabled: boolean; voicePassEnabled: boolean; writerV2Enabled: boolean };
+export type AiBuildSettings = {
+  costCeilingUsd: number;
+  verifierEnabled: boolean;
+  voicePassEnabled: boolean;
+  writerV2Enabled: boolean;
+  /** Share of users (0–100, fixed per user) who get v2 while it's on. */
+  writerV2RolloutPercent?: number;
+};
 export type AiModelInfo = {
   id: string;
   price: { input: number; cachedInput: number; output: number };

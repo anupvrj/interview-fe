@@ -587,16 +587,18 @@ export default function NewResumePage() {
     source: string;
   }) => {
     if (!user) return;
-      if (writerMeta) {
+      {
+        // Both builders report, so the A/B rollout can compare them (edits after build, downloads).
         const num = (v: unknown) => (typeof v === "number" ? v : 0);
         track("resume_ai_build_completed", {
-          source: String(source),
-          slots: writerMeta.slots?.length ?? 0,
-          suggestions: writerMeta.suggestions?.length ?? 0,
-          skills_to_confirm: writerMeta.skillsToConfirm?.length ?? 0,
-          kept_original: num(writerMeta.keptOriginal),
-          cost_usd: num(writerMeta.costUsd),
-          ms: num(writerMeta.ms),
+          variant: writerMeta ? "v2" : "current",
+          source,
+          slots: writerMeta?.slots?.length ?? 0,
+          suggestions: writerMeta?.suggestions?.length ?? 0,
+          skills_to_confirm: writerMeta?.skillsToConfirm?.length ?? 0,
+          kept_original: num(writerMeta?.keptOriginal),
+          cost_usd: num(writerMeta?.costUsd),
+          ms: num(writerMeta?.ms),
         });
       }
 
