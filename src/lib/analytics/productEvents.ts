@@ -27,6 +27,7 @@ type Events = {
   resume_builder_opened: { surface: "marketing" | "new" | "guest"; signed_in: boolean };
   resume_creation_started: { source: string };
   resume_builder_signup_opened: { signed_in: boolean };
+  resume_design_matched: { matched: boolean; used_ai: boolean; template_id: string };
   resume_template_selected: { template_id: string; surface: string };
   resume_ai_enhancement_requested: { kind: string };
   resume_ai_enhancement_applied: { kind: string };

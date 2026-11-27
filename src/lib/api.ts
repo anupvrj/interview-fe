@@ -2221,6 +2221,16 @@ export const resumeApi = {
    * Templates users can pick now, in Super Admin's order (Super Admin can turn templates off).
    * `keepId` keeps the resume's current template in the list even when it's disabled.
    */
+  /** Body columns of an old resume's first page (small JPEG data URL), for "closest design first". */
+  designFeatures: async (image: string): Promise<{ columns: 1 | 2 }> => {
+    const response = await apiClient.post<{ data: { columns: 1 | 2 } }>(
+      "/resumes/design-features",
+      { image },
+      { timeout: 20000 },
+    );
+    return response.data.data;
+  },
+
   getSelectableTemplates: async (keepId?: string | null): Promise<ResumeTemplate[]> => {
     const [{ TemplateLoader }, availability] = await Promise.all([
       import("./templateLoader"),

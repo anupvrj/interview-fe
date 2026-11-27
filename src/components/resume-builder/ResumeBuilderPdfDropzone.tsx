@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FileText, Loader2, Upload, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CloudUpload, Loader2 } from "lucide-react";
 import {
   resumeBuilderDropzone,
   resumeBuilderDropzoneActive,
   resumeBuilderHeroCard,
 } from "./resumeBuilderStyles";
+import { ResumeReadingProgress } from "./ResumeReadingProgress";
 import { cn } from "@/lib/utils";
 
 interface ResumeBuilderPdfDropzoneProps {
@@ -21,6 +21,14 @@ interface ResumeBuilderPdfDropzoneProps {
   onRemoveFile: () => void;
   footer?: ReactNode;
   compact?: boolean;
+  /** Closest-design match running after the upload (null when it doesn't apply). */
+  matchingDesign?: boolean | null;
+  /** Parts found in the uploaded resume's text. */
+  parts?: string[] | null;
+  /** The uploaded resume's look in words. */
+  layout?: { label: string; color?: string }[] | null;
+  /** The closest of our designs, by name. */
+  closestName?: string | null;
 }
 
 export function ResumeBuilderPdfDropzone({
@@ -34,6 +42,10 @@ export function ResumeBuilderPdfDropzone({
   onRemoveFile,
   footer,
   compact = false,
+  matchingDesign = null,
+  parts = null,
+  layout = null,
+  closestName = null,
 }: ResumeBuilderPdfDropzoneProps) {
   return (
     <div className="space-y-5">
@@ -49,51 +61,42 @@ export function ResumeBuilderPdfDropzone({
             {...getRootProps()}
             className={cn(
               resumeBuilderDropzone,
-              compact && "py-8",
+              "group cursor-pointer border-primary/35 hover:border-primary/70 hover:bg-primary/[0.04]",
+              compact ? "py-8" : "py-10 sm:py-12",
               isDragActive && resumeBuilderDropzoneActive,
               extracting && "pointer-events-none opacity-70",
             )}
           >
             <input {...getInputProps()} />
             {/* a page lifting out of the drop area */}
-            <div className={cn("relative mx-auto mb-5 h-[76px] w-[60px] transition-transform duration-300", isDragActive ? "-translate-y-2 rotate-[-4deg]" : "")}>
+            <div className={cn("relative mx-auto mb-5 h-[76px] w-[60px] transition-transform duration-300", isDragActive ? "-translate-y-2 rotate-[-4deg]" : "group-hover:-translate-y-1")}>
               <div className="absolute inset-0 rotate-[-8deg] rounded-lg border border-border bg-card opacity-70" />
               <div className="absolute inset-0 grid place-items-center rounded-lg border border-primary/25 bg-card shadow-[0_14px_30px_-16px_rgba(75,63,208,.6)]">
-                {extracting ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Upload className="h-6 w-6 text-primary" />}
+                {extracting ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <CloudUpload className="h-6 w-6 text-primary" />}
               </div>
             </div>
-            <h3 className="text-[18px] font-bold tracking-tight text-foreground">
-              {extracting ? "Reading your PDF…" : isDragActive ? "Drop it here" : "Drag your resume PDF here"}
+            <h3 className="text-[19px] font-bold tracking-tight text-foreground sm:text-[21px]">
+              {isDragActive ? "Drop it here" : "Drop your old resume here"}
             </h3>
             <p className="mx-auto mt-1.5 max-w-md text-[13.5px] text-muted-foreground">
-              {extracting ? "Pulling out your sections." : <>or <span className="font-semibold text-primary underline decoration-primary/40 underline-offset-4">browse your files</span> · we map every section to your template</>}
+              We pull out every section and suggest the design closest to yours.
             </p>
+            <span className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#7367F0] to-[#1F8FFF] px-6 text-[14.5px] font-semibold text-white shadow-[0_12px_28px_-12px_rgba(115,103,240,.9)] transition-transform group-hover:-translate-y-0.5">
+              <CloudUpload className="h-4 w-4" /> Choose a PDF
+            </span>
             <p className="mt-4 font-[family-name:var(--font-geist-mono)] text-[11px] text-muted-foreground/80">PDF ONLY · MAX {maxSizeLabel.toUpperCase()}</p>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-3 p-4 sm:p-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
-                <FileText className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-foreground">{uploadedFile.name}</p>
-                <p className="text-[13px] text-muted-foreground">
-                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB · {extracting ? "reading…" : "ready to import"}
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Remove file"
-              className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-              onClick={onRemoveFile}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <ResumeReadingProgress
+            key={`${uploadedFile.name}-${uploadedFile.lastModified}`}
+            file={uploadedFile}
+            reading={extracting}
+            matchingDesign={matchingDesign}
+            parts={parts}
+            layout={layout}
+            closestName={closestName}
+            onRemove={onRemoveFile}
+          />
         )}
       </div>
 

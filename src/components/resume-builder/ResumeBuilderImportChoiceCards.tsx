@@ -37,7 +37,7 @@ export function ResumeBuilderImportChoiceCards({
       id: "pdf",
       tag: "PDF",
       title: "Upload an old resume",
-      description: "Drop in a PDF. We pull out every section and lay it into the template you picked.",
+      description: "Drop in a PDF. We pull out every section, then suggest the design closest to yours.",
       cta: "Choose a PDF",
       emblem: "resume",
       onClick: onSelectPdf,

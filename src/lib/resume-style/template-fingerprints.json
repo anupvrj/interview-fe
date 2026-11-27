@@ -1,0 +1,155 @@
+{
+  "amber-edge": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": false
+  },
+  "atlantic-blue": {
+    "columns": 2,
+    "sidebar": "left",
+    "sidebarDark": true,
+    "headerBand": false,
+    "accent": "#1d3346",
+    "photo": false,
+    "serif": true
+  },
+  "classic": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": true
+  },
+  "clean-slate": {
+    "columns": 2,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": false
+  },
+  "cobalt-stream": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#a9bef6",
+    "photo": false,
+    "serif": false
+  },
+  "condensed-rule": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": false
+  },
+  "confident-grid": {
+    "columns": 2,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": true,
+    "accent": null,
+    "photo": true,
+    "serif": false
+  },
+  "corporate": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": true
+  },
+  "ember-timeline": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#7e93bd",
+    "photo": false,
+    "serif": false
+  },
+  "executive": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": true
+  },
+  "harvard": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": true
+  },
+  "mercury": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": true,
+    "accent": null,
+    "photo": false,
+    "serif": true
+  },
+  "meridian": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": null,
+    "photo": false,
+    "serif": false
+  },
+  "navy-frame": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#5e8099",
+    "photo": true,
+    "serif": false
+  },
+  "royal-indigo": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#8f70a7",
+    "photo": false,
+    "serif": false
+  },
+  "saffron-line": {
+    "columns": 2,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#fac57d",
+    "photo": true,
+    "serif": true
+  },
+  "true-blue": {
+    "columns": 1,
+    "sidebar": "none",
+    "sidebarDark": false,
+    "headerBand": false,
+    "accent": "#7d95ab",
+    "photo": false,
+    "serif": false
+  }
+}

@@ -5,9 +5,9 @@ import { Check, Loader2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RESUME_IMPORT_PROCESSING_MESSAGES } from "@/lib/resume-data-import";
 
-function ResumeScanMock({ active }: { active: boolean }) {
+export function ResumeScanMock({ active, compact = false }: { active: boolean; compact?: boolean }) {
   return (
-    <div className="relative mx-auto w-full max-w-[200px] sm:max-w-[240px]">
+    <div className={cn("relative mx-auto w-full", compact ? "max-w-[150px]" : "max-w-[200px] sm:max-w-[240px]")}>
       <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg">
         <div className="h-2 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/30" />
         <div className="space-y-2.5 p-3 sm:p-4">
@@ -55,7 +55,7 @@ function ResumeScanMock({ active }: { active: boolean }) {
         )}
       </div>
 
-      {active && (
+      {active && !compact && (
         <div className="mt-3 flex items-center justify-center gap-2 text-xs font-medium text-primary sm:mt-4 sm:text-sm">
           <ScanLine className="h-3.5 w-3.5 animate-pulse sm:h-4 sm:w-4" />
           Scanning document…

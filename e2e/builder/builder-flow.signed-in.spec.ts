@@ -13,6 +13,7 @@ test("build my resume, signed in: the new-resume flow opens", async ({ page }) =
   );
   await page.goto("/resume-builder/start");
   await expect(page).toHaveURL(/\/dashboard\/resumes\/new$/, { timeout: 30_000 });
-  await expect(page.getByRole("heading", { name: /start with a design you like/i })).toBeVisible({ timeout: 30_000 });
+  // details first (old resume, LinkedIn, AI chat or sample), then the design
+  await expect(page.getByRole("heading", { name: /bring in what you already have/i })).toBeVisible({ timeout: 30_000 });
   await page.evaluate(() => localStorage.removeItem("ix-resume-builder-flow"));
 });
