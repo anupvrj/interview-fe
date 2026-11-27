@@ -176,6 +176,7 @@ import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-conte
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
+import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
 import { addBullet, fillSlot, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
@@ -540,6 +541,8 @@ export default function EditResumePage() {
   const [aiReview, setAiReview] = useState<{
     before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
     lines: string[];
+    /** Each change with the line it replaced and why (computed from the text). */
+    changes?: AiChange[];
   } | null>(null);
   const [aiReviewListOpen, setAiReviewListOpen] = useState(false);
   /** Job match: keywords the user marked as not relevant for this job. */
@@ -2324,7 +2327,12 @@ export default function EditResumePage() {
           { ...before.content, profileSummary: before.profileSummary },
           { ...result.content, profileSummary: result.profileSummary },
         );
-        setAiReview(lines.length ? { before, lines } : null);
+        const changes = explainChanges(
+          { content: before.content as unknown as Record<string, unknown>, profileSummary: before.profileSummary },
+          { content: result.content as unknown as Record<string, unknown>, profileSummary: result.profileSummary },
+          jobDescription,
+        );
+        setAiReview(lines.length ? { before, lines, changes } : null);
       }
     } catch (error: any) {
       const serverMessage = error?.response?.data?.message;
@@ -3301,6 +3309,23 @@ export default function EditResumePage() {
     // Imported content counts as saved; this restore must be saved again.
     setHasChanges(true);
     showCanvasNotice("Undone — your resume is back to how it was before the rewrite.");
+  };
+
+  /** Undo one AI change: its line goes back to what it was. */
+  const undoAiChange = (change: AiChange) => {
+    if (!change.before) return;
+    const where = applySuggestionInEditor({ original: change.after, improved: change.before });
+    if (!where) {
+      showCanvasNotice("That line has changed since — edit it on the page instead.");
+      return;
+    }
+    setAiReview((prev) => {
+      if (!prev) return prev;
+      const changes = (prev.changes ?? []).filter((c) => c !== change);
+      const lines = prev.lines.filter((l) => l !== change.after);
+      return lines.length ? { ...prev, lines, changes } : null;
+    });
+    showCanvasNotice("That line is back to your version.");
   };
 
   /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
@@ -8556,19 +8581,31 @@ export default function EditResumePage() {
                         </div>
                       </div>
                       {aiReviewListOpen ? (
-                        <ol className="max-h-56 space-y-1 overflow-y-auto border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                          {aiReview.lines.map((line, i) => (
-                            <li key={i}>
+                        <ol data-testid="ai-review-changes" className="max-h-72 space-y-2 overflow-y-auto border-t border-border px-4 py-2 text-xs">
+                          {(aiReview.changes?.length ? aiReview.changes : aiReview.lines.map((after) => ({ path: "", after, reason: "" }) as AiChange)).map((change, i) => (
+                            <li key={`${change.path}:${i}`} className="flex items-start gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
+                                  const at = aiReview.lines.indexOf(change.after);
                                   setActiveMarkId(null);
-                                  requestAnimationFrame(() => setActiveMarkId(`ai:${i}`));
+                                  requestAnimationFrame(() => setActiveMarkId(`ai:${at >= 0 ? at : i}`));
                                 }}
-                                className="w-full truncate text-left hover:text-foreground"
+                                className="min-w-0 flex-1 text-left"
                               >
-                                {i + 1}. {line}
+                                <span className="line-clamp-2 text-foreground">{i + 1}. {change.after}</span>
+                                {change.reason ? <span className="mt-0.5 block text-[11px] text-indigo-600 dark:text-indigo-300">Why: {change.reason}</span> : null}
+                                {change.before ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground line-through">{change.before}</span> : null}
                               </button>
+                              {change.before ? (
+                                <button
+                                  type="button"
+                                  onClick={() => undoAiChange(change)}
+                                  className="shrink-0 rounded-md border border-border px-2 py-0.5 text-[11px] font-semibold text-foreground hover:bg-muted"
+                                >
+                                  Undo
+                                </button>
+                              ) : null}
                             </li>
                           ))}
                         </ol>

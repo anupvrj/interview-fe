@@ -50,3 +50,37 @@ test("tailor a copy; the master stays as it was @real-ai", async ({ page }, info
     if (copyId) await s.remove(copyId);
   }
 });
+
+test("update in place: each change says why, and one can be undone @real-ai", async ({ page }, info) => {
+  test.setTimeout(420_000);
+  const api = resumes(page.request, await session(page));
+  const r: TestResume = await api.create(`E2E tailor in place ${Date.now()}`);
+  try {
+    await page.goto(`/dashboard/resumes/${r.resumeId}/edit`);
+    await expect(page.getByText("Riya Test").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
+    await dismissPopups(page);
+    await page.getByRole("button", { name: "Job match" }).first().click();
+    await page.getByPlaceholder("Paste the full job description here…").fill(JD);
+    await page.getByRole("button", { name: "Compare with my resume" }).click();
+    await page.getByRole("button", { name: "Rewrite for this job" }).click({ timeout: 90_000 });
+    await page.getByTestId("tailor-choice").getByRole("button", { name: "Update this resume instead" }).click();
+
+    await page.getByRole("button", { name: "See changes" }).click({ timeout: 300_000 });
+    const list = page.getByTestId("ai-review-changes");
+    await expect(list.getByText(/^Why: /).first()).toBeVisible();
+    if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: path.join(process.env.E2E_SHOT_DIR, "ai-review-why.png") });
+
+    const item = list.locator("li").filter({ has: page.getByRole("button", { name: "Undo" }) }).first();
+    if (await item.count()) {
+      const undo = item.getByRole("button", { name: "Undo" });
+      const original = (await item.locator(".line-through").textContent({ timeout: 5_000 }))?.trim() ?? "";
+      const before = await list.locator("li").count();
+      await undo.click();
+      if (before > 1) await expect(list.locator("li")).toHaveCount(before - 1);
+      await expect(page.locator(".resume-page", { hasText: original.slice(0, 40) }).filter({ visible: true }).first()).toBeVisible();
+    }
+    void info;
+  } finally {
+    await resumes(page.request, await session(page)).remove(r.resumeId);
+  }
+});
