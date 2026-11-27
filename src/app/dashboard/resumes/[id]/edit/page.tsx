@@ -175,6 +175,7 @@ import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-content";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
+import { selectionInLine } from "@/lib/aiSelection";
 import {
   addEntry,
   changedTextLines,
@@ -3488,33 +3489,71 @@ export default function EditResumePage() {
     [resume, setResume, invalidateAtsScoreDisplay],
   );
 
+  // The bullet / summary under the caret in a rich field (and, with `withSelection`, the words
+  // selected in it), for the AI assistant.
+  const readAiTarget = useCallback((path: string, element: HTMLElement, withSelection: boolean): AiTarget | null => {
+    const selection = window.getSelection();
+    const node = selection?.anchorNode ?? null;
+    const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
+    // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
+    const inField = !!node && element.contains(node);
+    // Caret no longer in a bullet field (a tap blurred it): which bullet is unknown, and the
+    // whole field is never the answer — the caller falls back to the last line it knew.
+    if (!inField && kind === "bullet") return null;
+    const line = inField ? (node instanceof Element ? node : node?.parentElement)?.closest("li, p") : null;
+    const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
+    const scope = bullet ?? element;
+    const text = scope.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    if (!text) return null;
+    const [section, index] = path.split(".");
+    const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
+    const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+    // Which bullet of the field (by position in the saved data, not the DOM node: the page
+    // re-renders after every change, and a stale node once made "put in" overwrite the field).
+    const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
+    const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
+    // Words selected inside that one line: only they get reworded (a selection across lines
+    // means the whole line).
+    let span: AiTarget["selection"];
+    if (withSelection && selection && selection.rangeCount && !selection.isCollapsed && inField) {
+      const range = selection.getRangeAt(0);
+      if (scope.contains(range.startContainer) && scope.contains(range.endContainer)) {
+        const before = document.createRange();
+        before.selectNodeContents(scope);
+        before.setEnd(range.startContainer, range.startOffset);
+        span = selectionInLine(scope.textContent ?? "", before.toString(), range.toString()) ?? undefined;
+      }
+    }
+    return {
+      path,
+      kind,
+      text,
+      role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
+      company: typeof item?.company === "string" ? item.company : undefined,
+      at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
+      ...(span ? { selection: span } : {}),
+    };
+  }, []);
+
+  /** The rich field last focused on the page (the phone "AI" chip can blur it before its tap lands). */
+  const lastRichFieldRef = useRef<{ path: string; element: HTMLElement } | null>(null);
+  const aiTargetRef = useRef(aiTarget);
+  aiTargetRef.current = aiTarget;
+
   // Track the bullet / summary the caret is in, for the AI assistant.
   const handleCanvasFieldFocus = useCallback((path: string, element: HTMLElement) => {
     if (!element.hasAttribute("data-rx-rich")) return;
+    lastRichFieldRef.current = { path, element };
     const pickTarget = () => {
-      const selection = window.getSelection();
-      const node = selection?.anchorNode ?? null;
-      const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
-      // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
-      const line = (node instanceof Element ? node : node?.parentElement)?.closest("li, p");
-      const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
-      const text = (bullet ?? element).textContent?.replace(/\s+/g, " ").trim() ?? "";
-      if (!text) return;
-      const [section, index] = path.split(".");
-      const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
-      const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
-      // Which bullet of the field (by position in the saved data, not the DOM node: the page
-      // re-renders after every change, and a stale node once made "put in" overwrite the field).
-      const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
-      const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
-      setAiTarget({
-        path,
-        kind,
-        text,
-        role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
-        company: typeof item?.company === "string" ? item.company : undefined,
-        at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
-      });
+      const next = readAiTarget(path, element, false);
+      if (!next) return;
+      // Same line: keep what the "AI" button picked (its selected words), so moving the caret
+      // or putting an option in doesn't wipe the options on screen.
+      setAiTarget((prev) =>
+        prev && prev.at.path === next.at.path && prev.at.index === next.at.index
+          ? { ...next, selection: prev.selection, requestId: prev.requestId }
+          : next,
+      );
     };
     pickTarget();
     const onSelection = () => {
@@ -3522,7 +3561,7 @@ export default function EditResumePage() {
     };
     document.addEventListener("selectionchange", onSelection);
     element.addEventListener("blur", () => document.removeEventListener("selectionchange", onSelection), { once: true });
-  }, []);
+  }, [readAiTarget]);
   const commitCanvasFieldRef = useRef(commitCanvasField);
   commitCanvasFieldRef.current = commitCanvasField;
 
@@ -3683,6 +3722,23 @@ export default function EditResumePage() {
       setDeleteDialogOpen(true);
     },
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    onAskAi: () => {
+      // The line under the caret (or the words selected in it), read before anything blurs.
+      const last = lastRichFieldRef.current;
+      if (!last || !last.element.isConnected) {
+        showCanvasNotice("Click into a bullet point or your summary first.");
+        return;
+      }
+      const known = aiTargetRef.current;
+      const target = readAiTarget(last.path, last.element, true) ?? (known?.path === last.path ? { ...known, selection: undefined } : null);
+      if (!target) {
+        showCanvasNotice("Write a few words in this line first, then ask AI to improve them.");
+        return;
+      }
+      flushCanvasEdit(); // save what was typed, so the rewrite starts from the saved line
+      setAiTarget({ ...target, requestId: Date.now() });
+      if (canvasPanel !== "ai") openCanvasPanel("ai");
+    },
     canDesignSection: (sectionId) => supportsListDesigns(sectionTypeOf(sectionId), template?.id),
     getSectionDesign: (sectionId) => sectionDesignOf(layout, sectionId),
     onSetSectionDesign: (sectionId, design) => {

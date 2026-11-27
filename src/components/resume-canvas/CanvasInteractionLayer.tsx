@@ -24,7 +24,7 @@ import { DatePickerPopover, type EntryDates } from "./DatePickerPopover";
 import { TagListPopover } from "./TagListPopover";
 import { SectionDesignPicker } from "./SectionDesignPicker";
 import type { ListDesignId } from "@/lib/resume-section-designs";
-import { RichTextToolbar, RICH_ACTIONS, type RichCommand } from "./RichTextToolbar";
+import { RichFieldAiChip, RichTextToolbar, RICH_ACTIONS, type RichCommand } from "./RichTextToolbar";
 
 /** Labels used by templates that merge several sections into one block. */
 const LABEL_TO_SECTION: Record<string, string> = {
@@ -157,6 +157,8 @@ export interface CanvasInteractionHandlers {
   canDesignSection?: (sectionId: string) => boolean;
   getSectionDesign?: (sectionId: string) => ListDesignId | null;
   onSetSectionDesign?: (sectionId: string, design: ListDesignId | null) => void;
+  /** "AI" on a bullet / summary being edited: reword that line (or the selected words) in the AI Coach. */
+  onAskAi?: () => void;
 }
 
 interface Box {
@@ -874,7 +876,13 @@ export function CanvasInteractionLayer({
     ) : null;
 
   // Text styling while a description / bullet / summary is being edited.
-  const selectionBar = !isMobile ? <RichTextToolbar rootRef={rootRef} /> : null;
+  // Desktop: an "AI" button leads the style toolbar. Phones: a small "AI" chip by the field.
+  const askAi = handlers.onAskAi ? () => handlersRef.current.onAskAi?.() : undefined;
+  const selectionBar = !isMobile ? (
+    <RichTextToolbar rootRef={rootRef} onAskAi={askAi} />
+  ) : askAi ? (
+    <RichFieldAiChip rootRef={rootRef} onAskAi={askAi} />
+  ) : null;
 
   return (
     <div data-rx-overlay className="pointer-events-none absolute inset-0 z-10" aria-hidden={false}>
