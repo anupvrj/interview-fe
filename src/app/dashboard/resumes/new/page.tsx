@@ -1,8 +1,15 @@
 "use client";
 
 import { track } from "@/lib/analytics/productEvents";
-import { PROFILE_UPDATED_EVENT, builderFlowSkipsOnboarding, markResumeBuilderFlowBuilt } from "@/lib/resumeBuilderFlow";
-import { useEffect, useState } from "react";
+import {
+  PROFILE_UPDATED_EVENT,
+  builderFlowSkipsOnboarding,
+  clearPendingBuildJob,
+  markResumeBuilderFlowBuilt,
+  readPendingBuildJob,
+  savePendingBuildJob,
+} from "@/lib/resumeBuilderFlow";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -565,38 +572,25 @@ export default function NewResumePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickHackathon, step, pendingImport, creating, createError]);
 
-  const handleBuildResume = async (
-    jdOverride?: string,
-    jdReqOverride?: JDRequirements | null,
-  ) => {
-    if (!selectedTemplate || !user || !pendingImport) return;
-
-    const jdText = jdOverride ?? jobDescription;
-    const jdReq = jdReqOverride === undefined ? jdRequirements : jdReqOverride;
-
-    try {
-      setCreating(true);
-      setCreateError(null);
-      setStep("processing");
-
-      if (pendingImport.source === "dummy") {
-        await createResumeWithDummyContent(jdText);
-        return;
-      }
-
-      const { sections, writerMeta } = await buildResumeWithMeta(
-        {
-          ...pendingImport,
-          templateId: selectedTemplate,
-          jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
-          jdRequirements: jdReq ?? undefined,
-        },
-        (s) => setLiveStep(s),
-      );
+  /** Make the resume from a finished build (also used when a reloaded page picks a build up). */
+  const finishBuiltResume = async ({
+    sections,
+    writerMeta,
+    templateId,
+    jdText,
+    source,
+  }: {
+    sections: Awaited<ReturnType<typeof buildResumeWithMeta>>["sections"];
+    writerMeta: Awaited<ReturnType<typeof buildResumeWithMeta>>["writerMeta"];
+    templateId: string;
+    jdText: string;
+    source: string;
+  }) => {
+    if (!user) return;
       if (writerMeta) {
         const num = (v: unknown) => (typeof v === "number" ? v : 0);
         track("resume_ai_build_completed", {
-          source: String(pendingImport.source),
+          source: String(source),
           slots: writerMeta.slots?.length ?? 0,
           suggestions: writerMeta.suggestions?.length ?? 0,
           skills_to_confirm: writerMeta.skillsToConfirm?.length ?? 0,
@@ -608,7 +602,7 @@ export default function NewResumePage() {
 
       const { TemplateLoader } = await import("@/lib/templateLoader");
       const templateConfig =
-        await TemplateLoader.loadTemplate(selectedTemplate);
+        await TemplateLoader.loadTemplate(templateId);
       const extended = templateConfig.extended;
 
       const renderingLayout = extended.rendering?.layout;
@@ -633,13 +627,13 @@ export default function NewResumePage() {
       );
 
       const resume = await resumeApi.create(user.id, {
-        templateId: selectedTemplate,
+        templateId: templateId,
         title: "My Resume",
         content,
         sectionOrder,
         layout: initialLayout,
         ...(writerMeta ? { aiBuildMeta: writerMeta } : {}),
-        ...(jdText.trim().length > 50
+        ...(jdText.length > 50
           ? {
               atsScoringContext: {
                 lastJobDescription: trimJobDescriptionForSend(jdText),
@@ -651,8 +645,71 @@ export default function NewResumePage() {
       markResumeBuilderFlowBuilt();
       await invalidate(["resumes"]);
       router.push(resumeEditorPath(resume.resumeId));
+  };
+
+  // A build that was running when the page closed or reloaded: pick it up and finish it.
+  const resumedJobRef = useRef(false);
+  useEffect(() => {
+    if (!user || resumedJobRef.current || creating) return;
+    const pending = readPendingBuildJob();
+    if (!pending) return;
+    resumedJobRef.current = true;
+    setCreating(true);
+    setCreateError(null);
+    setStep("processing");
+    void (async () => {
+      try {
+        const { pollResumeBuildJob } = await import("@/lib/api");
+        const { sections, writerMeta } = await pollResumeBuildJob(pending.jobId, (s) => setLiveStep(s));
+        await finishBuiltResume({ sections: sections as never, writerMeta: writerMeta ?? null, templateId: pending.templateId, jdText: pending.jdText, source: pending.source });
+        clearPendingBuildJob();
+      } catch (error) {
+        clearPendingBuildJob();
+        setStep("import");
+        setCreateError(`Couldn't finish your resume: ${error instanceof Error ? error.message : "Please try again."}`);
+      } finally {
+        setCreating(false);
+      }
+    })();
+    // finishBuiltResume is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, creating]);
+
+  const handleBuildResume = async (
+    jdOverride?: string,
+    jdReqOverride?: JDRequirements | null,
+  ) => {
+    if (!selectedTemplate || !user || !pendingImport) return;
+
+    const jdText = jdOverride ?? jobDescription;
+    const jdReq = jdReqOverride === undefined ? jdRequirements : jdReqOverride;
+
+    try {
+      setCreating(true);
+      setCreateError(null);
+      setStep("processing");
+
+      if (pendingImport.source === "dummy") {
+        await createResumeWithDummyContent(jdText);
+        return;
+      }
+
+      const jobContext = { templateId: selectedTemplate, jdText: jdText.trim().length > 50 ? jdText.trim() : "", source: String(pendingImport.source) };
+      const { sections, writerMeta } = await buildResumeWithMeta(
+        {
+          ...pendingImport,
+          templateId: selectedTemplate,
+          jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
+          jdRequirements: jdReq ?? undefined,
+        },
+        (s) => setLiveStep(s),
+        (jobId) => savePendingBuildJob({ jobId, ...jobContext, at: Date.now() }),
+      );
+      await finishBuiltResume({ sections, writerMeta, ...jobContext });
+      clearPendingBuildJob();
     } catch (error: any) {
       console.error("Error building resume:", error);
+      clearPendingBuildJob();
       setStep("jobDescription");
 
       const isLimitError =

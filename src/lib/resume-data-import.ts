@@ -784,12 +784,14 @@ type BuiltSections = Record<
 export async function buildResumeWithMeta(
   payload: BuildResumeImportPayload,
   onProgress?: (step: string, detail?: string) => void,
+  onJob?: (jobId: string) => void,
 ): Promise<{ sections: BuiltSections; writerMeta: import("@/lib/api").AiBuildMeta | null }> {
   const buildOptions = {
     jobDescription: payload.jobDescription,
     jdRequirements: payload.jdRequirements,
     enhance: payload.enhance,
     onProgress,
+    onJob,
   };
 
   if (payload.source === "linkedin" && payload.linkedinHandle) {

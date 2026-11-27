@@ -66,3 +66,35 @@ export function builderFlowSkipsOnboarding(pathname: string): boolean {
 
 /** The app user changed outside the role provider (e.g. onboarding finished here): detail is the User. */
 export const PROFILE_UPDATED_EVENT = "ix-profile-updated";
+
+/** A server-side AI build in progress, so a reloaded or reopened page can pick it up again. */
+export type PendingBuildJob = { jobId: string; templateId: string; jdText: string; source: string; at: number };
+const PENDING_BUILD_KEY = "it:resume-build-job";
+/** Builds older than this are not picked up again (the job itself is gone after a day). */
+const PENDING_BUILD_MAX_AGE_MS = 15 * 60 * 1000;
+
+export function savePendingBuildJob(job: PendingBuildJob): void {
+  try {
+    localStorage.setItem(PENDING_BUILD_KEY, JSON.stringify({ ...job, jdText: job.jdText.slice(0, 6000) }));
+  } catch {
+    /* storage unavailable: the build still finishes in this tab */
+  }
+}
+
+export function readPendingBuildJob(): PendingBuildJob | null {
+  try {
+    const job = JSON.parse(localStorage.getItem(PENDING_BUILD_KEY) ?? "null") as PendingBuildJob | null;
+    if (!job?.jobId || Date.now() - job.at > PENDING_BUILD_MAX_AGE_MS) return null;
+    return job;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingBuildJob(): void {
+  try {
+    localStorage.removeItem(PENDING_BUILD_KEY);
+  } catch {
+    /* ignore */
+  }
+}

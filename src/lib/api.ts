@@ -2778,7 +2778,49 @@ export type ResumeImportBuildOptions = {
   enhance?: boolean;
   /** Live build steps from the server ("reading", "understanding", "writing", "checking", "fitting", "done"). */
   onProgress?: (step: string, detail?: string) => void;
+  /** The server-side build job started (its id lets a reloaded page pick the build up again). */
+  onJob?: (jobId: string) => void;
 };
+
+type ExtractedBuild = {
+  sections: Record<string, { sectionType: string; content: string | any; format: "html" | "list" | "paragraph" | "structured" }>;
+  templateId: string;
+  writerMeta?: AiBuildMeta | null;
+};
+
+/**
+ * Follow a server-side build until it's done: reports each new step, returns the result.
+ * The build runs on the server either way, so a closed tab doesn't lose it.
+ */
+export async function pollResumeBuildJob(
+  jobId: string,
+  onProgress?: (step: string, detail?: string) => void,
+  opts: { intervalMs?: number; timeoutMs?: number } = {},
+): Promise<ExtractedBuild> {
+  const interval = opts.intervalMs ?? 1500;
+  const deadline = Date.now() + (opts.timeoutMs ?? 6 * 60 * 1000);
+  let seen = 0;
+  let misses = 0;
+  while (Date.now() < deadline) {
+    try {
+      const { data } = await apiClient.get<{
+        data: { status: "running" | "done" | "failed"; steps: { step: string; detail?: string }[]; result?: ExtractedBuild; error?: string };
+      }>(`/resume-build-jobs/${jobId}`, { timeout: 15000 });
+      const job = data.data;
+      for (const s of job.steps.slice(seen)) onProgress?.(s.step, s.detail);
+      seen = job.steps.length;
+      if (job.status === "done" && job.result) return job.result;
+      if (job.status === "failed") throw new Error(job.error || "Failed to build the resume");
+      misses = 0;
+    } catch (error) {
+      if (error instanceof Error && !("isAxiosError" in error)) throw error;
+      if ((error as { response?: { status?: number } }).response?.status === 404) throw new Error("Build not found");
+      if (++misses > 8) throw error; // the connection is gone for good
+    }
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  throw new Error("The build is taking too long. Please try again.");
+}
 
 /** What the AI build left for the user (Resume Writer v2); saved on the resume as aiBuildMeta. */
 export type AiBuildMeta = {
@@ -2914,6 +2956,21 @@ export const resumeDataExtractionApi = {
       jdRequirements: jdRequirements || undefined,
       enhance: enhance !== false,
     };
+    // A server-side job: real steps, and it survives a closed tab. Older servers: stream below.
+    if (onProgress && typeof window !== "undefined") {
+      let jobId: string | undefined;
+      try {
+        const started = await apiClient.post<{ data: { jobId: string } }>("/resume-build-jobs", body, { timeout: 30000 });
+        jobId = started.data.data.jobId;
+      } catch (error) {
+        const status = (error as { response?: { status?: number } }).response?.status;
+        if (status && status !== 404) throw error;
+      }
+      if (jobId) {
+        options.onJob?.(jobId);
+        return pollResumeBuildJob(jobId, onProgress);
+      }
+    }
     // Live steps: one JSON line per step, then the result. Falls back to the plain request.
     if (onProgress && typeof window !== "undefined" && typeof ReadableStream !== "undefined") {
       try {
