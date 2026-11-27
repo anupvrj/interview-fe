@@ -110,5 +110,11 @@ test.describe("what's left for you", () => {
     await expect(defend.locator("li")).toHaveCount(3, { timeout: 60_000 });
     await expect(defend).toContainText("A strong answer shows");
     await shot(page, info, "ai-coach-defend");
+
+    // …and carry the line into a mock interview: the setup page shows it will be asked first.
+    await page.getByRole("button", { name: "Practice it in a mock interview" }).click();
+    await page.waitForURL(/\/dashboard\/interviews\/new/, { timeout: 30_000 });
+    await expect(page.getByTestId("mock-focus-lines")).toContainText("annual budget", { timeout: 30_000 });
+    await shot(page, info, "mock-focus-lines");
   });
 });

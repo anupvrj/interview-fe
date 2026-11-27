@@ -9,6 +9,7 @@ import { spliceSelection, type AiSelection } from "@/lib/aiSelection";
 import { SuggestionPicker } from "./SuggestionPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { saveMockFocusLines } from "@/lib/mockFocusLines";
 
 /** The bullet (or summary) the user last put their caret in. */
 export interface AiTarget {
@@ -234,6 +235,21 @@ export function AiAssistPanel({
                       </li>
                     ))}
                   </ol>
+                ) : null}
+                {defend?.length ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="mt-2 w-full"
+                    onClick={() => {
+                      saveMockFocusLines([{ text: currentText, questions: defend.map((q) => q.question) }]);
+                      track("resume_ai_defend_requested", { kind: "mock_interview" });
+                      window.location.assign("/dashboard/interviews/new");
+                    }}
+                  >
+                    Practice it in a mock interview
+                  </Button>
                 ) : null}
               </div>
             ) : null}

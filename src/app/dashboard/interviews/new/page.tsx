@@ -37,6 +37,7 @@ import {
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
+import { clearMockFocusLines, readMockFocusLines, type MockFocusLine } from "@/lib/mockFocusLines";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { AppSelect } from "@/components/ui/app-select";
@@ -322,6 +323,11 @@ export default function NewInterviewPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [jobCapture, setJobCapture] = useState<PendingJobCapture | null>(null);
   const [jobDescription, setJobDescription] = useState("");
+  /** Resume lines from the AI Coach to practise defending (asked first). */
+  const [focusLines, setFocusLines] = useState<MockFocusLine[]>([]);
+  useEffect(() => {
+    setFocusLines(readMockFocusLines());
+  }, []);
   const jobCaptureRef = useRef<PendingJobCapture | null>(null);
   const formEdits = useRef<InterviewFormEdits>({});
   // Category round from the "What do you want to rehearse?" cards (?category=); "" = classic interview.
@@ -678,7 +684,9 @@ export default function NewInterviewPage() {
         })(),
         voiceProvider: formData.voiceProvider,
         jobApplicationId: jobCaptureRef.current?.jobApplicationId,
+        focusLines: focusLines.length ? focusLines : undefined,
       });
+      clearMockFocusLines();
 
       clearPendingJobCapture();
       jobCaptureRef.current = null;
@@ -818,6 +826,28 @@ export default function NewInterviewPage() {
               </FormField>
               )}
             </div>
+            {focusLines.length ? (
+              <div data-testid="mock-focus-lines" className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-foreground">The interviewer will start with {focusLines.length === 1 ? "this resume line" : "these resume lines"}:</p>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      clearMockFocusLines();
+                      setFocusLines([]);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {focusLines.map((l, i) => (
+                    <li key={i}>{l.text}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <FormField label="Job description" htmlFor="jobDescription" optional>
               <JobDescriptionPicker
                 id="jobDescription"

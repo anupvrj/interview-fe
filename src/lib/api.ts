@@ -699,6 +699,8 @@ export interface InterviewCoverageSummary {
 }
 
 export interface CreateInterviewRequest {
+  /** Resume lines to practise defending (from the AI Coach); the interviewer asks these first. */
+  focusLines?: { text: string; questions: string[] }[];
   role: string;
   experience: number;
   language: "en" | "hi";
@@ -1013,6 +1015,9 @@ export const interviewApi = {
     }
     if (data.jobApplicationId?.trim()) {
       formData.append("jobApplicationId", data.jobApplicationId.trim());
+    }
+    if (data.focusLines?.length) {
+      formData.append("focusLines", JSON.stringify(data.focusLines.slice(0, 3)));
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
