@@ -175,6 +175,19 @@ import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-content";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
+import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
+import { TellUsAboutYouDialog } from "@/components/resume-canvas/TellUsAboutYouDialog";
+import { SectionAiDialog, type SectionAiTarget } from "@/components/resume-canvas/SectionAiDialog";
+import { CoverLetterDialog } from "@/components/resume-canvas/CoverLetterDialog";
+import { PeerSkillsCard } from "@/components/resume-canvas/PeerSkillsCard";
+import { CommandPalette, type PaletteAction } from "@/components/resume-canvas/CommandPalette";
+import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
+import { nextFitStep } from "@/lib/fitLayout";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { track } from "@/lib/analytics/productEvents";
+import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, roleForQuote, toList, whatsLeft } from "@/lib/aiBuildMetaApply";
+import type { SkillPlacementApi } from "@/components/resume-canvas/SkillPlacementBox";
+import { selectionInLine } from "@/lib/aiSelection";
 import {
   addEntry,
   changedTextLines,
@@ -535,6 +548,8 @@ export default function EditResumePage() {
   const [aiReview, setAiReview] = useState<{
     before: Pick<Resume, "content" | "profileSummary" | "sectionOrder">;
     lines: string[];
+    /** Each change with the line it replaced and why (computed from the text). */
+    changes?: AiChange[];
   } | null>(null);
   const [aiReviewListOpen, setAiReviewListOpen] = useState(false);
   /** Job match: keywords the user marked as not relevant for this job. */
@@ -602,6 +617,9 @@ export default function EditResumePage() {
       setViewMode("ats");
       // A ?view=ats link means "show me the ATS check": open its panel on the canvas too.
       setCanvasPanel((current) => current ?? "fix");
+    } else if (searchParams.get("view") === "job") {
+      // From the report's "Job keywords": the job match panel with its keyword table.
+      setCanvasPanel("tailor");
     }
   }, [searchParams]);
 
@@ -897,6 +915,7 @@ export default function EditResumePage() {
         profileSummary: resumeSnapshot.profileSummary,
         sectionOrder: sectionOrderData,
         layout: currentLayout,
+        ...(resumeSnapshot.aiBuildMeta ? { aiBuildMeta: resumeSnapshot.aiBuildMeta } : {}),
       });
 
       finishSave({ resume: resumeSnapshot, sections: currentSections, layout: currentLayout });
@@ -1023,6 +1042,7 @@ export default function EditResumePage() {
           profileSummary: currentResume.profileSummary,
           sectionOrder: sectionOrderData,
           layout: currentLayout,
+          ...(currentResume.aiBuildMeta ? { aiBuildMeta: currentResume.aiBuildMeta } : {}),
         });
 
         finishSave({ resume: currentResume, sections: currentSections, layout: currentLayout });
@@ -2207,11 +2227,46 @@ export default function EditResumePage() {
     setApplyNonce((prev) => prev + 1);
   };
 
-  // Step 1: user submits the JD -> stage it and ask for confirmation, since
-  // tailoring overwrites the current resume content.
+  // Step 1: user submits the JD -> ask whether to tailor a copy (default) or this resume.
   const handleRequestMatchJobDescription = (jobDescription: string) => {
     setPendingMatchJd(jobDescription);
     setConfirmMatchOpen(true);
+  };
+
+  /** Tailor a copy for this job: the master resume stays as it is; the copy opens. */
+  const handleTailorCopy = async (jobDescription: string) => {
+    if (!resume) return;
+    setLastMatchedJd(jobDescription);
+    try {
+      setMatchingJob(true);
+      await ensureResumePersisted();
+      const matchInsights = isATSReportV3(resume.atsFeedback) ? insightsFromAtsReport(resume.atsFeedback) : undefined;
+      const base = (resume.title?.trim() || "Resume").replace(/ — tailored( \d+)?$/, "");
+      const copy = await resumeApi.duplicate(resumeId, `${base} — tailored`);
+      const result = await resumeApi.tailorToJobDescription(copy.resumeId, { jobDescription, matchInsights });
+      await resumeApi.update(copy.resumeId, {
+        content: result.content,
+        profileSummary: result.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: { lastJobDescription: jobDescription },
+        pdfS3Key: "",
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
+      });
+      try {
+        await resumeApi.recalculateATS(copy.resumeId, { jobDescription });
+      } catch {
+        /* the copy is saved; its score refreshes on open */
+      }
+      track("resume_duplicated", { surface: "tailor_copy" });
+      setMatchJobOpen(false);
+      router.push(`/dashboard/resumes/${copy.resumeId}/edit`);
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.message;
+      console.error("Error tailoring a copy:", { status: error?.response?.status, serverMessage, error });
+      alert(serverMessage ? `Couldn't make the tailored copy: ${serverMessage}` : "Couldn't make the tailored copy. Please try again.");
+    } finally {
+      setMatchingJob(false);
+    }
   };
 
   // Step 2: confirmed -> run the tailoring/overwrite.
@@ -2250,10 +2305,12 @@ export default function EditResumePage() {
         sectionOrder: result.sectionOrder,
         atsScoringContext: nextAtsContext,
         pdfS3Key: "",
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
       });
 
       let updatedResume: Resume = {
         ...resume,
+        ...(result.aiBuildMeta ? { aiBuildMeta: result.aiBuildMeta } : {}),
         content: result.content,
         profileSummary: result.profileSummary ?? resume.profileSummary,
         sectionOrder: result.sectionOrder,
@@ -2277,7 +2334,12 @@ export default function EditResumePage() {
           { ...before.content, profileSummary: before.profileSummary },
           { ...result.content, profileSummary: result.profileSummary },
         );
-        setAiReview(lines.length ? { before, lines } : null);
+        const changes = explainChanges(
+          { content: before.content as unknown as Record<string, unknown>, profileSummary: before.profileSummary },
+          { content: result.content as unknown as Record<string, unknown>, profileSummary: result.profileSummary },
+          jobDescription,
+        );
+        setAiReview(lines.length ? { before, lines, changes } : null);
       }
     } catch (error: any) {
       const serverMessage = error?.response?.data?.message;
@@ -2329,6 +2391,137 @@ export default function EditResumePage() {
       setHasChanges(true);
     } finally {
       endHistoryTransaction();
+    }
+  };
+
+  const [coverLetterOpen, setCoverLetterOpen] = useState(false);
+  /** ✦ Section AI: the section (or one entry) being written/rewritten. */
+  const [sectionAi, setSectionAi] = useState<SectionAiTarget | null>(null);
+  const openSectionAi = (sectionId: string, entryIndex: number | null) => {
+    const current = resumeRef.current;
+    const section = sections.find((s) => s.id === sectionId);
+    if (!current || !section) return;
+    const c = current.content as unknown as Record<string, unknown>;
+    const type = section.type as string;
+    const list = (k: string) => (Array.isArray(c[k]) ? (c[k] as Array<Record<string, unknown>>) : []);
+    const join = (...v: unknown[]) => v.map((x) => String(x ?? "").trim()).filter(Boolean).join(" at ");
+    let entries: SectionAiTarget["entries"] = [];
+    if (type === "profileSummary") entries = [{ index: 0, title: "Summary", lines: bulletsOf(c.profileSummary).length ? [bulletsOf(c.profileSummary).join(" ")] : [] }];
+    else if (type === "skills") {
+      const sk = c.skills as unknown;
+      const names = Array.isArray(sk) ? sk.map((x) => (typeof x === "string" ? x : String((x as { name?: string })?.name ?? ""))) : String(sk ?? "").replace(/<[^>]+>/g, ",").split(/[,|•\n]+/);
+      entries = [{ index: 0, title: "Skills", lines: names.map((n) => n.trim()).filter(Boolean) }];
+    } else if (type === "experience") entries = list("experience").map((e, i) => ({ index: i, title: join(e.position, e.company), lines: bulletsOf(e.description) }));
+    else if (type === "projects") entries = list("projects").map((p, i) => ({ index: i, title: String(p.name ?? `Project ${i + 1}`), lines: bulletsOf(p.description) }));
+    else if (type === "education") entries = list("education").map((e, i) => ({ index: i, title: join([e.degree, e.field].filter(Boolean).join(" in "), e.institution), lines: bulletsOf(e.description) }));
+    else if (type === "custom") {
+      const cs = list("customSections").find((x) => x.id === sectionId);
+      entries = [{ index: 0, title: String(cs?.title ?? section.title ?? "Section"), lines: bulletsOf(cs?.content) }];
+    } else {
+      showCanvasNotice("AI writing isn't available for this section yet — try Summary, Experience, Projects, Skills or Education.");
+      return;
+    }
+    if (entryIndex !== null && entries.length > 1) entries = entries.filter((e) => e.index === entryIndex);
+    if (!entries.length) {
+      showCanvasNotice("Add an entry first (＋), then AI can write it.");
+      return;
+    }
+    const brief = (current.aiBuildMeta as { brief?: { roleFamily?: string; seniority?: string; industry?: string; targetTitle?: string } } | undefined)?.brief;
+    setSectionAi({
+      sectionId,
+      sectionType: type,
+      title: String(section.title ?? type),
+      entries,
+      context: {
+        roleFamily: brief?.roleFamily,
+        seniority: brief?.seniority,
+        industry: brief?.industry,
+        targetRole: brief?.targetTitle || current.content.personalInfo?.portfolio,
+      },
+      resumeText: resumeRawText,
+    });
+  };
+  const applySectionAi = (target: SectionAiTarget, result: Array<{ index: number; lines: string[] }>) => {
+    const current = resumeRef.current;
+    if (!current) return;
+    const c = current.content as unknown as Record<string, unknown>;
+    const type = target.sectionType;
+    const first = result[0];
+    if (type === "profileSummary") updateContent({ profileSummary: `<p>${first.lines.join(" ").replace(/</g, "&lt;")}</p>` } as Partial<Resume["content"]>);
+    else if (type === "skills") updateContent({ skills: first.lines } as Partial<Resume["content"]>);
+    else if (type === "custom") {
+      const cs = ((c.customSections as Array<Record<string, unknown>>) ?? []).map((x) => (x.id === target.sectionId ? { ...x, content: toList(first.lines) } : x));
+      updateContent({ customSections: cs } as Partial<Resume["content"]>);
+    } else {
+      const key = type as "experience" | "projects" | "education";
+      const next = [...((c[key] as Array<Record<string, unknown>>) ?? [])];
+      for (const r of result) if (next[r.index]) next[r.index] = { ...next[r.index], description: toList(r.lines) };
+      updateContent({ [key]: next } as Partial<Resume["content"]>);
+      flashAppliedChange({ path: `${key}.${first.index}.description`, index: 0 }, first.lines[0] ?? "");
+    }
+    track("resume_ai_enhancement_applied", { kind: `section_${type}` });
+    showCanvasNotice("Done — Undo puts the old version back.");
+  };
+
+  /** Little or nothing real to improve: ask the person (questions / voice / paste) instead. */
+  const [tellUsOpen, setTellUsOpen] = useState(false);
+  const resumeIsThin = (() => {
+    const c = (resume?.content ?? {}) as unknown as Record<string, unknown>;
+    const text = [c.profileSummary, ...(Array.isArray(c.experience) ? (c.experience as Array<Record<string, unknown>>).map((e) => e.description) : []), ...(Array.isArray(c.projects) ? (c.projects as Array<Record<string, unknown>>).map((p) => p.description) : [])]
+      .map((v) => (Array.isArray(v) ? v.join(" ") : String(v ?? "")))
+      .join(" ")
+      .replace(/<[^>]+>/g, " ");
+    const words = text.split(/\s+/).filter((w) => /[a-z]/i.test(w)).length;
+    return livePlaceholders.length > 0 || words < 60;
+  })();
+  /** "Fix all with AI": the server rewrites against the ATS findings; every change is then reviewable. */
+  const [fixingAll, setFixingAll] = useState(false);
+  const handleFixAllWithAi = async () => {
+    const current = resumeRef.current;
+    if (!current || !resumeId || fixingAll) return;
+    // Nothing real to improve yet: get the facts first.
+    if (resumeIsThin) {
+      setTellUsOpen(true);
+      return;
+    }
+    // The one-click optimizer is a plan feature (same as "Improve with AI" on the ATS page).
+    if (!canUse("oneClickResumeOptimizer")) {
+      setTrialUpsellOpen(true);
+      return;
+    }
+    const before = { content: current.content, profileSummary: current.profileSummary, sectionOrder: current.sectionOrder };
+    const scoreBefore = typeof current.atsScore === "number" ? current.atsScore : null;
+    try {
+      setFixingAll(true);
+      await ensureResumePersisted();
+      const updated = await resumeApi.improveFromATS(resumeId, { fixFindings: true });
+      handleResumeImported(updated);
+      setDisplayAtsScore(typeof updated.atsScore === "number" ? updated.atsScore : null);
+      const placedSkills = (updated.aiBuildMeta?.skillsPlaced ?? []) as { skill: string; text: string }[];
+      const changes = explainChanges(
+        { content: before.content as unknown as Record<string, unknown>, profileSummary: before.profileSummary },
+        { content: updated.content as unknown as Record<string, unknown>, profileSummary: updated.profileSummary },
+      ).map((c) => {
+        const placed = placedSkills.find((p) => p.text.trim() === c.after.trim());
+        return placed ? { ...c, reason: `Shows "${placed.skill}" from your Skills in the work where you used it.` } : c;
+      });
+      setAiReview(changes.length ? { before, lines: changes.map((c) => c.after), changes } : null);
+      track("resume_ai_enhancement_applied", { kind: "fix_all" });
+      showCanvasNotice(
+        scoreBefore !== null && typeof updated.atsScore === "number"
+          ? `Fixed with AI: ${scoreBefore} → ${updated.atsScore}. Review the changes above; undo any you don't want.`
+          : "Fixed with AI. Review the changes above; undo any you don't want.",
+      );
+    } catch (error) {
+      const res = (error as { response?: { status?: number; data?: { message?: string; upgradePlan?: string } } })?.response;
+      if (res?.status === 403 && res.data?.upgradePlan) {
+        setTrialUpsellOpen(true);
+        return;
+      }
+      const message = res?.data?.message;
+      showCanvasNotice(message ? `Couldn't fix with AI: ${message}` : "Couldn't fix with AI right now. Try again in a moment.");
+    } finally {
+      setFixingAll(false);
     }
   };
 
@@ -2455,6 +2648,62 @@ export default function EditResumePage() {
     [],
   );
 
+  /** Orphan skills → the jobs/projects as they are now, and how to put a placement in. */
+  const skillPlacementApi: SkillPlacementApi = {
+    entries: () => {
+      const c = (resumeRef.current?.content ?? {}) as unknown as Record<string, unknown>;
+      const list = (k: string) => (Array.isArray(c[k]) ? (c[k] as Array<Record<string, unknown>>) : []);
+      return [
+        ...list("experience").map((e, index) => ({
+          section: "experience" as const,
+          index,
+          title: [e.position, e.company].filter(Boolean).join(" at "),
+          bullets: bulletsOf(e.description),
+        })),
+        ...list("projects").map((p, index) => ({ section: "projects" as const, index, title: String(p.name ?? "Project"), bullets: bulletsOf(p.description) })),
+      ].filter((e) => e.title);
+    },
+    vocabulary: () => JSON.stringify(resumeRef.current?.content ?? {}).toLowerCase().replace(/<[^>]+>/g, " "),
+    targetRole: resume?.content.personalInfo?.portfolio,
+    cacheKey: resumeId ?? undefined,
+    ignoreSkill: async (skill) => {
+      if (!resumeId) return;
+      const updated = await resumeApi.ignoreATSIssue(resumeId, {
+        checkId: "skillEvidence",
+        issue: { title: "Skills not shown in your work", description: "", excerpt: skill } as import("@/types/atsReport").ATSIssue,
+        skills: [skill],
+      });
+      setResumeState((prev) => (prev ? { ...prev, atsScore: updated.atsScore, atsFeedback: updated.atsFeedback, atsIgnoredIssues: updated.atsIgnoredIssues } : prev));
+      setDisplayAtsScore(typeof updated.atsScore === "number" ? updated.atsScore : null);
+      showCanvasNotice(`${skill} won't be suggested again for this resume.`);
+    },
+    rewrite: (place) =>
+      applySuggestionInEditor({
+        original: place.original ?? "",
+        improved: place.text,
+        at: { path: `${place.section}.${place.index}.description`, index: place.bulletIndex ?? null },
+      }),
+    add: (place) => {
+      const current = resumeRef.current;
+      if (!current) return null;
+      const next = addLine(current.content, place.section, place.index, place.text);
+      if (next === current.content) return null;
+      const lines = bulletsOf(((next as unknown as Record<string, unknown>)[place.section] as Array<Record<string, unknown>>)[place.index]?.description);
+      const at = { path: `${place.section}.${place.index}.description`, index: lines.length - 1 };
+      recordImmediateHistory();
+      suppressHistoryRef.current = true;
+      const updated = { ...current, content: next };
+      setResumeState(updated);
+      resumeRef.current = updated;
+      suppressHistoryRef.current = false;
+      setHasChanges(true);
+      invalidateAtsScoreDisplay();
+      flashAppliedChange(at, place.text);
+      return at;
+    },
+    onUndo: handleUndo,
+  };
+
   /**
    * A suggestion from this finding went in: that wording is settled for the AI's line checks,
    * so the next full check doesn't flag it all over again (editing it later lifts that).
@@ -2476,11 +2725,14 @@ export default function EditResumePage() {
     async (
       check: import("@/types/atsReport").ATSCheckResult,
       issue: import("@/types/atsReport").ATSIssue,
+      /** The whole line the finding is about: a later check that rewords it still matches. */
+      line?: string,
     ) => {
       if (!resumeId) return;
       const updated = await resumeApi.ignoreATSIssue(resumeId, {
         checkId: check.id,
         issue,
+        ...(line ? { line } : {}),
       });
       setResumeState((prev) =>
         prev
@@ -3256,6 +3508,23 @@ export default function EditResumePage() {
     showCanvasNotice("Undone — your resume is back to how it was before the rewrite.");
   };
 
+  /** Undo one AI change: its line goes back to what it was. */
+  const undoAiChange = (change: AiChange) => {
+    if (!change.before) return;
+    const where = applySuggestionInEditor({ original: change.after, improved: change.before });
+    if (!where) {
+      showCanvasNotice("That line has changed since — edit it on the page instead.");
+      return;
+    }
+    setAiReview((prev) => {
+      if (!prev) return prev;
+      const changes = (prev.changes ?? []).filter((c) => c !== change);
+      const lines = prev.lines.filter((l) => l !== change.after);
+      return lines.length ? { ...prev, lines, changes } : null;
+    });
+    showCanvasNotice("That line is back to your version.");
+  };
+
   /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
   const addSkillFromJob = (skill: string) => {
     if (!resume) return;
@@ -3274,6 +3543,101 @@ export default function EditResumePage() {
     updateContent({ skills: next } as Partial<Resume["content"]>);
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
+  /** "What's left for you": the items, and marking one done (saved with the resume). */
+  const whatsLeftItems = useMemo(
+    () => (resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : []),
+    [resume?.content, resume?.aiBuildMeta],
+  );
+  // Skills recruiters for this role usually look for: a checklist inside the ATS score panel.
+  const peerSkills = useMemo(() => {
+    const report = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+    const peer = report ? Object.values(report.categories ?? {}).flatMap((c) => c?.checks ?? []).find((c) => c.id === "peerBenchmarking") : undefined;
+    const live = JSON.stringify(resume?.content ?? {}).toLowerCase();
+    const missing = ((peer?.meta as { benchmarkSkills?: Array<{ name: string; present: boolean }> } | undefined)?.benchmarkSkills ?? [])
+      .filter((s) => !s.present && !live.includes(s.name.toLowerCase()))
+      .map((s) => s.name)
+      .slice(0, 10);
+    const dismissed = new Set(resume?.aiBuildMeta?.dismissed ?? []);
+    return missing.length && !dismissed.has("peerskills") ? { skills: missing, role: report?.inferredProfile?.targetRole } : null;
+  }, [resume?.content, resume?.aiBuildMeta, resume?.atsFeedback]);
+  // An AI-built resume opens with its score: run the check once, on first open.
+  const autoAtsRanRef = useRef(false);
+  useEffect(() => {
+    if (autoAtsRanRef.current || loading || !resume?.aiBuildMeta || resume.atsFeedback || refreshingATS) return;
+    if (!layout || sections.length === 0) return;
+    autoAtsRanRef.current = true;
+    void handleCheckATS();
+    // handleCheckATS is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, resume?.aiBuildMeta, resume?.atsFeedback, refreshingATS, layout, sections.length]);
+  // Fit an AI-built resume to its page budget with layout first (margins, then text size), once.
+  const fitRanRef = useRef(false);
+  useEffect(() => {
+    const budget = resume?.aiBuildMeta?.pageBudget;
+    if (fitRanRef.current || loading || !budget || resume?.aiBuildMeta?.fitDone || !layout || !template || !canvasOn) return;
+    fitRanRef.current = true;
+    const base = getTemplateStyle(getExtendedTemplate(template));
+    const baseTypo = {
+      heading: base.fontSize.heading,
+      subheading: base.fontSize.subheading,
+      body: base.fontSize.body,
+      small: base.fontSize.small,
+      sectionHeader: base.sectionHeader.fontSize,
+    };
+    const basePadding = layout.padding ?? base.padding;
+    const countPages = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(`#resume-preview-container-${resumeId} .resume-page`)).filter((el) => el.getClientRects().length > 0).length;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const markDone = (changed: boolean) => {
+      setResume((prev) => (prev?.aiBuildMeta ? { ...prev, aiBuildMeta: { ...prev.aiBuildMeta, fitDone: true } } : prev));
+      setHasChanges(true);
+      if (changed) showCanvasNotice(`Tightened margins and text size to fit ${budget} page${budget > 1 ? "s" : ""}. Undo puts them back.`);
+    };
+    void (async () => {
+      await wait(1500);
+      let pages = countPages();
+      if (!pages || pages <= budget) return markDone(false);
+      let cur = layout;
+      let changed = false;
+      for (let i = 0; i < 14 && pages > budget; i++) {
+        const next = nextFitStep(cur, baseTypo, basePadding);
+        if (!next) break;
+        cur = next;
+        changed = true;
+        setLayout(next);
+        await wait(800);
+        pages = countPages();
+      }
+      markDone(changed);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, resume?.aiBuildMeta?.pageBudget, resume?.aiBuildMeta?.fitDone, layout, template, canvasOn]);
+
+  const markWhatsLeftDone = (key: string, action: "done" | "dismissed" = "done") => {
+    track("resume_whats_left_action", { kind: key.split(":")[0], action });
+    setResume((prev) => {
+      if (!prev) return prev;
+      const meta = prev.aiBuildMeta ?? {};
+      const dismissed = [...new Set([...(meta.dismissed ?? []), key])];
+      return { ...prev, aiBuildMeta: { ...meta, dismissed } };
+    });
+    setHasChanges(true);
+  };
+  const applyBuiltContent = (next: Resume["content"] | null, key: string, notice: string) => {
+    const base = resumeRef.current;
+    if (!base || !next) {
+      showCanvasNotice("That line has changed since the AI wrote it — edit it on the page instead.");
+      markWhatsLeftDone(key);
+      return;
+    }
+    const changed = Object.fromEntries(
+      Object.entries(next).filter(([k, v]) => (base.content as Record<string, unknown>)[k] !== v),
+    ) as Partial<Resume["content"]>;
+    updateContent(changed);
+    markWhatsLeftDone(key);
+    showCanvasNotice(notice);
+  };
+
   const resolveFix = (item: FixItem) => {
     guideRef.current?.milestone("fixed");
     return setFixResolved((prev) => {
@@ -3303,7 +3667,10 @@ export default function EditResumePage() {
   const setFindingAside = (item: FixItem) => {
     setAsideIds.current.add(item.id);
     resolveFix(item);
-    handleIgnoreATSIssue(item.check, item.issue).catch(() => {
+    // Saved with the whole line it's about, so a later check that words it differently stays set aside.
+    const quote = item.quote || item.issue.excerpt || "";
+    const line = quote && resumeRef.current ? lineContaining(resumeRef.current, quote) ?? undefined : undefined;
+    handleIgnoreATSIssue(item.check, item.issue, line).catch(() => {
       // Not saved: bring the card back so the list matches the report.
       setFixResolved((prev) => {
         const next = new Set(prev);
@@ -3354,6 +3721,7 @@ export default function EditResumePage() {
     if (!place) return;
     // A link to the ATS check (Improve now) wins over the panel that was open last time.
     if (searchParams.get("view") === "ats" && place.panel !== "fix") return;
+    if (searchParams.get("view") === "job") return;
     // Reopen the panel the way opening it does: the ATS panel needs the ATS view (else its frame
     // showed the Personal Information form), Style and a section's fields need their form.
     if (place.panel === "fix") {
@@ -3484,33 +3852,71 @@ export default function EditResumePage() {
     [resume, setResume, invalidateAtsScoreDisplay],
   );
 
+  // The bullet / summary under the caret in a rich field (and, with `withSelection`, the words
+  // selected in it), for the AI assistant.
+  const readAiTarget = useCallback((path: string, element: HTMLElement, withSelection: boolean): AiTarget | null => {
+    const selection = window.getSelection();
+    const node = selection?.anchorNode ?? null;
+    const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
+    // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
+    const inField = !!node && element.contains(node);
+    // Caret no longer in a bullet field (a tap blurred it): which bullet is unknown, and the
+    // whole field is never the answer — the caller falls back to the last line it knew.
+    if (!inField && kind === "bullet") return null;
+    const line = inField ? (node instanceof Element ? node : node?.parentElement)?.closest("li, p") : null;
+    const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
+    const scope = bullet ?? element;
+    const text = scope.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    if (!text) return null;
+    const [section, index] = path.split(".");
+    const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
+    const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+    // Which bullet of the field (by position in the saved data, not the DOM node: the page
+    // re-renders after every change, and a stale node once made "put in" overwrite the field).
+    const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
+    const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
+    // Words selected inside that one line: only they get reworded (a selection across lines
+    // means the whole line).
+    let span: AiTarget["selection"];
+    if (withSelection && selection && selection.rangeCount && !selection.isCollapsed && inField) {
+      const range = selection.getRangeAt(0);
+      if (scope.contains(range.startContainer) && scope.contains(range.endContainer)) {
+        const before = document.createRange();
+        before.selectNodeContents(scope);
+        before.setEnd(range.startContainer, range.startOffset);
+        span = selectionInLine(scope.textContent ?? "", before.toString(), range.toString()) ?? undefined;
+      }
+    }
+    return {
+      path,
+      kind,
+      text,
+      role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
+      company: typeof item?.company === "string" ? item.company : undefined,
+      at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
+      ...(span ? { selection: span } : {}),
+    };
+  }, []);
+
+  /** The rich field last focused on the page (the phone "AI" chip can blur it before its tap lands). */
+  const lastRichFieldRef = useRef<{ path: string; element: HTMLElement } | null>(null);
+  const aiTargetRef = useRef(aiTarget);
+  aiTargetRef.current = aiTarget;
+
   // Track the bullet / summary the caret is in, for the AI assistant.
   const handleCanvasFieldFocus = useCallback((path: string, element: HTMLElement) => {
     if (!element.hasAttribute("data-rx-rich")) return;
+    lastRichFieldRef.current = { path, element };
     const pickTarget = () => {
-      const selection = window.getSelection();
-      const node = selection?.anchorNode ?? null;
-      const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
-      // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
-      const line = (node instanceof Element ? node : node?.parentElement)?.closest("li, p");
-      const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
-      const text = (bullet ?? element).textContent?.replace(/\s+/g, " ").trim() ?? "";
-      if (!text) return;
-      const [section, index] = path.split(".");
-      const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
-      const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
-      // Which bullet of the field (by position in the saved data, not the DOM node: the page
-      // re-renders after every change, and a stale node once made "put in" overwrite the field).
-      const blocks = bullet ? Array.from(element.querySelectorAll(bullet.tagName.toLowerCase())) : [];
-      const bulletIndex = bullet ? blocks.indexOf(bullet) : -1;
-      setAiTarget({
-        path,
-        kind,
-        text,
-        role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
-        company: typeof item?.company === "string" ? item.company : undefined,
-        at: { path, index: bulletIndex >= 0 ? bulletIndex : null },
-      });
+      const next = readAiTarget(path, element, false);
+      if (!next) return;
+      // Same line: keep what the "AI" button picked (its selected words), so moving the caret
+      // or putting an option in doesn't wipe the options on screen.
+      setAiTarget((prev) =>
+        prev && prev.at.path === next.at.path && prev.at.index === next.at.index
+          ? { ...next, selection: prev.selection, requestId: prev.requestId }
+          : next,
+      );
     };
     pickTarget();
     const onSelection = () => {
@@ -3518,7 +3924,7 @@ export default function EditResumePage() {
     };
     document.addEventListener("selectionchange", onSelection);
     element.addEventListener("blur", () => document.removeEventListener("selectionchange", onSelection), { once: true });
-  }, []);
+  }, [readAiTarget]);
   const commitCanvasFieldRef = useRef(commitCanvasField);
   commitCanvasFieldRef.current = commitCanvasField;
 
@@ -3679,6 +4085,24 @@ export default function EditResumePage() {
       setDeleteDialogOpen(true);
     },
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    onSectionAi: (sectionId, entryIndex) => openSectionAi(sectionId, entryIndex),
+    onAskAi: () => {
+      // The line under the caret (or the words selected in it), read before anything blurs.
+      const last = lastRichFieldRef.current;
+      if (!last || !last.element.isConnected) {
+        showCanvasNotice("Click into a bullet point or your summary first.");
+        return;
+      }
+      const known = aiTargetRef.current;
+      const target = readAiTarget(last.path, last.element, true) ?? (known?.path === last.path ? { ...known, selection: undefined } : null);
+      if (!target) {
+        showCanvasNotice("Write a few words in this line first, then ask AI to improve them.");
+        return;
+      }
+      flushCanvasEdit(); // save what was typed, so the rewrite starts from the saved line
+      setAiTarget({ ...target, requestId: Date.now() });
+      if (canvasPanel !== "ai") openCanvasPanel("ai");
+    },
     canDesignSection: (sectionId) => supportsListDesigns(sectionTypeOf(sectionId), template?.id),
     getSectionDesign: (sectionId) => sectionDesignOf(layout, sectionId),
     onSetSectionDesign: (sectionId, design) => {
@@ -3926,6 +4350,40 @@ export default function EditResumePage() {
           compact={isMobile}
           onShow={showSampleText}
           onRemove={() => void removeSamplesNow()}
+          onTellUs={() => setTellUsOpen(true)}
+        />
+      ) : null}
+      {canvasOn && whatsLeftItems.length > 0 && !(isMobile && canvasPanel) && !tryOnTemplate ? (
+        <WhatsLeftCard
+          items={whatsLeftItems}
+          compact={isMobile}
+          onFillSlot={(it, value) =>
+            applyBuiltContent(fillSlot(resume.content, it.path, it.text, value), it.key, "Number added.")
+          }
+          onConfirmSkill={(skill, key) => {
+            addSkillFromJob(skill);
+            markWhatsLeftDone(key);
+          }}
+          onAddSuggestion={(it) =>
+            applyBuiltContent(addBullet(resume.content, it.roleIndex, it.text), it.key, "Line added — edit it on the page to make it yours.")
+          }
+          onRemoveLine={(it) => applyBuiltContent(removeLine(resume.content, it.path, it.text), it.key, "Line removed. Undo brings it back.")}
+          onEditContact={() => openCanvasPanel("details", "personalInfo")}
+          onDismiss={(key) => markWhatsLeftDone(key, "dismissed")}
+          onAddPeerSkills={(skills, key) => {
+            for (const s of skills) addSkillFromJob(s);
+            markWhatsLeftDone(key);
+            showCanvasNotice(`Added ${skills.join(", ")} to Skills. The ATS panel shows where to prove ${skills.length > 1 ? "them" : "it"} in your work.`);
+          }}
+          onAddSkillLine={(it) =>
+            applyBuiltContent(addLine(resume.content, it.section, it.index, it.text), it.key, `Added — your ${it.skill} now shows in your work.`)
+          }
+          onRemovePersonal={(it) => {
+            const cleared = Object.fromEntries(personalFieldsToClear(it.fields).map((f) => [f, ""]));
+            updateContent({ personalInfo: { ...resume.content.personalInfo, ...cleared } });
+            markWhatsLeftDone(it.key);
+            showCanvasNotice(`Removed your ${it.label}. Undo puts it back.`);
+          }}
         />
       ) : null}
       {extensionSyncState !== "idle" ? (
@@ -4062,7 +4520,7 @@ export default function EditResumePage() {
               className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
             >
               {downloading ? <Loader2 className="h-4 w-4 animate-spin md:mr-1.5" /> : <Download className="h-4 w-4 md:mr-1.5" />}
-              <span className="hidden md:inline">{downloading ? "Preparing…" : "Export"}</span>
+              <span className="hidden md:inline">{downloading ? "Preparing…" : "Download"}</span>
             </Button>
           </div>
         </>
@@ -4556,6 +5014,18 @@ export default function EditResumePage() {
               }}
               onDone={setFindingAside}
               lineOf={(quote) => (resumeRef.current ? lineContaining(resumeRef.current, quote) : null)}
+              roleOf={(quote) => (resumeRef.current ? roleForQuote(resumeRef.current.content, quote) : null)}
+              onAddRoleLine={(role, text) => {
+                const base = resumeRef.current;
+                if (!base) return false;
+                const next = addLine(base.content, role.section, role.index, text);
+                const list = (next as Record<string, unknown>)[role.section];
+                if (list === (base.content as Record<string, unknown>)[role.section]) return false;
+                updateContent({ [role.section]: list } as Partial<Resume["content"]>);
+                flashAppliedChange({ path: `${role.section}.${role.index}.description`, index: role.lines.length }, text);
+                showCanvasNotice(`Added a line under ${role.title}. Undo takes it out.`);
+                return true;
+              }}
               onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}
@@ -4587,22 +5057,26 @@ export default function EditResumePage() {
               onRestoreSetAside={restoreSetAside}
               improvedFrom={resume.atsImprovementMeta?.previousScore}
               onRecheck={handleCheckATS}
+              onFixAll={() => void handleFixAllWithAi()}
+              skillPlacement={skillPlacementApi}
+              fixingAll={fixingAll}
               onTailor={() => setMatchJobOpen(true)}
               targetRole={resume.content.personalInfo?.portfolio}
-            >
-              <ATSReportView
-                feedback={resume.atsFeedback}
-                jobMatchScore={resume.jobMatchScore}
-                resumeId={resume.resumeId}
-                embedded
-                enableIssueMagic
-                onApplyIssueFix={handleApplyAtsIssueFix}
-                onIgnoreIssue={handleIgnoreATSIssue}
-                onRunJobMatch={handleRunJobMatch}
-                jobMatchRunning={refreshingATS}
-                initialJobDescription={resume.atsScoringContext?.lastJobDescription}
-              />
-            </FixMistakesPanel>
+              extra={
+                peerSkills ? (
+                  <PeerSkillsCard
+                    skills={peerSkills.skills}
+                    role={peerSkills.role}
+                    onDismiss={() => markWhatsLeftDone("peerskills", "dismissed")}
+                    onAdd={(skills) => {
+                      for (const s of skills) addSkillFromJob(s);
+                      markWhatsLeftDone("peerskills");
+                      showCanvasNotice(`Added ${skills.join(", ")} to Skills. The checks below show where to prove ${skills.length > 1 ? "them" : "it"} in your work.`);
+                    }}
+                  />
+                ) : null
+              }
+            />
           ) : viewMode === "ats" ? (
             resume.atsFeedback ? (
               <div className="min-w-0 bg-card p-3 sm:p-4">
@@ -8286,6 +8760,7 @@ export default function EditResumePage() {
                 liveText={resumeText}
                 target={aiTarget}
                 targetRole={resume.content.personalInfo?.portfolio}
+                evidence={resume.aiBuildMeta?.evidence}
                 onTailor={() => setMatchJobOpen(true)}
                 onFixMistakes={() => openCanvasPanel("fix")}
               />
@@ -8345,6 +8820,17 @@ export default function EditResumePage() {
                       revision={previewResume}
                       marks={canvasMarks}
                       activeMarkId={activeMarkId}
+                      onMarkClick={(id, tone) => {
+                        if (tone === "ai") {
+                          // An AI change: open the list of changes on it.
+                          setAiReviewListOpen(true);
+                          pickMark(id);
+                          return;
+                        }
+                        if (tone === "keyword") return;
+                        if (canvasPanel !== "fix") openCanvasPanel("fix");
+                        pickMark(id);
+                      }}
                     />
                   ) : null
                 }
@@ -8394,19 +8880,31 @@ export default function EditResumePage() {
                         </div>
                       </div>
                       {aiReviewListOpen ? (
-                        <ol className="max-h-56 space-y-1 overflow-y-auto border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                          {aiReview.lines.map((line, i) => (
-                            <li key={i}>
+                        <ol data-testid="ai-review-changes" className="max-h-72 space-y-2 overflow-y-auto border-t border-border px-4 py-2 text-xs">
+                          {(aiReview.changes?.length ? aiReview.changes : aiReview.lines.map((after) => ({ path: "", after, reason: "" }) as AiChange)).map((change, i) => (
+                            <li key={`${change.path}:${i}`} className="flex items-start gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
+                                  const at = aiReview.lines.indexOf(change.after);
                                   setActiveMarkId(null);
-                                  requestAnimationFrame(() => setActiveMarkId(`ai:${i}`));
+                                  requestAnimationFrame(() => setActiveMarkId(`ai:${at >= 0 ? at : i}`));
                                 }}
-                                className="w-full truncate text-left hover:text-foreground"
+                                className="min-w-0 flex-1 text-left"
                               >
-                                {i + 1}. {line}
+                                <span className="line-clamp-2 text-foreground">{i + 1}. {change.after}</span>
+                                {change.reason ? <span className="mt-0.5 block text-[11px] text-indigo-600 dark:text-indigo-300">Why: {change.reason}</span> : null}
+                                {change.before ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground line-through">{change.before}</span> : null}
                               </button>
+                              {change.before ? (
+                                <button
+                                  type="button"
+                                  onClick={() => undoAiChange(change)}
+                                  className="shrink-0 rounded-md border border-border px-2 py-0.5 text-[11px] font-semibold text-foreground hover:bg-muted"
+                                >
+                                  Undo
+                                </button>
+                              ) : null}
                             </li>
                           ))}
                         </ol>
@@ -8545,12 +9043,25 @@ export default function EditResumePage() {
       <DownloadDialog
         open={downloadDialogOpen}
         onOpenChange={setDownloadDialogOpen}
+        onCoverLetter={() => {
+          setDownloadDialogOpen(false);
+          setCoverLetterOpen(true);
+        }}
         defaultName={resumePdfFilenameFromResume(resume).replace(/\.pdf$/i, "")}
         downloadingPdf={downloading}
         onPdf={(name) => {
           downloadFilenameRef.current = sanitizePdfFilename(name);
           setDownloadDialogOpen(false);
           void handleDownload();
+        }}
+        onDocx={async (name) => {
+          if (!resume) return;
+          const { buildResumeDocx, docxStyleFrom } = await import("@/lib/resume-docx");
+          // The design on screen now (template + Style-panel changes), not the one the resume started with.
+          const look = template ? docxStyleFrom(getTemplateStyle(getExtendedTemplate(template)), layout) : undefined;
+          const blob = await buildResumeDocx({ content: resume.content, sectionOrder: sections, templateId: template?.id ?? resume.templateId }, look);
+          triggerBlobDownload(blob, `${sanitizePdfFilename(name).replace(/\.pdf$/i, "")}.docx`);
+          setDownloadDialogOpen(false);
         }}
         onTxt={async (name) => {
           // Plain text of the finished page (editing off, so no empty-field hints).
@@ -8666,28 +9177,110 @@ export default function EditResumePage() {
           lastMatchedJd ?? resume?.atsScoringContext?.lastJobDescription ?? ""
         }
       />
-      <ConfirmationDialog
+      <Dialog
         open={confirmMatchOpen}
         onOpenChange={(open) => {
           if (matchingJob) return;
           setConfirmMatchOpen(open);
           if (!open) setPendingMatchJd(null);
         }}
-        title="Tailor and overwrite this resume?"
-        description="AI will rewrite your profile summary, skills, experience, projects, and certificates to match this job description, replacing the current content. You can undo it while editing, but this cannot be reversed after you reload or leave the page."
-        confirmText="Tailor my resume"
-        cancelText="Cancel"
-        variant="destructive"
-        isLoading={matchingJob}
-        onConfirm={() => {
-          // Close the confirmation immediately, then run tailoring in the
-          // background (progress is shown on the toolbar button + match dialog).
-          const jd = pendingMatchJd;
-          setConfirmMatchOpen(false);
-          setPendingMatchJd(null);
-          if (jd) void handleMatchJobDescription(jd);
-        }}
-      />
+      >
+        <DialogContent className="max-w-md" data-testid="tailor-choice">
+          <DialogHeader>
+            <DialogTitle>Tailor for this job</DialogTitle>
+            <DialogDescription>
+              AI rewrites your summary, skills, experience and projects toward this job, using only what is already in your resume.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              onClick={() => {
+                const jd = pendingMatchJd;
+                setConfirmMatchOpen(false);
+                setPendingMatchJd(null);
+                if (jd) void handleTailorCopy(jd);
+              }}
+            >
+              Make a tailored copy
+            </Button>
+            <p className="-mt-0.5 text-center text-xs text-muted-foreground">Recommended: this resume stays as your master; the copy opens.</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const jd = pendingMatchJd;
+                setConfirmMatchOpen(false);
+                setPendingMatchJd(null);
+                if (jd) void handleMatchJobDescription(jd);
+              }}
+            >
+              Update this resume instead
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <SectionAiDialog target={sectionAi} onClose={() => setSectionAi(null)} onApply={applySectionAi} />
+      {resume ? (
+        <CoverLetterDialog
+          open={coverLetterOpen}
+          onOpenChange={setCoverLetterOpen}
+          resumeText={resumeRawText}
+          name={resume.content.personalInfo?.fullName}
+          defaultJobDescription={resume.atsScoringContext?.lastJobDescription}
+          defaultRole={resume.content.personalInfo?.portfolio}
+        />
+      ) : null}
+      {resume && canvasOn ? (
+        <CommandPalette
+          actions={(() => {
+            const sectionOf = (type: string) => sections.find((s) => s.type === type && s.visible !== false);
+            const acts: PaletteAction[] = [
+              { id: "fix-all", label: "Fix all with AI", hint: "ATS", keywords: "improve ats score", run: () => void handleFixAllWithAi() },
+              { id: "check", label: "Check ATS score", keywords: "rescore run check", run: () => openCanvasPanel("fix") },
+              { id: "tell-us", label: "Tell us about your work (questions or voice)", keywords: "voice talk chat paste build", run: () => setTellUsOpen(true) },
+              { id: "tailor", label: "Tailor to a job post", keywords: "job match keywords", run: () => openCanvasPanel("tailor") },
+              { id: "cover", label: "Write a cover letter", keywords: "cover letter application", run: () => setCoverLetterOpen(true) },
+              { id: "coach", label: "AI Coach (reword a line)", keywords: "rewrite bullet", run: () => openCanvasPanel("ai") },
+              { id: "design", label: "Change design / template", keywords: "template layout", run: () => openCanvasPanel("templates") },
+              { id: "style", label: "Style: fonts, sizes, margins", keywords: "font spacing", run: () => openCanvasPanel("design") },
+              { id: "download", label: "Download (PDF, Word, TXT)", keywords: "export pdf docx", run: () => setDownloadDialogOpen(true) },
+            ];
+            for (const [type, label] of [["profileSummary", "summary"], ["experience", "experience"], ["projects", "projects"], ["skills", "skills"], ["education", "education"]] as const) {
+              const s = sectionOf(type);
+              if (s) acts.splice(2, 0, { id: `ai-${type}`, label: `Rewrite ${label} with AI`, hint: "✦", keywords: `write section ${label}`, run: () => openSectionAi(s.id, null) });
+            }
+            return acts;
+          })()}
+        />
+      ) : null}
+      {resume ? (
+        <TellUsAboutYouDialog
+          open={tellUsOpen}
+          onOpenChange={setTellUsOpen}
+          templateId={template?.id ?? resume.templateId}
+          reason={livePlaceholders.length ? "Your resume still has sample text, so there's nothing real for AI to improve." : undefined}
+          onBuilt={async (content, meta) => {
+            const current = resumeRef.current;
+            if (!current) return;
+            // Keep what the person already filled in (email, phone, links, photo) where the new text has none.
+            const before = (current.content.personalInfo ?? {}) as Record<string, unknown>;
+            const after = (content.personalInfo ?? {}) as Record<string, unknown>;
+            const personalInfo = { ...before, ...Object.fromEntries(Object.entries(after).filter(([, v]) => typeof v === "string" ? v.trim() : v)) };
+            handleResumeImported({ ...current, content: { ...content, personalInfo } as Resume["content"], ...(meta ? { aiBuildMeta: meta } : {}) } as Resume);
+            setHasChanges(true);
+            track("resume_ai_build_completed", {
+              variant: meta ? "v2" : "current",
+              source: "tell_us",
+              slots: meta?.slots?.length ?? 0,
+              suggestions: meta?.suggestions?.length ?? 0,
+              skills_to_confirm: meta?.skillsToConfirm?.length ?? 0,
+              kept_original: typeof meta?.keptOriginal === "number" ? meta.keptOriginal : 0,
+              cost_usd: typeof meta?.costUsd === "number" ? meta.costUsd : 0,
+              ms: typeof meta?.ms === "number" ? meta.ms : 0,
+            });
+            showCanvasNotice("Written from what you told us. Check it over — and see “What's left for you” at the top.");
+          }}
+        />
+      ) : null}
       {resume && template ? (
         <ImportResumeDialog
           open={importResumeOpen}

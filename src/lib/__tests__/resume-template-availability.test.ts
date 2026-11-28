@@ -77,6 +77,12 @@ describe("fetchResumeTemplateAvailability", () => {
     expect(getResumeTemplateAvailability).toHaveBeenCalledTimes(1);
   });
 
+  it("calls made at the same time share one request (loading all templates asks at once)", async () => {
+    getResumeTemplateAvailability.mockResolvedValue({ disabledTemplateIds: [], templateOrder: [], overrides: {} });
+    await Promise.all(Array.from({ length: 30 }, () => fetchResumeTemplateAvailability()));
+    expect(getResumeTemplateAvailability).toHaveBeenCalledTimes(1);
+  });
+
   it("hides and reorders nothing when the lookup fails", async () => {
     getResumeTemplateAvailability.mockRejectedValue(new Error("offline"));
     expect(await fetchResumeTemplateAvailability()).toEqual({ disabledTemplateIds: [], templateOrder: [], overrides: {} });

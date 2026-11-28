@@ -15,8 +15,8 @@ export type ResumeCreationStep = {
 };
 
 export const RESUME_CREATION_STEPS: ResumeCreationStep[] = [
-  { id: "template", label: "Template" },
-  { id: "import", label: "Import" },
+  { id: "import", label: "Your details" },
+  { id: "template", label: "Design" },
   { id: "jobDescription", label: "Target Job" },
   { id: "processing", label: "Build" },
 ];

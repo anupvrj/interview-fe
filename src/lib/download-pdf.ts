@@ -10,10 +10,12 @@ const MAX_FILENAME_LEN = 180;
  * dropped, spaces kept (single). A ".pdf" added twice ("Name.pdf.pdf") or a text file
  * named ".pdf" no longer happens.
  */
-export function sanitizeDownloadFilename(input: string | undefined | null, ext: "pdf" | "txt"): string {
+export type DownloadExt = "pdf" | "txt" | "docx";
+
+export function sanitizeDownloadFilename(input: string | undefined | null, ext: DownloadExt): string {
   const cleaned = (input ?? "")
     .trim()
-    .replace(/(\.(pdf|txt))+$/i, "")
+    .replace(/(\.(pdf|txt|docx))+$/i, "")
     .replace(/[•●▪◦·]/g, " ")
     .replace(/[/\\?%*:|"<>]/g, "")
     .replace(/\s+/g, " ")
@@ -88,7 +90,9 @@ function clickDownloadAnchor(href: string, filename: string) {
 
 /** Trigger a native file download from an in-memory blob (same-origin). */
 export function triggerBlobDownload(blob: Blob, filename: string): void {
-  const safeName = sanitizeDownloadFilename(filename, /\.txt$/i.test(filename.trim()) ? "txt" : "pdf");
+  // Keep the extension the caller asked for (.txt, .docx); anything else is a PDF.
+  const ext = filename.trim().match(/\.(txt|docx)$/i)?.[1]?.toLowerCase() as DownloadExt | undefined;
+  const safeName = sanitizeDownloadFilename(filename, ext ?? "pdf");
   const objectUrl = URL.createObjectURL(blob);
   clickDownloadAnchor(objectUrl, safeName);
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);

@@ -2,6 +2,7 @@
 
 import { isGuestATSFlowPath } from "@/lib/atsCheckFlow";
 import { GUEST_CHECK_CLAIM_PATH, hasUnclaimedGuestCheck } from "@/lib/atsGuestState";
+import { PROFILE_UPDATED_EVENT, builderFlowSkipsOnboarding } from "@/lib/resumeBuilderFlow";
 import {
   createContext,
   useCallback,
@@ -108,11 +109,25 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
     });
   }, [user?.id, profile]);
 
+  // Onboarding finished elsewhere (the resume builder does it for new candidates): use the new profile.
+  useEffect(() => {
+    const onUpdated = (event: Event) => {
+      const next = (event as CustomEvent<User>).detail;
+      if (!next || !user?.id) return;
+      setProfile(next);
+      getQueryClient().setQueryData(queryKeys.profile(user.id), next);
+    };
+    window.addEventListener(PROFILE_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, onUpdated);
+  }, [user?.id]);
+
   useEffect(() => {
     if (!profile || profile.onboardingCompleted || pathname.startsWith("/onboarding")) {
       return;
     }
     if (isGuestATSFlowPath(pathname) || hasUnclaimedGuestCheck()) return;
+    // Signed up from the resume builder: they finish their resume first, onboarding later.
+    if (builderFlowSkipsOnboarding(pathname)) return;
     router.replace("/onboarding");
   }, [profile, pathname, router]);
 

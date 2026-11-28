@@ -1,27 +1,36 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
 import { ArrowRight, CheckCircle2, CircleDashed, FileCheck2, FileText, Loader2, Lock, PenLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PaginatedPreview } from "@/components/PaginatedPreview";
-import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
 import { ScoreRing } from "@/components/dashboard-2026/ui";
 import { Mono } from "@/components/marketing-2026/primitives";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
-import { atsGuestApi, resumeApi, type ATSGuestTeaser, type GuestRewrite, type Resume, type ResumeTemplate } from "@/lib/api";
-import { buildResumeTemplateApplication, type ApplyResumeTemplateResult } from "@/lib/applyResumeTemplate";
+import { atsGuestApi, type ATSGuestTeaser, type GuestRewrite, type Resume } from "@/lib/api";
 import { ATS_RESUME_TEMPLATE_ID, rememberGuestATSTemplate } from "@/lib/atsCheckFlow";
 import { fetchDisabledResumeTemplateIds } from "@/lib/resume-template-availability";
 import type { ATSReportV3 } from "@/types/atsReport";
 import { rewriteChanges } from "@/lib/atsRewriteDiff";
+import { track } from "@/lib/analytics/productEvents";
 import { loadPendingUpload } from "@/lib/atsPendingFile";
 import { inAppBrowserName } from "@/lib/atsGuestState";
 import { renderPdfPages, type PdfPage } from "@/lib/pdf-snapshot";
 import { ATSReportWorkspace } from "./ATSReportWorkspace";
-import { cssRegistry } from "@/lib/templateLoader";
+import { ResumeTemplatePreview as RebuiltResume } from "@/components/resume-builder/ResumeTemplatePreview";
 import { cn } from "@/lib/utils";
+
+/** Which sign-up button it was, as a fixed name (never the link's text). */
+function signUpPlacement(link: Element): string {
+  const text = (link.textContent ?? "").toLowerCase();
+  if (link.closest(".fixed")) return "phone_bar";
+  if (text.includes("keep the improved")) return "keep_improved";
+  if (text.includes("unlock")) return "unlock_locked";
+  if (text.includes("fix it free")) return "panel_footer";
+  if (text.includes("fix my resume")) return "header";
+  return "other";
+}
 
 /** What only they can add, which no rewrite can make up. */
 const NEEDS_YOU: Record<string, string> = {
@@ -32,86 +41,16 @@ const NEEDS_YOU: Record<string, string> = {
 };
 
 const DEFAULT_SIGN_UP_HREF = `/sign-up?redirect_url=${encodeURIComponent("/dashboard/ats-checker")}`;
-/** A4 at 96dpi, the width PaginatedPreview lays pages out at. */
-const PAGE_WIDTH = 794;
 
 /** ATS-friendly designs to try on. More than this is a decision, not a preview. */
 const TRY_ON_TEMPLATES = [ATS_RESUME_TEMPLATE_ID, "harvard", "meridian", "royal-indigo"];
 const templateName = (id: string) => TEMPLATES_CATALOG.find((t) => t.id === id)?.name ?? "our template";
-/** Each page on its own sheet: no gap to fill after the last one. */
-const PAGE_STACK = "[&_.resume-page]:ring-1 [&_.resume-page]:ring-slate-900/5 [&_.relative.mb-5:last-child]:!mb-0";
 const PAGE_SHADOW = "drop-shadow-[0_30px_40px_rgba(30,20,90,.18)]";
 
 function verdict(score: number) {
   if (score >= 80) return { label: "Ready to send", tone: "text-emerald-600 dark:text-emerald-400" };
   if (score >= 60) return { label: "Close, a few fixes away", tone: "text-primary" };
   return { label: "Needs work before you apply", tone: "text-amber-600 dark:text-amber-400" };
-}
-
-/** Their real content in a template: the same thing they'll edit after signing up. */
-function RebuiltResume({ templateId, content, sectionOrder }: { templateId: string; content?: Record<string, unknown>; sectionOrder?: unknown[] }) {
-  const [shown, setShown] = useState<{ template: ResumeTemplate; application: ApplyResumeTemplateResult } | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [zoom, setZoom] = useState(0.6);
-  const frame = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!content) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [template, application] = await Promise.all([
-          resumeApi.getTemplate(templateId),
-          buildResumeTemplateApplication(templateId, { content, sectionOrder } as Pick<Resume, "content" | "sectionOrder">),
-          cssRegistry.loadTemplateCSS(templateId),
-        ]);
-        if (!cancelled) setShown({ template, application });
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [templateId, content, sectionOrder]);
-
-  useLayoutEffect(() => {
-    const el = frame.current;
-    if (!el) return;
-    const fit = () => setZoom(el.clientWidth / PAGE_WIDTH);
-    fit();
-    const observer = new ResizeObserver(fit);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const resume = shown && ({
-    resumeId: "ats-preview",
-    userId: "",
-    title: "Your resume",
-    templateId: shown.application.templateId,
-    content,
-    sectionOrder: shown.application.sectionOrder,
-    layout: shown.application.layout,
-    profileSummary: typeof content?.profileSummary === "string" ? content.profileSummary : "",
-  } as unknown as Resume);
-
-  return (
-    <div ref={frame} className="w-full">
-      {failed || !content ? (
-        <p className="rounded-lg bg-white py-16 text-center text-[14px] text-slate-500">The preview couldn&apos;t load. Your resume is safe.</p>
-      ) : !shown || !resume ? (
-        <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : (
-        // the pages bring their own paper and shadow; this only drops the gap after the last one
-        <div className={cn("pointer-events-none [&_.resume-page]:!shadow-none [&_.resume-page]:rounded-[6px]", PAGE_STACK)} style={{ zoom }}>
-          <CanvasEditProvider value={null}>
-            <PaginatedPreview resume={resume} template={shown.template} sections={shown.application.sectionOrder} layout={shown.application.layout} />
-          </CanvasEditProvider>
-        </div>
-      )}
-    </div>
-  );
 }
 
 type View = "current" | "after";
@@ -205,6 +144,7 @@ export function ATSGuestResult({
   // seems to do nothing.
   const stageRef = useRef<HTMLDivElement>(null);
   const switchView = (next: View) => {
+    if (next === "after" && view !== "after") track("ats_improved_view_opened", { ready: rewrite.state === "ready" });
     setView(next);
     requestAnimationFrame(() => {
       const stage = stageRef.current?.closest("section, div.grid")?.querySelector("[data-resume-stage]") as HTMLElement | null;
@@ -425,8 +365,10 @@ export function ATSGuestResult({
   // account, so "Opening your resume" afterwards is instant.
   const prepared = useRef(false);
   const prepareOnSignUp = (event: React.MouseEvent) => {
+    const link = (event.target as HTMLElement).closest?.('a[href^="/sign-up"]');
+    if (!link) return;
+    track("ats_signup_clicked", { placement: signUpPlacement(link) });
     if (prepared.current || !token) return;
-    if (!(event.target as HTMLElement).closest?.('a[href^="/sign-up"]')) return;
     prepared.current = true;
     void atsGuestApi.prepare(token).catch(() => {});
   };

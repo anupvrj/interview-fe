@@ -15,6 +15,7 @@ import {
   unauthorizedNeedsOnboarding,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { builderFlowSkipsOnboarding } from "@/lib/resumeBuilderFlow";
 import type { ApplicationProfile } from "@/lib/application-profile";
 import type { VoiceProvider } from "@/lib/voiceProviders";
 import type {
@@ -219,6 +220,8 @@ function handleAuthLost(error: AxiosError, message: string | undefined, returnPa
     const onboarding = window.location.pathname.startsWith("/onboarding");
     if (onHackathonSignup) {
       // Hackathon profile provisions the user; never send to general onboarding.
+    } else if (builderFlowSkipsOnboarding(window.location.pathname)) {
+      // "Build my resume": the new-resume page creates the app user itself; onboarding waits.
     } else if (!onboarding) {
       window.location.href = getOnboardingUrlWithRedirect(returnPath);
     }
@@ -696,6 +699,8 @@ export interface InterviewCoverageSummary {
 }
 
 export interface CreateInterviewRequest {
+  /** Resume lines to practise defending (from the AI Coach); the interviewer asks these first. */
+  focusLines?: { text: string; questions: string[] }[];
   role: string;
   experience: number;
   language: "en" | "hi";
@@ -909,7 +914,8 @@ export const userApi = {
   completeOnboarding: async (data: {
     /** Display name (e.g. from the CV); applied only over the signup placeholder. */
     name?: string;
-    userType: "student" | "fresher" | "experienced";
+    /** Left out by "Build my resume", which finishes onboarding as a candidate without asking. */
+    userType?: "student" | "fresher" | "experienced";
     experience?: number;
     targetJobRole?: string;
     targetCompany?: string;
@@ -1009,6 +1015,9 @@ export const interviewApi = {
     }
     if (data.jobApplicationId?.trim()) {
       formData.append("jobApplicationId", data.jobApplicationId.trim());
+    }
+    if (data.focusLines?.length) {
+      formData.append("focusLines", JSON.stringify(data.focusLines.slice(0, 3)));
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1873,6 +1882,8 @@ export interface Resume {
   userId: string;
   /** Server bumps this on every content edit; used to detect saves from another tab/device. */
   revision?: number;
+  /** What the AI build left for the user: number slots, skills to confirm, suggestions, evidence. */
+  aiBuildMeta?: AiBuildMeta;
   title: string;
   templateId: string;
   content: {
@@ -2058,6 +2069,8 @@ export interface Resume {
   atsScoringContext?: {
     rawPdfText?: string;
     lastJobDescription?: string;
+    /** Designs ranked by how close they are to the uploaded PDF (saved at upload: the PDF isn't kept). */
+    designMatch?: { order: string[]; closest: string | null };
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF
@@ -2189,6 +2202,19 @@ export interface ResumePlaceholderIssue {
   message: string;
 }
 
+/** One full ATS check, as kept in the resume's history (scores and statuses only). */
+export type AtsHistoryEntry = {
+  _id: string;
+  score: number;
+  jobMatchScore?: number;
+  mode?: string;
+  issueCount: number;
+  categories: Record<string, number>;
+  checks: { id: string; category: string; status: string; score: number; issueCount: number }[];
+  source: "full" | "claim";
+  createdAt: string;
+};
+
 export const resumeApi = {
   /**
    * Get All Templates
@@ -2204,6 +2230,16 @@ export const resumeApi = {
    * Templates users can pick now, in Super Admin's order (Super Admin can turn templates off).
    * `keepId` keeps the resume's current template in the list even when it's disabled.
    */
+  /** Body columns of an old resume's first page (small JPEG data URL), for "closest design first". */
+  designFeatures: async (image: string): Promise<{ columns: 1 | 2 }> => {
+    const response = await apiClient.post<{ data: { columns: 1 | 2 } }>(
+      "/resumes/design-features",
+      { image },
+      { timeout: 20000 },
+    );
+    return response.data.data;
+  },
+
   getSelectableTemplates: async (keepId?: string | null): Promise<ResumeTemplate[]> => {
     const [{ TemplateLoader }, availability] = await Promise.all([
       import("./templateLoader"),
@@ -2239,6 +2275,8 @@ export const resumeApi = {
       forAtsCheckOnly?: boolean;
       /** Source resume id when copying; the copy may keep a disabled template. */
       duplicateOf?: string;
+      /** What the AI build left for the user (Resume Writer v2). */
+      aiBuildMeta?: AiBuildMeta;
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -2296,7 +2334,8 @@ export const resumeApi = {
   /** Up to three AI rewordings of one bullet or the summary (never adds numbers). */
   aiRewrite: async (body: {
     text: string;
-    kind: "bullet" | "summary";
+    /** newBullet: one more line for a role, from its own lines (text = the lines, one per row). */
+    kind: "bullet" | "summary" | "newBullet";
     role?: string;
     company?: string;
     targetRole?: string;
@@ -2313,6 +2352,42 @@ export const resumeApi = {
       timeout: 60000,
     });
     return response.data.data.suggestions ?? [];
+  },
+
+  /** A cover letter from the resume (and the job post): facts only. */
+  aiCoverLetter: async (body: { resumeText: string; name?: string; jobDescription?: string; company?: string; role?: string; tone?: string }): Promise<{ text: string; dropped: number }> => {
+    const response = await apiClient.post<{ data: { text: string; dropped: number } }>("/resumes/ai-cover-letter", body, { timeout: 90000 });
+    return response.data.data;
+  },
+
+  /** Section AI: write an empty section or rewrite a filled one (previewed before it goes in). */
+  aiSection: async (body: {
+    sectionType: string;
+    sectionTitle?: string;
+    entries: Array<{ index: number; title: string; lines: string[] }>;
+    note?: string;
+    instruction?: string;
+    targetRole?: string;
+    seniority?: string;
+    industry?: string;
+    resumeText?: string;
+  }): Promise<{ entries: Array<{ index: number; lines: string[] }>; dropped: number }> => {
+    const response = await apiClient.post<{ data: { entries: Array<{ index: number; lines: string[] }>; dropped: number } }>("/resumes/ai-section", body, { timeout: 90000 });
+    return response.data.data;
+  },
+
+  /** Orphan skills: where each one honestly belongs on the resume (the user confirms each). */
+  aiSkillPlacement: async (body: { skills: string[]; entries: SkillPlacementEntry[]; targetRole?: string; vocabulary?: string }): Promise<SkillPlacement[]> => {
+    const response = await apiClient.post<{ data: { placements: SkillPlacement[] } }>("/resumes/ai-skill-placement", body, { timeout: 60000 });
+    return response.data.data.placements ?? [];
+  },
+
+  /** "Can you defend this line?": the follow-ups an interviewer would ask about one resume line. */
+  aiDefend: async (body: { text: string; role?: string; company?: string; targetRole?: string }): Promise<{ question: string; showWith: string }[]> => {
+    const response = await apiClient.post<{ data: { questions: { question: string; showWith: string }[] } }>("/resumes/ai-defend", body, {
+      timeout: 60000,
+    });
+    return response.data.data.questions ?? [];
   },
 
   /**
@@ -2394,6 +2469,8 @@ export const resumeApi = {
       isDefault?: boolean;
       pdfS3Key?: string;
       atsScoringContext?: Resume["atsScoringContext"];
+      /** What the AI build left for the user; null clears it. */
+      aiBuildMeta?: AiBuildMeta | null;
     },
   ): Promise<Resume> => {
     const baseRevision = resumeRevisions.get(resumeId);
@@ -2477,7 +2554,12 @@ export const resumeApi = {
 
   improveFromATS: async (
     resumeId: string,
-    options: { jobDescription?: string; matchInsights?: unknown } = {},
+    options: {
+      jobDescription?: string;
+      matchInsights?: unknown;
+      /** "Fix all with AI": fix the ATS findings, even when the resume has a saved job. */
+      fixFindings?: boolean;
+    } = {},
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/improve-from-ats`,
@@ -2505,6 +2587,7 @@ export const resumeApi = {
     profileSummary?: string;
     sectionOrder: NonNullable<Resume["sectionOrder"]>;
     jobDescription: string;
+    aiBuildMeta?: AiBuildMeta;
   }> => {
     const response = await apiClient.post<{
       data: {
@@ -2512,6 +2595,7 @@ export const resumeApi = {
         profileSummary?: string;
         sectionOrder: NonNullable<Resume["sectionOrder"]>;
         jobDescription: string;
+        aiBuildMeta?: AiBuildMeta;
       };
     }>(
       `/resumes/${resumeId}/tailor-to-jd`,
@@ -2563,6 +2647,12 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /** The resume's last full ATS checks (newest first), for progress over time. */
+  getATSHistory: async (resumeId: string): Promise<AtsHistoryEntry[]> => {
+    const response = await apiClient.get<{ data: AtsHistoryEntry[] }>(`/resumes/${resumeId}/ats-history`);
+    return response.data.data ?? [];
+  },
+
   /** Brings back every finding set aside (Ignore / Mark as fixed); the score stays. */
   restoreIgnoredATSIssues: async (resumeId: string): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(`/resumes/${resumeId}/ats-restore-ignored`, {});
@@ -2577,6 +2667,8 @@ export const resumeApi = {
       /** "fixed": a suggestion was put in, and `line` is the line as it reads now. */
       reason?: "dismissed" | "fixed";
       line?: string;
+      /** Skills set aside from "Skills not shown in your work": never listed again. */
+      skills?: string[];
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -2727,6 +2819,94 @@ export type ResumeImportBuildOptions = {
   jdRequirements?: JDRequirements;
   /** When false, keep uploaded wording (structure only). Default true. */
   enhance?: boolean;
+  /** Live build steps from the server ("reading", "understanding", "writing", "checking", "fitting", "done"). */
+  onProgress?: (step: string, detail?: string) => void;
+  /** The server-side build job started (its id lets a reloaded page pick the build up again). */
+  onJob?: (jobId: string) => void;
+};
+
+type ExtractedBuild = {
+  sections: Record<string, { sectionType: string; content: string | any; format: "html" | "list" | "paragraph" | "structured" }>;
+  templateId: string;
+  writerMeta?: AiBuildMeta | null;
+};
+
+/**
+ * Follow a server-side build until it's done: reports each new step, returns the result.
+ * The build runs on the server either way, so a closed tab doesn't lose it.
+ */
+export async function pollResumeBuildJob(
+  jobId: string,
+  onProgress?: (step: string, detail?: string) => void,
+  opts: { intervalMs?: number; timeoutMs?: number } = {},
+): Promise<ExtractedBuild> {
+  const interval = opts.intervalMs ?? 1500;
+  const deadline = Date.now() + (opts.timeoutMs ?? 6 * 60 * 1000);
+  let seen = 0;
+  let misses = 0;
+  while (Date.now() < deadline) {
+    try {
+      const { data } = await apiClient.get<{
+        data: { status: "running" | "done" | "failed"; steps: { step: string; detail?: string }[]; result?: ExtractedBuild; error?: string };
+      }>(`/resume-build-jobs/${jobId}`, { timeout: 15000 });
+      const job = data.data;
+      for (const s of job.steps.slice(seen)) onProgress?.(s.step, s.detail);
+      seen = job.steps.length;
+      if (job.status === "done" && job.result) return job.result;
+      if (job.status === "failed") throw new Error(job.error || "Failed to build the resume");
+      misses = 0;
+    } catch (error) {
+      if (error instanceof Error && !("isAxiosError" in error)) throw error;
+      if ((error as { response?: { status?: number } }).response?.status === 404) throw new Error("Build not found");
+      if (++misses > 8) throw error; // the connection is gone for good
+    }
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  throw new Error("The build is taking too long. Please try again.");
+}
+
+/** A job or project as the skill-placement AI sees it. */
+export type SkillPlacementEntry = { section: "experience" | "projects"; index: number; title: string; bullets: string[] };
+/** Where one listed skill honestly belongs (or that it's fine to keep only in Skills). */
+export type SkillPlacement = {
+  skill: string;
+  relevant: boolean;
+  why: string;
+  place?: {
+    section: "experience" | "projects";
+    index: number;
+    entryTitle: string;
+    mode: "rewrite" | "add";
+    /** "clear": the work already shows it; "likely": best-fitting job, add only if true. */
+    fit: "clear" | "likely";
+    bulletIndex?: number;
+    original?: string;
+    text: string;
+  };
+};
+
+/** What the AI build left for the user (Resume Writer v2); saved on the resume as aiBuildMeta. */
+export type AiBuildMeta = {
+  slots?: { path: string; text: string }[];
+  evidence?: { path: string; text: string; sources: string[] }[];
+  suggestions?: { roleIndex: number; role: string; text: string }[];
+  lengthSuggestions?: { path: string; text: string; reason: string }[];
+  pageBudget?: 1 | 2;
+  skillsToConfirm?: string[];
+  jobGaps?: string[];
+  /** Items the user has dealt with in "What's left for you". */
+  dismissed?: string[];
+  /** Tools named in a job that ended before they existed (for the user to check). */
+  timelineFlags?: { roleIndex: number; role: string; tool: string; released: number; roleEnded: number }[];
+  /** Jobs have no bullets; achievements sit in separate sections (functional resume). */
+  functionalLayout?: boolean;
+  /** Listed skills the AI put into the work itself (the work clearly showed them). */
+  skillsPlaced?: { skill: string; path: string; mode: "rewrite" | "add"; text: string }[];
+  /** Listed skills that probably belong to a job: the person confirms with one click. */
+  skillPlacements?: { skill: string; section: "experience" | "projects"; index: number; entryTitle: string; text: string }[];
+  /** The editor already fitted the layout to pageBudget (runs once). */
+  fitDone?: boolean;
+  [key: string]: unknown;
 };
 
 /** What a signed-out visitor sees: scores and check names. Findings come with signing up. */
@@ -2837,25 +3017,74 @@ export const resumeDataExtractionApi = {
       }
     >;
     templateId: string;
+    writerMeta?: AiBuildMeta | null;
   }> => {
-    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance, onProgress } =
       options;
-    const response = await apiClient.post(
-      "/extract-resume-data",
-      {
-        templateId,
-        resumeText: resumeText || undefined,
-        chatProfile: chatProfile || undefined,
-        jobDescription: jobDescription
-          ? trimJobDescriptionForSend(jobDescription)
-          : undefined,
-        jdRequirements: jdRequirements || undefined,
-        enhance: enhance !== false,
-      },
-      {
-        timeout: 180000,
-      },
-    );
+    const body = {
+      templateId,
+      resumeText: resumeText || undefined,
+      chatProfile: chatProfile || undefined,
+      jobDescription: jobDescription ? trimJobDescriptionForSend(jobDescription) : undefined,
+      jdRequirements: jdRequirements || undefined,
+      enhance: enhance !== false,
+    };
+    // A server-side job: real steps, and it survives a closed tab. Older servers: stream below.
+    if (onProgress && typeof window !== "undefined") {
+      let jobId: string | undefined;
+      try {
+        const started = await apiClient.post<{ data: { jobId: string } }>("/resume-build-jobs", body, { timeout: 30000 });
+        jobId = started.data.data.jobId;
+      } catch (error) {
+        const status = (error as { response?: { status?: number } }).response?.status;
+        if (status && status !== 404) throw error;
+      }
+      if (jobId) {
+        options.onJob?.(jobId);
+        return pollResumeBuildJob(jobId, onProgress);
+      }
+    }
+    // Live steps: one JSON line per step, then the result. Falls back to the plain request.
+    if (onProgress && typeof window !== "undefined" && typeof ReadableStream !== "undefined") {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch(`${API_URL}/extract-resume-data`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/x-ndjson",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        });
+        if (res.ok && res.body && (res.headers.get("content-type") ?? "").includes("ndjson")) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buffer.indexOf("\n")) >= 0) {
+              const line = buffer.slice(0, nl).trim();
+              buffer = buffer.slice(nl + 1);
+              if (!line) continue;
+              const msg = JSON.parse(line) as { type: string; step?: string; detail?: string; data?: unknown; message?: string };
+              if (msg.type === "progress" && msg.step) onProgress(msg.step, msg.detail);
+              else if (msg.type === "result") return msg.data as never;
+              else if (msg.type === "error") throw new Error(msg.message || "Failed to build the resume");
+            }
+          }
+          throw new Error("The build stopped before finishing");
+        }
+        if (res.ok) return ((await res.json()) as { data: never }).data;
+      } catch (error) {
+        if (error instanceof Error && /Failed to build|stopped before/.test(error.message)) throw error;
+        // network/streaming problem: try the plain request below
+      }
+    }
+    const response = await apiClient.post("/extract-resume-data", body, { timeout: 180000 });
     return response.data.data;
   },
 
@@ -2873,6 +3102,7 @@ export const resumeDataExtractionApi = {
       }
     >;
     templateId: string;
+    writerMeta?: AiBuildMeta | null;
   }> => {
     const response = await apiClient.post(
       "/import-linkedin-profile",
@@ -3036,6 +3266,35 @@ export const contactApi = {
 };
 
 // Admin API (requires admin role)
+export type AiReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type AiStageConfig = { model: string; effort?: AiReasoningEffort; maxOutputTokens: number; timeoutMs: number };
+export type AiStageOverride = { model?: string; effort?: string; maxOutputTokens?: number; timeoutMs?: number };
+export type AiBuildSettings = {
+  costCeilingUsd: number;
+  verifierEnabled: boolean;
+  voicePassEnabled: boolean;
+  writerV2Enabled: boolean;
+  /** Share of users (0–100, fixed per user) who get v2 while it's on. */
+  writerV2RolloutPercent?: number;
+};
+export type AiModelInfo = {
+  id: string;
+  price: { input: number; cachedInput: number; output: number };
+  reasoning: boolean;
+  efforts: AiReasoningEffort[];
+  deprecated: boolean;
+  note?: string;
+};
+export type AdminAiStageRow = {
+  id: string;
+  label: string;
+  description: string;
+  defaults: AiStageConfig;
+  current: AiStageConfig & { source: "admin" | "env" | "default" };
+  override: AiStageOverride | null;
+};
+export type AdminAiModelSettings = { stages: AdminAiStageRow[]; build: AiBuildSettings; models: AiModelInfo[] };
+
 export const adminApi = {
   listUsers: async (params?: {
     limit?: number;
@@ -3913,6 +4172,24 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  /** Super Admin → AI models: model per resume-AI stage, and build-wide switches. */
+  getAiModelSettings: async (): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.get<{ data: AdminAiModelSettings }>("/admin/ai-models");
+    return response.data.data;
+  },
+  setAiModelStage: async (stage: string, override: AiStageOverride): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.put<{ data: AdminAiModelSettings }>(`/admin/ai-models/stages/${encodeURIComponent(stage)}`, override);
+    return response.data.data;
+  },
+  resetAiModelStage: async (stage: string): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.delete<{ data: AdminAiModelSettings }>(`/admin/ai-models/stages/${encodeURIComponent(stage)}`);
+    return response.data.data;
+  },
+  setAiBuildSettings: async (build: Partial<AiBuildSettings>): Promise<AdminAiModelSettings> => {
+    const response = await apiClient.put<{ data: AdminAiModelSettings }>("/admin/ai-models/build", build);
+    return response.data.data;
   },
 
   listResumeTemplateSettings: async (): Promise<AdminResumeTemplateList> => {

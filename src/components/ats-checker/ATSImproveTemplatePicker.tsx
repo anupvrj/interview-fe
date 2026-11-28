@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { ResumeTemplate, resumeApi } from "@/lib/api";
 import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { TemplatePreview } from "@/components/TemplatePreview";
@@ -24,6 +24,8 @@ interface ATSImproveTemplatePickerProps {
   /** "report": picked from the ATS report, nothing has been enhanced yet. */
   source?: "improve" | "report";
   onComplete: (templateId?: string) => void;
+  /** Designs ranked by closeness to the uploaded resume: shown first, the closest preselected. */
+  designMatch?: { order: string[]; closest: string | null } | null;
 }
 
 export function ATSImproveTemplatePicker({
@@ -31,6 +33,7 @@ export function ATSImproveTemplatePicker({
   currentTemplateId,
   source = "improve",
   onComplete,
+  designMatch,
 }: ATSImproveTemplatePickerProps) {
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +42,12 @@ export function ATSImproveTemplatePicker({
   );
   const [activeFilter, setActiveFilter] = useState<FilterCategory>("all");
   const [applying, setApplying] = useState(false);
+  /** They picked one themselves: a late-arriving match must not change it. */
+  const [pickedByUser, setPickedByUser] = useState(false);
+  const closest = designMatch?.closest ?? null;
+  useEffect(() => {
+    if (!pickedByUser && closest) setSelectedTemplate(closest);
+  }, [closest, pickedByUser]);
 
   useEffect(() => {
     void (async () => {
@@ -51,10 +60,15 @@ export function ATSImproveTemplatePicker({
     })();
   }, []);
 
+  // Closest to their resume first (as in the resume builder); the rest keep their order.
+  const rank = new Map((designMatch?.order ?? []).map((id, i) => [id, i]));
+  const ordered = rank.size
+    ? [...templates].sort((a, b) => (rank.get(a.id) ?? 1e6) - (rank.get(b.id) ?? 1e6))
+    : templates;
   const filteredTemplates =
     activeFilter === "all"
-      ? templates
-      : templates.filter((t) => t.category === activeFilter);
+      ? ordered
+      : ordered.filter((t) => t.category === activeFilter);
 
   const filterButtons: { id: FilterCategory; label: string }[] = [
     { id: "all", label: "All" },
@@ -63,18 +77,18 @@ export function ATSImproveTemplatePicker({
     { id: "creative", label: "Creative" },
   ];
 
-  const handleContinue = async (skipTemplate: boolean) => {
+  const handleContinue = async (skipTemplate: boolean, templateId: string | null = selectedTemplate) => {
     if (applying) return;
     setApplying(true);
     try {
-      if (!skipTemplate && selectedTemplate) {
+      if (!skipTemplate && templateId) {
         const resume = await resumeApi.get(resumeId);
         const templateApplication = await buildResumeTemplateApplication(
-          selectedTemplate,
+          templateId,
           resume,
         );
         await resumeApi.update(resumeId, templateApplication);
-        onComplete(selectedTemplate);
+        onComplete(templateId);
       } else {
         onComplete(currentTemplateId);
       }
@@ -98,7 +112,7 @@ export function ATSImproveTemplatePicker({
   }
 
   return (
-    <div className={cn(dash2026Scope, "mx-auto max-w-6xl space-y-5 pb-24 lg:space-y-6")}>
+    <div className={cn(dash2026Scope, "mx-auto max-w-6xl space-y-5 pb-10 lg:space-y-6")}>
       <section className="relative overflow-hidden rounded-[22px] border border-border bg-card p-6 md:p-8">
         <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
@@ -108,71 +122,113 @@ export function ATSImproveTemplatePicker({
             {fromReport ? "Choose a template" : "Now choose a template"}
           </h1>
           <p className="mt-2 max-w-xl text-[15px] text-muted-foreground">
-            Your content stays the same. You can change it any time.
+            {closest
+              ? "We picked the design closest to your resume. Use it, or choose another — your content stays the same."
+              : "Your content stays the same. You can change it any time."}
           </p>
         </div>
       </section>
 
-      <div role="tablist" aria-label="Template type" className="flex flex-wrap gap-2">
-        {filterButtons.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === filter.id}
-            onClick={() => setActiveFilter(filter.id)}
-            className={cn(
-              "min-h-10 rounded-xl border px-4 text-[13.5px] font-semibold transition-colors",
-              activeFilter === filter.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
+      {/* Pinned at the top while scrolling the templates: what's picked and the next step. */}
+      <div data-testid="template-actions" className="sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border bg-card/95 p-2.5 shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)] backdrop-blur">
+        <div role="tablist" aria-label="Template type" className="flex flex-wrap gap-1.5">
+          {filterButtons.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === filter.id}
+              onClick={() => setActiveFilter(filter.id)}
+              className={cn(
+                "min-h-10 rounded-xl border px-4 text-[13.5px] font-semibold transition-colors",
+                activeFilter === filter.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="hidden max-w-[220px] truncate text-[13.5px] text-muted-foreground md:block">
+            {selected ? <><span className="font-semibold text-foreground">{selected.name}</span> selected</> : "Pick a template"}
+          </p>
+          <Button variant="outline" onClick={() => void handleContinue(true)} disabled={applying} className="h-10 rounded-xl px-4">
+            Keep current
+          </Button>
+          <Button onClick={() => void handleContinue(false)} disabled={applying || !selectedTemplate} className="h-10 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+            {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Continue to editor
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredTemplates.map((template) => {
           const isSelected = selectedTemplate === template.id;
           return (
-            <button
+            <div
               key={template.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               aria-pressed={isSelected}
-              onClick={() => setSelectedTemplate(template.id)}
+              data-template-id={template.id}
+              onClick={() => {
+                setPickedByUser(true);
+                setSelectedTemplate(template.id);
+              }}
+              onDoubleClick={() => void handleContinue(false, template.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setPickedByUser(true);
+                  setSelectedTemplate(template.id);
+                }
+              }}
               className={cn(
-                "overflow-hidden rounded-[22px] border bg-card text-left transition-all",
+                "group cursor-pointer overflow-hidden rounded-[22px] border bg-card text-left transition-all",
                 isSelected ? "border-primary shadow-[0_0_0_3px_rgba(115,103,240,.2)]" : "border-border hover:border-primary/40 hover:shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)]",
               )}
             >
-              <TemplatePreview template={template} isSelected={isSelected} />
+              <div className="relative">
+                <TemplatePreview template={template} isSelected={isSelected} hideBadges />
+                {isSelected ? (
+                  <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-white shadow-lg"><CheckCircle className="h-4 w-4" /></span>
+                ) : null}
+                <div className="absolute inset-x-2.5 bottom-2.5 translate-y-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                  <Button
+                    type="button"
+                    disabled={applying}
+                    className="h-9 w-full rounded-xl px-3 text-[13px] shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleContinue(false, template.id);
+                    }}
+                  >
+                    Use this template
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
               <div className="p-4">
-                <h3 className="font-bold tracking-[-0.02em] text-foreground">{template.name}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold tracking-[-0.02em] text-foreground">{template.name}</h3>
+                  {closest === template.id ? (
+                    <span data-testid="closest-design" className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      Closest to your resume
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{template.description}</p>
                 <Mono className="mt-2 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] uppercase text-muted-foreground">
                   {categoryLabels[template.category]}
                 </Mono>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
-      {/* always in reach, however far down the list they are */}
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border bg-card/95 p-3 shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)] backdrop-blur">
-        <p className="min-w-0 truncate pl-2 text-[14px] text-muted-foreground">
-          {selected ? <><span className="font-semibold text-foreground">{selected.name}</span> selected</> : "Pick a template"}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => void handleContinue(true)} disabled={applying} className="h-11 rounded-xl px-4 text-muted-foreground">
-            Keep current
-          </Button>
-          <Button onClick={() => void handleContinue(false)} disabled={applying || !selectedTemplate} className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
-            {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Continue to editor
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

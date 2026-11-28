@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, CloudUpload, LayoutTemplate, Lock, PenLine, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, CloudUpload, Loader2, PenLine, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Mono } from "@/components/marketing-2026/primitives";
 import { dash2026Scope, EASE, Eyebrow, ScoreRing } from "@/components/dashboard-2026/ui";
@@ -20,6 +20,12 @@ import { SetAsideLink } from "./SetAsideLink";
 import { countSetAsideIssues } from "@/types/atsReport";
 import { ATSResumeCanvas } from "./ATSResumeCanvas";
 import { ATSOriginalPdfCanvas } from "./ATSOriginalPdfCanvas";
+import { ATSProgressCard } from "./ATSProgressCard";
+import { ATSKeywordsCard } from "./ATSKeywordsCard";
+import { ATSScoreExplainer } from "./ATSScoreExplainer";
+import { ATSScoreCapNote } from "./ATSScoreCapNote";
+import { track } from "@/lib/analytics/productEvents";
+import type { AtsHistoryEntry } from "@/lib/api";
 import type { PdfPage } from "@/lib/pdf-snapshot";
 import { JobMatchBanner } from "./ATSReportDashboard";
 
@@ -74,7 +80,10 @@ export function ATSReportWorkspace({
   initialJobDescription,
   guest,
   originalPdf,
+  history,
 }: {
+  /** The resume's past full checks (signed in), for the progress card. */
+  history?: AtsHistoryEntry[];
   /** Their uploaded PDF's pages: shown as they designed it, instead of our rebuild. */
   originalPdf?: PdfPage[] | null;
   report: ATSReportV3;
@@ -86,7 +95,8 @@ export function ATSReportWorkspace({
   improving: boolean;
   rerunning: boolean;
   onImprove: () => void;
-  onChooseTemplate: () => void;
+  /** Template step then the editor: what Improve now does when AI improve isn't on the plan. */
+  onChooseTemplate?: () => void;
   onIgnoreIssue: (check: ATSCheckResult, issue: ATSIssue) => Promise<void>;
   /** Brings back the findings set aside. */
   onRestoreSetAside?: () => Promise<void>;
@@ -127,6 +137,8 @@ export function ATSReportWorkspace({
   const fixColumn = useRef<HTMLDivElement>(null);
   const fixSection = useRef<HTMLElement>(null);
   const picked = useRef(false);
+  /** Bumped on every pick, so picking the already-selected check still scrolls to its explanation. */
+  const [pickNonce, setPickNonce] = useState(0);
   useEffect(() => {
     if (!picked.current) return;
     const column = fixColumn.current;
@@ -139,10 +151,13 @@ export function ATSReportWorkspace({
     } else {
       section.scrollIntoView({ block: "start", behavior });
     }
-  }, [selectedId, reduce]);
+  }, [selectedId, pickNonce, reduce]);
   const pickCheck = (id: ATSCheckId) => {
     picked.current = true;
     setSelectedId(id);
+    setPickNonce((n) => n + 1);
+    const check = CATEGORY_ORDER.flatMap((c) => r.categories[c]?.checks ?? []).find((c) => c.id === id);
+    track("ats_recommendation_viewed", { check_id: id, locked: Boolean(check?.locked) });
   };
 
   const pickMark = (markId: string) => {
@@ -158,6 +173,10 @@ export function ATSReportWorkspace({
   const v = verdict(r.score);
   const categories = CATEGORY_ORDER.filter((id) => id !== "jobMatch" && r.categories[id]);
   const editorHref = guest ? guest.signUpHref : `/dashboard/resumes/${resumeId}/edit?view=ats`;
+  const checkLabels = useMemo(
+    () => Object.fromEntries(CATEGORY_ORDER.flatMap((id) => r.categories[id]?.checks ?? []).map((c) => [c.id, c.label])),
+    [r],
+  );
   const lockedCount = guest ? CATEGORY_ORDER.flatMap((id) => r.categories[id]?.checks ?? []).filter((c) => c.locked).reduce((n, c) => n + c.issueCount, 0) : 0;
 
   return (
@@ -202,16 +221,15 @@ export function ATSReportWorkspace({
                 </>
               ) : (
                 <>
-              <Button asChild className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
-                <Link href={editorHref}>Improve now<ArrowRight className="h-4 w-4" /></Link>
-              </Button>
-              <Button onClick={onImprove} disabled={improving} variant="outline" className="h-11 rounded-xl px-5">
-                {improveUnlocked ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                Improve with AI
-                {!improveUnlocked && <Mono className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] text-primary">UPGRADE</Mono>}
-              </Button>
-              <Button variant="outline" onClick={onChooseTemplate} className="h-11 rounded-xl px-5">
-                <LayoutTemplate className="h-4 w-4" />Choose template
+              {/* One action. With AI improve on the plan: the AI improves it (template step included).
+                  Without: pick a template and fix it in the editor (the AI offer is there, in Fix all). */}
+              <Button
+                onClick={improveUnlocked || !onChooseTemplate ? onImprove : onChooseTemplate}
+                disabled={improving}
+                className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90"
+              >
+                {improving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Improve now
               </Button>
               <Button variant="ghost" onClick={onRerun} disabled={rerunning} className="h-11 rounded-xl px-3 text-muted-foreground" title="Re-run the ATS check">
                 <RefreshCw className={cn("h-4 w-4", rerunning && "animate-spin")} />
@@ -263,12 +281,9 @@ export function ATSReportWorkspace({
 
       {error && <p className="rounded-[18px] border border-destructive/30 bg-destructive/[0.06] px-5 py-3 text-sm text-destructive">{error}</p>}
 
-      {r.scoreCap != null && (r.scoreCapReasons?.length ?? 0) > 0 && (
-        <div role="note" className="rounded-[18px] border border-amber-500/40 bg-amber-500/[0.08] px-5 py-4 text-sm">
-          <p className="font-semibold text-foreground">Your score is held at {r.scoreCap} until you fix:</p>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted-foreground">{r.scoreCapReasons!.map((x) => <li key={x}>{x}</li>)}</ul>
-        </div>
-      )}
+      <ATSScoreCapNote report={r} />
+
+      <ATSScoreExplainer report={r} />
 
       {/* a finished job match is a result, so it stays; the summary and the promo are gone */}
       {reportHasJobMatch(r) && <div className="[&>div]:rounded-[22px]"><JobMatchBanner report={r} /></div>}
@@ -296,6 +311,14 @@ export function ATSReportWorkspace({
 
         <div ref={fixColumn} className="space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
           {guest?.side ?? (<>
+          {history && history.length > 1 && <ATSProgressCard history={history} labels={checkLabels} />}
+          <ATSKeywordsCard
+            report={r}
+            editorHref={resumeId ? `/dashboard/resumes/${resumeId}/edit?view=job` : undefined}
+            initialJobDescription={initialJobDescription}
+            running={rerunning}
+            onRunJobMatch={onRunJobMatch}
+          />
           <section className="overflow-hidden rounded-[22px] border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>

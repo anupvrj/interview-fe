@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics/productEvents";
+import {
+  PROFILE_UPDATED_EVENT,
+  builderFlowSkipsOnboarding,
+  clearPendingBuildJob,
+  markResumeBuilderFlowBuilt,
+  readPendingBuildJob,
+  savePendingBuildJob,
+} from "@/lib/resumeBuilderFlow";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
+import { userApi, ResumeTemplate, resumeApi, type Resume } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
@@ -27,9 +36,13 @@ import {
   AlertCircle,
   FileText,
   X,
+  Linkedin,
+  Mic,
 } from "lucide-react";
 import {
-  buildResumeFromExtractedData,
+  buildResumeWithMeta,
+  LIVE_BUILD_STEPS,
+  liveBuildStepIndex,
   buildSectionOrderForExtractedContent,
   getResumeProcessingMessages,
   mapExtractedSectionsToContent,
@@ -39,7 +52,6 @@ import {
 import { TemplatePreview } from "@/components/TemplatePreview";
 import Image from "next/image";
 import { dash2026Scope, Eyebrow } from "@/components/dashboard-2026/ui";
-import { ResumeBuilderImportChoiceCards } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
 import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
 import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
 import { ResumeBuilderProcessingView } from "@/components/resume-builder/ResumeBuilderProcessingView";
@@ -55,6 +67,8 @@ import { pickHackathonTemplate } from "@/lib/hackathon-resume-template";
 import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
 import { hackathonApi } from "@/features/hackathon/api";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
+import type { ClosestDesigns } from "@/lib/resume-style/closestDesign";
+import { describeLayout, findResumeParts } from "@/lib/resume-style/resumeFindings";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import {
@@ -95,7 +109,8 @@ const categoryLabels = {
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
 type Step = "template" | "import" | "jobDescription" | "processing";
-const STEP_ORDER: Step[] = ["template", "import", "jobDescription", "processing"];
+/** Their details first (old resume, LinkedIn, AI chat or sample), then a design: the closest to their old resume first. */
+const STEP_ORDER: Step[] = ["import", "template", "jobDescription", "processing"];
 
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
@@ -157,7 +172,15 @@ export default function NewResumePage() {
     const query = params.toString();
     return query ? `/dashboard/resumes/new?${query}` : "/dashboard/resumes/new";
   };
-  const [step, setStep] = useState<Step>("template");
+  const [step, setStep] = useState<Step>("import");
+  /** Design fixed by the link (hackathon / ?skipTemplate): the design step is skipped. */
+  const [templateLocked, setTemplateLocked] = useState(false);
+  /** Designs ordered by closeness to the uploaded resume (PDF only). */
+  const [closestDesigns, setClosestDesigns] = useState<ClosestDesigns | null>(null);
+  /** The closest-design match for the upload is still running (shown in the reading steps). */
+  const [matchingDesign, setMatchingDesign] = useState(false);
+  /** The user picked a design themselves: don't replace it with the closest match. */
+  const [templatePickedByUser, setTemplatePickedByUser] = useState(false);
   const [importSource, setImportSource] = useState<ResumeImportSource | null>(
     null,
   );
@@ -177,6 +200,8 @@ export default function NewResumePage() {
   const [extracting, setExtracting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+  /** Real build step from the server (Resume Writer v2); null while unknown → timed messages. */
+  const [liveStep, setLiveStep] = useState<string | null>(null);
   const [pendingImport, setPendingImport] =
     useState<BuildResumeImportPayload | null>(null);
   const [chatProfile, setChatProfile] = useState<ChatCollectedProfile | null>(
@@ -193,6 +218,28 @@ export default function NewResumePage() {
   const [jdSummary, setJdSummary] = useState<string | null>(null);
   const [analyzingJd, setAnalyzingJd] = useState(false);
   const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
+  useEffect(() => {
+    if (isLoaded) track("resume_builder_opened", { surface: "new", signed_in: Boolean(user) });
+  }, [isLoaded, user]);
+
+  // At the plan's resume limit: say so before they spend minutes on the steps, not at the end.
+  const [limitReached, setLimitReached] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    let cancelled = false;
+    void resumeApi
+      .checkResumeLimit()
+      .then((limit) => {
+        if (!cancelled && !limit.allowed) setLimitReached(limit.reason ?? "You've reached your plan's resume limit.");
+      })
+      .catch(() => {
+        /* the server still enforces it on create */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, user]);
+
 
   useEffect(() => {
     const apply = () => {
@@ -225,8 +272,10 @@ export default function NewResumePage() {
   useEffect(() => {
     if (step !== "processing") {
       setProcessingMessageIndex(0);
+      setLiveStep(null);
       return;
     }
+    if (liveStep) return; // real steps drive the view
 
     setProcessingMessageIndex(0);
     const lastIndex = processingMessages.length - 1;
@@ -241,7 +290,7 @@ export default function NewResumePage() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [step, processingMessages.length]);
+  }, [step, processingMessages.length, liveStep]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -262,10 +311,22 @@ export default function NewResumePage() {
     if (!user) return;
 
     try {
+      // From "Build my resume" (sign-up → here): a brand-new account may not have its app user
+      // yet, and onboarding waits until the resume is built.
+      const builderFlow = builderFlowSkipsOnboarding(window.location.pathname);
+      if (builderFlow) {
+        await userApi.createOrGetUser(user.id, user.primaryEmailAddress?.emailAddress || "", user.fullName || user.firstName || "User");
+      }
       // Check onboarding status
-      const profile = await userApi.getMyProfile();
+      let profile = await userApi.getMyProfile();
+      if (builderFlow && !profile.onboardingCompleted) {
+        // Building a resume means they're a candidate: finish onboarding without asking.
+        profile = await userApi.completeOnboarding({ name: user.fullName || user.firstName || undefined });
+        window.dispatchEvent(new CustomEvent(PROFILE_UPDATED_EVENT, { detail: profile }));
+        void userApi.sendWelcomeSignup("candidate").catch(() => undefined);
+      }
 
-      if (!profile.onboardingCompleted) {
+      if (!profile.onboardingCompleted && !builderFlow) {
         // Onboarding not completed - redirect to onboarding with return URL
         const returnUrl = newResumeReturnUrl();
         localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
@@ -287,9 +348,7 @@ export default function NewResumePage() {
       const skipTemplate = quickHackathon || searchParams.get("skipTemplate") === "true";
       if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
-        // Only from the start: this re-runs when Clerk refreshes the user (e.g. back to the tab
-        // while the resume is building) and must not send them back to the upload step.
-        setStep((current) => (current === "template" ? "import" : current));
+        setTemplateLocked(true);
       }
     } catch (error) {
       console.error("Error checking onboarding status:", error);
@@ -365,6 +424,7 @@ export default function NewResumePage() {
 
     setUploadedFile(file);
     setExtracting(true);
+    track("resume_creation_started", { source: "pdf" });
 
     try {
       // Extract text from PDF
@@ -391,63 +451,91 @@ export default function NewResumePage() {
     validator: pdfResumeFileValidator,
   });
 
+  // Old resume uploaded: work out which of our designs looks most like it (free in the browser;
+  // one small AI call only when unsure). Runs while they read the next step; never blocks.
+  useEffect(() => {
+    if (!uploadedFile || templates.length === 0 || templateLocked) {
+      if (!uploadedFile) setClosestDesigns(null);
+      return;
+    }
+    let cancelled = false;
+    setMatchingDesign(true);
+    void import("@/lib/resume-style/closestDesign")
+      .then(({ findClosestDesigns }) => findClosestDesigns(uploadedFile, templates.map((t) => t.id)))
+      .then((result) => {
+        if (cancelled) return;
+        setClosestDesigns(result);
+        track("resume_design_matched", { matched: Boolean(result.closest), used_ai: result.usedAi, template_id: result.closest ?? "none" });
+      })
+      .catch(() => {
+        if (!cancelled) setClosestDesigns(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMatchingDesign(false);
+      });
+    return () => {
+      cancelled = true;
+      setMatchingDesign(false);
+    };
+  }, [uploadedFile, templates, templateLocked]);
+
+  /** Only for a resume built from that upload (not if they switched to LinkedIn or AI chat). */
+  const designMatch = pendingImport?.source === "pdf" ? closestDesigns : null;
+
+  // On the design step, the closest design starts selected unless they've picked one.
+  useEffect(() => {
+    if (step !== "template" || templatePickedByUser || !designMatch?.closest) return;
+    setSelectedTemplate(designMatch.closest);
+  }, [step, templatePickedByUser, designMatch?.closest]);
+
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
+    setTemplatePickedByUser(true);
+    track("resume_template_selected", { template_id: templateId, surface: "new_resume" });
   };
 
-  const useTemplateAndGoToImport = (templateId: string) => {
+  /** Design chosen: on to the job description (their details are already in). */
+  const useTemplateAndContinue = (templateId: string) => {
     setSelectedTemplate(templateId);
-    setImportSource(null);
-    setUploadedFile(null);
-    setResumeText("");
-    setLinkedinHandle("");
-    setPendingImport(null);
-    setChatProfile(null);
-    setChatSessionId(null);
-    setChatSubMode(null);
-    if (!jobFromExtension) {
-      setJobDescription("");
-      setJdRequirements(null);
-      setJdSummary(null);
-    }
-    setEnhanceChoiceOpen(false);
-    setStep("import");
+    setTemplatePickedByUser(true);
+    track("resume_template_selected", { template_id: templateId, surface: "new_resume" });
+    setStep(pendingImport ? "jobDescription" : "import");
   };
 
+  /** Their details are in: next the design (skipped when the link fixed it). */
   const proceedToJobDescription = (payload: BuildResumeImportPayload) => {
     setPendingImport(payload);
-    setStep("jobDescription");
+    setStep(templateLocked ? "jobDescription" : "template");
   };
 
   const handleChatReady = (profile: ChatCollectedProfile) => {
     setChatProfile(profile);
-    if (!selectedTemplate) return;
     proceedToJobDescription({
       source: "chat",
-      templateId: selectedTemplate,
+      templateId: selectedTemplate ?? "",
       chatProfile: profile,
     });
   };
 
   const handleLinkedInContinue = () => {
-    if (!selectedTemplate || !linkedinHandle.trim()) return;
+    if (!linkedinHandle.trim()) return;
     proceedToJobDescription({
       source: "linkedin",
-      templateId: selectedTemplate,
+      templateId: selectedTemplate ?? "",
       linkedinHandle: linkedinHandle.trim(),
     });
   };
 
   const handlePdfContinue = () => {
-    if (!selectedTemplate || !resumeText) return;
+    if (!resumeText) return;
     setEnhanceChoiceOpen(true);
   };
 
   const proceedFromPdfWithEnhance = (enhance: boolean) => {
-    if (!selectedTemplate || !resumeText) return;
+    if (!resumeText) return;
     proceedToJobDescription({
       source: "pdf",
-      templateId: selectedTemplate,
+      templateId: selectedTemplate ?? "",
       resumeText,
       enhance,
     });
@@ -484,6 +572,112 @@ export default function NewResumePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickHackathon, step, pendingImport, creating, createError]);
 
+  /** Make the resume from a finished build (also used when a reloaded page picks a build up). */
+  const finishBuiltResume = async ({
+    sections,
+    writerMeta,
+    templateId,
+    jdText,
+    source,
+  }: {
+    sections: Awaited<ReturnType<typeof buildResumeWithMeta>>["sections"];
+    writerMeta: Awaited<ReturnType<typeof buildResumeWithMeta>>["writerMeta"];
+    templateId: string;
+    jdText: string;
+    source: string;
+  }) => {
+    if (!user) return;
+      {
+        // Both builders report, so the A/B rollout can compare them (edits after build, downloads).
+        const num = (v: unknown) => (typeof v === "number" ? v : 0);
+        track("resume_ai_build_completed", {
+          variant: writerMeta ? "v2" : "current",
+          source,
+          slots: writerMeta?.slots?.length ?? 0,
+          suggestions: writerMeta?.suggestions?.length ?? 0,
+          skills_to_confirm: writerMeta?.skillsToConfirm?.length ?? 0,
+          kept_original: num(writerMeta?.keptOriginal),
+          cost_usd: num(writerMeta?.costUsd),
+          ms: num(writerMeta?.ms),
+        });
+      }
+
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig =
+        await TemplateLoader.loadTemplate(templateId);
+      const extended = templateConfig.extended;
+
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      const content = mapExtractedSectionsToContent(sections);
+      const { reorderSections } = await import("@/lib/sectionOrder");
+      // Career-stage order from the writer (fresher: education first), main column only.
+      const sectionOrder = reorderSections(
+        buildSectionOrderForExtractedContent(extended, content, initialLayout.type) as unknown as Array<{ type: string; column?: string }>,
+        (writerMeta as { recommendedOrder?: string[] } | null)?.recommendedOrder,
+      ) as unknown as ReturnType<typeof buildSectionOrderForExtractedContent>;
+
+      const resume = await resumeApi.create(user.id, {
+        templateId: templateId,
+        title: "My Resume",
+        content,
+        sectionOrder,
+        layout: initialLayout,
+        ...(writerMeta ? { aiBuildMeta: writerMeta } : {}),
+        ...(jdText.length > 50
+          ? {
+              atsScoringContext: {
+                lastJobDescription: trimJobDescriptionForSend(jdText),
+              },
+            }
+          : {}),
+      });
+
+      markResumeBuilderFlowBuilt();
+      await invalidate(["resumes"]);
+      router.push(resumeEditorPath(resume.resumeId));
+  };
+
+  // A build that was running when the page closed or reloaded: pick it up and finish it.
+  const resumedJobRef = useRef(false);
+  useEffect(() => {
+    if (!user || resumedJobRef.current || creating) return;
+    const pending = readPendingBuildJob();
+    if (!pending) return;
+    resumedJobRef.current = true;
+    setCreating(true);
+    setCreateError(null);
+    setStep("processing");
+    void (async () => {
+      try {
+        const { pollResumeBuildJob } = await import("@/lib/api");
+        const { sections, writerMeta } = await pollResumeBuildJob(pending.jobId, (s) => setLiveStep(s));
+        await finishBuiltResume({ sections: sections as never, writerMeta: writerMeta ?? null, templateId: pending.templateId, jdText: pending.jdText, source: pending.source });
+        clearPendingBuildJob();
+      } catch (error) {
+        clearPendingBuildJob();
+        setStep("import");
+        setCreateError(`Couldn't finish your resume: ${error instanceof Error ? error.message : "Please try again."}`);
+      } finally {
+        setCreating(false);
+      }
+    })();
+    // finishBuiltResume is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, creating]);
+
   const handleBuildResume = async (
     jdOverride?: string,
     jdReqOverride?: JDRequirements | null,
@@ -503,57 +697,22 @@ export default function NewResumePage() {
         return;
       }
 
-      const sections = await buildResumeFromExtractedData({
-        ...pendingImport,
-        jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
-        jdRequirements: jdReq ?? undefined,
-      });
-
-      const { TemplateLoader } = await import("@/lib/templateLoader");
-      const templateConfig =
-        await TemplateLoader.loadTemplate(selectedTemplate);
-      const extended = templateConfig.extended;
-
-      const renderingLayout = extended.rendering?.layout;
-      const initialLayout = {
-        type: (renderingLayout?.type === "header-plus-columns"
-          ? "double"
-          : renderingLayout?.type || "single") as "single" | "double",
-        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
-        padding: extended.style?.padding || {
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
+      const jobContext = { templateId: selectedTemplate, jdText: jdText.trim().length > 50 ? jdText.trim() : "", source: String(pendingImport.source) };
+      const { sections, writerMeta } = await buildResumeWithMeta(
+        {
+          ...pendingImport,
+          templateId: selectedTemplate,
+          jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
+          jdRequirements: jdReq ?? undefined,
         },
-      };
-
-      const content = mapExtractedSectionsToContent(sections);
-      const sectionOrder = buildSectionOrderForExtractedContent(
-        extended,
-        content,
-        initialLayout.type,
+        (s) => setLiveStep(s),
+        (jobId) => savePendingBuildJob({ jobId, ...jobContext, at: Date.now() }),
       );
-
-      const resume = await resumeApi.create(user.id, {
-        templateId: selectedTemplate,
-        title: "My Resume",
-        content,
-        sectionOrder,
-        layout: initialLayout,
-        ...(jdText.trim().length > 50
-          ? {
-              atsScoringContext: {
-                lastJobDescription: trimJobDescriptionForSend(jdText),
-              },
-            }
-          : {}),
-      });
-
-      await invalidate(["resumes"]);
-      router.push(resumeEditorPath(resume.resumeId));
+      await finishBuiltResume({ sections, writerMeta, ...jobContext });
+      clearPendingBuildJob();
     } catch (error: any) {
       console.error("Error building resume:", error);
+      clearPendingBuildJob();
       setStep("jobDescription");
 
       const isLimitError =
@@ -578,10 +737,9 @@ export default function NewResumePage() {
   };
 
   const handleSkip = () => {
-    if (!selectedTemplate) return;
     proceedToJobDescription({
       source: "dummy",
-      templateId: selectedTemplate,
+      templateId: selectedTemplate ?? "",
     });
   };
 
@@ -714,6 +872,7 @@ export default function NewResumePage() {
       });
 
       console.log("✅ Resume created with dummy content:", resume.resumeId);
+      markResumeBuilderFlowBuilt();
       await invalidate(["resumes"]);
       router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
@@ -764,13 +923,14 @@ export default function NewResumePage() {
     { title: string; description: string; badge?: string }
   > = {
     template: {
-      badge: "New resume",
-      title: "Start with a design you like.",
-      description:
-        "Pick a layout now and switch any time in the editor. Green dot means every ATS we tested read it cleanly.",
+      badge: "Design",
+      title: designMatch?.closest ? "We picked the design closest to your resume." : "Pick a design you like.",
+      description: designMatch?.closest
+        ? "It's selected and shown first. Every other design is still here, and you can switch any time in the editor."
+        : "Switch any time in the editor. Green dot means every ATS we tested read it cleanly.",
     },
     import: {
-      badge: "Your details",
+      badge: "New resume",
       title:
         importSource === "chat"
           ? "Chat with Live AI"
@@ -819,21 +979,122 @@ export default function NewResumePage() {
       setChatSubMode(null);
       return;
     }
-    setStep("template");
+    router.push("/dashboard/resumes");
   };
 
   const handleJobDescriptionBack = () => {
-    setStep("import");
+    setStep(templateLocked ? "import" : "template");
   };
 
   const currentMeta = stepMeta[step];
+  // "Found so far" while an upload is read: its parts (from the text) and its look (from the matcher).
+  const uploadParts = resumeText ? findResumeParts(resumeText) : null;
+  const uploadLayout = closestDesigns ? describeLayout(closestDesigns.style) : null;
+  const closestDesignName = closestDesigns?.closest ? templates.find((t) => t.id === closestDesigns.closest)?.name ?? null : null;
+  /** Step 1: the upload is the main action; LinkedIn and AI chat sit underneath for anyone without a PDF. */
+  const pdfStep = (
+    <ResumeBuilderPdfDropzone
+      uploadedFile={uploadedFile}
+      extracting={extracting}
+      matchingDesign={templateLocked ? null : matchingDesign}
+      parts={uploadParts}
+      layout={uploadLayout}
+      closestName={closestDesignName}
+      isDragActive={isDragActive}
+      maxSizeLabel={`${(PDF_RESUME_MAX_BYTES / 1024 / 1024).toFixed(0)} MB`}
+      getRootProps={getRootProps}
+      getInputProps={getInputProps}
+      onRemoveFile={() => {
+        setUploadedFile(null);
+        setResumeText("");
+      }}
+      footer={
+        <div className="space-y-6">
+          {!uploadedFile && !quickHackathon ? (
+            <div>
+              <div className="flex items-center gap-3 text-[12.5px] font-medium text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                No resume to hand?
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    track("resume_creation_started", { source: "linkedin" });
+                    setImportSource("linkedin");
+                  }}
+                  className="group flex h-14 items-center gap-3 rounded-xl border border-border bg-card px-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_14px_30px_-18px_rgba(75,63,208,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#0A66C2] text-white">
+                    <Linkedin className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14.5px] font-semibold text-foreground">Import from LinkedIn</span>
+                    <span className="block truncate text-[12px] text-muted-foreground">Paste your profile link</span>
+                  </span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    track("resume_creation_started", { source: "chat" });
+                    setShowChatModeModal(true);
+                  }}
+                  className="group flex h-14 items-center gap-3 rounded-xl border border-border bg-card px-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_14px_30px_-18px_rgba(75,63,208,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#7367F0] to-[#1F8FFF] text-white">
+                    <Mic className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14.5px] font-semibold text-foreground">Build it with AI</span>
+                    <span className="block truncate text-[12px] text-muted-foreground">Answer by chat or voice</span>
+                  </span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div className={resumeBuilderFooterActions}>
+            <Button variant="outline" className={resumeBuilderOutlineButton} onClick={handleImportBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {/* Hackathon: sample data blocks the submit — the chooser keeps a small link instead. */}
+              {quickHackathon ? null : (
+                <Button
+                  variant="ghost"
+                  className="h-11 rounded-xl px-4 text-[14px] text-muted-foreground hover:text-foreground"
+                  onClick={handleSkip}
+                  disabled={creating}
+                >
+                  <SkipForward className="mr-2 h-4 w-4" />
+                  Skip, start with sample content
+                </Button>
+              )}
+              {uploadedFile ? (
+                <Button className={resumeBuilderPrimaryButton} onClick={handlePdfContinue} disabled={extracting}>
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      }
+    />
+  );
   const quickHackathonChooser = quickHackathon && step === "import" && !importSource;
 
   // Filter templates based on active filter
+  const orderedTemplates = designMatch
+    ? [...templates].sort((a, b) => designMatch.order.indexOf(a.id) - designMatch.order.indexOf(b.id))
+    : templates;
   const filteredTemplates =
     activeFilter === "all"
-      ? templates
-      : templates.filter((t) => t.category === activeFilter);
+      ? orderedTemplates
+      : orderedTemplates.filter((t) => t.category === activeFilter);
 
   const filterButtons: { id: FilterCategory; label: string }[] = [
     { id: "all", label: "All" },
@@ -849,8 +1110,24 @@ export default function NewResumePage() {
   const stepNumber = Math.max(0, STEP_ORDER.indexOf(step)) + 1;
   const selectedTemplateMeta = templates.find((t) => t.id === selectedTemplate);
 
+
+
   return (
     <div className={cn(dash2026Scope, resumeBuilderPage)}>
+      <Dialog open={limitReached !== null} onOpenChange={(open) => { if (!open) router.push("/dashboard/resumes"); }}>
+        <DialogContent className="border border-primary/20 bg-card shadow-xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground">Resume limit reached</DialogTitle>
+            <DialogDescription className="pt-1 text-left text-muted-foreground">{limitReached}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
+            <Button variant="outline" onClick={() => router.push("/dashboard/resumes")}>Back to my resumes</Button>
+            <Button onClick={() => router.push("/dashboard/plan")}>
+              Upgrade plan <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {quickHackathonChooser ? (
         <Link href={(quickHackathon && safeAppRedirectPath(searchParams.get("returnTo"))) || "/dashboard/resumes"} className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
@@ -888,7 +1165,7 @@ export default function NewResumePage() {
                   <div className="min-w-0">
                     <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">TEMPLATE</p>
                     <p className="truncate text-[14px] font-semibold text-foreground">{selectedTemplateMeta.name}</p>
-                    {step === "import" && !quickHackathon ? (
+                    {step === "jobDescription" && !templateLocked ? (
                       <button type="button" onClick={() => setStep("template")} className="text-[12.5px] font-medium text-primary hover:underline">Change</button>
                     ) : null}
                   </div>
@@ -906,6 +1183,13 @@ export default function NewResumePage() {
 
       {step === "template" && (
         <>
+          <button
+            type="button"
+            onClick={() => setStep("import")}
+            className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to your details
+          </button>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div role="tablist" aria-label="Template style" className="inline-flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
               {filterButtons.map((filter) => {
@@ -946,7 +1230,7 @@ export default function NewResumePage() {
                     key={template.id}
                     className={cn(resumeBuilderTemplateCard, isSelected && resumeBuilderTemplateCardSelected)}
                     onClick={() => handleTemplateSelect(template.id)}
-                    onDoubleClick={() => useTemplateAndGoToImport(template.id)}
+                    onDoubleClick={() => useTemplateAndContinue(template.id)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -961,10 +1245,15 @@ export default function NewResumePage() {
                       {hasImage ? (
                         <Image src={template.preview!} alt={`${template.name} template`} fill sizes="(min-width:1280px) 18vw, (min-width:640px) 30vw, 45vw" className="object-cover object-top" />
                       ) : (
-                        <div className="pointer-events-none origin-top scale-[.9]"><TemplatePreview template={template} isSelected={false} /></div>
+                        <div className="pointer-events-none origin-top scale-[.9]"><TemplatePreview template={template} isSelected={false} hideBadges /></div>
                       )}
                       {isSelected ? (
                         <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-white shadow-lg"><CheckCircle className="h-4 w-4" /></span>
+                      ) : null}
+                      {designMatch?.closest === template.id ? (
+                        <span data-testid="closest-design" className="absolute left-2.5 top-2.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
+                          Closest to your resume
+                        </span>
                       ) : null}
                       <div className="absolute inset-x-2.5 bottom-2.5 translate-y-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
                         <Button
@@ -972,7 +1261,7 @@ export default function NewResumePage() {
                           className={cn(resumeBuilderPrimaryButton, "h-9 w-full px-3 text-[13px]")}
                           onClick={(e) => {
                             e.stopPropagation();
-                            useTemplateAndGoToImport(template.id);
+                            useTemplateAndContinue(template.id);
                           }}
                         >
                           Use this template
@@ -1018,7 +1307,7 @@ export default function NewResumePage() {
                   <p className="font-[family-name:var(--font-geist-mono)] text-[10.5px] text-muted-foreground">SELECTED</p>
                   <p className="truncate text-[14px] font-semibold text-foreground">{selectedTemplateMeta.name}</p>
                 </div>
-                <Button className={resumeBuilderPrimaryButton} onClick={() => useTemplateAndGoToImport(selectedTemplateMeta.id)}>
+                <Button className={resumeBuilderPrimaryButton} onClick={() => useTemplateAndContinue(selectedTemplateMeta.id)}>
                   Continue
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -1075,31 +1364,7 @@ export default function NewResumePage() {
                   </Button>
                 </div>
               ) : null}
-              <ResumeBuilderImportChoiceCards
-                selectedSource={importSource}
-                onSelectChat={() => setShowChatModeModal(true)}
-                onSelectLinkedIn={() => setImportSource("linkedin")}
-                onSelectPdf={() => setImportSource("pdf")}
-              />
-              <div className={resumeBuilderFooterActions}>
-                <Button
-                  variant="outline"
-                  className={resumeBuilderOutlineButton}
-                  onClick={() => setStep("template")}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="h-11 rounded-xl px-4 text-[14px] text-muted-foreground hover:text-foreground"
-                  onClick={handleSkip}
-                  disabled={creating}
-                >
-                  <SkipForward className="mr-2 h-4 w-4" />
-                  Skip, start with sample content
-                </Button>
-              </div>
+              {pdfStep}
             </>
           ) : importSource === "chat" ? (
             selectedTemplate ? (
@@ -1146,52 +1411,7 @@ export default function NewResumePage() {
               }
             />
           ) : (
-            <ResumeBuilderPdfDropzone
-              uploadedFile={uploadedFile}
-              extracting={extracting}
-              isDragActive={isDragActive}
-              maxSizeLabel={`${(PDF_RESUME_MAX_BYTES / 1024 / 1024).toFixed(0)} MB`}
-              getRootProps={getRootProps}
-              getInputProps={getInputProps}
-              onRemoveFile={() => {
-                setUploadedFile(null);
-                setResumeText("");
-              }}
-              footer={
-                <div className={resumeBuilderFooterActions}>
-                  <Button
-                    variant="outline"
-                    className={resumeBuilderOutlineButton}
-                    onClick={handleImportBack}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                  </Button>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    {/* Hackathon: sample data blocks the submit — the chooser keeps a small link instead. */}
-                    {quickHackathon ? null : (
-                      <Button
-                        variant="ghost"
-                        className="h-11 rounded-xl px-4 text-[14px] text-muted-foreground hover:text-foreground"
-                        onClick={handleSkip}
-                        disabled={creating}
-                      >
-                        <SkipForward className="mr-2 h-4 w-4" />
-                        Skip, start with sample content
-                      </Button>
-                    )}
-                    <Button
-                      className={resumeBuilderPrimaryButton}
-                      onClick={handlePdfContinue}
-                      disabled={extracting || !uploadedFile}
-                    >
-                      Continue
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              }
-            />
+            pdfStep
           )}
         </div>
       )}
@@ -1231,8 +1451,8 @@ export default function NewResumePage() {
       {step === "processing" && (
         <ResumeBuilderProcessingView
           label={processingLabel}
-          messageIndex={processingMessageIndex}
-          messages={processingMessages}
+          messageIndex={liveStep ? liveBuildStepIndex(liveStep) : processingMessageIndex}
+          messages={liveStep ? LIVE_BUILD_STEPS.map((s) => s.label) : processingMessages}
         />
       )}
 

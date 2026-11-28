@@ -32,3 +32,40 @@ describe("keyword counts for the job table", () => {
     expect(keywordCount("Kafka", text)).toBe(0);
   });
 });
+
+import { jobKeywordGroups } from "../jobKeywords";
+import type { ATSReportV3 } from "@/types/atsReport";
+
+describe("job keyword groups for the report", () => {
+  const report = {
+    categories: {
+      jobMatch: {
+        checks: [
+          { id: "mustHaveSkillsMatch", status: "warn", meta: { matched: ["Python", "AWS"], missing: ["Kafka", "Terraform"], partial: ["Kubernetes"] } },
+          { id: "preferredSkillsMatch", status: "fail", meta: { matched: [], missing: ["GraphQL"], partial: [] } },
+        ],
+      },
+    },
+  } as unknown as ATSReportV3;
+
+  it("splits required and preferred keywords into found, missing and partly there", () => {
+    const g = jobKeywordGroups(report)!;
+    expect(g.required).toEqual({ found: ["Python", "AWS"], missing: ["Kafka", "Terraform"], partial: ["Kubernetes"] });
+    expect(g.preferred).toEqual({ found: [], missing: ["GraphQL"], partial: [] });
+    expect(g.total).toBe(6);
+    expect(g.foundCount).toBe(2);
+  });
+
+  it("moves a keyword added since the check to found", () => {
+    const g = jobKeywordGroups(report, "built streaming jobs on kafka")!;
+    expect(g.required!.missing).toEqual(["Terraform"]);
+    expect(g.required!.found).toContain("Kafka");
+    expect(g.foundCount).toBe(3);
+  });
+
+  it("is null without a job description (skipped checks)", () => {
+    const none = { categories: { jobMatch: { checks: [{ id: "mustHaveSkillsMatch", status: "skipped", meta: {} }] } } } as unknown as ATSReportV3;
+    expect(jobKeywordGroups(none)).toBeNull();
+    expect(jobKeywordGroups(null)).toBeNull();
+  });
+});

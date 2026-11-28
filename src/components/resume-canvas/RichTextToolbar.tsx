@@ -13,6 +13,7 @@ import {
   Link2Off,
   List,
   ListOrdered,
+  Sparkles,
   Underline,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -116,7 +117,17 @@ const insideLink = () => {
 
 type Box = { top: number; left: number; width: number; height: number };
 
-export function RichTextToolbar({ rootRef }: Readonly<{ rootRef: React.RefObject<HTMLElement | null> }>) {
+/** The "AI" button's look: the brand gradient, so it stands out from the style buttons. */
+const AI_BUTTON = "bg-gradient-to-r from-primary to-violet-500 font-semibold text-white shadow-sm hover:brightness-110";
+
+export function RichTextToolbar({
+  rootRef,
+  onAskAi,
+}: Readonly<{
+  rootRef: React.RefObject<HTMLElement | null>;
+  /** Reword the line under the caret (or the selected words) with the AI Coach. */
+  onAskAi?: () => void;
+}>) {
   const [box, setBox] = useState<Box | null>(null);
   const [state, setState] = useState<Record<string, boolean>>({});
   const [onLink, setOnLink] = useState(false);
@@ -267,6 +278,23 @@ export function RichTextToolbar({ rootRef }: Readonly<{ rootRef: React.RefObject
         </form>
       ) : (
         <>
+          {onAskAi ? (
+            <>
+              <button
+                type="button"
+                title="Reword with AI Coach"
+                aria-label="Reword with AI"
+                data-rx-ai-button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onAskAi}
+                className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-xs", AI_BUTTON)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                AI
+              </button>
+              <span className="mx-0.5 h-4 w-px bg-white/20" aria-hidden />
+            </>
+          ) : null}
           {RICH_ACTIONS.map((a, i) => (
             <span key={a.cmd} className="contents">
               {GROUP_STARTS.has(i) ? <span className="mx-0.5 h-4 w-px bg-white/20" aria-hidden /> : null}
@@ -307,5 +335,68 @@ export function RichTextToolbar({ rootRef }: Readonly<{ rootRef: React.RefObject
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Phones have no style toolbar: a small "AI" chip sits at the top-right of the bullet /
+ * summary being edited instead. It stays a moment after the field loses focus, so a tap that
+ * blurs the field still lands on it.
+ */
+export function RichFieldAiChip({
+  rootRef,
+  onAskAi,
+}: Readonly<{ rootRef: React.RefObject<HTMLElement | null>; onAskAi: () => void }>) {
+  const [box, setBox] = useState<Box | null>(null);
+  const hideTimer = useRef<number | null>(null);
+
+  const refresh = useCallback(() => {
+    const root = rootRef.current;
+    const field = activeRichField(root);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = null;
+    if (!root || !field) {
+      hideTimer.current = window.setTimeout(() => setBox(null), 400);
+      return;
+    }
+    const o = root.getBoundingClientRect();
+    const r = field.getBoundingClientRect();
+    setBox({ top: r.top - o.top, left: r.left - o.left, width: r.width, height: r.height });
+  }, [rootRef]);
+
+  useEffect(() => {
+    document.addEventListener("focusin", refresh);
+    document.addEventListener("focusout", refresh);
+    window.addEventListener("resize", refresh);
+    const scroller = rootRef.current?.closest(".rx-canvas-scroll");
+    scroller?.addEventListener("scroll", refresh);
+    return () => {
+      document.removeEventListener("focusin", refresh);
+      document.removeEventListener("focusout", refresh);
+      window.removeEventListener("resize", refresh);
+      scroller?.removeEventListener("scroll", refresh);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    };
+  }, [refresh, rootRef]);
+
+  if (!box) return null;
+  return (
+    <button
+      type="button"
+      data-rx-overlay
+      data-rx-ai-button
+      aria-label="Reword with AI"
+      onPointerDown={(e) => e.preventDefault()}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => {
+        setBox(null);
+        onAskAi();
+      }}
+      className={cn("pointer-events-auto absolute z-40 flex h-7 items-center gap-1 rounded-full px-2.5 text-xs", AI_BUTTON)}
+      style={{ top: Math.max(0, box.top - 32), left: Math.max(0, box.left + box.width - 56) }}
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+      AI
+    </button>
   );
 }

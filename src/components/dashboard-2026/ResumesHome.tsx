@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics/productEvents";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -216,6 +217,7 @@ export function ResumesHome() {
     try {
       setDuplicatingId(resumeId);
       await resumeApi.duplicate(resumeId);
+      track("resume_duplicated", { surface: "resume_list" });
       await invalidate(["resumes"]);
     } catch (error) {
       console.error("Error duplicating resume:", error);

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { atsGuestApi, isATSReportV3, resumeApi, userApi } from "@/lib/api";
+import { atsGuestApi, isATSReportV3, resumeApi, userApi, type AtsHistoryEntry } from "@/lib/api";
 import { applyPersistedJobMatchScore } from "@/lib/atsReportNormalize";
 import { insightsFromAtsReport } from "@/lib/ats-insights";
 import { useEntitlements } from "@/hooks/useEntitlements";
@@ -31,6 +31,7 @@ import type { ScanFacts } from "@/lib/atsScanFacts";
 import type { ATSCheckResult, ATSIssue, ATSReportV3 } from "@/types/atsReport";
 import { isAxiosError } from "axios";
 import { forgetGuestCheck, rememberGuestCheck } from "@/lib/atsGuestState";
+import { scoreBucket, track } from "@/lib/analytics/productEvents";
 
 /** A claim that failed for a reason other than "expired" (network, deploy) is tried again. */
 const CLAIM_ATTEMPTS = 3;
@@ -78,6 +79,18 @@ function DashboardATSCheckerContent() {
   const [facts, setFacts] = useState<ScanFacts | null>(null);
   /** The PDF they just uploaded, as they designed it; a reloaded report shows our rebuild. */
   const [originalPdf, setOriginalPdf] = useState<PdfPage[] | null>(null);
+  /** Designs closest to the uploaded resume (for the template step), saved with the resume. */
+  const [designMatch, setDesignMatch] = useState<{ order: string[]; closest: string | null } | null>(null);
+  /** Past full checks of this resume (progress card); reloaded after each check. */
+  const [history, setHistory] = useState<AtsHistoryEntry[]>([]);
+  useEffect(() => {
+    if (!resumeId || step !== "results") return;
+    let cancelled = false;
+    void resumeApi.getATSHistory(resumeId).then((h) => !cancelled && setHistory(h), () => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeId, step, report]);
   const [templateSource, setTemplateSource] = useState<"improve" | "report">("improve");
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
@@ -99,6 +112,7 @@ function DashboardATSCheckerContent() {
         setResumeId(id);
         setResumeTitle(resume.title);
         setCurrentTemplateId(resume.templateId);
+        setDesignMatch(resume.atsScoringContext?.designMatch ?? null);
         setJobDescription(resume.atsScoringContext?.lastJobDescription || "");
         setStep("results");
       } else {
@@ -124,6 +138,8 @@ function DashboardATSCheckerContent() {
       setOriginalPdf(null);
       void snapshotPdfFirstPage(file).then(setSnapshot);
       void renderPdfPages(file).then(setOriginalPdf);
+      const startedAt = Date.now();
+      track("ats_resume_uploaded", { signed_in: true, size_kb: Math.round(file.size / 1024), has_jd: Boolean(jd.trim()) });
 
       try {
         const result = await runATSAnalysis(
@@ -134,9 +150,30 @@ function DashboardATSCheckerContent() {
           setFacts,
         );
         void clearPendingATSUpload();
+        track("ats_analysis_completed", {
+          signed_in: true,
+          score_bucket: scoreBucket(result.report.score),
+          duration_ms: Date.now() - startedAt,
+          reused: Date.now() - startedAt < 4000,
+        });
         setReport(result.report);
         setResumeId(result.resumeId);
         setResumeTitle(file.name.replace(/\.pdf$/i, ""));
+        // The design closest to their PDF, for the template step. Runs in the background (free reading,
+        // one small AI call only when unsure) and is saved, since the PDF itself isn't kept.
+        setDesignMatch(null);
+        void (async () => {
+          try {
+            const [{ findClosestDesigns }, templates] = await Promise.all([import("@/lib/resume-style/closestDesign"), resumeApi.getSelectableTemplates()]);
+            const match = await findClosestDesigns(file, templates.map((t) => t.id));
+            const saved = { order: match.order.slice(0, 60), closest: match.closest };
+            setDesignMatch(saved);
+            track("resume_design_matched", { matched: Boolean(match.closest), used_ai: match.usedAi, template_id: match.closest ?? "none" });
+            await resumeApi.update(result.resumeId, { atsScoringContext: { designMatch: saved } as never });
+          } catch {
+            /* the template step still works, just without the match */
+          }
+        })();
         setCurrentTemplateId(ATS_RESUME_TEMPLATE_ID);
         setStep("results");
         router.replace(`/dashboard/ats-checker?resumeId=${result.resumeId}`, {
@@ -145,6 +182,11 @@ function DashboardATSCheckerContent() {
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Failed to process resume.";
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        track("ats_analysis_failed", {
+          signed_in: true,
+          reason: status === undefined ? (isAxiosError(err) ? "network" : "unknown") : status >= 500 ? "server" : "rejected",
+        });
         void clearPendingATSUpload();
         setError(message);
         setStep("upload");
@@ -164,10 +206,12 @@ function DashboardATSCheckerContent() {
       setClaimSlow(false);
       // Putting in the AI rewrite and scoring it takes a while; say so instead of spinning.
       const slow = window.setTimeout(() => setClaimSlow(true), 3000);
+      const startedAt = Date.now();
       try {
         for (let attempt = 1; ; attempt++) {
           try {
-            const { resumeId: claimedId } = await atsGuestApi.claim(token);
+            const { resumeId: claimedId, improved } = await atsGuestApi.claim(token);
+            track("ats_claim_completed", { duration_ms: Date.now() - startedAt, improved: Boolean(improved), attempts: attempt });
             void userApi.sendWelcomeSignup("candidate").catch(() => {});
             await attachPendingPDF(claimedId);
             await applyGuestATSTemplate(claimedId);
@@ -176,8 +220,12 @@ function DashboardATSCheckerContent() {
             return;
           } catch (err) {
             const expired = isAxiosError(err) && err.response?.status === 404;
-            if (expired) break;
+            if (expired) {
+              track("ats_claim_failed", { reason: "expired" });
+              break;
+            }
             if (attempt >= CLAIM_ATTEMPTS) {
+              track("ats_claim_failed", { reason: "error" });
               // Keep the token and the PDF: "Try again" (or a refresh) picks up from here.
               setClaimFailed(true);
               return;
@@ -201,6 +249,10 @@ function DashboardATSCheckerContent() {
     },
     [router, executeAnalysis],
   );
+
+  useEffect(() => {
+    if (isLoaded && user) track("ats_checker_opened", { surface: "dashboard", signed_in: true });
+  }, [isLoaded, user]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -264,6 +316,7 @@ function DashboardATSCheckerContent() {
 
     try {
       const updated = await rerunATSAnalysis(resumeId, jobDescription);
+      track("ats_score_recalculated", { surface: "dashboard", score_bucket: scoreBucket(updated.score), delta: report ? updated.score - report.score : 0 });
       setReport(updated);
       setProcessingStep(3);
       setStep("results");
@@ -475,6 +528,7 @@ function DashboardATSCheckerContent() {
         <ATSImproveTemplatePicker
           resumeId={resumeId}
           currentTemplateId={currentTemplateId}
+          designMatch={designMatch}
           source={templateSource}
           onComplete={handleTemplateComplete}
         />
@@ -495,6 +549,7 @@ function DashboardATSCheckerContent() {
           onIgnoreIssue={handleIgnoreIssue}
           onRestoreSetAside={handleRestoreSetAside}
           originalPdf={originalPdf}
+          history={history}
           onRerun={() => void handleRerun()}
           onCheckAnother={handleCheckAnother}
           onRunJobMatch={handleRunJobMatch}

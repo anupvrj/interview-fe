@@ -11,7 +11,9 @@
     "test": "vitest run --config config/vitest.config.ts",
     "copy-template-css": "node scripts/copy-template-css.js",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
-    "fix-template-preview-images": "node scripts/fix-template-preview-images.js"
+    "fix-template-preview-images": "node scripts/fix-template-preview-images.js",
+    "test:e2e": "playwright test --project=desktop --project=mobile",
+    "test:e2e:record": "E2E_RECORD=1 playwright test --project=desktop"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
@@ -54,6 +56,7 @@
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "docx": "^9.5.1",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.12.1",
     "jspdf": "^3.0.4",
@@ -77,6 +80,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/html2canvas": "^0.5.35",
     "@types/node": "^22.9.0",
@@ -84,6 +88,7 @@
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
     "jsdom": "^29.1.1",
+    "jszip": "^3.10.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.6.3",

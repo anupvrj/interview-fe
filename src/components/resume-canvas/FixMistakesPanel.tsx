@@ -8,7 +8,10 @@ import { countSetAsideIssues } from "@/types/atsReport";
 import { SetAsideLink } from "@/components/ats-checker/SetAsideLink";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
+import type { RoleRef } from "@/lib/aiBuildMetaApply";
 import { AtsParseCard } from "./AtsParseCard";
+import { SkillPlacementBox, orphanSkillsFrom, type SkillPlacementApi } from "./SkillPlacementBox";
+import { ScoreBreakdown } from "./ScoreBreakdown";
 import type { AtsParseResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -78,6 +81,9 @@ const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["ton
   { title: "Bias risks", checks: ["ageismDateBias", "employmentGaps"], tone: "weak" },
   { title: "Impact (optional)", checks: ["quantifyingImpact"], tone: "weak" },
 ];
+
+/** "Skills not shown in your work" (ours, or the AI's wording of it). */
+const isOrphanSkillsFinding = (issue: ATSIssue) => /skills not shown in your work|orphan/i.test(issue.title ?? "");
 
 /** Findings about structure (dates, links, sections): they quote an entry to point at it, not to reword it. */
 const STRUCTURE_CHECKS = new Set<ATSCheckId>(["essentialSections", "contactInformation", "sectionOrder", "headerLinks", "emailAddress", "datesLinksConsistency", "design", "atsParseRate"]);
@@ -280,7 +286,9 @@ export function buildFixItems(
             (onPageThen !== null && !onPageThen.includes(squash(quoteOf(id, issue))))),
       );
       return current.map((issue, i) => {
-        const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
+        // The orphan-skills finding's list shrinks as skills get added: keyed by its title, it stays
+        // the same card (its suggestions aren't worked out again).
+        const key = (isOrphanSkillsFinding(issue) ? issue.title! : issue.excerpt || issue.title || String(i)).slice(0, 80);
         const typo = id === "spellingGrammar" && !isWordFix(issue) ? typoWord(issue) : null;
         const wordFix = isWordFix(issue) || !!typo;
         const n = (seen.get(key) ?? 0) + 1;
@@ -323,7 +331,8 @@ export function fixMarks(groups: Array<{ items: FixItem[] }>, resolved: Set<stri
 const TOP_GROUPS = new Set(["Fill in", "Typos", "Clarity", "Impact (optional)"]);
 
 /** Every other check is a score row (expand for its findings), grouped the way a reader judges a resume. */
-const ROW_SECTIONS: Array<{ title: string; checks: ATSCheckId[]; handled?: boolean }> = [
+const ROW_SECTIONS: Array<{ title: string; checks: ATSCheckId[]; handled?: boolean; cardsAbove?: boolean }> = [
+  { title: "Writing", checks: [PLACEHOLDER_CHECK, "spellingGrammar", "repetition", "bulletsConsistency", "quantifyingImpact"], cardsAbove: true },
   { title: "How a recruiter reads it", checks: ["credibility", "interviewRisks", "peerBenchmarking", "skillEvidence", "careerProgression", "leadershipSignals", "ageismDateBias", "employmentGaps"] },
   { title: "Basics", checks: ["essentialSections", "contactInformation", "sectionOrder", "datesLinksConsistency", "headerLinks", "emailAddress"] },
   { title: "Fit for this job", checks: ["mustHaveSkillsMatch", "hardSkillsMatch", "softSkillsMatch", "titleMatch", "actionVerbs", "experienceMatch", "educationMatch", "certificationMatch", "responsibilitiesMatch", "preferredSkillsMatch"] },
@@ -346,6 +355,11 @@ const ROW_LABEL: Partial<Record<ATSCheckId, string>> = {
   datesLinksConsistency: "Dates & links",
   headerLinks: "Profile links",
   emailAddress: "Email",
+  placeholderValues: "Sample text & blanks",
+  spellingGrammar: "Spelling & grammar",
+  repetition: "Repeated words",
+  bulletsConsistency: "Bullet style",
+  quantifyingImpact: "Numbers & impact (optional)",
   mustHaveSkillsMatch: "Must-have skills",
   hardSkillsMatch: "Technical skills",
   softSkillsMatch: "Soft skills",
@@ -374,6 +388,8 @@ const POSITIVE = new Set(["positive", "credibility_positive", "skill_present"]);
 function CheckRow({
   check,
   handled,
+  cardsAbove,
+  onShowAbove,
   items,
   activeId,
   renderCard,
@@ -382,6 +398,9 @@ function CheckRow({
 }: {
   check: ATSCheckResult;
   handled?: boolean;
+  /** Its cards are in "Fix these first" above: the row shows the status and points there. */
+  cardsAbove?: boolean;
+  onShowAbove?: (item: FixItem) => void;
   items: FixItem[];
   activeId: string | null;
   renderCard: (item: FixItem) => React.ReactNode;
@@ -390,7 +409,7 @@ function CheckRow({
 }) {
   const open = items.filter((i) => !i.incomplete);
   const incomplete = items.some((i) => i.incomplete);
-  const holdsActive = open.some((i) => i.id === activeId);
+  const holdsActive = !cardsAbove && open.some((i) => i.id === activeId);
   const [expanded, setExpanded] = useState(false);
   const isOpen = expanded || holdsActive;
   const score = handled && check.status === "pass" ? 100 : check.score;
@@ -499,7 +518,11 @@ function CheckRow({
               </ul>
             </div>
           ) : null}
-          {open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
+          {open.length && cardsAbove ? (
+            <button type="button" onClick={() => onShowAbove?.(open[0])} className="text-xs font-semibold text-primary hover:underline">
+              Show the {open.length} to fix in the list above
+            </button>
+          ) : open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
             <div className="space-y-2">{open.map((item) => renderCard(item))}</div>
           ) : !handled && !incomplete && !(check.id === "peerBenchmarking" && missingSkills.length) ? (
             score < 80 && check.issues.some((i) => !POSITIVE.has(i.kind ?? "")) ? (
@@ -533,7 +556,14 @@ function IssueCard({
   onDone,
   targetRole,
   lineOf,
+  skillPlacement,
+  roleOf,
+  onAddRoleLine,
 }: {
+  roleOf?: (quote: string) => RoleRef | null;
+  onAddRoleLine?: (role: RoleRef, text: string) => boolean;
+  /** Orphan skills: find where each belongs and add it there (not a replacement). */
+  skillPlacement?: SkillPlacementApi;
   item: FixItem;
   active: boolean;
   onLocate: () => void;
@@ -573,17 +603,50 @@ function IssueCard({
   // Whole-bullet suggestions only: a fragment would replace the entire line.
   const canTapRewrite =
     !!excerpt && !isWord && !isBlank && !!issue.rewriteSuggestion && issue.rewriteSuggestion.trim() !== excerpt;
+  // A finding about a role as a whole (it quotes the role's heading): add a line there instead.
+  const role = excerpt && roleOf && onAddRoleLine && !isWord && !isBlank ? roleOf(excerpt) : null;
   const canAskAi =
-    !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
+    !role && !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
   const howToFix = issue.fixBody || issue.suggestion;
+  // Skills listed but never shown in the work: these need adding in the right place, not replacing.
+  const orphanSkills =
+    check.id === "skillEvidence" && skillPlacement && /orphan|not (evidenced|shown|backed|mentioned)|listed but/i.test(`${issue.title} ${issue.description}`)
+      ? orphanSkillsFrom(issue.excerpt ?? excerpt ?? "")
+      : [];
   // Picked from elsewhere (job checklist "Show", a mark on the page): bring the card into view.
   const cardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (active) cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (!active) return;
+    // The picked card goes to the top of the panel (not just "into view" at its bottom edge),
+    // so what the red box on the page means is the first thing the user reads.
+    const frame = requestAnimationFrame(() => {
+      const card = cardRef.current;
+      if (!card) return;
+      let scroller: HTMLElement | null = card.parentElement;
+      while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      if (!scroller) {
+        card.scrollIntoView({ block: "start", behavior: "smooth" });
+        return;
+      }
+      const top = card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 8;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      scroller.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [active]);
 
   const rewrite = async () => {
     setAi({ loading: true, options: [] });
+    if (role) {
+      try {
+        const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
+        const options = await resumeApi.aiRewrite({ text: role.lines.join("\n") || role.title, kind: "newBullet", role: role.title, company: role.company, targetRole, goal });
+        setAi({ loading: false, options, error: options.length ? undefined : "Couldn't write a new line from what this role already says. Add one yourself on the page." });
+      } catch {
+        setAi({ loading: false, options: [], error: "Couldn't reach AI. Try again." });
+      }
+      return;
+    }
     try {
       const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
       // "Too short" findings say the floor ("recommended: 10–35"); options below it wouldn't fix anything.
@@ -609,6 +672,7 @@ function IssueCard({
         if (locatable && e.key === "Enter") onLocate();
       }}
       data-guide="ats-finding"
+      data-active={active || undefined}
       className={cn(
         "rounded-[14px] border bg-card p-3 text-left transition-shadow",
         locatable && "cursor-pointer",
@@ -664,7 +728,7 @@ function IssueCard({
             {chip}
           </button>
         ))}
-        {canTapRewrite && !onApplyRewrite ? (
+        {canTapRewrite && !onApplyRewrite && !orphanSkills.length ? (
           <button
             type="button"
             onClick={() => onApply(issue.rewriteSuggestion!)}
@@ -674,7 +738,18 @@ function IssueCard({
             {issue.rewriteSuggestion}
           </button>
         ) : null}
-        {canAskAi ? (
+        {role ? (
+          <button
+            type="button"
+            onClick={() => void rewrite()}
+            disabled={ai.loading}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {ai.loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            Write a line for this role
+          </button>
+        ) : null}
+        {canAskAi && !orphanSkills.length ? (
           <button
             type="button"
             onClick={() => void rewrite()}
@@ -686,7 +761,26 @@ function IssueCard({
           </button>
         ) : null}
       </div>
-      {onApplyRewrite && (canTapRewrite || ai.options.length) ? (
+      {orphanSkills.length && skillPlacement ? <SkillPlacementBox skills={orphanSkills} api={skillPlacement} /> : null}
+      {role && ai.options.length ? (
+        <div onClick={(e) => e.stopPropagation()}>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Adds a new bullet under <span className="font-semibold text-foreground">{role.title}</span> — the title stays as it is. Written only from what this role
+            already says; edit it to add what only you know (who for, how big, the result).
+          </p>
+          <SuggestionPicker
+            options={ai.options}
+            applyLabel="Add this line"
+            onUndo={onUndo}
+            onApply={(text) => {
+              const ok = onAddRoleLine!(role, text);
+              if (ok) onDone?.();
+              return ok;
+            }}
+          />
+        </div>
+      ) : null}
+      {!role && onApplyRewrite && !orphanSkills.length && (canTapRewrite || ai.options.length) ? (
         <>
           {canTapRewrite && !ai.options.length ? (
             <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Suggested wording — tap to edit and use</p>
@@ -709,7 +803,7 @@ function IssueCard({
           />
         </>
       ) : null}
-      {!onApplyRewrite && ai.options.length ? (
+      {!role && !onApplyRewrite && ai.options.length ? (
         <ul className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
           {ai.options.map((option) => (
             <li key={option}>
@@ -751,6 +845,9 @@ export function FixMistakesPanel({
   onApply,
   onIgnore,
   onRecheck,
+  onFixAll,
+  fixingAll = false,
+  skillPlacement,
   onTailor,
   onCheckAtsParse,
   targetRole,
@@ -766,6 +863,9 @@ export function FixMistakesPanel({
   lineOf,
   onRestoreSetAside,
   improvedFrom,
+  roleOf,
+  onAddRoleLine,
+  extra,
   children,
 }: {
   /** The score before the AI rewrite ("Improve with AI", or the rewrite kept at sign-up). */
@@ -805,9 +905,20 @@ export function FixMistakesPanel({
   onTailor: () => void;
   /** How ATS read the resume (builds the real PDF; run on demand). */
   onCheckAtsParse?: () => Promise<AtsParseResult>;
+  /** "Fix all with AI": rewrite to fix every AI-fixable finding, then review each change. */
+  onFixAll?: () => void;
+  /** Orphan skills: where each belongs on the resume, added on one click. */
+  skillPlacement?: SkillPlacementApi;
+  fixingAll?: boolean;
   targetRole?: string;
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
+  /** Shown under the score: e.g. the skills recruiters for this role look for. */
+  extra?: React.ReactNode;
+  /** The role a finding points at by its heading (not a line): its fix is a new line there. */
+  roleOf?: (quote: string) => RoleRef | null;
+  /** Add a line under that role; false when it couldn't. */
+  onAddRoleLine?: (role: RoleRef, text: string) => boolean;
 }) {
   // Cards a suggestion was applied to stay (showing what went in) so another option can replace it.
   const [keepQuotes, setKeepQuotes] = useState<Set<string>>(() => new Set());
@@ -819,7 +930,8 @@ export function FixMistakesPanel({
     // A fresh report can reuse a pinned card's id for another finding (the 2nd copy of a
     // repeated bullet becomes "#1" once the 1st is fixed): give that one its own id. The same
     // finding back again (its fix was undone) is compared by content: each report is new objects.
-    const sameFinding = (a: ATSIssue, b: ATSIssue) => a === b || (a.title === b.title && a.excerpt === b.excerpt);
+    const sameFinding = (a: ATSIssue, b: ATSIssue) =>
+      a === b || (a.title === b.title && a.excerpt === b.excerpt) || (isOrphanSkillsFinding(a) && isOrphanSkillsFinding(b));
     const renamed = built.map((group) => ({
       ...group,
       items: group.items.map((i) => (pinned.has(i.id) && !sameFinding(pinned.get(i.id)!.issue, i.issue) ? { ...i, id: `${i.id}~next` } : i)),
@@ -831,6 +943,22 @@ export function FixMistakesPanel({
       return missing.length ? { ...group, items: [...group.items, ...missing] } : group;
     });
   }, [report, liveText, livePlaceholders, keepQuotes, pinned, reportText]);
+  // Adding a skill where it belongs can resolve the whole finding: the card stays (pinned) so the
+  // box doesn't vanish under the cursor.
+  const placementFor = (item: FixItem): SkillPlacementApi | undefined =>
+    skillPlacement && {
+      ...skillPlacement,
+      add: (p) => {
+        const at = skillPlacement.add(p);
+        if (at) setPinned((prev) => (prev.has(item.id) ? prev : new Map(prev).set(item.id, item)));
+        return at;
+      },
+      rewrite: (p) => {
+        const at = skillPlacement.rewrite(p);
+        if (at) setPinned((prev) => (prev.has(item.id) ? prev : new Map(prev).set(item.id, item)));
+        return at;
+      },
+    };
   const rewriteFor = (item: FixItem) =>
     onApplyRewrite
       ? (text: string, previous: { at: SuggestionAt; text: string } | null) => {
@@ -871,7 +999,6 @@ export function FixMistakesPanel({
     [groups],
   );
   const band = scoreBand(score);
-  const [showReport, setShowReport] = useState(false);
 
   return (
     <div className="space-y-4 p-4">
@@ -902,6 +1029,18 @@ export function FixMistakesPanel({
           ) : null}
         </div>
       </div>
+      {onFixAll && report && report.issueCount > 0 ? (
+        <div data-testid="fix-all" className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <Button type="button" size="sm" className="w-full" onClick={onFixAll} disabled={fixingAll || checking}>
+            {fixingAll ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+            {fixingAll ? "Fixing with AI… (about a minute)" : "Fix all with AI"}
+          </Button>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            Rewrites wording, repetition and structure from what&apos;s already in your resume, then re-checks. You review every
+            change and can undo any line. Things only you know (real numbers, dates, skills) stay in your list.
+          </p>
+        </div>
+      ) : null}
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={onRecheck} disabled={checking}>
           {checking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
@@ -913,6 +1052,8 @@ export function FixMistakesPanel({
         </Button>
       </div>
 
+      {extra}
+      {report ? <ScoreBreakdown report={report} /> : null}
       {onCheckAtsParse ? <AtsParseCard onCheck={onCheckAtsParse} /> : null}
       {onReplayTour ? (
         <button type="button" onClick={onReplayTour} className="flex min-h-8 items-center text-xs font-medium text-muted-foreground hover:text-foreground">
@@ -964,6 +1105,9 @@ export function FixMistakesPanel({
                       onDone={onDone ? () => onDone(item) : undefined}
                       targetRole={targetRole}
                       lineOf={lineOf}
+                      skillPlacement={placementFor(item)}
+                      roleOf={roleOf}
+                      onAddRoleLine={onAddRoleLine}
                     />
                   ))}
                 </div>
@@ -973,6 +1117,18 @@ export function FixMistakesPanel({
         );
       })()}
 
+      {report ? (
+        <div className="flex items-baseline justify-between border-t border-border pt-3">
+          <p className="font-mono text-[11px] uppercase tracking-wider text-primary">Your full report</p>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {(() => {
+              const rows = ROW_SECTIONS.flatMap((s) => s.checks).map((id) => checksById(report).get(id)).filter((c): c is ATSCheckResult => !!c && c.status !== "skipped");
+              const ok = rows.filter((c) => c.status === "pass" && !c.issueCount).length;
+              return `${ok} of ${rows.length} checks passed`;
+            })()}
+          </span>
+        </div>
+      ) : null}
       {report
         ? ROW_SECTIONS.map((section) => {
             const checks = checksById(report);
@@ -989,6 +1145,8 @@ export function FixMistakesPanel({
                       key={check.id}
                       check={check}
                       handled={section.handled}
+                      cardsAbove={section.cardsAbove}
+                      onShowAbove={(item) => onLocate(item.id.replace(/~next$/, ""))}
                       items={groups.flatMap((g) => g.items).filter((i) => i.check.id === check.id && !resolved.has(i.id))}
                       activeId={activeId}
                       renderCard={(item) => (
@@ -1004,6 +1162,9 @@ export function FixMistakesPanel({
                           onDone={onDone ? () => onDone(item) : undefined}
                           targetRole={targetRole}
                           lineOf={lineOf}
+                          skillPlacement={placementFor(item)}
+                          roleOf={roleOf}
+                          onAddRoleLine={onAddRoleLine}
                         />
                       )}
                       onAddSkill={onAddSkill}
@@ -1067,19 +1228,6 @@ export function FixMistakesPanel({
         </section>
       ) : null}
 
-      {children ? (
-        <section className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setShowReport((v) => !v)}
-            className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
-          >
-            Detailed report
-            <span className="text-xs font-medium text-primary">{showReport ? "Hide" : "Show"}</span>
-          </button>
-          {showReport ? <div className="mt-3">{children}</div> : null}
-        </section>
-      ) : null}
       {fixedCount ? (
         <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
           <Check className="h-3.5 w-3.5" />

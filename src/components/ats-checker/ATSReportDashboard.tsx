@@ -9,7 +9,9 @@ import { CATEGORY_ORDER, isAdvisoryCheck } from "@/types/atsReport";
 import { normalizeATSReportV3, reportHasJobMatch } from "@/lib/atsReportNormalize";
 import { ATSScoreSidebar } from "./ATSScoreSidebar";
 import { ATSCheckDetailPanel } from "./ATSCheckDetailPanel";
-import { JobMatchPromoBanner } from "./JobMatchPromoBanner";
+import { ATSKeywordsCard } from "./ATSKeywordsCard";
+import { ATSScoreExplainer } from "./ATSScoreExplainer";
+import { ATSScoreCapNote } from "./ATSScoreCapNote";
 
 interface ATSReportDashboardProps {
   report: ATSReportV3;
@@ -22,6 +24,8 @@ interface ATSReportDashboardProps {
   initialJobDescription?: string;
   /** Use stacked layout tuned for narrow panels (e.g. resume editor split view) */
   embedded?: boolean;
+  /** Where "Add in editor" on the job keywords goes (omit inside the editor itself). */
+  keywordsEditorHref?: string;
 }
 
 function findCheckInReport(
@@ -155,16 +159,16 @@ export function JobMatchBanner({ report }: { report: ATSReportV3 }) {
 
   const verdictStyle =
     jm.verdict === "strong"
-      ? "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/25"
+      ? "border-emerald-500/30 bg-emerald-500/[0.07]"
       : jm.verdict === "partial"
-        ? "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/25"
-        : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25";
+        ? "border-amber-500/35 bg-amber-500/[0.08]"
+        : "border-rose-500/30 bg-rose-500/[0.07]";
   const pctColor =
     jm.overallMatch >= 80
-      ? "text-green-600 dark:text-green-400"
+      ? "text-emerald-600 dark:text-emerald-400"
       : jm.overallMatch >= 60
         ? "text-amber-600 dark:text-amber-400"
-        : "text-red-600 dark:text-[#fd7070]";
+        : "text-rose-600 dark:text-rose-400";
 
   const stats: Array<{ label: string; value: string }> = [];
   if (jm.candidateYears !== undefined) {
@@ -187,7 +191,7 @@ export function JobMatchBanner({ report }: { report: ATSReportV3 }) {
   }
 
   return (
-    <div className={cn("rounded-xl border p-5 sm:p-6", verdictStyle)}>
+    <div className={cn("rounded-[18px] border p-5 sm:p-6", verdictStyle)}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm">
@@ -215,7 +219,7 @@ export function JobMatchBanner({ report }: { report: ATSReportV3 }) {
           {stats.map((s) => (
             <div
               key={s.label}
-              className="rounded-lg border border-white/70 bg-card/70 px-3 py-2"
+              className="rounded-lg border border-border bg-card/70 px-3 py-2"
             >
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className="text-sm font-bold text-foreground">{s.value}</p>
@@ -236,6 +240,7 @@ export function ATSReportDashboard({
   jobMatchRunning = false,
   initialJobDescription,
   embedded = false,
+  keywordsEditorHref,
 }: ATSReportDashboardProps) {
   const normalizedReport = useMemo(() => normalizeATSReportV3(report), [report]);
   const initial = useMemo(
@@ -310,26 +315,20 @@ export function ATSReportDashboard({
 
   return (
     <div className="min-w-0 space-y-6 overflow-hidden">
-      {showJobMatch ? (
-        <JobMatchBanner report={normalizedReport} />
-      ) : (
-        <JobMatchPromoBanner
+      {/* the same pieces as the full report page (ATSReportWorkspace), in one column */}
+      {showJobMatch && <JobMatchBanner report={normalizedReport} />}
+      <ReportSummary report={normalizedReport} />
+      <ATSScoreCapNote report={normalizedReport} />
+      <ATSScoreExplainer report={normalizedReport} />
+      {(showJobMatch || onRunJobMatch) && (
+        <ATSKeywordsCard
+          report={normalizedReport}
+          editorHref={keywordsEditorHref}
           initialJobDescription={initialJobDescription}
-          loading={jobMatchRunning}
+          running={jobMatchRunning}
           onRunJobMatch={onRunJobMatch}
         />
       )}
-      <ReportSummary report={normalizedReport} />
-      {normalizedReport.scoreCap != null && (normalizedReport.scoreCapReasons?.length ?? 0) > 0 ? (
-        <div role="note" className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-foreground">
-          <p className="font-semibold">Your score is held at {normalizedReport.scoreCap} until you fix:</p>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted-foreground">
-            {normalizedReport.scoreCapReasons!.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       <div
         className={cn(
           "grid min-w-0 gap-4",

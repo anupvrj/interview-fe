@@ -30,6 +30,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
   "/api/revalidate",
   "/ai-resume-builder(.*)",
+  // The public resume builder: build and preview before signing up.
+  "/resume-builder(.*)",
   "/chrome-extension(.*)",
   "/ai-interview-coach(.*)",
   "/ai-coding-practice(.*)",

@@ -33,6 +33,8 @@ interface ATSReportViewProps {
   embedded?: boolean;
   /** Persisted sibling Job Match % — wins over any stale report.jobMatch */
   jobMatchScore?: number | null;
+  /** Where "Add in editor" on the job keywords goes (outside the editor). */
+  keywordsEditorHref?: string;
 }
 
 export function ATSReportView({
@@ -48,6 +50,7 @@ export function ATSReportView({
   onIgnoreIssue,
   embedded = false,
   jobMatchScore,
+  keywordsEditorHref,
 }: ATSReportViewProps) {
   const filteredReport = useMemo(() => {
     if (!isATSReportV3(feedback)) return null;
@@ -72,6 +75,7 @@ export function ATSReportView({
         jobMatchRunning={jobMatchRunning}
         initialJobDescription={initialJobDescription}
         embedded={embedded}
+        keywordsEditorHref={keywordsEditorHref}
       />
     );
 

@@ -204,6 +204,8 @@ export interface ATSReportV3 {
   scoreCap?: number;
   /** e.g. "No email or phone number", "Experience has no dates". */
   scoreCapReasons?: string[];
+  /** How much each category counted toward the score, in percent (newer reports only). */
+  scoreWeights?: Partial<Record<ATSCategoryId, number>>;
   /** The resume text the AI read (normalised); the re-score after an edit keeps it. */
   analyzedText?: string;
   /** Set by the re-score after an edit (no AI); absent on a fresh full check. */

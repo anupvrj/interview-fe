@@ -22,7 +22,8 @@ export const MK26_ROUTES = {
   signIn: "/sign-in",
   signUp: "/sign-up",
   startInterview: "/dashboard/interviews/new",
-  startResume: "/dashboard/resumes/new",
+  // The public builder; signed-in visitors are sent on to the dashboard builder.
+  startResume: "/resume-builder/start",
   startCoding: "/dashboard/coding-interviews/new",
   startSystemDesign: "/dashboard/system-design",
   startPeerBooking: "/dashboard/peer-interviews/book",

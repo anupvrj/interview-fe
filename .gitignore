@@ -55,3 +55,9 @@ public/resume-templates/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Playwright
+/e2e/.auth/
+/test-results/
+/playwright-report/
+/.env.e2e
