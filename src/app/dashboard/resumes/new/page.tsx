@@ -112,6 +112,9 @@ type Step = "template" | "import" | "jobDescription" | "processing";
 /** Their details first (old resume, LinkedIn, AI chat or sample), then a design: the closest to their old resume first. */
 const STEP_ORDER: Step[] = ["import", "template", "jobDescription", "processing"];
 
+/** Stand-in template for the chat/voice session until the design step picks the real one. */
+const CHAT_STARTER_TEMPLATE = "royal-indigo";
+
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -209,6 +212,12 @@ export default function NewResumePage() {
   );
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [chatSubMode, setChatSubMode] = useState<ResumeChatSubMode | null>(null);
+  /**
+   * The template the chat/voice session starts with. Details come before the design step, so
+   * usually nothing is picked yet: a stand-in is used (the session only stores it — the resume is
+   * built with the design chosen next). Fixed when the chat opens, so the session isn't restarted.
+   */
+  const [chatTemplate, setChatTemplate] = useState<string | null>(null);
   const [showChatModeModal, setShowChatModeModal] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
   const [jobFromExtension, setJobFromExtension] = useState(false);
@@ -1367,23 +1376,33 @@ export default function NewResumePage() {
               {pdfStep}
             </>
           ) : importSource === "chat" ? (
-            selectedTemplate ? (
+            chatTemplate ? (
               chatSubMode === "voice" ? (
                 <ResumeBuilderVoicePanel
-                  templateId={selectedTemplate}
+                  templateId={chatTemplate}
                   onReady={handleChatReady}
                   onBack={handleImportBack}
                   onSessionCreated={setChatSessionId}
                 />
               ) : (
                 <ResumeBuilderChatPanel
-                  templateId={selectedTemplate}
+                  templateId={chatTemplate}
                   onReady={handleChatReady}
                   onBack={handleImportBack}
                   onSessionCreated={setChatSessionId}
                 />
               )
-            ) : null
+            ) : (
+              // Never a blank page: if the chat can't open, say so and offer a way back.
+              <div role="alert" className="rounded-2xl border border-border bg-card p-6 text-center">
+                <p className="text-[15px] font-semibold text-foreground">We couldn&apos;t open the AI chat</p>
+                <p className="mt-1 text-sm text-muted-foreground">Go back and pick &quot;Chat&quot; or &quot;Talk&quot; again, or upload your resume instead.</p>
+                <Button variant="outline" className={cn(resumeBuilderOutlineButton, "mt-4")} onClick={handleImportBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              </div>
+            )
           ) : importSource === "linkedin" ? (
             <ResumeBuilderLinkedInForm
               value={linkedinHandle}
@@ -1468,6 +1487,7 @@ export default function NewResumePage() {
         onOpenChange={setShowChatModeModal}
         onSelect={(mode) => {
           setChatSubMode(mode);
+          setChatTemplate(selectedTemplate ?? CHAT_STARTER_TEMPLATE);
           setImportSource("chat");
           setShowChatModeModal(false);
         }}

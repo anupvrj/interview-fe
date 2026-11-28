@@ -1,5 +1,6 @@
 "use client";
 
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Mic, MicOff, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ export function ResumeBuilderVoicePanel({
       } catch (err) {
         console.error("Failed to start voice session:", err);
         if (!cancelled) {
-          setCreateError("Could not start the voice assistant. Please try again.");
+          setCreateError(getApiErrorMessage(err, "We couldn't start the voice assistant. Please try again."));
         }
       } finally {
         if (!cancelled) setCreating(false);

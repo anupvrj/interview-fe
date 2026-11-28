@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { ArrowLeft, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,11 @@ export function ResumeBuilderChatPanel({
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string>("active");
   const [chatMode, setChatMode] = useState<ResumeBuilderChatMode | null>(null);
+  /** Why the chat couldn't start, in words a person can act on (shown in the panel, not an alert). */
+  const [startError, setStartError] = useState<string | null>(null);
+  /** A message that didn't go through (what was typed is kept so it can be sent again). */
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const showSkipActions = chatMode !== null && status === "active";
   const showModeOptions = chatMode === null && status === "active";
@@ -54,6 +60,7 @@ export function ResumeBuilderChatPanel({
     async function initSession() {
       try {
         setLoading(true);
+        setStartError(null);
         const session = await resumeBuilderChatApi.createSession(templateId);
         if (cancelled) return;
         setSessionId(session.sessionId);
@@ -63,7 +70,7 @@ export function ResumeBuilderChatPanel({
         onSessionCreated?.(session.sessionId);
       } catch (error) {
         console.error("Failed to start chat session:", error);
-        alert("Could not start the chat assistant. Please try again.");
+        if (!cancelled) setStartError(getApiErrorMessage(error, "We couldn't start the AI chat. Please try again."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -73,7 +80,7 @@ export function ResumeBuilderChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [templateId]);
+  }, [templateId, attempt]);
 
   useEffect(() => {
     scrollToBottom();
@@ -86,8 +93,10 @@ export function ResumeBuilderChatPanel({
     if (!sessionId || sending) return;
     if (!content.trim() && !action) return;
 
+    let sent = false;
     try {
       setSending(true);
+      setSendError(null);
       const response = await resumeBuilderChatApi.sendMessage(
         sessionId,
         content,
@@ -96,20 +105,18 @@ export function ResumeBuilderChatPanel({
       setMessages(response.messages);
       setStatus(response.status);
       setChatMode(response.mode);
+      sent = true;
 
       if (response.status === "ready_for_build") {
         onReady(response.collectedProfile);
       }
     } catch (error: unknown) {
       console.error("Chat message failed:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to send message. Please try again.",
-      );
+      setSendError(getApiErrorMessage(error, "Your message didn't go through. Please try again."));
     } finally {
       setSending(false);
-      setInput("");
+      // Keep what was typed when it didn't go through, so it can be sent again.
+      if (sent) setInput("");
     }
   };
 
@@ -150,7 +157,28 @@ export function ResumeBuilderChatPanel({
         ref={scrollRef}
         className="flex-1 space-y-4 overflow-y-auto bg-muted/15 px-4 py-5"
       >
-        {loading ? (
+        {startError ? (
+          <div role="alert" className="mx-auto max-w-md rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+            <p className="text-sm font-semibold text-foreground">The AI chat didn&apos;t start</p>
+            <p className="mt-1 text-sm text-muted-foreground">{startError}</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="space-y-4">
             <div className="flex items-end gap-2">
               <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
@@ -169,6 +197,11 @@ export function ResumeBuilderChatPanel({
               />
             ))}
             {sending ? <TypingIndicator /> : null}
+            {sendError ? (
+              <p role="alert" className="mx-auto max-w-md rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+                {sendError}
+              </p>
+            ) : null}
           </>
         )}
       </div>

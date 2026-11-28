@@ -24,7 +24,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 
     const status = ax.response?.status;
     if (status === 401) {
-      return "Please sign in again and try uploading your resume.";
+      return "Your session has expired. Please sign in again and try once more.";
     }
     if (status === 413) {
       return "File is too large. Maximum size is 5 MB.";
@@ -44,8 +44,11 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
       return "Could not reach the server. Please try again in a moment.";
     }
 
+    if (status === 429) return "Too many requests right now. Please wait a moment and try again.";
+    if (status && status >= 500) return "Our server had a problem. Please try again in a moment.";
     const rawBody = ax.response?.data;
-    if (typeof rawBody === "string" && rawBody.trim()) {
+    // Plain-text bodies only (an HTML error page isn't something to show a person).
+    if (typeof rawBody === "string" && rawBody.trim() && !/<[a-z!][\s\S]*>/i.test(rawBody)) {
       return rawBody;
     }
   }
