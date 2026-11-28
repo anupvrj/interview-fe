@@ -15,7 +15,10 @@ export function SampleTextNotice({
   compact,
   onShow,
   onRemove,
+  onTellUs,
 }: Readonly<{
+  /** "Tell us about your work": replace the samples with the person's real story (questions/voice/paste). */
+  onTellUs?: () => void;
   /** A few of the sample values, as they appear on the page. */
   examples: string[];
   count: number;
@@ -53,6 +56,16 @@ export function SampleTextNotice({
       >
         Show me
       </button>
+      {onTellUs ? (
+        <button
+          type="button"
+          onClick={onTellUs}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-white hover:bg-primary/90"
+        >
+          <Wand2 className="h-3.5 w-3.5" aria-hidden />
+          {compact ? "Write it for me" : "Tell us about you — AI writes it"}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onRemove}

@@ -176,6 +176,7 @@ import { summaryVisible, visibleResumeContent } from "@/lib/resume-visible-conte
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
+import { TellUsAboutYouDialog } from "@/components/resume-canvas/TellUsAboutYouDialog";
 import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -2389,11 +2390,27 @@ export default function EditResumePage() {
     }
   };
 
+  /** Little or nothing real to improve: ask the person (questions / voice / paste) instead. */
+  const [tellUsOpen, setTellUsOpen] = useState(false);
+  const resumeIsThin = (() => {
+    const c = (resume?.content ?? {}) as unknown as Record<string, unknown>;
+    const text = [c.profileSummary, ...(Array.isArray(c.experience) ? (c.experience as Array<Record<string, unknown>>).map((e) => e.description) : []), ...(Array.isArray(c.projects) ? (c.projects as Array<Record<string, unknown>>).map((p) => p.description) : [])]
+      .map((v) => (Array.isArray(v) ? v.join(" ") : String(v ?? "")))
+      .join(" ")
+      .replace(/<[^>]+>/g, " ");
+    const words = text.split(/\s+/).filter((w) => /[a-z]/i.test(w)).length;
+    return livePlaceholders.length > 0 || words < 60;
+  })();
   /** "Fix all with AI": the server rewrites against the ATS findings; every change is then reviewable. */
   const [fixingAll, setFixingAll] = useState(false);
   const handleFixAllWithAi = async () => {
     const current = resumeRef.current;
     if (!current || !resumeId || fixingAll) return;
+    // Nothing real to improve yet: get the facts first.
+    if (resumeIsThin) {
+      setTellUsOpen(true);
+      return;
+    }
     // The one-click optimizer is a plan feature (same as "Improve with AI" on the ATS page).
     if (!canUse("oneClickResumeOptimizer")) {
       setTrialUpsellOpen(true);
@@ -4228,6 +4245,7 @@ export default function EditResumePage() {
           compact={isMobile}
           onShow={showSampleText}
           onRemove={() => void removeSamplesNow()}
+          onTellUs={() => setTellUsOpen(true)}
         />
       ) : null}
       {canvasOn && whatsLeftItems.length > 0 && !(isMobile && canvasPanel) && !tryOnTemplate ? (
@@ -9073,6 +9091,35 @@ export default function EditResumePage() {
           </div>
         </DialogContent>
       </Dialog>
+      {resume ? (
+        <TellUsAboutYouDialog
+          open={tellUsOpen}
+          onOpenChange={setTellUsOpen}
+          templateId={template?.id ?? resume.templateId}
+          reason={livePlaceholders.length ? "Your resume still has sample text, so there's nothing real for AI to improve." : undefined}
+          onBuilt={async (content, meta) => {
+            const current = resumeRef.current;
+            if (!current) return;
+            // Keep what the person already filled in (email, phone, links, photo) where the new text has none.
+            const before = (current.content.personalInfo ?? {}) as Record<string, unknown>;
+            const after = (content.personalInfo ?? {}) as Record<string, unknown>;
+            const personalInfo = { ...before, ...Object.fromEntries(Object.entries(after).filter(([, v]) => typeof v === "string" ? v.trim() : v)) };
+            handleResumeImported({ ...current, content: { ...content, personalInfo } as Resume["content"], ...(meta ? { aiBuildMeta: meta } : {}) } as Resume);
+            setHasChanges(true);
+            track("resume_ai_build_completed", {
+              variant: meta ? "v2" : "current",
+              source: "tell_us",
+              slots: meta?.slots?.length ?? 0,
+              suggestions: meta?.suggestions?.length ?? 0,
+              skills_to_confirm: meta?.skillsToConfirm?.length ?? 0,
+              kept_original: typeof meta?.keptOriginal === "number" ? meta.keptOriginal : 0,
+              cost_usd: typeof meta?.costUsd === "number" ? meta.costUsd : 0,
+              ms: typeof meta?.ms === "number" ? meta.ms : 0,
+            });
+            showCanvasNotice("Written from what you told us. Check it over — and see “What's left for you” at the top.");
+          }}
+        />
+      ) : null}
       {resume && template ? (
         <ImportResumeDialog
           open={importResumeOpen}
