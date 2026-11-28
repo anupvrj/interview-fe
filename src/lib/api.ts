@@ -2875,6 +2875,10 @@ export type AiBuildMeta = {
   timelineFlags?: { roleIndex: number; role: string; tool: string; released: number; roleEnded: number }[];
   /** Jobs have no bullets; achievements sit in separate sections (functional resume). */
   functionalLayout?: boolean;
+  /** Listed skills the AI put into the work itself (the work clearly showed them). */
+  skillsPlaced?: { skill: string; path: string; mode: "rewrite" | "add"; text: string }[];
+  /** Listed skills that probably belong to a job: the person confirms with one click. */
+  skillPlacements?: { skill: string; section: "experience" | "projects"; index: number; entryTitle: string; text: string }[];
   /** The editor already fitted the layout to pageBudget (runs once). */
   fitDone?: boolean;
   [key: string]: unknown;

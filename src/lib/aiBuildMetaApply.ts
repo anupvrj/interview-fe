@@ -135,7 +135,8 @@ export type WhatsLeftItem =
   | { kind: "length"; key: string; path: string; text: string }
   | { kind: "personal"; key: string; fields: string[]; label: string; region: string }
   | { kind: "timeline"; key: string; role: string; tool: string; released: number; roleEnded: number }
-  | { kind: "functional"; key: string };
+  | { kind: "functional"; key: string }
+  | { kind: "skill-place"; key: string; skill: string; section: "experience" | "projects"; index: number; entryTitle: string; text: string };
 
 /** Details recruiters in these regions usually don't expect (and some screen out for bias). */
 export const SENSITIVE_PERSONAL: { field: string; label: string }[] = [
@@ -181,6 +182,13 @@ export function whatsLeft(content: Content, meta: AiBuildMeta | undefined | null
     if (!dismissed.has(key) && locate(content, l.path, l.text)) items.push({ kind: "length", key, path: l.path, text: l.text });
   }
   if (meta?.functionalLayout && !dismissed.has("functional:layout")) items.push({ kind: "functional", key: "functional:layout" });
+  // Skills that probably belong to a job: one click to add, if true (hidden once the work shows it).
+  const work = JSON.stringify([content.experience, content.projects, (content as Record<string, unknown>).profileSummary]).toLowerCase();
+  for (const p of meta?.skillPlacements ?? []) {
+    const key = `skillplace:${p.skill.toLowerCase()}`;
+    if (dismissed.has(key) || work.includes(p.skill.toLowerCase())) continue;
+    items.push({ kind: "skill-place", key, skill: p.skill, section: p.section, index: p.index, entryTitle: p.entryTitle, text: p.text });
+  }
   for (const f of meta?.timelineFlags ?? []) {
     const key = `timeline:${f.roleIndex}:${f.tool}`;
     if (!dismissed.has(key)) items.push({ kind: "timeline", key, role: f.role, tool: f.tool, released: f.released, roleEnded: f.roleEnded });

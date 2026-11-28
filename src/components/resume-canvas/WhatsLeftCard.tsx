@@ -21,6 +21,7 @@ export function WhatsLeftCard({
   onEditContact,
   onDismiss,
   onRemovePersonal,
+  onAddSkillLine,
 }: {
   items: WhatsLeftItem[];
   compact?: boolean;
@@ -31,6 +32,7 @@ export function WhatsLeftCard({
   onEditContact: (field: string) => void;
   onDismiss: (key: string) => void;
   onRemovePersonal?: (item: WhatsLeftItem & { kind: "personal" }) => void;
+  onAddSkillLine?: (item: WhatsLeftItem & { kind: "skill-place" }) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -96,6 +98,18 @@ export function WhatsLeftCard({
                   </p>
                   <button type="button" className={cn(btn, "bg-primary text-white hover:bg-primary/90")} onClick={() => onConfirmSkill(it.skill, it.key)}>
                     <Plus className="h-3.5 w-3.5" /> Yes, add
+                  </button>
+                </>
+              ) : it.kind === "skill-place" ? (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Did you use {it.skill} at {it.entryTitle.split(" at ")[0]}?
+                    </p>
+                    <p className="text-[13px] text-foreground">{it.text}</p>
+                  </div>
+                  <button type="button" className={cn(btn, "bg-primary text-white hover:bg-primary/90")} onClick={() => onAddSkillLine?.(it)}>
+                    <Plus className="h-3.5 w-3.5" /> Add if true
                   </button>
                 </>
               ) : it.kind === "functional" ? (

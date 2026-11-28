@@ -79,4 +79,11 @@ describe("aiBuildMetaApply", () => {
     expect(whatsLeft(content(desc), { functionalLayout: true }).some((i) => i.kind === "functional")).toBe(true);
     expect(whatsLeft(content(desc), { functionalLayout: true, dismissed: ["functional:layout"] }).some((i) => i.kind === "functional")).toBe(false);
   });
+
+  it("asks 'did you use X here?' for likely skill placements, until the work shows the skill", () => {
+    const meta = { skillPlacements: [{ skill: "QuickBooks", section: "experience" as const, index: 0, entryTitle: "Engineer at Acme", text: "Reconciled accounts in QuickBooks each month." }] };
+    expect(whatsLeft(content(desc), meta).find((i) => i.kind === "skill-place")).toMatchObject({ skill: "QuickBooks", key: "skillplace:quickbooks" });
+    const withIt = addBullet(content(desc), 0, "Reconciled accounts in QuickBooks each month.");
+    expect(whatsLeft(withIt, meta).some((i) => i.kind === "skill-place")).toBe(false);
+  });
 });

@@ -2407,10 +2407,14 @@ export default function EditResumePage() {
       const updated = await resumeApi.improveFromATS(resumeId, { fixFindings: true });
       handleResumeImported(updated);
       setDisplayAtsScore(typeof updated.atsScore === "number" ? updated.atsScore : null);
+      const placedSkills = (updated.aiBuildMeta?.skillsPlaced ?? []) as { skill: string; text: string }[];
       const changes = explainChanges(
         { content: before.content as unknown as Record<string, unknown>, profileSummary: before.profileSummary },
         { content: updated.content as unknown as Record<string, unknown>, profileSummary: updated.profileSummary },
-      );
+      ).map((c) => {
+        const placed = placedSkills.find((p) => p.text.trim() === c.after.trim());
+        return placed ? { ...c, reason: `Shows "${placed.skill}" from your Skills in the work where you used it.` } : c;
+      });
       setAiReview(changes.length ? { before, lines: changes.map((c) => c.after), changes } : null);
       track("resume_ai_enhancement_applied", { kind: "fix_all" });
       showCanvasNotice(
@@ -4243,6 +4247,9 @@ export default function EditResumePage() {
           onRemoveLine={(it) => applyBuiltContent(removeLine(resume.content, it.path, it.text), it.key, "Line removed. Undo brings it back.")}
           onEditContact={() => openCanvasPanel("details", "personalInfo")}
           onDismiss={(key) => markWhatsLeftDone(key, "dismissed")}
+          onAddSkillLine={(it) =>
+            applyBuiltContent(addLine(resume.content, it.section, it.index, it.text), it.key, `Added — your ${it.skill} now shows in your work.`)
+          }
           onRemovePersonal={(it) => {
             const cleared = Object.fromEntries(personalFieldsToClear(it.fields).map((f) => [f, ""]));
             updateContent({ personalInfo: { ...resume.content.personalInfo, ...cleared } });
