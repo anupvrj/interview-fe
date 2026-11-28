@@ -12,12 +12,15 @@ interface TemplatePreviewProps {
   isSelected: boolean;
   /** "thumb": whole A4 page in a narrow card (editor Designs panel). */
   variant?: "card" | "thumb";
+  /** The card around it draws its own labels: no "ATS Ready" pill or check here. */
+  hideBadges?: boolean;
 }
 
 export function TemplatePreview({
   template,
   isSelected,
   variant = "card",
+  hideBadges = false,
 }: TemplatePreviewProps) {
   if (variant === "thumb" && template.preview?.startsWith("/resume-template-images/")) {
     return (
@@ -59,7 +62,7 @@ export function TemplatePreview({
         />
 
         {/* Selection Badge */}
-        {isSelected && (
+        {isSelected && !hideBadges && (
           <div className="absolute top-2 right-2 z-10">
             <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg">
               <CheckCircle className="w-4 h-4 text-white" />
@@ -68,7 +71,7 @@ export function TemplatePreview({
         )}
 
         {/* ATS Badge */}
-        {template.atsOptimized && (
+        {template.atsOptimized && !hideBadges && (
           <div className="absolute top-2 left-2 z-10">
             <span className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded-full shadow">
               ATS Ready
@@ -1062,7 +1065,7 @@ export function TemplatePreview({
       )}
 
       {/* Selection Badge */}
-      {isSelected && (
+      {isSelected && !hideBadges && (
         <div className="absolute top-2 right-2 z-10">
           <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg">
             <CheckCircle className="w-4 h-4 text-white" />
@@ -1071,7 +1074,7 @@ export function TemplatePreview({
       )}
 
       {/* ATS Badge */}
-      {template.atsOptimized && (
+      {template.atsOptimized && !hideBadges && (
         <div className="absolute top-2 left-2 z-10">
           <span className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded-full shadow">
             ATS Ready

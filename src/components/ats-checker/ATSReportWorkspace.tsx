@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, CloudUpload, LayoutTemplate, Lock, PenLine, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, CloudUpload, Loader2, PenLine, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Mono } from "@/components/marketing-2026/primitives";
 import { dash2026Scope, EASE, Eyebrow, ScoreRing } from "@/components/dashboard-2026/ui";
@@ -95,7 +95,8 @@ export function ATSReportWorkspace({
   improving: boolean;
   rerunning: boolean;
   onImprove: () => void;
-  onChooseTemplate: () => void;
+  /** Template step then the editor: what Improve now does when AI improve isn't on the plan. */
+  onChooseTemplate?: () => void;
   onIgnoreIssue: (check: ATSCheckResult, issue: ATSIssue) => Promise<void>;
   /** Brings back the findings set aside. */
   onRestoreSetAside?: () => Promise<void>;
@@ -220,16 +221,15 @@ export function ATSReportWorkspace({
                 </>
               ) : (
                 <>
-              <Button asChild className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
-                <Link href={editorHref}>Improve now<ArrowRight className="h-4 w-4" /></Link>
-              </Button>
-              <Button onClick={onImprove} disabled={improving} variant="outline" className="h-11 rounded-xl px-5">
-                {improveUnlocked ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                Improve with AI
-                {!improveUnlocked && <Mono className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] text-primary">UPGRADE</Mono>}
-              </Button>
-              <Button variant="outline" onClick={onChooseTemplate} className="h-11 rounded-xl px-5">
-                <LayoutTemplate className="h-4 w-4" />Choose template
+              {/* One action. With AI improve on the plan: the AI improves it (template step included).
+                  Without: pick a template and fix it in the editor (the AI offer is there, in Fix all). */}
+              <Button
+                onClick={improveUnlocked || !onChooseTemplate ? onImprove : onChooseTemplate}
+                disabled={improving}
+                className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90"
+              >
+                {improving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Improve now
               </Button>
               <Button variant="ghost" onClick={onRerun} disabled={rerunning} className="h-11 rounded-xl px-3 text-muted-foreground" title="Re-run the ATS check">
                 <RefreshCw className={cn("h-4 w-4", rerunning && "animate-spin")} />

@@ -1245,7 +1245,7 @@ export default function NewResumePage() {
                       {hasImage ? (
                         <Image src={template.preview!} alt={`${template.name} template`} fill sizes="(min-width:1280px) 18vw, (min-width:640px) 30vw, 45vw" className="object-cover object-top" />
                       ) : (
-                        <div className="pointer-events-none origin-top scale-[.9]"><TemplatePreview template={template} isSelected={false} /></div>
+                        <div className="pointer-events-none origin-top scale-[.9]"><TemplatePreview template={template} isSelected={false} hideBadges /></div>
                       )}
                       {isSelected ? (
                         <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-white shadow-lg"><CheckCircle className="h-4 w-4" /></span>

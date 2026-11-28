@@ -175,14 +175,9 @@ export function ATSImproveTemplatePicker({
               )}
             >
               <div className="relative">
-                <TemplatePreview template={template} isSelected={isSelected} />
+                <TemplatePreview template={template} isSelected={isSelected} hideBadges />
                 {isSelected ? (
                   <span className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-primary text-white shadow-lg"><CheckCircle className="h-4 w-4" /></span>
-                ) : null}
-                {closest === template.id ? (
-                  <span data-testid="closest-design" className="absolute left-2.5 top-2.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
-                    Closest to your resume
-                  </span>
                 ) : null}
                 <div className="absolute inset-x-2.5 bottom-2.5 translate-y-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
                   <Button
@@ -200,7 +195,14 @@ export function ATSImproveTemplatePicker({
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold tracking-[-0.02em] text-foreground">{template.name}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold tracking-[-0.02em] text-foreground">{template.name}</h3>
+                  {closest === template.id ? (
+                    <span data-testid="closest-design" className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      Closest to your resume
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{template.description}</p>
                 <Mono className="mt-2 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] uppercase text-muted-foreground">
                   {categoryLabels[template.category]}

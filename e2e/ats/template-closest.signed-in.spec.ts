@@ -29,11 +29,17 @@ test("ATS checker template step: closest design first, quick 'Use this template'
 
     // Reopen from the link (as in the report URL): the saved match is used.
     await page.goto(`/dashboard/ats-checker?resumeId=${resumeId}`);
-    await page.getByRole("button", { name: "Choose template" }).click({ timeout: 60_000 });
+    // One main action: "Improve now" (the old "Improve with AI" / "Choose template" are gone).
+    await expect(page.getByRole("button", { name: /Improve with AI|Choose template/ })).toHaveCount(0, { timeout: 60_000 });
+    await page.getByRole("button", { name: /Improve now/ }).click();
     const first = page.locator("[data-template-id]").first();
-    await expect(first).toHaveAttribute("data-template-id", "atlantic-blue", { timeout: 30_000 });
+    await expect(first).toHaveAttribute("data-template-id", "atlantic-blue", { timeout: 180_000 });
     await expect(first).toHaveAttribute("aria-pressed", "true");
     await expect(first.getByTestId("closest-design")).toBeVisible();
+    // Labels don't pile up on the preview: no "ATS Ready" pill, one check on the picked card.
+    await expect(page.locator("[data-template-id]").getByText("ATS Ready", { exact: true })).toHaveCount(0);
+    await expect(first.locator("svg.lucide-circle-check-big, svg.lucide-check-circle, svg.lucide-circle-check")).toHaveCount(1);
+    if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/template-cards.png` });
 
     // Quick apply from another card: applied and on to the next step.
     const other = page.locator("[data-template-id]").nth(1);
