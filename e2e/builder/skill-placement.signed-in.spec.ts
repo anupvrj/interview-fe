@@ -53,6 +53,10 @@ test("editor: an orphan-skills card adds the skill where it belongs @real-ai", a
   const r: TestResume = await api.create(`E2E skill placement ${Date.now()}`, content as never);
   try {
     await api.rescore(r.resumeId);
+    let placementCalls = 0;
+    page.on("request", (req) => {
+      if (req.method() === "POST" && req.url().includes("/ai-skill-placement")) placementCalls++;
+    });
     await page.goto(`/dashboard/resumes/${r.resumeId}/edit`);
     await expect(page.getByText("Riya Test").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
     await dismissPopups(page);
@@ -90,6 +94,45 @@ test("editor: an orphan-skills card adds the skill where it belongs @real-ai", a
     await page.waitForTimeout(2500); // the green flash on the page
     await expect(box.getByText(/Added — check it on the page/).first()).toBeVisible();
     if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: path.join(process.env.E2E_SHOT_DIR, "skill-placement.png") });
+
+    // The box stays put after the add and the live re-score: no reset, no second AI call.
+    await page.waitForTimeout(6000);
+    await expect(box).toBeVisible();
+    await expect(box.getByText(/Added — check it on the page/).first()).toBeVisible();
+    await expect(box.getByText("Finding where each skill fits")).toHaveCount(0);
+    expect(placementCalls).toBe(1);
+
+    // Close the panel and open it again: the suggestions come back without asking the AI again.
+    await page.getByRole("button", { name: "Close panel" }).first().click();
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "ATS score" }).first().click();
+    const row = page.getByRole("button", { name: /Skills backed by your work/ });
+    if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+    const again = page.getByTestId("skill-placement").first();
+    await expect(again).toBeVisible({ timeout: 15_000 });
+    expect(placementCalls).toBe(1);
+
+    // "Not relevant" on a skill: saved on the resume, gone from the finding, also after a reload.
+    const skip = again.getByRole("button", { name: "Not relevant" }).first();
+    if (await skip.count()) {
+      const skillName = ((await skip.getAttribute("title")) ?? "").replace(/^Don't suggest | again for this resume$/g, "");
+      await skip.click();
+      await expect(again.getByText(/Won.t suggest again/)).toBeVisible({ timeout: 15_000 });
+      if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: path.join(process.env.E2E_SHOT_DIR, "skill-not-relevant.png") });
+      const saved = (await resumes(page.request, await session(page)).get(r.resumeId)) as {
+        atsIgnoredIssues?: Array<{ skill?: string }>;
+        atsFeedback?: { categories?: Record<string, { checks: Array<{ id: string; issues: Array<{ title?: string; excerpt?: string }> }> }> };
+      };
+      expect((saved.atsIgnoredIssues ?? []).map((i) => i.skill)).toContain(skillName);
+      const orphan = Object.values(saved.atsFeedback?.categories ?? {})
+        .flatMap((c) => c.checks)
+        .find((c) => c.id === "skillEvidence")
+        ?.issues.find((i) => /not shown in your work/i.test(i.title ?? ""));
+      expect(orphan?.excerpt ?? "").not.toContain(skillName);
+      await page.reload();
+      await expect(page.getByText("Riya Test").filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByTestId("skill-placement").getByText(skillName, { exact: true })).toHaveCount(0);
+    }
     // The skills list itself is untouched; the skill now shows in the work.
     await expect
       .poll(async () => JSON.stringify(((await resumes(page.request, await session(page)).get(r.resumeId)) as { content?: { experience?: unknown } }).content?.experience ?? ""), { timeout: 30_000 })

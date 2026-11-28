@@ -82,6 +82,9 @@ const GROUPS: Array<{ title: string; checks: ATSCheckId[]; tone: CanvasMark["ton
   { title: "Impact (optional)", checks: ["quantifyingImpact"], tone: "weak" },
 ];
 
+/** "Skills not shown in your work" (ours, or the AI's wording of it). */
+const isOrphanSkillsFinding = (issue: ATSIssue) => /skills not shown in your work|orphan/i.test(issue.title ?? "");
+
 /** Findings about structure (dates, links, sections): they quote an entry to point at it, not to reword it. */
 const STRUCTURE_CHECKS = new Set<ATSCheckId>(["essentialSections", "contactInformation", "sectionOrder", "headerLinks", "emailAddress", "datesLinksConsistency", "design", "atsParseRate"]);
 
@@ -283,7 +286,9 @@ export function buildFixItems(
             (onPageThen !== null && !onPageThen.includes(squash(quoteOf(id, issue))))),
       );
       return current.map((issue, i) => {
-        const key = (issue.excerpt || issue.title || String(i)).slice(0, 80);
+        // The orphan-skills finding's list shrinks as skills get added: keyed by its title, it stays
+        // the same card (its suggestions aren't worked out again).
+        const key = (isOrphanSkillsFinding(issue) ? issue.title! : issue.excerpt || issue.title || String(i)).slice(0, 80);
         const typo = id === "spellingGrammar" && !isWordFix(issue) ? typoWord(issue) : null;
         const wordFix = isWordFix(issue) || !!typo;
         const n = (seen.get(key) ?? 0) + 1;
@@ -925,7 +930,8 @@ export function FixMistakesPanel({
     // A fresh report can reuse a pinned card's id for another finding (the 2nd copy of a
     // repeated bullet becomes "#1" once the 1st is fixed): give that one its own id. The same
     // finding back again (its fix was undone) is compared by content: each report is new objects.
-    const sameFinding = (a: ATSIssue, b: ATSIssue) => a === b || (a.title === b.title && a.excerpt === b.excerpt);
+    const sameFinding = (a: ATSIssue, b: ATSIssue) =>
+      a === b || (a.title === b.title && a.excerpt === b.excerpt) || (isOrphanSkillsFinding(a) && isOrphanSkillsFinding(b));
     const renamed = built.map((group) => ({
       ...group,
       items: group.items.map((i) => (pinned.has(i.id) && !sameFinding(pinned.get(i.id)!.issue, i.issue) ? { ...i, id: `${i.id}~next` } : i)),
@@ -937,6 +943,22 @@ export function FixMistakesPanel({
       return missing.length ? { ...group, items: [...group.items, ...missing] } : group;
     });
   }, [report, liveText, livePlaceholders, keepQuotes, pinned, reportText]);
+  // Adding a skill where it belongs can resolve the whole finding: the card stays (pinned) so the
+  // box doesn't vanish under the cursor.
+  const placementFor = (item: FixItem): SkillPlacementApi | undefined =>
+    skillPlacement && {
+      ...skillPlacement,
+      add: (p) => {
+        const at = skillPlacement.add(p);
+        if (at) setPinned((prev) => (prev.has(item.id) ? prev : new Map(prev).set(item.id, item)));
+        return at;
+      },
+      rewrite: (p) => {
+        const at = skillPlacement.rewrite(p);
+        if (at) setPinned((prev) => (prev.has(item.id) ? prev : new Map(prev).set(item.id, item)));
+        return at;
+      },
+    };
   const rewriteFor = (item: FixItem) =>
     onApplyRewrite
       ? (text: string, previous: { at: SuggestionAt; text: string } | null) => {
@@ -1083,7 +1105,7 @@ export function FixMistakesPanel({
                       onDone={onDone ? () => onDone(item) : undefined}
                       targetRole={targetRole}
                       lineOf={lineOf}
-                      skillPlacement={skillPlacement}
+                      skillPlacement={placementFor(item)}
                       roleOf={roleOf}
                       onAddRoleLine={onAddRoleLine}
                     />
@@ -1140,7 +1162,7 @@ export function FixMistakesPanel({
                           onDone={onDone ? () => onDone(item) : undefined}
                           targetRole={targetRole}
                           lineOf={lineOf}
-                          skillPlacement={skillPlacement}
+                          skillPlacement={placementFor(item)}
                           roleOf={roleOf}
                           onAddRoleLine={onAddRoleLine}
                         />

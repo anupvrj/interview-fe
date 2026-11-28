@@ -2665,6 +2665,18 @@ export default function EditResumePage() {
     },
     vocabulary: () => JSON.stringify(resumeRef.current?.content ?? {}).toLowerCase().replace(/<[^>]+>/g, " "),
     targetRole: resume?.content.personalInfo?.portfolio,
+    cacheKey: resumeId ?? undefined,
+    ignoreSkill: async (skill) => {
+      if (!resumeId) return;
+      const updated = await resumeApi.ignoreATSIssue(resumeId, {
+        checkId: "skillEvidence",
+        issue: { title: "Skills not shown in your work", description: "", excerpt: skill } as import("@/types/atsReport").ATSIssue,
+        skills: [skill],
+      });
+      setResumeState((prev) => (prev ? { ...prev, atsScore: updated.atsScore, atsFeedback: updated.atsFeedback, atsIgnoredIssues: updated.atsIgnoredIssues } : prev));
+      setDisplayAtsScore(typeof updated.atsScore === "number" ? updated.atsScore : null);
+      showCanvasNotice(`${skill} won't be suggested again for this resume.`);
+    },
     rewrite: (place) =>
       applySuggestionInEditor({
         original: place.original ?? "",

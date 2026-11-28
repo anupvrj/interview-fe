@@ -2667,6 +2667,8 @@ export const resumeApi = {
       /** "fixed": a suggestion was put in, and `line` is the line as it reads now. */
       reason?: "dismissed" | "fixed";
       line?: string;
+      /** Skills set aside from "Skills not shown in your work": never listed again. */
+      skills?: string[];
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(

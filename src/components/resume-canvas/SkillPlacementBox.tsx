@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Loader2, MapPin, Plus, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, EyeOff, Loader2, MapPin, Plus, RefreshCw } from "lucide-react";
 import { resumeApi, type SkillPlacement, type SkillPlacementEntry } from "@/lib/api";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,39 @@ export type SkillPlacementApi = {
   /** Add a line under an entry (flashes green). */
   add: (p: NonNullable<SkillPlacement["place"]>) => SuggestionAt | null;
   onUndo?: () => void;
+  /** This resume: placements already worked out are kept (also across reloads) instead of asked again. */
+  cacheKey?: string;
+  /** "Not relevant": set this skill aside on the resume, so no check lists it again. */
+  ignoreSkill?: (skill: string) => Promise<void>;
 };
+
+/** Placements already worked out, per resume and skill (memory + this browser). */
+const memory = new Map<string, Record<string, SkillPlacement>>();
+const storeKey = (k: string) => `rx-skill-place:${k}`;
+function cached(key: string | undefined): Record<string, SkillPlacement> {
+  if (!key) return {};
+  if (!memory.has(key)) {
+    let saved: Record<string, SkillPlacement> = {};
+    try {
+      saved = JSON.parse(window.localStorage.getItem(storeKey(key)) ?? "{}") ?? {};
+    } catch {
+      saved = {};
+    }
+    memory.set(key, saved);
+  }
+  return memory.get(key)!;
+}
+function remember(key: string | undefined, placements: SkillPlacement[]) {
+  if (!key) return;
+  const all = { ...cached(key) };
+  for (const p of placements) all[p.skill.toLowerCase()] = p;
+  memory.set(key, all);
+  try {
+    window.localStorage.setItem(storeKey(key), JSON.stringify(all));
+  } catch {
+    /* storage full or blocked: memory still has it */
+  }
+}
 
 /** "orphan skills" text from the finding → the skill names. */
 export function orphanSkillsFrom(excerpt: string): string[] {
@@ -29,27 +61,71 @@ export function orphanSkillsFrom(excerpt: string): string[] {
  * job where it honestly belongs, the card says exactly where, and one click puts it there.
  */
 export function SkillPlacementBox({ skills, api }: { skills: string[]; api: SkillPlacementApi }) {
-  const [state, setState] = useState<{ loading: boolean; placements: SkillPlacement[]; error?: string }>({ loading: false, placements: [] });
+  // The skills this card has shown: a skill that gets added (so it's no longer "unproven") stays,
+  // marked Added, instead of the box resetting and asking the AI again.
+  const [shown, setShown] = useState<string[]>(skills);
+  useEffect(() => {
+    setShown((prev) => [...prev, ...skills.filter((s) => !prev.some((p) => p.toLowerCase() === s.toLowerCase()))]);
+  }, [skills.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [state, setState] = useState<{ loading: boolean; placements: SkillPlacement[]; error?: string }>(() => {
+    const have = cached(api.cacheKey);
+    return { loading: false, placements: skills.map((s) => have[s.toLowerCase()]).filter((p): p is SkillPlacement => !!p) };
+  });
   const [done, setDone] = useState<Record<string, boolean>>({});
+  const [ignored, setIgnored] = useState<Record<string, "saving" | "done">>({});
+  const asking = useRef(false);
 
-  const run = async () => {
-    setState({ loading: true, placements: [] });
+  /** Ask the AI only for skills it hasn't placed yet (or all of them on Refresh). */
+  const run = async (fresh = false) => {
+    const have = fresh ? {} : cached(api.cacheKey);
+    const missing = shown.filter((s) => !have[s.toLowerCase()]);
+    const known = shown.map((s) => have[s.toLowerCase()]).filter((p): p is SkillPlacement => !!p);
+    if (!missing.length) {
+      setState({ loading: false, placements: known });
+      return;
+    }
+    if (asking.current) return;
+    asking.current = true;
+    setState((st) => ({ loading: true, placements: fresh ? [] : st.placements.length ? st.placements : known }));
     try {
-      const placements = await resumeApi.aiSkillPlacement({ skills, entries: api.entries(), targetRole: api.targetRole, vocabulary: api.vocabulary() });
-      setState({ loading: false, placements });
+      const placements = await resumeApi.aiSkillPlacement({ skills: missing, entries: api.entries(), targetRole: api.targetRole, vocabulary: api.vocabulary() });
+      remember(api.cacheKey, placements);
+      setState((st) => {
+        const byName = new Map([...(fresh ? [] : st.placements), ...known, ...placements].map((p) => [p.skill.toLowerCase(), p]));
+        return { loading: false, placements: shown.map((s) => byName.get(s.toLowerCase())).filter((p): p is SkillPlacement => !!p) };
+      });
     } catch {
-      setState({ loading: false, placements: [], error: "Couldn't work out where these fit right now. Try again." });
+      setState((st) => ({ ...st, loading: false, error: "Couldn't work out where these fit right now. Try again." }));
+    } finally {
+      asking.current = false;
     }
   };
   useEffect(() => {
     void run();
-    // Once per card: the skills are fixed for this finding.
+    // Only when a skill appears that hasn't been placed yet.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skills.join("|")]);
+  }, [shown.join("|")]);
 
-  const placed = state.placements.filter((p) => p.relevant && p.place);
-  const noPlace = state.placements.filter((p) => p.relevant && !p.place);
-  const notNeeded = state.placements.filter((p) => !p.relevant);
+  const notRelevant = async (skill: string) => {
+    if (!api.ignoreSkill) return;
+    setIgnored((m) => ({ ...m, [skill]: "saving" }));
+    try {
+      await api.ignoreSkill(skill);
+      setIgnored((m) => ({ ...m, [skill]: "done" }));
+    } catch {
+      setIgnored((m) => {
+        const next = { ...m };
+        delete next[skill];
+        return next;
+      });
+    }
+  };
+
+  const visible = state.placements.filter((p) => ignored[p.skill] !== "done");
+  const placed = visible.filter((p) => p.relevant && p.place);
+  const noPlace = visible.filter((p) => p.relevant && !p.place);
+  const notNeeded = visible.filter((p) => !p.relevant);
+  const setAside = Object.entries(ignored).filter(([, v]) => v === "done").map(([k]) => k);
 
   return (
     <div data-testid="skill-placement" className="mt-2.5 space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -61,7 +137,7 @@ export function SkillPlacementBox({ skills, api }: { skills: string[]; api: Skil
       {state.error ? (
         <p className="text-xs text-muted-foreground">
           {state.error}{" "}
-          <button type="button" className="font-semibold text-primary hover:underline" onClick={() => void run()}>
+          <button type="button" className="font-semibold text-primary hover:underline" onClick={() => void run(true)}>
             Retry
           </button>
         </p>
@@ -121,6 +197,18 @@ export function SkillPlacementBox({ skills, api }: { skills: string[]; api: Skil
                   {place.mode === "rewrite" ? "Update this line" : "Add here if true"}
                 </button>
               )}
+              {!isDone && api.ignoreSkill ? (
+                <button
+                  type="button"
+                  disabled={!!ignored[p.skill]}
+                  title={`Don't suggest ${p.skill} again for this resume`}
+                  onClick={() => void notRelevant(p.skill)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  {ignored[p.skill] === "saving" ? <Loader2 className="h-3 w-3 animate-spin" /> : <EyeOff className="h-3 w-3" />}
+                  Not relevant
+                </button>
+              ) : null}
             </div>
           </div>
         );
@@ -132,6 +220,16 @@ export function SkillPlacementBox({ skills, api }: { skills: string[]; api: Skil
           {noPlace.length > 1 ? "them" : "it"} in a job, add a line there saying what you did with {noPlace.length > 1 ? "each" : "it"} — or ask the AI Coach on
           that job&apos;s bullet.
         </p>
+      ) : null}
+      {setAside.length ? (
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <EyeOff className="h-3 w-3" /> Won&apos;t suggest again: {setAside.join(", ")}.
+        </p>
+      ) : null}
+      {state.placements.length && !state.loading ? (
+        <button type="button" onClick={() => void run(true)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+          <RefreshCw className="h-3 w-3" /> Refresh suggestions
+        </button>
       ) : null}
       {notNeeded.length ? (
         <p className="text-[11px] leading-relaxed text-muted-foreground">
