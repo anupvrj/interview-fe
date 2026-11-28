@@ -2712,11 +2712,14 @@ export default function EditResumePage() {
     async (
       check: import("@/types/atsReport").ATSCheckResult,
       issue: import("@/types/atsReport").ATSIssue,
+      /** The whole line the finding is about: a later check that rewords it still matches. */
+      line?: string,
     ) => {
       if (!resumeId) return;
       const updated = await resumeApi.ignoreATSIssue(resumeId, {
         checkId: check.id,
         issue,
+        ...(line ? { line } : {}),
       });
       setResumeState((prev) =>
         prev
@@ -3649,7 +3652,10 @@ export default function EditResumePage() {
   const setFindingAside = (item: FixItem) => {
     setAsideIds.current.add(item.id);
     resolveFix(item);
-    handleIgnoreATSIssue(item.check, item.issue).catch(() => {
+    // Saved with the whole line it's about, so a later check that words it differently stays set aside.
+    const quote = item.quote || item.issue.excerpt || "";
+    const line = quote && resumeRef.current ? lineContaining(resumeRef.current, quote) ?? undefined : undefined;
+    handleIgnoreATSIssue(item.check, item.issue, line).catch(() => {
       // Not saved: bring the card back so the list matches the report.
       setFixResolved((prev) => {
         const next = new Set(prev);
