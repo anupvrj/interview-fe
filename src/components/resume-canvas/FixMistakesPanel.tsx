@@ -580,7 +580,23 @@ function IssueCard({
   // Picked from elsewhere (job checklist "Show", a mark on the page): bring the card into view.
   const cardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (active) cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (!active) return;
+    // The picked card goes to the top of the panel (not just "into view" at its bottom edge),
+    // so what the red box on the page means is the first thing the user reads.
+    const frame = requestAnimationFrame(() => {
+      const card = cardRef.current;
+      if (!card) return;
+      let scroller: HTMLElement | null = card.parentElement;
+      while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      if (!scroller) {
+        card.scrollIntoView({ block: "start", behavior: "smooth" });
+        return;
+      }
+      const top = card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 8;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      scroller.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [active]);
 
   const rewrite = async () => {

@@ -44,6 +44,18 @@ test.describe("clicking a marked finding", () => {
     const active = page.locator('[data-guide="ats-finding"][data-active]');
     await expect(active).toHaveCount(1, { timeout: 10_000 });
     await expect(active).toBeInViewport();
+    // …at the top of the panel, not at its bottom edge.
+    await expect
+      .poll(
+        () =>
+          active.evaluate((card) => {
+            let el: HTMLElement | null = card.parentElement;
+            while (el && !/(auto|scroll)/.test(getComputedStyle(el).overflowY)) el = el.parentElement;
+            return el ? Math.round(card.getBoundingClientRect().top - el.getBoundingClientRect().top) : 9999;
+          }),
+        { timeout: 5_000 },
+      )
+      .toBeLessThan(40);
     if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: path.join(process.env.E2E_SHOT_DIR, "mark-click-editor.png") });
   });
 
