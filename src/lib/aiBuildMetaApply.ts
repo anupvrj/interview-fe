@@ -106,15 +106,20 @@ export function fillSlot(content: Content, path: string, text: string, value: st
 }
 
 export function addBullet(content: Content, roleIndex: number, text: string): Content {
-  const list = [...((content.experience as unknown as Array<Record<string, unknown>>) ?? [])];
-  const item = list[roleIndex];
+  return addLine(content, "experience", roleIndex, text);
+}
+
+/** Append one line to a job's or project's description (keeps its markup). */
+export function addLine(content: Content, section: "experience" | "projects", index: number, text: string): Content {
+  const list = [...(((content as Record<string, unknown>)[section] as Array<Record<string, unknown>>) ?? [])];
+  const item = list[index];
   if (!item) return content;
   const raw = asHtml(item.description);
   if (/<\/ul>/i.test(raw)) {
-    list[roleIndex] = { ...item, description: raw.replace(/<\/ul>(?![\s\S]*<\/ul>)/i, `<li>${esc(text)}</li></ul>`) };
-    return { ...content, experience: list } as Content;
+    list[index] = { ...item, description: raw.replace(/<\/ul>(?![\s\S]*<\/ul>)/i, `<li>${esc(text)}</li></ul>`) };
+    return { ...content, [section]: list } as Content;
   }
-  return withLines(content, "experience", roleIndex, (lines) => [...lines, text]);
+  return withLines(content, section, index, (lines) => [...lines, text]);
 }
 
 export function removeLine(content: Content, path: string, text: string): Content | null {

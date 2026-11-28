@@ -9,6 +9,7 @@ import { SetAsideLink } from "@/components/ats-checker/SetAsideLink";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
 import { AtsParseCard } from "./AtsParseCard";
+import { SkillPlacementBox, orphanSkillsFrom, type SkillPlacementApi } from "./SkillPlacementBox";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import type { AtsParseResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -534,7 +535,10 @@ function IssueCard({
   onDone,
   targetRole,
   lineOf,
+  skillPlacement,
 }: {
+  /** Orphan skills: find where each belongs and add it there (not a replacement). */
+  skillPlacement?: SkillPlacementApi;
   item: FixItem;
   active: boolean;
   onLocate: () => void;
@@ -577,6 +581,11 @@ function IssueCard({
   const canAskAi =
     !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
   const howToFix = issue.fixBody || issue.suggestion;
+  // Skills listed but never shown in the work: these need adding in the right place, not replacing.
+  const orphanSkills =
+    check.id === "skillEvidence" && skillPlacement && /orphan|not (evidenced|shown|backed|mentioned)|listed but/i.test(`${issue.title} ${issue.description}`)
+      ? orphanSkillsFrom(issue.excerpt ?? excerpt ?? "")
+      : [];
   // Picked from elsewhere (job checklist "Show", a mark on the page): bring the card into view.
   const cardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -682,7 +691,7 @@ function IssueCard({
             {chip}
           </button>
         ))}
-        {canTapRewrite && !onApplyRewrite ? (
+        {canTapRewrite && !onApplyRewrite && !orphanSkills.length ? (
           <button
             type="button"
             onClick={() => onApply(issue.rewriteSuggestion!)}
@@ -692,7 +701,7 @@ function IssueCard({
             {issue.rewriteSuggestion}
           </button>
         ) : null}
-        {canAskAi ? (
+        {canAskAi && !orphanSkills.length ? (
           <button
             type="button"
             onClick={() => void rewrite()}
@@ -704,7 +713,8 @@ function IssueCard({
           </button>
         ) : null}
       </div>
-      {onApplyRewrite && (canTapRewrite || ai.options.length) ? (
+      {orphanSkills.length && skillPlacement ? <SkillPlacementBox skills={orphanSkills} api={skillPlacement} /> : null}
+      {onApplyRewrite && !orphanSkills.length && (canTapRewrite || ai.options.length) ? (
         <>
           {canTapRewrite && !ai.options.length ? (
             <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Suggested wording — tap to edit and use</p>
@@ -771,6 +781,7 @@ export function FixMistakesPanel({
   onRecheck,
   onFixAll,
   fixingAll = false,
+  skillPlacement,
   onTailor,
   onCheckAtsParse,
   targetRole,
@@ -827,6 +838,8 @@ export function FixMistakesPanel({
   onCheckAtsParse?: () => Promise<AtsParseResult>;
   /** "Fix all with AI": rewrite to fix every AI-fixable finding, then review each change. */
   onFixAll?: () => void;
+  /** Orphan skills: where each belongs on the resume, added on one click. */
+  skillPlacement?: SkillPlacementApi;
   fixingAll?: boolean;
   targetRole?: string;
   /** The full ATS report, shown under the fix list. */
@@ -1000,6 +1013,7 @@ export function FixMistakesPanel({
                       onDone={onDone ? () => onDone(item) : undefined}
                       targetRole={targetRole}
                       lineOf={lineOf}
+                      skillPlacement={skillPlacement}
                     />
                   ))}
                 </div>
@@ -1040,6 +1054,7 @@ export function FixMistakesPanel({
                           onDone={onDone ? () => onDone(item) : undefined}
                           targetRole={targetRole}
                           lineOf={lineOf}
+                          skillPlacement={skillPlacement}
                         />
                       )}
                       onAddSkill={onAddSkill}

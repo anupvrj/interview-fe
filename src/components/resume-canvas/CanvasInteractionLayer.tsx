@@ -330,7 +330,9 @@ export function CanvasInteractionLayer({
     const onClick = (e: MouseEvent) => {
       if (!onMarkClickRef.current || e.button !== 0) return;
       const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-rx-overlay], button, a")) return;
+      // Only the editor's own floating controls are skipped; text on the page that is also a
+      // button (skills open their editor) still shows its finding.
+      if (target?.closest("[data-rx-overlay]")) return;
       const origin = root.getBoundingClientRect();
       const x = e.clientX - origin.left;
       const y = e.clientY - origin.top;
@@ -339,8 +341,9 @@ export function CanvasInteractionLayer({
       );
       if (hit) onMarkClickRef.current(hit.id, hit.tone);
     };
-    root.addEventListener("click", onClick);
-    return () => root.removeEventListener("click", onClick);
+    // Capture phase: page elements that handle their own click (skills open an editor) may stop it.
+    root.addEventListener("click", onClick, true);
+    return () => root.removeEventListener("click", onClick, true);
   }, [rootRef]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dateEdit, setDateEdit] = useState<{ path: string; top: number; left: number } | null>(null);

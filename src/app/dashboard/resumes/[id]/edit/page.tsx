@@ -180,7 +180,8 @@ import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
-import { addBullet, fillSlot, personalFieldsToClear, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
+import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
+import type { SkillPlacementApi } from "@/components/resume-canvas/SkillPlacementBox";
 import { selectionInLine } from "@/lib/aiSelection";
 import {
   addEntry,
@@ -2553,6 +2554,50 @@ export default function EditResumePage() {
     [],
   );
 
+  /** Orphan skills → the jobs/projects as they are now, and how to put a placement in. */
+  const skillPlacementApi: SkillPlacementApi = {
+    entries: () => {
+      const c = (resumeRef.current?.content ?? {}) as unknown as Record<string, unknown>;
+      const list = (k: string) => (Array.isArray(c[k]) ? (c[k] as Array<Record<string, unknown>>) : []);
+      return [
+        ...list("experience").map((e, index) => ({
+          section: "experience" as const,
+          index,
+          title: [e.position, e.company].filter(Boolean).join(" at "),
+          bullets: bulletsOf(e.description),
+        })),
+        ...list("projects").map((p, index) => ({ section: "projects" as const, index, title: String(p.name ?? "Project"), bullets: bulletsOf(p.description) })),
+      ].filter((e) => e.title);
+    },
+    vocabulary: () => JSON.stringify(resumeRef.current?.content ?? {}).toLowerCase().replace(/<[^>]+>/g, " "),
+    targetRole: resume?.content.personalInfo?.portfolio,
+    rewrite: (place) =>
+      applySuggestionInEditor({
+        original: place.original ?? "",
+        improved: place.text,
+        at: { path: `${place.section}.${place.index}.description`, index: place.bulletIndex ?? null },
+      }),
+    add: (place) => {
+      const current = resumeRef.current;
+      if (!current) return null;
+      const next = addLine(current.content, place.section, place.index, place.text);
+      if (next === current.content) return null;
+      const lines = bulletsOf(((next as unknown as Record<string, unknown>)[place.section] as Array<Record<string, unknown>>)[place.index]?.description);
+      const at = { path: `${place.section}.${place.index}.description`, index: lines.length - 1 };
+      recordImmediateHistory();
+      suppressHistoryRef.current = true;
+      const updated = { ...current, content: next };
+      setResumeState(updated);
+      resumeRef.current = updated;
+      suppressHistoryRef.current = false;
+      setHasChanges(true);
+      invalidateAtsScoreDisplay();
+      flashAppliedChange(at, place.text);
+      return at;
+    },
+    onUndo: handleUndo,
+  };
+
   /**
    * A suggestion from this finding went in: that wording is settled for the AI's line checks,
    * so the next full check doesn't flag it all over again (editing it later lifts that).
@@ -4866,6 +4911,7 @@ export default function EditResumePage() {
               improvedFrom={resume.atsImprovementMeta?.previousScore}
               onRecheck={handleCheckATS}
               onFixAll={() => void handleFixAllWithAi()}
+              skillPlacement={skillPlacementApi}
               fixingAll={fixingAll}
               onTailor={() => setMatchJobOpen(true)}
               targetRole={resume.content.personalInfo?.portfolio}

@@ -2353,6 +2353,12 @@ export const resumeApi = {
     return response.data.data.suggestions ?? [];
   },
 
+  /** Orphan skills: where each one honestly belongs on the resume (the user confirms each). */
+  aiSkillPlacement: async (body: { skills: string[]; entries: SkillPlacementEntry[]; targetRole?: string; vocabulary?: string }): Promise<SkillPlacement[]> => {
+    const response = await apiClient.post<{ data: { placements: SkillPlacement[] } }>("/resumes/ai-skill-placement", body, { timeout: 60000 });
+    return response.data.data.placements ?? [];
+  },
+
   /** "Can you defend this line?": the follow-ups an interviewer would ask about one resume line. */
   aiDefend: async (body: { text: string; role?: string; company?: string; targetRole?: string }): Promise<{ question: string; showWith: string }[]> => {
     const response = await apiClient.post<{ data: { questions: { question: string; showWith: string }[] } }>("/resumes/ai-defend", body, {
@@ -2833,6 +2839,26 @@ export async function pollResumeBuildJob(
   }
   throw new Error("The build is taking too long. Please try again.");
 }
+
+/** A job or project as the skill-placement AI sees it. */
+export type SkillPlacementEntry = { section: "experience" | "projects"; index: number; title: string; bullets: string[] };
+/** Where one listed skill honestly belongs (or that it's fine to keep only in Skills). */
+export type SkillPlacement = {
+  skill: string;
+  relevant: boolean;
+  why: string;
+  place?: {
+    section: "experience" | "projects";
+    index: number;
+    entryTitle: string;
+    mode: "rewrite" | "add";
+    /** "clear": the work already shows it; "likely": best-fitting job, add only if true. */
+    fit: "clear" | "likely";
+    bulletIndex?: number;
+    original?: string;
+    text: string;
+  };
+};
 
 /** What the AI build left for the user (Resume Writer v2); saved on the resume as aiBuildMeta. */
 export type AiBuildMeta = {
