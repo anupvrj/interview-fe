@@ -1,6 +1,5 @@
 "use client";
 
-import { ScoreDelta } from "./ScoreDelta";
 
 import React from "react";
 import { Brush, Gauge, LayoutPanelLeft, ListTree, MoveVertical, Plus, Sparkles, Target } from "lucide-react";
@@ -113,13 +112,7 @@ const MATCH_TONE = { ring: "stroke-primary", text: "text-primary" };
 
 /** Items that show a live number as a ring instead of an icon. */
 function ringFor(id: StudioItem["id"], p: StudioProps, size: number): React.ReactNode | null {
-  if (id === "fix")
-    return (
-      <span className="relative inline-flex">
-        <ScoreRing score={p.atsScore} size={size} busy={p.checkingAts} />
-        <ScoreDelta score={p.atsScore} className="absolute -right-3 -top-2 px-1 py-0 text-[9px]" />
-      </span>
-    );
+  if (id === "fix") return <ScoreRing score={p.atsScore} size={size} busy={p.checkingAts} />;
   if (id === "tailor" && (p.tailoring || typeof p.jobMatchScore === "number"))
     return <ScoreRing score={p.jobMatchScore} size={size} busy={p.tailoring} tone={MATCH_TONE} />;
   return null;
