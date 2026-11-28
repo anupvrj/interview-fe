@@ -31,6 +31,8 @@ interface ATSReportViewProps {
   ) => void | Promise<void>;
   /** Narrow half-panel layout (resume editor) */
   embedded?: boolean;
+  /** Inside the editor's ATS panel: only the check-by-check list, one column. */
+  inPanel?: boolean;
   /** Persisted sibling Job Match % — wins over any stale report.jobMatch */
   jobMatchScore?: number | null;
   /** Where "Add in editor" on the job keywords goes (outside the editor). */
@@ -49,6 +51,7 @@ export function ATSReportView({
   onApplyIssueFix,
   onIgnoreIssue,
   embedded = false,
+  inPanel = false,
   jobMatchScore,
   keywordsEditorHref,
 }: ATSReportViewProps) {
@@ -75,6 +78,7 @@ export function ATSReportView({
         jobMatchRunning={jobMatchRunning}
         initialJobDescription={initialJobDescription}
         embedded={embedded}
+        inPanel={inPanel}
         keywordsEditorHref={keywordsEditorHref}
       />
     );

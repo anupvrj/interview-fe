@@ -179,6 +179,7 @@ import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
 import { TellUsAboutYouDialog } from "@/components/resume-canvas/TellUsAboutYouDialog";
 import { SectionAiDialog, type SectionAiTarget } from "@/components/resume-canvas/SectionAiDialog";
 import { CoverLetterDialog } from "@/components/resume-canvas/CoverLetterDialog";
+import { PeerSkillsCard } from "@/components/resume-canvas/PeerSkillsCard";
 import { CommandPalette, type PaletteAction } from "@/components/resume-canvas/CommandPalette";
 import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
@@ -3531,9 +3532,12 @@ export default function EditResumePage() {
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
   /** "What's left for you": the items, and marking one done (saved with the resume). */
-  const whatsLeftItems = useMemo(() => {
-    const items = resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : [];
-    // Skills recruiters for this role usually look for: one checklist instead of a buried report row.
+  const whatsLeftItems = useMemo(
+    () => (resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : []),
+    [resume?.content, resume?.aiBuildMeta],
+  );
+  // Skills recruiters for this role usually look for: a checklist inside the ATS score panel.
+  const peerSkills = useMemo(() => {
     const report = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
     const peer = report ? Object.values(report.categories ?? {}).flatMap((c) => c?.checks ?? []).find((c) => c.id === "peerBenchmarking") : undefined;
     const live = JSON.stringify(resume?.content ?? {}).toLowerCase();
@@ -3542,8 +3546,7 @@ export default function EditResumePage() {
       .map((s) => s.name)
       .slice(0, 10);
     const dismissed = new Set(resume?.aiBuildMeta?.dismissed ?? []);
-    if (missing.length && !dismissed.has("peerskills")) items.push({ kind: "peer-skills", key: "peerskills", skills: missing, role: report?.inferredProfile?.targetRole });
-    return items;
+    return missing.length && !dismissed.has("peerskills") ? { skills: missing, role: report?.inferredProfile?.targetRole } : null;
   }, [resume?.content, resume?.aiBuildMeta, resume?.atsFeedback]);
   // An AI-built resume opens with its score: run the check once, on first open.
   const autoAtsRanRef = useRef(false);
@@ -5035,8 +5038,23 @@ export default function EditResumePage() {
               fixingAll={fixingAll}
               onTailor={() => setMatchJobOpen(true)}
               targetRole={resume.content.personalInfo?.portfolio}
+              extra={
+                peerSkills ? (
+                  <PeerSkillsCard
+                    skills={peerSkills.skills}
+                    role={peerSkills.role}
+                    onDismiss={() => markWhatsLeftDone("peerskills", "dismissed")}
+                    onAdd={(skills) => {
+                      for (const s of skills) addSkillFromJob(s);
+                      markWhatsLeftDone("peerskills");
+                      showCanvasNotice(`Added ${skills.join(", ")} to Skills. The checks below show where to prove ${skills.length > 1 ? "them" : "it"} in your work.`);
+                    }}
+                  />
+                ) : null
+              }
             >
               <ATSReportView
+                inPanel
                 feedback={resume.atsFeedback}
                 jobMatchScore={resume.jobMatchScore}
                 resumeId={resume.resumeId}

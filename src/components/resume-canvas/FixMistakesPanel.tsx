@@ -797,6 +797,7 @@ export function FixMistakesPanel({
   lineOf,
   onRestoreSetAside,
   improvedFrom,
+  extra,
   children,
 }: {
   /** The score before the AI rewrite ("Improve with AI", or the rewrite kept at sign-up). */
@@ -844,6 +845,8 @@ export function FixMistakesPanel({
   targetRole?: string;
   /** The full ATS report, shown under the fix list. */
   children?: React.ReactNode;
+  /** Shown under the score: e.g. the skills recruiters for this role look for. */
+  extra?: React.ReactNode;
 }) {
   // Cards a suggestion was applied to stay (showing what went in) so another option can replace it.
   const [keepQuotes, setKeepQuotes] = useState<Set<string>>(() => new Set());
@@ -961,6 +964,7 @@ export function FixMistakesPanel({
         </Button>
       </div>
 
+      {extra}
       {report ? <ScoreBreakdown report={report} /> : null}
       {onCheckAtsParse ? <AtsParseCard onCheck={onCheckAtsParse} /> : null}
       {onReplayTour ? (
@@ -1125,7 +1129,7 @@ export function FixMistakesPanel({
             onClick={() => setShowReport((v) => !v)}
             className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
           >
-            Detailed report
+            Every check, one by one
             <span className="text-xs font-medium text-primary">{showReport ? "Hide" : "Show"}</span>
           </button>
           {showReport ? <div className="mt-3">{children}</div> : null}
