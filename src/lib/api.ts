@@ -2353,6 +2353,22 @@ export const resumeApi = {
     return response.data.data.suggestions ?? [];
   },
 
+  /** Section AI: write an empty section or rewrite a filled one (previewed before it goes in). */
+  aiSection: async (body: {
+    sectionType: string;
+    sectionTitle?: string;
+    entries: Array<{ index: number; title: string; lines: string[] }>;
+    note?: string;
+    instruction?: string;
+    targetRole?: string;
+    seniority?: string;
+    industry?: string;
+    resumeText?: string;
+  }): Promise<{ entries: Array<{ index: number; lines: string[] }>; dropped: number }> => {
+    const response = await apiClient.post<{ data: { entries: Array<{ index: number; lines: string[] }>; dropped: number } }>("/resumes/ai-section", body, { timeout: 90000 });
+    return response.data.data;
+  },
+
   /** Orphan skills: where each one honestly belongs on the resume (the user confirms each). */
   aiSkillPlacement: async (body: { skills: string[]; entries: SkillPlacementEntry[]; targetRole?: string; vocabulary?: string }): Promise<SkillPlacement[]> => {
     const response = await apiClient.post<{ data: { placements: SkillPlacement[] } }>("/resumes/ai-skill-placement", body, { timeout: 60000 });

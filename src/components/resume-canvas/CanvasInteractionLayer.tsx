@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Camera,
   GripVertical,
+  Sparkles,
   Pencil,
   CalendarDays,
   Copy,
@@ -159,6 +160,8 @@ export interface CanvasInteractionHandlers {
   onSetSectionDesign?: (sectionId: string, design: ListDesignId | null) => void;
   /** "AI" on a bullet / summary being edited: reword that line (or the selected words) in the AI Coach. */
   onAskAi?: () => void;
+  /** ✦ on a section (or one entry of it): write it with AI if empty, rewrite it if filled. */
+  onSectionAi?: (sectionId: string, entryIndex: number | null) => void;
 }
 
 interface Box {
@@ -769,6 +772,15 @@ export function CanvasInteractionLayer({
               },
             ]
           : []),
+        ...(handlers.onSectionAi && handleSection.type !== "personalInfo"
+          ? [
+              {
+                label: handleIsEntry && handleIndex !== null ? "Rewrite this item with AI…" : "Write or rewrite with AI…",
+                icon: Sparkles,
+                run: () => handlers.onSectionAi?.(handleSection.id, handleIsEntry ? handleIndex : null),
+              },
+            ]
+          : []),
         { label: "All fields…", icon: SlidersHorizontal, run: () => handlers.onOpenDetails(handleSection.id) },
         ...(handleSection.type !== "personalInfo"
           ? [
@@ -844,6 +856,18 @@ export function CanvasInteractionLayer({
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
+        {handlers.onSectionAi && handleSection.type !== "personalInfo" ? (
+          <button
+            type="button"
+            title="Write or rewrite with AI"
+            aria-label="Write or rewrite with AI"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handlers.onSectionAi?.(handleSection.id, handleIsEntry ? handleIndex : null)}
+            className="flex h-6 w-6 items-center justify-center border-b border-border text-primary hover:bg-primary/10"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
         <button
           type="button"
           title="Item options"

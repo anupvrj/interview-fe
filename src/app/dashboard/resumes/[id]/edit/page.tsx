@@ -177,11 +177,12 @@ import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLay
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
 import { TellUsAboutYouDialog } from "@/components/resume-canvas/TellUsAboutYouDialog";
+import { SectionAiDialog, type SectionAiTarget } from "@/components/resume-canvas/SectionAiDialog";
 import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
-import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, whatsLeft } from "@/lib/aiBuildMetaApply";
+import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, toList, whatsLeft } from "@/lib/aiBuildMetaApply";
 import type { SkillPlacementApi } from "@/components/resume-canvas/SkillPlacementBox";
 import { selectionInLine } from "@/lib/aiSelection";
 import {
@@ -2390,6 +2391,74 @@ export default function EditResumePage() {
     }
   };
 
+  /** ✦ Section AI: the section (or one entry) being written/rewritten. */
+  const [sectionAi, setSectionAi] = useState<SectionAiTarget | null>(null);
+  const openSectionAi = (sectionId: string, entryIndex: number | null) => {
+    const current = resumeRef.current;
+    const section = sections.find((s) => s.id === sectionId);
+    if (!current || !section) return;
+    const c = current.content as unknown as Record<string, unknown>;
+    const type = section.type as string;
+    const list = (k: string) => (Array.isArray(c[k]) ? (c[k] as Array<Record<string, unknown>>) : []);
+    const join = (...v: unknown[]) => v.map((x) => String(x ?? "").trim()).filter(Boolean).join(" at ");
+    let entries: SectionAiTarget["entries"] = [];
+    if (type === "profileSummary") entries = [{ index: 0, title: "Summary", lines: bulletsOf(c.profileSummary).length ? [bulletsOf(c.profileSummary).join(" ")] : [] }];
+    else if (type === "skills") {
+      const sk = c.skills as unknown;
+      const names = Array.isArray(sk) ? sk.map((x) => (typeof x === "string" ? x : String((x as { name?: string })?.name ?? ""))) : String(sk ?? "").replace(/<[^>]+>/g, ",").split(/[,|•\n]+/);
+      entries = [{ index: 0, title: "Skills", lines: names.map((n) => n.trim()).filter(Boolean) }];
+    } else if (type === "experience") entries = list("experience").map((e, i) => ({ index: i, title: join(e.position, e.company), lines: bulletsOf(e.description) }));
+    else if (type === "projects") entries = list("projects").map((p, i) => ({ index: i, title: String(p.name ?? `Project ${i + 1}`), lines: bulletsOf(p.description) }));
+    else if (type === "education") entries = list("education").map((e, i) => ({ index: i, title: join([e.degree, e.field].filter(Boolean).join(" in "), e.institution), lines: bulletsOf(e.description) }));
+    else if (type === "custom") {
+      const cs = list("customSections").find((x) => x.id === sectionId);
+      entries = [{ index: 0, title: String(cs?.title ?? section.title ?? "Section"), lines: bulletsOf(cs?.content) }];
+    } else {
+      showCanvasNotice("AI writing isn't available for this section yet — try Summary, Experience, Projects, Skills or Education.");
+      return;
+    }
+    if (entryIndex !== null && entries.length > 1) entries = entries.filter((e) => e.index === entryIndex);
+    if (!entries.length) {
+      showCanvasNotice("Add an entry first (＋), then AI can write it.");
+      return;
+    }
+    const brief = (current.aiBuildMeta as { brief?: { roleFamily?: string; seniority?: string; industry?: string; targetTitle?: string } } | undefined)?.brief;
+    setSectionAi({
+      sectionId,
+      sectionType: type,
+      title: String(section.title ?? type),
+      entries,
+      context: {
+        roleFamily: brief?.roleFamily,
+        seniority: brief?.seniority,
+        industry: brief?.industry,
+        targetRole: brief?.targetTitle || current.content.personalInfo?.portfolio,
+      },
+      resumeText: resumeRawText,
+    });
+  };
+  const applySectionAi = (target: SectionAiTarget, result: Array<{ index: number; lines: string[] }>) => {
+    const current = resumeRef.current;
+    if (!current) return;
+    const c = current.content as unknown as Record<string, unknown>;
+    const type = target.sectionType;
+    const first = result[0];
+    if (type === "profileSummary") updateContent({ profileSummary: `<p>${first.lines.join(" ").replace(/</g, "&lt;")}</p>` } as Partial<Resume["content"]>);
+    else if (type === "skills") updateContent({ skills: first.lines } as Partial<Resume["content"]>);
+    else if (type === "custom") {
+      const cs = ((c.customSections as Array<Record<string, unknown>>) ?? []).map((x) => (x.id === target.sectionId ? { ...x, content: toList(first.lines) } : x));
+      updateContent({ customSections: cs } as Partial<Resume["content"]>);
+    } else {
+      const key = type as "experience" | "projects" | "education";
+      const next = [...((c[key] as Array<Record<string, unknown>>) ?? [])];
+      for (const r of result) if (next[r.index]) next[r.index] = { ...next[r.index], description: toList(r.lines) };
+      updateContent({ [key]: next } as Partial<Resume["content"]>);
+      flashAppliedChange({ path: `${key}.${first.index}.description`, index: 0 }, first.lines[0] ?? "");
+    }
+    track("resume_ai_enhancement_applied", { kind: `section_${type}` });
+    showCanvasNotice("Done — Undo puts the old version back.");
+  };
+
   /** Little or nothing real to improve: ask the person (questions / voice / paste) instead. */
   const [tellUsOpen, setTellUsOpen] = useState(false);
   const resumeIsThin = (() => {
@@ -3981,6 +4050,7 @@ export default function EditResumePage() {
       setDeleteDialogOpen(true);
     },
     onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    onSectionAi: (sectionId, entryIndex) => openSectionAi(sectionId, entryIndex),
     onAskAi: () => {
       // The line under the caret (or the words selected in it), read before anything blurs.
       const last = lastRichFieldRef.current;
@@ -9091,6 +9161,7 @@ export default function EditResumePage() {
           </div>
         </DialogContent>
       </Dialog>
+      <SectionAiDialog target={sectionAi} onClose={() => setSectionAi(null)} onApply={applySectionAi} />
       {resume ? (
         <TellUsAboutYouDialog
           open={tellUsOpen}
