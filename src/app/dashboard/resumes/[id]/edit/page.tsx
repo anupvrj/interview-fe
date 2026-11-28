@@ -4340,7 +4340,7 @@ export default function EditResumePage() {
               className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
             >
               {downloading ? <Loader2 className="h-4 w-4 animate-spin md:mr-1.5" /> : <Download className="h-4 w-4 md:mr-1.5" />}
-              <span className="hidden md:inline">{downloading ? "Preparing…" : "Export"}</span>
+              <span className="hidden md:inline">{downloading ? "Preparing…" : "Download"}</span>
             </Button>
           </div>
         </>

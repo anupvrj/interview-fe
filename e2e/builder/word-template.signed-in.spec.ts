@@ -22,7 +22,7 @@ test("Word download uses the newly chosen template's design", async ({ page }) =
     await expect(page.locator(".resume-page").filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1500);
 
-    await page.getByRole("button", { name: "Export" }).first().click();
+    await page.getByRole("button", { name: "Download" }).first().click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /word/i }).click()]);
     const file = await download.path();
     const zip = await JSZip.loadAsync(fs.readFileSync(file!));
