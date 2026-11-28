@@ -189,20 +189,26 @@ export function AiAssistPanel({
                 without inventing anything.
               </p>
             ) : null}
-            <Button
-              type="button"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => void run()}
-              disabled={loading || !canRewrite(target.text)}
-            >
-              {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-              {suggestions.length ? "More options" : "Show me 3 options"}
-            </Button>
+            {/* The first ask is the big button; after that, new options and Rewrite live in the card. */}
+            {!suggestions.length ? (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-3 w-full"
+                onClick={() => void run()}
+                disabled={loading || !canRewrite(target.text)}
+              >
+                {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+                {loading ? "Writing 3 options…" : "Show me 3 options"}
+              </Button>
+            ) : null}
             {error ? <p className="mt-2 text-xs text-muted-foreground">{error}</p> : null}
-            {suggestions.length && current ? (
+            {(suggestions.length || loading) && current ? (
               <SuggestionPicker
+                key={targetKey}
                 options={suggestions}
+                rewriting={loading}
+                onRewrite={() => void run()}
                 onUndo={onUndo}
                 onApply={(text) => {
                   // A selected span goes back into its line; otherwise the option is the whole line.

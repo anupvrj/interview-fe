@@ -88,7 +88,15 @@ test.describe("editor AI button", () => {
 
     const option = page.getByRole("button", { name: /use & edit/i }).first();
     await expect(option).toBeVisible({ timeout: 90_000 });
+    const panelShot = async (name: string) => {
+      if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/${name}.png`, clip: { x: 0, y: 0, width: 760, height: 720 } });
+    };
+    await panelShot("coach-1-choose");
     await option.click();
+    // Only the picked option stays, as the edit box; Back returns to the list.
+    await expect(page.getByRole("button", { name: /use & edit/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Back to options" })).toBeVisible();
+    await panelShot("coach-2-edit");
     const box = page.getByLabel("Edit before it goes in");
     const draft = (await box.inputValue()).replace(/\{[^{}\n]{0,15}\}/g, "40");
     await box.fill(draft);
@@ -99,6 +107,12 @@ test.describe("editor AI button", () => {
     await expect(rewritten).toContainText("by 38% in a year");
     await expect(rewritten).not.toContainText(SPAN);
     await expect(page.getByText("In your resume")).toBeVisible();
+    // Done: a green row with Undo and Rewrite, the edit box gone.
+    const done = page.getByTestId("suggestion-done");
+    await expect(done.getByRole("button", { name: "Undo" })).toBeVisible();
+    await expect(done.getByRole("button", { name: "Rewrite" })).toBeVisible();
+    await expect(page.getByLabel("Edit before it goes in")).toHaveCount(0);
+    await panelShot("coach-3-done");
     await shot(page, info, "ai-coach-applied-desktop");
   });
 });
