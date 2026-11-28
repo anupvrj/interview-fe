@@ -15,7 +15,10 @@ export function DownloadDialog({
   onPdf,
   onTxt,
   onDocx,
+  onCoverLetter,
 }: {
+  /** "Write a cover letter" from this resume. */
+  onCoverLetter?: () => void;
   /** Word copy, free for everyone. */
   onDocx?: (name: string) => Promise<void>;
   open: boolean;
@@ -102,6 +105,11 @@ export function DownloadDialog({
           </Button>
         )}
         {docxError && <p className="text-[12px] text-destructive">Couldn&apos;t make the Word file. Please try again.</p>}
+        {onCoverLetter ? (
+          <button type="button" onClick={onCoverLetter} className="w-full rounded-lg border border-dashed border-primary/50 px-3 py-2 text-left text-sm font-semibold text-primary hover:bg-primary/5">
+            ✦ Write a cover letter from this resume
+          </button>
+        ) : null}
         <p className="text-[11px] text-muted-foreground">
           TXT is handy for pasting into online application forms. Word is an editable copy in your current design (fonts, colours, columns); the PDF is the exact page.
         </p>

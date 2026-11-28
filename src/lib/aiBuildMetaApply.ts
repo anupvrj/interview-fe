@@ -136,6 +136,7 @@ export type WhatsLeftItem =
   | { kind: "personal"; key: string; fields: string[]; label: string; region: string }
   | { kind: "timeline"; key: string; role: string; tool: string; released: number; roleEnded: number }
   | { kind: "functional"; key: string }
+  | { kind: "peer-skills"; key: string; skills: string[]; role?: string }
   | { kind: "skill-place"; key: string; skill: string; section: "experience" | "projects"; index: number; entryTitle: string; text: string };
 
 /** Details recruiters in these regions usually don't expect (and some screen out for bias). */

@@ -178,6 +178,8 @@ import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssis
 import { WhatsLeftCard } from "@/components/resume-canvas/WhatsLeftCard";
 import { TellUsAboutYouDialog } from "@/components/resume-canvas/TellUsAboutYouDialog";
 import { SectionAiDialog, type SectionAiTarget } from "@/components/resume-canvas/SectionAiDialog";
+import { CoverLetterDialog } from "@/components/resume-canvas/CoverLetterDialog";
+import { CommandPalette, type PaletteAction } from "@/components/resume-canvas/CommandPalette";
 import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -2391,6 +2393,7 @@ export default function EditResumePage() {
     }
   };
 
+  const [coverLetterOpen, setCoverLetterOpen] = useState(false);
   /** ✦ Section AI: the section (or one entry) being written/rewritten. */
   const [sectionAi, setSectionAi] = useState<SectionAiTarget | null>(null);
   const openSectionAi = (sectionId: string, entryIndex: number | null) => {
@@ -3525,10 +3528,20 @@ export default function EditResumePage() {
     showCanvasNotice(`Added “${skill}” to Skills.`);
   };
   /** "What's left for you": the items, and marking one done (saved with the resume). */
-  const whatsLeftItems = useMemo(
-    () => (resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : []),
-    [resume?.content, resume?.aiBuildMeta],
-  );
+  const whatsLeftItems = useMemo(() => {
+    const items = resume?.aiBuildMeta ? whatsLeft(resume.content, resume.aiBuildMeta) : [];
+    // Skills recruiters for this role usually look for: one checklist instead of a buried report row.
+    const report = resume?.atsFeedback && isATSReportV3(resume.atsFeedback) ? resume.atsFeedback : null;
+    const peer = report ? Object.values(report.categories ?? {}).flatMap((c) => c?.checks ?? []).find((c) => c.id === "peerBenchmarking") : undefined;
+    const live = JSON.stringify(resume?.content ?? {}).toLowerCase();
+    const missing = ((peer?.meta as { benchmarkSkills?: Array<{ name: string; present: boolean }> } | undefined)?.benchmarkSkills ?? [])
+      .filter((s) => !s.present && !live.includes(s.name.toLowerCase()))
+      .map((s) => s.name)
+      .slice(0, 10);
+    const dismissed = new Set(resume?.aiBuildMeta?.dismissed ?? []);
+    if (missing.length && !dismissed.has("peerskills")) items.push({ kind: "peer-skills", key: "peerskills", skills: missing, role: report?.inferredProfile?.targetRole });
+    return items;
+  }, [resume?.content, resume?.aiBuildMeta, resume?.atsFeedback]);
   // An AI-built resume opens with its score: run the check once, on first open.
   const autoAtsRanRef = useRef(false);
   useEffect(() => {
@@ -3585,9 +3598,10 @@ export default function EditResumePage() {
   const markWhatsLeftDone = (key: string, action: "done" | "dismissed" = "done") => {
     track("resume_whats_left_action", { kind: key.split(":")[0], action });
     setResume((prev) => {
-      if (!prev?.aiBuildMeta) return prev;
-      const dismissed = [...new Set([...(prev.aiBuildMeta.dismissed ?? []), key])];
-      return { ...prev, aiBuildMeta: { ...prev.aiBuildMeta, dismissed } };
+      if (!prev) return prev;
+      const meta = prev.aiBuildMeta ?? {};
+      const dismissed = [...new Set([...(meta.dismissed ?? []), key])];
+      return { ...prev, aiBuildMeta: { ...meta, dismissed } };
     });
     setHasChanges(true);
   };
@@ -4335,6 +4349,11 @@ export default function EditResumePage() {
           onRemoveLine={(it) => applyBuiltContent(removeLine(resume.content, it.path, it.text), it.key, "Line removed. Undo brings it back.")}
           onEditContact={() => openCanvasPanel("details", "personalInfo")}
           onDismiss={(key) => markWhatsLeftDone(key, "dismissed")}
+          onAddPeerSkills={(skills, key) => {
+            for (const s of skills) addSkillFromJob(s);
+            markWhatsLeftDone(key);
+            showCanvasNotice(`Added ${skills.join(", ")} to Skills. The ATS panel shows where to prove ${skills.length > 1 ? "them" : "it"} in your work.`);
+          }}
           onAddSkillLine={(it) =>
             applyBuiltContent(addLine(resume.content, it.section, it.index, it.text), it.key, `Added — your ${it.skill} now shows in your work.`)
           }
@@ -8990,6 +9009,10 @@ export default function EditResumePage() {
       <DownloadDialog
         open={downloadDialogOpen}
         onOpenChange={setDownloadDialogOpen}
+        onCoverLetter={() => {
+          setDownloadDialogOpen(false);
+          setCoverLetterOpen(true);
+        }}
         defaultName={resumePdfFilenameFromResume(resume).replace(/\.pdf$/i, "")}
         downloadingPdf={downloading}
         onPdf={(name) => {
@@ -9162,6 +9185,39 @@ export default function EditResumePage() {
         </DialogContent>
       </Dialog>
       <SectionAiDialog target={sectionAi} onClose={() => setSectionAi(null)} onApply={applySectionAi} />
+      {resume ? (
+        <CoverLetterDialog
+          open={coverLetterOpen}
+          onOpenChange={setCoverLetterOpen}
+          resumeText={resumeRawText}
+          name={resume.content.personalInfo?.fullName}
+          defaultJobDescription={resume.atsScoringContext?.lastJobDescription}
+          defaultRole={resume.content.personalInfo?.portfolio}
+        />
+      ) : null}
+      {resume && canvasOn ? (
+        <CommandPalette
+          actions={(() => {
+            const sectionOf = (type: string) => sections.find((s) => s.type === type && s.visible !== false);
+            const acts: PaletteAction[] = [
+              { id: "fix-all", label: "Fix all with AI", hint: "ATS", keywords: "improve ats score", run: () => void handleFixAllWithAi() },
+              { id: "check", label: "Check ATS score", keywords: "rescore run check", run: () => openCanvasPanel("fix") },
+              { id: "tell-us", label: "Tell us about your work (questions or voice)", keywords: "voice talk chat paste build", run: () => setTellUsOpen(true) },
+              { id: "tailor", label: "Tailor to a job post", keywords: "job match keywords", run: () => openCanvasPanel("tailor") },
+              { id: "cover", label: "Write a cover letter", keywords: "cover letter application", run: () => setCoverLetterOpen(true) },
+              { id: "coach", label: "AI Coach (reword a line)", keywords: "rewrite bullet", run: () => openCanvasPanel("ai") },
+              { id: "design", label: "Change design / template", keywords: "template layout", run: () => openCanvasPanel("templates") },
+              { id: "style", label: "Style: fonts, sizes, margins", keywords: "font spacing", run: () => openCanvasPanel("design") },
+              { id: "download", label: "Download (PDF, Word, TXT)", keywords: "export pdf docx", run: () => setDownloadDialogOpen(true) },
+            ];
+            for (const [type, label] of [["profileSummary", "summary"], ["experience", "experience"], ["projects", "projects"], ["skills", "skills"], ["education", "education"]] as const) {
+              const s = sectionOf(type);
+              if (s) acts.splice(2, 0, { id: `ai-${type}`, label: `Rewrite ${label} with AI`, hint: "✦", keywords: `write section ${label}`, run: () => openSectionAi(s.id, null) });
+            }
+            return acts;
+          })()}
+        />
+      ) : null}
       {resume ? (
         <TellUsAboutYouDialog
           open={tellUsOpen}

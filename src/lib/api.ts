@@ -2353,6 +2353,12 @@ export const resumeApi = {
     return response.data.data.suggestions ?? [];
   },
 
+  /** A cover letter from the resume (and the job post): facts only. */
+  aiCoverLetter: async (body: { resumeText: string; name?: string; jobDescription?: string; company?: string; role?: string; tone?: string }): Promise<{ text: string; dropped: number }> => {
+    const response = await apiClient.post<{ data: { text: string; dropped: number } }>("/resumes/ai-cover-letter", body, { timeout: 90000 });
+    return response.data.data;
+  },
+
   /** Section AI: write an empty section or rewrite a filled one (previewed before it goes in). */
   aiSection: async (body: {
     sectionType: string;

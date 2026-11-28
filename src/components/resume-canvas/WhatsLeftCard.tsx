@@ -22,6 +22,7 @@ export function WhatsLeftCard({
   onDismiss,
   onRemovePersonal,
   onAddSkillLine,
+  onAddPeerSkills,
 }: {
   items: WhatsLeftItem[];
   compact?: boolean;
@@ -33,9 +34,11 @@ export function WhatsLeftCard({
   onDismiss: (key: string) => void;
   onRemovePersonal?: (item: WhatsLeftItem & { kind: "personal" }) => void;
   onAddSkillLine?: (item: WhatsLeftItem & { kind: "skill-place" }) => void;
+  onAddPeerSkills?: (skills: string[], key: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
   if (!items.length) return null;
 
   const row = "flex flex-col gap-2 rounded-lg border border-border bg-background/70 p-2.5 sm:flex-row sm:items-center";
@@ -112,6 +115,33 @@ export function WhatsLeftCard({
                     <Plus className="h-3.5 w-3.5" /> Add if true
                   </button>
                 </>
+              ) : it.kind === "peer-skills" ? (
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Skills recruiters{it.role ? ` for ${it.role}` : ""} look for — tick the ones you have
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5" data-testid="peer-skills">
+                    {it.skills.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        aria-pressed={!!picked[s]}
+                        onClick={() => setPicked((p) => ({ ...p, [s]: !p[s] }))}
+                        className={cn("rounded-full border px-2.5 py-0.5 text-[12px]", picked[s] ? "border-primary bg-primary text-white" : "border-border text-foreground hover:border-primary/60")}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!it.skills.some((s) => picked[s])}
+                    onClick={() => onAddPeerSkills?.(it.skills.filter((s) => picked[s]), it.key)}
+                    className={cn(btn, "mt-2 bg-primary text-white hover:bg-primary/90 disabled:opacity-50")}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add the ones I ticked
+                  </button>
+                </div>
               ) : it.kind === "functional" ? (
                 <>
                   <p className="min-w-0 flex-1 text-[13px] text-foreground">

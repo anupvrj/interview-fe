@@ -11,6 +11,7 @@ import { SuggestionPicker } from "./SuggestionPicker";
 import { AtsParseCard } from "./AtsParseCard";
 import { SkillPlacementBox, orphanSkillsFrom, type SkillPlacementApi } from "./SkillPlacementBox";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { ScoreDelta } from "./ScoreDelta";
 import type { AtsParseResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -914,7 +915,10 @@ export function FixMistakesPanel({
       <div data-guide="ats-score" className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background p-4 ring-1 ring-border">
         <ScoreRing score={score} size={64} busy={checking} />
         <div className="min-w-0 flex-1">
-          <p className={cn("text-xs font-bold uppercase tracking-wide", band.text)}>{band.label}</p>
+          <p className={cn("flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide", band.text)}>
+            {band.label}
+            <ScoreDelta score={score} />
+          </p>
           <p className="mt-0.5 text-sm font-semibold text-foreground">
             {open > 0 ? `${open} thing${open === 1 ? "" : "s"} to improve` : "Nothing urgent to improve"}
           </p>
