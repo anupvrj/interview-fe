@@ -8,6 +8,7 @@ import { countSetAsideIssues } from "@/types/atsReport";
 import { SetAsideLink } from "@/components/ats-checker/SetAsideLink";
 import type { SuggestionAt } from "@/lib/suggestionApply";
 import { SuggestionPicker } from "./SuggestionPicker";
+import type { RoleRef } from "@/lib/aiBuildMetaApply";
 import { AtsParseCard } from "./AtsParseCard";
 import { SkillPlacementBox, orphanSkillsFrom, type SkillPlacementApi } from "./SkillPlacementBox";
 import { ScoreBreakdown } from "./ScoreBreakdown";
@@ -551,7 +552,11 @@ function IssueCard({
   targetRole,
   lineOf,
   skillPlacement,
+  roleOf,
+  onAddRoleLine,
 }: {
+  roleOf?: (quote: string) => RoleRef | null;
+  onAddRoleLine?: (role: RoleRef, text: string) => boolean;
   /** Orphan skills: find where each belongs and add it there (not a replacement). */
   skillPlacement?: SkillPlacementApi;
   item: FixItem;
@@ -593,8 +598,10 @@ function IssueCard({
   // Whole-bullet suggestions only: a fragment would replace the entire line.
   const canTapRewrite =
     !!excerpt && !isWord && !isBlank && !!issue.rewriteSuggestion && issue.rewriteSuggestion.trim() !== excerpt;
+  // A finding about a role as a whole (it quotes the role's heading): add a line there instead.
+  const role = excerpt && roleOf && onAddRoleLine && !isWord && !isBlank ? roleOf(excerpt) : null;
   const canAskAi =
-    !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
+    !role && !!excerpt && !isWord && !isBlank && !STRUCTURE_CHECKS.has(check.id) && excerpt.split(/\s+/).length >= 4 && !/^(sample|your)\b/i.test(excerpt);
   const howToFix = issue.fixBody || issue.suggestion;
   // Skills listed but never shown in the work: these need adding in the right place, not replacing.
   const orphanSkills =
@@ -625,6 +632,16 @@ function IssueCard({
 
   const rewrite = async () => {
     setAi({ loading: true, options: [] });
+    if (role) {
+      try {
+        const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
+        const options = await resumeApi.aiRewrite({ text: role.lines.join("\n") || role.title, kind: "newBullet", role: role.title, company: role.company, targetRole, goal });
+        setAi({ loading: false, options, error: options.length ? undefined : "Couldn't write a new line from what this role already says. Add one yourself on the page." });
+      } catch {
+        setAi({ loading: false, options: [], error: "Couldn't reach AI. Try again." });
+      }
+      return;
+    }
     try {
       const goal = [issue.title, issue.description, howToFix].filter(Boolean).join(" — ");
       // "Too short" findings say the floor ("recommended: 10–35"); options below it wouldn't fix anything.
@@ -716,6 +733,17 @@ function IssueCard({
             {issue.rewriteSuggestion}
           </button>
         ) : null}
+        {role ? (
+          <button
+            type="button"
+            onClick={() => void rewrite()}
+            disabled={ai.loading}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {ai.loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            Write a line for this role
+          </button>
+        ) : null}
         {canAskAi && !orphanSkills.length ? (
           <button
             type="button"
@@ -729,7 +757,25 @@ function IssueCard({
         ) : null}
       </div>
       {orphanSkills.length && skillPlacement ? <SkillPlacementBox skills={orphanSkills} api={skillPlacement} /> : null}
-      {onApplyRewrite && !orphanSkills.length && (canTapRewrite || ai.options.length) ? (
+      {role && ai.options.length ? (
+        <div onClick={(e) => e.stopPropagation()}>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Adds a new bullet under <span className="font-semibold text-foreground">{role.title}</span> — the title stays as it is. Written only from what this role
+            already says; edit it to add what only you know (who for, how big, the result).
+          </p>
+          <SuggestionPicker
+            options={ai.options}
+            applyLabel="Add this line"
+            onUndo={onUndo}
+            onApply={(text) => {
+              const ok = onAddRoleLine!(role, text);
+              if (ok) onDone?.();
+              return ok;
+            }}
+          />
+        </div>
+      ) : null}
+      {!role && onApplyRewrite && !orphanSkills.length && (canTapRewrite || ai.options.length) ? (
         <>
           {canTapRewrite && !ai.options.length ? (
             <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Suggested wording — tap to edit and use</p>
@@ -752,7 +798,7 @@ function IssueCard({
           />
         </>
       ) : null}
-      {!onApplyRewrite && ai.options.length ? (
+      {!role && !onApplyRewrite && ai.options.length ? (
         <ul className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
           {ai.options.map((option) => (
             <li key={option}>
@@ -812,6 +858,8 @@ export function FixMistakesPanel({
   lineOf,
   onRestoreSetAside,
   improvedFrom,
+  roleOf,
+  onAddRoleLine,
   extra,
   children,
 }: {
@@ -862,6 +910,10 @@ export function FixMistakesPanel({
   children?: React.ReactNode;
   /** Shown under the score: e.g. the skills recruiters for this role look for. */
   extra?: React.ReactNode;
+  /** The role a finding points at by its heading (not a line): its fix is a new line there. */
+  roleOf?: (quote: string) => RoleRef | null;
+  /** Add a line under that role; false when it couldn't. */
+  onAddRoleLine?: (role: RoleRef, text: string) => boolean;
 }) {
   // Cards a suggestion was applied to stay (showing what went in) so another option can replace it.
   const [keepQuotes, setKeepQuotes] = useState<Set<string>>(() => new Set());
@@ -1032,6 +1084,8 @@ export function FixMistakesPanel({
                       targetRole={targetRole}
                       lineOf={lineOf}
                       skillPlacement={skillPlacement}
+                      roleOf={roleOf}
+                      onAddRoleLine={onAddRoleLine}
                     />
                   ))}
                 </div>
@@ -1087,6 +1141,8 @@ export function FixMistakesPanel({
                           targetRole={targetRole}
                           lineOf={lineOf}
                           skillPlacement={skillPlacement}
+                          roleOf={roleOf}
+                          onAddRoleLine={onAddRoleLine}
                         />
                       )}
                       onAddSkill={onAddSkill}

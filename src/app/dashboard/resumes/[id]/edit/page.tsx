@@ -185,7 +185,7 @@ import { explainChanges, type AiChange } from "@/lib/aiChangeReasons";
 import { nextFitStep } from "@/lib/fitLayout";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/analytics/productEvents";
-import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, toList, whatsLeft } from "@/lib/aiBuildMetaApply";
+import { addBullet, addLine, bulletsOf, fillSlot, personalFieldsToClear, removeLine, roleForQuote, toList, whatsLeft } from "@/lib/aiBuildMetaApply";
 import type { SkillPlacementApi } from "@/components/resume-canvas/SkillPlacementBox";
 import { selectionInLine } from "@/lib/aiSelection";
 import {
@@ -5002,6 +5002,18 @@ export default function EditResumePage() {
               }}
               onDone={setFindingAside}
               lineOf={(quote) => (resumeRef.current ? lineContaining(resumeRef.current, quote) : null)}
+              roleOf={(quote) => (resumeRef.current ? roleForQuote(resumeRef.current.content, quote) : null)}
+              onAddRoleLine={(role, text) => {
+                const base = resumeRef.current;
+                if (!base) return false;
+                const next = addLine(base.content, role.section, role.index, text);
+                const list = (next as Record<string, unknown>)[role.section];
+                if (list === (base.content as Record<string, unknown>)[role.section]) return false;
+                updateContent({ [role.section]: list } as Partial<Resume["content"]>);
+                flashAppliedChange({ path: `${role.section}.${role.index}.description`, index: role.lines.length }, text);
+                showCanvasNotice(`Added a line under ${role.title}. Undo takes it out.`);
+                return true;
+              }}
               onCheckAtsParse={checkAtsParse}
               onAddSkill={addSkillFromJob}
               hiddenGroups={hiddenFixGroups}

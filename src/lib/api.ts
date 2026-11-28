@@ -2334,7 +2334,8 @@ export const resumeApi = {
   /** Up to three AI rewordings of one bullet or the summary (never adds numbers). */
   aiRewrite: async (body: {
     text: string;
-    kind: "bullet" | "summary";
+    /** newBullet: one more line for a role, from its own lines (text = the lines, one per row). */
+    kind: "bullet" | "summary" | "newBullet";
     role?: string;
     company?: string;
     targetRole?: string;

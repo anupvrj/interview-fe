@@ -122,6 +122,46 @@ export function addLine(content: Content, section: "experience" | "projects", in
   return withLines(content, section, index, (lines) => [...lines, text]);
 }
 
+export type RoleRef = { section: "experience" | "projects"; index: number; title: string; company?: string; lines: string[] };
+
+const words = (t: string) => t.toLowerCase().replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").match(/[\p{L}\p{N}]+/gu) ?? [];
+
+/**
+ * A finding that points at a role's heading ("Independent Accounting Contractor at Greenland…"),
+ * not at one of its lines: the fix is a new line under that role, never replacing the title.
+ */
+export function roleForQuote(content: Content, quote: string): RoleRef | null {
+  const q = words(quote);
+  if (!q.length) return null;
+  const qs = new Set(q);
+  const entries: RoleRef[] = [
+    ...((((content as Record<string, unknown>).experience as Array<Record<string, unknown>>) ?? []).map((e, index) => ({
+      section: "experience" as const,
+      index,
+      title: String(e.position ?? ""),
+      company: String(e.company ?? ""),
+      lines: bulletsOf(e.description),
+    }))),
+    ...((((content as Record<string, unknown>).projects as Array<Record<string, unknown>>) ?? []).map((p, index) => ({
+      section: "projects" as const,
+      index,
+      title: String(p.name ?? ""),
+      lines: bulletsOf(p.description),
+    }))),
+  ];
+  for (const e of entries) {
+    const title = words(e.title);
+    if (!title.length || !title.every((w) => qs.has(w))) continue;
+    // Quoting one of its lines is about that line, not the heading.
+    if (e.lines.some((l) => words(l).join(" ").includes(q.join(" ")))) continue;
+    // Nothing beyond the title, company and joining words ("at", "for", "–").
+    const heading = new Set([...title, ...words(e.company ?? ""), "at", "for", "with", "in", "and", "of", "the"]);
+    if (q.filter((w) => !heading.has(w)).length > 1) continue;
+    return e;
+  }
+  return null;
+}
+
 export function removeLine(content: Content, path: string, text: string): Content | null {
   const p = locate(content, path, text);
   return p ? editLine(content, p, null) : null;
