@@ -325,7 +325,8 @@ export function fixMarks(groups: Array<{ items: FixItem[] }>, resolved: Set<stri
 const TOP_GROUPS = new Set(["Fill in", "Typos", "Clarity", "Impact (optional)"]);
 
 /** Every other check is a score row (expand for its findings), grouped the way a reader judges a resume. */
-const ROW_SECTIONS: Array<{ title: string; checks: ATSCheckId[]; handled?: boolean }> = [
+const ROW_SECTIONS: Array<{ title: string; checks: ATSCheckId[]; handled?: boolean; cardsAbove?: boolean }> = [
+  { title: "Writing", checks: [PLACEHOLDER_CHECK, "spellingGrammar", "repetition", "bulletsConsistency", "quantifyingImpact"], cardsAbove: true },
   { title: "How a recruiter reads it", checks: ["credibility", "interviewRisks", "peerBenchmarking", "skillEvidence", "careerProgression", "leadershipSignals", "ageismDateBias", "employmentGaps"] },
   { title: "Basics", checks: ["essentialSections", "contactInformation", "sectionOrder", "datesLinksConsistency", "headerLinks", "emailAddress"] },
   { title: "Fit for this job", checks: ["mustHaveSkillsMatch", "hardSkillsMatch", "softSkillsMatch", "titleMatch", "actionVerbs", "experienceMatch", "educationMatch", "certificationMatch", "responsibilitiesMatch", "preferredSkillsMatch"] },
@@ -348,6 +349,11 @@ const ROW_LABEL: Partial<Record<ATSCheckId, string>> = {
   datesLinksConsistency: "Dates & links",
   headerLinks: "Profile links",
   emailAddress: "Email",
+  placeholderValues: "Sample text & blanks",
+  spellingGrammar: "Spelling & grammar",
+  repetition: "Repeated words",
+  bulletsConsistency: "Bullet style",
+  quantifyingImpact: "Numbers & impact (optional)",
   mustHaveSkillsMatch: "Must-have skills",
   hardSkillsMatch: "Technical skills",
   softSkillsMatch: "Soft skills",
@@ -376,6 +382,8 @@ const POSITIVE = new Set(["positive", "credibility_positive", "skill_present"]);
 function CheckRow({
   check,
   handled,
+  cardsAbove,
+  onShowAbove,
   items,
   activeId,
   renderCard,
@@ -384,6 +392,9 @@ function CheckRow({
 }: {
   check: ATSCheckResult;
   handled?: boolean;
+  /** Its cards are in "Fix these first" above: the row shows the status and points there. */
+  cardsAbove?: boolean;
+  onShowAbove?: (item: FixItem) => void;
   items: FixItem[];
   activeId: string | null;
   renderCard: (item: FixItem) => React.ReactNode;
@@ -392,7 +403,7 @@ function CheckRow({
 }) {
   const open = items.filter((i) => !i.incomplete);
   const incomplete = items.some((i) => i.incomplete);
-  const holdsActive = open.some((i) => i.id === activeId);
+  const holdsActive = !cardsAbove && open.some((i) => i.id === activeId);
   const [expanded, setExpanded] = useState(false);
   const isOpen = expanded || holdsActive;
   const score = handled && check.status === "pass" ? 100 : check.score;
@@ -501,7 +512,11 @@ function CheckRow({
               </ul>
             </div>
           ) : null}
-          {open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
+          {open.length && cardsAbove ? (
+            <button type="button" onClick={() => onShowAbove?.(open[0])} className="text-xs font-semibold text-primary hover:underline">
+              Show the {open.length} to fix in the list above
+            </button>
+          ) : open.length && !(check.id === "peerBenchmarking" && skills.length) ? (
             <div className="space-y-2">{open.map((item) => renderCard(item))}</div>
           ) : !handled && !incomplete && !(check.id === "peerBenchmarking" && missingSkills.length) ? (
             score < 80 && check.issues.some((i) => !POSITIVE.has(i.kind ?? "")) ? (
@@ -910,7 +925,6 @@ export function FixMistakesPanel({
     [groups],
   );
   const band = scoreBand(score);
-  const [showReport, setShowReport] = useState(false);
 
   return (
     <div className="space-y-4 p-4">
@@ -1027,6 +1041,18 @@ export function FixMistakesPanel({
         );
       })()}
 
+      {report ? (
+        <div className="flex items-baseline justify-between border-t border-border pt-3">
+          <p className="font-mono text-[11px] uppercase tracking-wider text-primary">Your full report</p>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {(() => {
+              const rows = ROW_SECTIONS.flatMap((s) => s.checks).map((id) => checksById(report).get(id)).filter((c): c is ATSCheckResult => !!c && c.status !== "skipped");
+              const ok = rows.filter((c) => c.status === "pass" && !c.issueCount).length;
+              return `${ok} of ${rows.length} checks passed`;
+            })()}
+          </span>
+        </div>
+      ) : null}
       {report
         ? ROW_SECTIONS.map((section) => {
             const checks = checksById(report);
@@ -1043,6 +1069,8 @@ export function FixMistakesPanel({
                       key={check.id}
                       check={check}
                       handled={section.handled}
+                      cardsAbove={section.cardsAbove}
+                      onShowAbove={(item) => onLocate(item.id.replace(/~next$/, ""))}
                       items={groups.flatMap((g) => g.items).filter((i) => i.check.id === check.id && !resolved.has(i.id))}
                       activeId={activeId}
                       renderCard={(item) => (
@@ -1122,19 +1150,6 @@ export function FixMistakesPanel({
         </section>
       ) : null}
 
-      {children ? (
-        <section className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setShowReport((v) => !v)}
-            className="flex w-full items-center justify-between text-sm font-semibold text-foreground"
-          >
-            Every check, one by one
-            <span className="text-xs font-medium text-primary">{showReport ? "Hide" : "Show"}</span>
-          </button>
-          {showReport ? <div className="mt-3">{children}</div> : null}
-        </section>
-      ) : null}
       {fixedCount ? (
         <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
           <Check className="h-3.5 w-3.5" />

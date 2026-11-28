@@ -26,10 +26,6 @@ interface ATSReportDashboardProps {
   embedded?: boolean;
   /** Where "Add in editor" on the job keywords goes (omit inside the editor itself). */
   keywordsEditorHref?: string;
-  /** Inside the editor's ATS panel: the panel already shows the score, summary and "Match a job",
-   *  so only the check-by-check list is shown, always in one column (the panel is narrow even on
-   *  a wide screen, so a viewport breakpoint would squeeze a second column into it). */
-  inPanel?: boolean;
 }
 
 function findCheckInReport(
@@ -245,7 +241,6 @@ export function ATSReportDashboard({
   initialJobDescription,
   embedded = false,
   keywordsEditorHref,
-  inPanel = false,
 }: ATSReportDashboardProps) {
   const normalizedReport = useMemo(() => normalizeATSReportV3(report), [report]);
   const initial = useMemo(
@@ -321,11 +316,11 @@ export function ATSReportDashboard({
   return (
     <div className="min-w-0 space-y-6 overflow-hidden">
       {/* the same pieces as the full report page (ATSReportWorkspace), in one column */}
-      {showJobMatch && !inPanel && <JobMatchBanner report={normalizedReport} />}
-      {!inPanel && <ReportSummary report={normalizedReport} />}
+      {showJobMatch && <JobMatchBanner report={normalizedReport} />}
+      <ReportSummary report={normalizedReport} />
       <ATSScoreCapNote report={normalizedReport} />
-      {!inPanel && <ATSScoreExplainer report={normalizedReport} />}
-      {!inPanel && (showJobMatch || onRunJobMatch) && (
+      <ATSScoreExplainer report={normalizedReport} />
+      {(showJobMatch || onRunJobMatch) && (
         <ATSKeywordsCard
           report={normalizedReport}
           editorHref={keywordsEditorHref}
@@ -337,9 +332,7 @@ export function ATSReportDashboard({
       <div
         className={cn(
           "grid min-w-0 gap-4",
-          inPanel
-            ? "grid-cols-1"
-            : embedded
+          embedded
             ? "grid-cols-1 2xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]"
             : "grid-cols-1 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]",
         )}
@@ -352,7 +345,6 @@ export function ATSReportDashboard({
             selectedCheckId={selectedCheck?.id ?? null}
             onSelectCheck={handleSelectCheck}
             compact={embedded}
-            hideScore={inPanel}
           />
         </div>
         <div

@@ -5052,21 +5052,7 @@ export default function EditResumePage() {
                   />
                 ) : null
               }
-            >
-              <ATSReportView
-                inPanel
-                feedback={resume.atsFeedback}
-                jobMatchScore={resume.jobMatchScore}
-                resumeId={resume.resumeId}
-                embedded
-                enableIssueMagic
-                onApplyIssueFix={handleApplyAtsIssueFix}
-                onIgnoreIssue={handleIgnoreATSIssue}
-                onRunJobMatch={handleRunJobMatch}
-                jobMatchRunning={refreshingATS}
-                initialJobDescription={resume.atsScoringContext?.lastJobDescription}
-              />
-            </FixMistakesPanel>
+            />
           ) : viewMode === "ats" ? (
             resume.atsFeedback ? (
               <div className="min-w-0 bg-card p-3 sm:p-4">
