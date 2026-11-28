@@ -67,10 +67,15 @@ export function SectionAiDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto" data-testid="section-ai">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
+      <DialogContent
+        closeVariant="round"
+        // Phones: a sheet from the bottom (full width, room for the keyboard); larger screens: centred.
+        className="max-h-[90vh] max-w-xl overflow-y-auto max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:translate-y-0 max-sm:gap-3 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0 max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom-1/2"
+        data-testid="section-ai"
+      >
+        <DialogHeader className="pr-10 text-left">
+          <DialogTitle className="flex items-start gap-2 text-[17px] leading-snug sm:text-lg">
+            <Sparkles className="mt-1 h-4 w-4 shrink-0 text-primary" />
             {empty ? "Write" : "Rewrite"} {target.entries.length === 1 && target.entries[0].title && !["profileSummary", "skills"].includes(target.sectionType) ? target.entries[0].title : target.title} with AI
           </DialogTitle>
           <DialogDescription>Built only from what&apos;s on your resume and what you tell us here — nothing invented. You see it before it goes in.</DialogDescription>
@@ -85,7 +90,7 @@ export function SectionAiDialog({
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               placeholder="A few words is enough — e.g. what you did, the tools you used, what came of it."
-              className="mt-1 w-full rounded-lg border border-border bg-background p-2.5 text-sm text-foreground outline-none focus:border-primary"
+              className="mt-1 w-full rounded-lg border border-border bg-background p-2.5 text-base text-foreground outline-none focus:border-primary sm:text-sm"
             />
           </label>
         ) : null}
@@ -119,7 +124,7 @@ export function SectionAiDialog({
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g. more technical, mention leading the migration"
-            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
+            className="mt-1 h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground outline-none focus:border-primary sm:h-10 sm:text-sm"
           />
         </label>
 
@@ -149,7 +154,11 @@ export function SectionAiDialog({
         ) : null}
         {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
 
-        <div className="flex justify-end gap-2 pt-1">
+        {/* Phones: full-width buttons, the main one first and Cancel last. */}
+        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end [&>button]:max-sm:h-11 [&>button]:max-sm:w-full">
+          <Button variant="ghost" onClick={onClose} className="text-muted-foreground sm:mr-auto">
+            Cancel
+          </Button>
           {state.result ? (
             <>
               <Button variant="outline" onClick={() => void run()} disabled={state.loading}>
