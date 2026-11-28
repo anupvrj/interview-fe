@@ -103,7 +103,7 @@ export function DownloadDialog({
         )}
         {docxError && <p className="text-[12px] text-destructive">Couldn&apos;t make the Word file. Please try again.</p>}
         <p className="text-[11px] text-muted-foreground">
-          TXT is handy for pasting into online application forms. Word is a simple, editable version of your content (the design stays in the PDF).
+          TXT is handy for pasting into online application forms. Word is an editable copy in your current design (fonts, colours, columns); the PDF is the exact page.
         </p>
       </DialogContent>
     </Dialog>

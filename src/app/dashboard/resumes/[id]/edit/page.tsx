@@ -8858,8 +8858,10 @@ export default function EditResumePage() {
         }}
         onDocx={async (name) => {
           if (!resume) return;
-          const { buildResumeDocx } = await import("@/lib/resume-docx");
-          const blob = await buildResumeDocx({ content: resume.content, sectionOrder: sections, templateId: resume.templateId });
+          const { buildResumeDocx, docxStyleFrom } = await import("@/lib/resume-docx");
+          // The design on screen now (template + Style-panel changes), not the one the resume started with.
+          const look = template ? docxStyleFrom(getTemplateStyle(getExtendedTemplate(template)), layout) : undefined;
+          const blob = await buildResumeDocx({ content: resume.content, sectionOrder: sections, templateId: template?.id ?? resume.templateId }, look);
           triggerBlobDownload(blob, `${sanitizePdfFilename(name).replace(/\.pdf$/i, "")}.docx`);
           setDownloadDialogOpen(false);
         }}
