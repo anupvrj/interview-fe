@@ -40,6 +40,13 @@ test("ATS checker template step: closest design first, quick 'Use this template'
     await expect(page.locator("[data-template-id]").getByText("ATS Ready", { exact: true })).toHaveCount(0);
     await expect(first.locator("svg.lucide-circle-check-big, svg.lucide-check-circle, svg.lucide-circle-check")).toHaveCount(1);
     if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/template-cards.png` });
+    // "Keep current" / "Continue to editor" stay on screen, at the top, however far down you scroll.
+    await page.locator("[data-template-id]").last().scrollIntoViewIfNeeded();
+    const bar = page.getByTestId("template-actions");
+    await expect(bar).toBeInViewport();
+    await expect(bar.getByRole("button", { name: "Keep current" })).toBeInViewport();
+    expect((await bar.boundingBox())!.y).toBeLessThan(120);
+    if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/template-actions-scrolled.png` });
 
     // Quick apply from another card: applied and on to the next step.
     const other = page.locator("[data-template-id]").nth(1);

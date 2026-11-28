@@ -726,7 +726,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main */}
         <main
           className={cn(
-            "min-w-0 flex-1 overflow-x-hidden bg-background",
+            "min-w-0 flex-1 overflow-x-clip bg-background",
             "lg:transition-[margin-left] lg:duration-300",
             sidebarOpen ? "lg:ml-[260px]" : "lg:ml-[78px]",
           )}

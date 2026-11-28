@@ -112,7 +112,7 @@ export function ATSImproveTemplatePicker({
   }
 
   return (
-    <div className={cn(dash2026Scope, "mx-auto max-w-6xl space-y-5 pb-24 lg:space-y-6")}>
+    <div className={cn(dash2026Scope, "mx-auto max-w-6xl space-y-5 pb-10 lg:space-y-6")}>
       <section className="relative overflow-hidden rounded-[22px] border border-border bg-card p-6 md:p-8">
         <div aria-hidden className="bg-blueprint mask-fade pointer-events-none absolute inset-0 opacity-70" />
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_60%_at_10%_0%,rgba(115,103,240,.14),transparent_70%),radial-gradient(40%_60%_at_95%_30%,rgba(31,143,255,.10),transparent_70%)]" />
@@ -129,22 +129,38 @@ export function ATSImproveTemplatePicker({
         </div>
       </section>
 
-      <div role="tablist" aria-label="Template type" className="flex flex-wrap gap-2">
-        {filterButtons.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            role="tab"
-            aria-selected={activeFilter === filter.id}
-            onClick={() => setActiveFilter(filter.id)}
-            className={cn(
-              "min-h-10 rounded-xl border px-4 text-[13.5px] font-semibold transition-colors",
-              activeFilter === filter.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
+      {/* Pinned at the top while scrolling the templates: what's picked and the next step. */}
+      <div data-testid="template-actions" className="sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border bg-card/95 p-2.5 shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)] backdrop-blur">
+        <div role="tablist" aria-label="Template type" className="flex flex-wrap gap-1.5">
+          {filterButtons.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === filter.id}
+              onClick={() => setActiveFilter(filter.id)}
+              className={cn(
+                "min-h-10 rounded-xl border px-4 text-[13.5px] font-semibold transition-colors",
+                activeFilter === filter.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="hidden max-w-[220px] truncate text-[13.5px] text-muted-foreground md:block">
+            {selected ? <><span className="font-semibold text-foreground">{selected.name}</span> selected</> : "Pick a template"}
+          </p>
+          <Button variant="outline" onClick={() => void handleContinue(true)} disabled={applying} className="h-10 rounded-xl px-4">
+            Keep current
+          </Button>
+          <Button onClick={() => void handleContinue(false)} disabled={applying || !selectedTemplate} className="h-10 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
+            {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Continue to editor
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -213,21 +229,6 @@ export function ATSImproveTemplatePicker({
         })}
       </div>
 
-      {/* always in reach, however far down the list they are */}
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border bg-card/95 p-3 shadow-[0_24px_50px_-30px_rgba(30,20,90,.45)] backdrop-blur">
-        <p className="min-w-0 truncate pl-2 text-[14px] text-muted-foreground">
-          {selected ? <><span className="font-semibold text-foreground">{selected.name}</span> selected</> : "Pick a template"}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => void handleContinue(true)} disabled={applying} className="h-11 rounded-xl px-4 text-muted-foreground">
-            Keep current
-          </Button>
-          <Button onClick={() => void handleContinue(false)} disabled={applying || !selectedTemplate} className="h-11 rounded-xl px-5 shadow-[0_10px_30px_-10px_rgba(115,103,240,.7)] hover:bg-primary/90">
-            {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Continue to editor
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
