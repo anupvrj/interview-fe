@@ -2069,6 +2069,8 @@ export interface Resume {
   atsScoringContext?: {
     rawPdfText?: string;
     lastJobDescription?: string;
+    /** Designs ranked by how close they are to the uploaded PDF (saved at upload: the PDF isn't kept). */
+    designMatch?: { order: string[]; closest: string | null };
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF

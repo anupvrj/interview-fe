@@ -79,6 +79,8 @@ function DashboardATSCheckerContent() {
   const [facts, setFacts] = useState<ScanFacts | null>(null);
   /** The PDF they just uploaded, as they designed it; a reloaded report shows our rebuild. */
   const [originalPdf, setOriginalPdf] = useState<PdfPage[] | null>(null);
+  /** Designs closest to the uploaded resume (for the template step), saved with the resume. */
+  const [designMatch, setDesignMatch] = useState<{ order: string[]; closest: string | null } | null>(null);
   /** Past full checks of this resume (progress card); reloaded after each check. */
   const [history, setHistory] = useState<AtsHistoryEntry[]>([]);
   useEffect(() => {
@@ -110,6 +112,7 @@ function DashboardATSCheckerContent() {
         setResumeId(id);
         setResumeTitle(resume.title);
         setCurrentTemplateId(resume.templateId);
+        setDesignMatch(resume.atsScoringContext?.designMatch ?? null);
         setJobDescription(resume.atsScoringContext?.lastJobDescription || "");
         setStep("results");
       } else {
@@ -156,6 +159,21 @@ function DashboardATSCheckerContent() {
         setReport(result.report);
         setResumeId(result.resumeId);
         setResumeTitle(file.name.replace(/\.pdf$/i, ""));
+        // The design closest to their PDF, for the template step. Runs in the background (free reading,
+        // one small AI call only when unsure) and is saved, since the PDF itself isn't kept.
+        setDesignMatch(null);
+        void (async () => {
+          try {
+            const [{ findClosestDesigns }, templates] = await Promise.all([import("@/lib/resume-style/closestDesign"), resumeApi.getSelectableTemplates()]);
+            const match = await findClosestDesigns(file, templates.map((t) => t.id));
+            const saved = { order: match.order.slice(0, 60), closest: match.closest };
+            setDesignMatch(saved);
+            track("resume_design_matched", { matched: Boolean(match.closest), used_ai: match.usedAi, template_id: match.closest ?? "none" });
+            await resumeApi.update(result.resumeId, { atsScoringContext: { designMatch: saved } as never });
+          } catch {
+            /* the template step still works, just without the match */
+          }
+        })();
         setCurrentTemplateId(ATS_RESUME_TEMPLATE_ID);
         setStep("results");
         router.replace(`/dashboard/ats-checker?resumeId=${result.resumeId}`, {
@@ -510,6 +528,7 @@ function DashboardATSCheckerContent() {
         <ATSImproveTemplatePicker
           resumeId={resumeId}
           currentTemplateId={currentTemplateId}
+          designMatch={designMatch}
           source={templateSource}
           onComplete={handleTemplateComplete}
         />
