@@ -622,11 +622,12 @@ export default function NewResumePage() {
       };
 
       const content = mapExtractedSectionsToContent(sections);
-      const sectionOrder = buildSectionOrderForExtractedContent(
-        extended,
-        content,
-        initialLayout.type,
-      );
+      const { reorderSections } = await import("@/lib/sectionOrder");
+      // Career-stage order from the writer (fresher: education first), main column only.
+      const sectionOrder = reorderSections(
+        buildSectionOrderForExtractedContent(extended, content, initialLayout.type) as unknown as Array<{ type: string; column?: string }>,
+        (writerMeta as { recommendedOrder?: string[] } | null)?.recommendedOrder,
+      ) as unknown as ReturnType<typeof buildSectionOrderForExtractedContent>;
 
       const resume = await resumeApi.create(user.id, {
         templateId: templateId,
